@@ -39,7 +39,6 @@ code/
 │   ├── estimacion_directa.py       # Estimador Hájek con bootstrap (600 réplicas) por municipio
 │   └── adicion_covariables.py      # Join entre estimaciones directas y covariables de TerriData
 └── analisis/
-    ├── Metodologia Seleccion Covariables.py      # PCA por bloques temáticos + Stepwise AICc → 9 componentes
     ├── Metodologia Selecicon covariables Ver 2.0.py  # Marco teórico comparativo de metodologías SAE
     └── Análisis exploratorio.py    # EDA sobre las 16 covariables con respaldo en literatura
 ```
