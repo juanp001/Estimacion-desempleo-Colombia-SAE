@@ -240,7 +240,7 @@ display(df_reporte_paso2)
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC **Nota** Codigo para hacer lo mismo del paso anterior pero seleccionando las variables a partir de un umbrarl de correlacion definido.
+# MAGIC **Nota** Codigo para hacer lo mismo del paso anterior pero seleccionando las variables a partir de un umbral de correlacion definido.
 
 # COMMAND ----------
 

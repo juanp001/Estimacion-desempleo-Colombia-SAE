@@ -287,17 +287,21 @@ indicadores_dict = {row["CODIGO_INDICADOR"]: row["INDICADOR"] for row in df_indi
 vars_numericas = [col for col in df_base_seleccionada.columns if col != "ENTIDAD_NORMALIZADO"]
 vars_numericas_desc = [indicadores_dict.get(col, col) for col in vars_numericas]
 
+# Asignar nombres X1, X2, X3, X4
+x_labels = [f"X{i+1}" for i in range(len(vars_numericas))]
+legend_dict = dict(zip(x_labels, vars_numericas_desc))
+
 # Extraer datos como pandas DataFrame para análisis de correlación
 data_pd = df_base_seleccionada.select(vars_numericas).dropna().toPandas()
-data_pd.columns = vars_numericas_desc  # Renombrar columnas a nombres descriptivos
+data_pd.columns = x_labels  # Renombrar columnas a X1, X2, X3, X4
 
 # Calcular matriz de correlación
 corr_matrix = data_pd.corr()
 
 # Mostrar matriz de correlación como DataFrame Spark
 corr_info = []
-for i, col1 in enumerate(vars_numericas_desc):
-    for j, col2 in enumerate(vars_numericas_desc):
+for i, col1 in enumerate(x_labels):
+    for j, col2 in enumerate(x_labels):
         if i <= j:  # Solo una vez cada par
             corr_info.append({
                 "Variable_1": col1,
@@ -307,15 +311,34 @@ for i, col1 in enumerate(vars_numericas_desc):
 corr_df = spark.createDataFrame(corr_info)
 display(corr_df)
 
-# Graficar matriz de correlación
+# Graficar matriz de correlación institucional en escala de grises
 plt.figure(figsize=(8, 6))
-sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", fmt=".2f", xticklabels=vars_numericas_desc, yticklabels=vars_numericas_desc)
-plt.title("Matriz de correlación entre variables numéricas")
+sns.set(style="white")
+ax = sns.heatmap(
+    corr_matrix, 
+    annot=True, 
+    cmap="Greys", 
+    fmt=".2f", 
+    xticklabels=x_labels, 
+    yticklabels=x_labels, 
+    linewidths=1, 
+    linecolor='black', 
+    cbar_kws={"orientation": "vertical", "label": "Correlación"}
+)
+ax.set_title("Matriz de correlación entre variables numéricas", fontsize=14, fontweight='bold', pad=16)
+plt.xticks(rotation=45, ha='right', fontsize=12)
+plt.yticks(fontsize=12)
+plt.tight_layout()
 plt.show()
 
+# Mostrar leyenda de correspondencia X1-X4
+print("Leyenda de variables:")
+for x, desc in legend_dict.items():
+    print(f"{x}: {desc}")
+
 # Graficar scatterplots de cada par de variables
-for i, col1 in enumerate(vars_numericas_desc):
-    for j, col2 in enumerate(vars_numericas_desc):
+for i, col1 in enumerate(x_labels):
+    for j, col2 in enumerate(x_labels):
         if i < j:
             plt.figure(figsize=(6, 4))
             sns.scatterplot(x=data_pd[col1], y=data_pd[col2])
@@ -336,6 +359,7 @@ for i, col1 in enumerate(vars_numericas_desc):
 vars_adicionales = ["030010002", "040010028", "140010004", "310010008"]
 cols_seleccionadas = df.columns[:14] + [v for v in vars_adicionales if v not in df.columns[:14]]
 df_seleccionado = df.select(cols_seleccionadas)
+df_seleccionado = df_seleccionado.withColumnRenamed("030010002", "COB_ENER_RURAL").withColumnRenamed("040010028", "TASA_TRAN_EDU_SUP").withColumnRenamed("140010004", "IND_POB_MULT").withColumnRenamed("310010008", "IND_PROD")
 display(df_seleccionado)
 
 # Guardar la base en la carpeta tesis.modelo con el nombre tasa_desempleo_covariables_seleccionadas
