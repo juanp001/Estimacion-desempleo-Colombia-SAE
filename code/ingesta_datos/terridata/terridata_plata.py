@@ -32,11 +32,6 @@
 # COMMAND ----------
 
 # DBTITLE 1,Imports
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(os.getcwd()))
-
 from pyspark.sql.functions import (
     col,
     when,

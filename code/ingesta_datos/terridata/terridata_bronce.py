@@ -39,10 +39,6 @@
 # COMMAND ----------
 
 # DBTITLE 1,Imports
-import sys
-import os
-
-sys.path.insert(0, os.path.dirname(os.getcwd()))
 
 from shared.config.terridata_config import VOL_CONSOLIDADO, TBL_BRONCE
 from shared.transformations.normalizacion import CAMPOS_BRONCE

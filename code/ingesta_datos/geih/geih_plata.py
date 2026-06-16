@@ -27,11 +27,6 @@
 # COMMAND ----------
 
 # DBTITLE 1,Importación de librerías
-import sys
-import os
-
-# Agregar el directorio padre (geih) al path para importar módulos shared
-sys.path.insert(0, os.path.dirname(os.getcwd()))
 
 from pyspark.sql.functions import col, when, concat, expr, lit, trim
 
