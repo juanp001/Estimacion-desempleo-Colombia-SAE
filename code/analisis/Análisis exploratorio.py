@@ -23,7 +23,7 @@
 # MAGIC        │  • Etapa 4: relación con Y (scatter + Pearson/Spearman + IC bootstrap)
 # MAGIC        │  • Etapa 5: influencia de outliers (Cook's D + leave-one-out)
 # MAGIC        │  • Etapa 6: estructura espacial (Moran's I)
-# MAGIC        │  • Etapa 7: parsimonia + VIF + tabla maestra → 4 covariables finales
+# MAGIC        │  • Etapa 7: ranking compuesto (Q empírico + L literatura) + sensibilidad a α → 4 covariables
 # MAGIC        │
 # MAGIC        ▼  covariables_seleccionadas
 # MAGIC        │
@@ -36,6 +36,16 @@
 # MAGIC > todos los coeficientes de correlación en este notebook se acompañan de su IC bootstrap al 95 %
 # MAGIC > y se reporta también Spearman ρ (más robusto ante valores atípicos) para validar la dirección
 # MAGIC > y magnitud de la asociación.
+# MAGIC
+# MAGIC > **Sesgo de selección sobre la respuesta (double dipping):** el pre-filtro de la etapa previa
+# MAGIC > seleccionó variables por su correlación con `TASA_DESEMPLEO_PCT` usando **los mismos 23 dominios**
+# MAGIC > que alimentarán el modelo. Esto sesga al alza las correlaciones de las variables sobrevivientes
+# MAGIC > (*winner's curse*) e invalida la interpretación nominal de los p-valores tras la multiplicidad de
+# MAGIC > pruebas. Por ello, en este notebook las correlaciones **no se usan como evidencia confirmatoria
+# MAGIC > ni como tamaños de efecto insesgados**, sino como insumo de *triaje y de chequeo de robustez*:
+# MAGIC > el objetivo es discriminar, entre variables ya pre-seleccionadas, cuáles mantienen una asociación
+# MAGIC > estable y no dependiente de outliers. La validación confirmatoria del modelo se hace en
+# MAGIC > `fay_herriot.py` (AIC/BIC, diagnósticos, validación cruzada).
 
 # COMMAND ----------
 
@@ -49,7 +59,6 @@ sys.path.insert(0, os.path.dirname(os.getcwd()))
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import seaborn as sns
 from scipy import stats
 from scipy.stats import pearsonr, spearmanr, shapiro
@@ -100,36 +109,44 @@ print(f"Indicadores en dim:         {len(indicadores_dict)}")
 # MAGIC
 # MAGIC El umbral de correlación de 0.40 fue elegido para equilibrar exhaustividad (no perder
 # MAGIC variables relevantes) y manejabilidad (no trasladar cientos de variables al EDA).
-# MAGIC La siguiente celda muestra el **análisis de sensibilidad al umbral**: cuántas variables
-# MAGIC pasarían con valores alternativos entre 0.30 y 0.50.
+# MAGIC
+# MAGIC > **Advertencia de circularidad:** como la tabla `covariables_prefiltradas` **ya** aplicó el corte
+# MAGIC > |Pearson| ≥ 0.40, contar cuántas variables superan umbrales **inferiores** (0.30, 0.35) es
+# MAGIC > tautológico: todas pasan por construcción. El análisis de sensibilidad *genuino* —cuántas variables
+# MAGIC > entran o salen al mover el umbral sobre el universo completo (~220 vars)— corresponde al script
+# MAGIC > `pre_filtrado_covariables.py`, no a este notebook.
+# MAGIC
+# MAGIC Lo que sí es informativo aquí es la **distribución de |Pearson| entre las variables ya sobrevivientes**:
+# MAGIC permite ver si la señal está concentrada (muchas justo en 0.40, pocas fuertes) o repartida, y cuántas
+# MAGIC superarían cortes más exigentes (0.45–0.60). Recordar que, por el sesgo de selección sobre la respuesta,
+# MAGIC estas magnitudes están infladas y se interpretan solo como ordenamiento relativo.
 
 # COMMAND ----------
 
-# DBTITLE 1,Sensibilidad al umbral de correlación
-umbrales = [0.30, 0.35, 0.40, 0.45, 0.50]
-resultados_umbral = []
-for u in umbrales:
-    n_pasan = sum(
-        abs(np.corrcoef(df_pd[c].dropna().values, Y)[0, 1]) >= u
-        for c in df_pd.columns
-        if df_pd[c].notna().all()
-    )
-    resultados_umbral.append({"Umbral_correlacion": u, "Variables_que_pasan": n_pasan})
+# DBTITLE 1,Distribución de |Pearson| entre las covariables ya pre-filtradas
+# |Pearson| con Y de cada covariable sobreviviente (todas con |r| ≥ 0.40 por construcción)
+abs_r = {
+    c: abs(np.corrcoef(df_pd[c].values, Y)[0, 1])
+    for c in df_pd.columns if df_pd[c].notna().all()
+}
+abs_r = pd.Series(abs_r).sort_values(ascending=False)
 
-df_umbral = pd.DataFrame(resultados_umbral)
+# Cuántas superan cortes MÁS exigentes (informativo) — los inferiores serían tautológicos
+umbrales = [0.40, 0.45, 0.50, 0.55, 0.60]
+df_umbral = pd.DataFrame([
+    {"Umbral_|Pearson|": u, "Variables_que_superan": int((abs_r >= u).sum())}
+    for u in umbrales
+])
 display(spark.createDataFrame(df_umbral))
 
-fig, ax = plt.subplots(figsize=(7, 4))
-ax.plot(df_umbral["Umbral_correlacion"], df_umbral["Variables_que_pasan"],
-        marker="o", color="steelblue", linewidth=2, markersize=8)
-ax.axvline(0.40, color="red", linestyle="--", linewidth=1.5, label="Umbral elegido: 0.40")
-for _, row in df_umbral.iterrows():
-    ax.annotate(str(int(row["Variables_que_pasan"])),
-                (row["Umbral_correlacion"], row["Variables_que_pasan"]),
-                textcoords="offset points", xytext=(6, 4), fontsize=10)
-ax.set_xlabel("Umbral |Pearson|", fontsize=11)
-ax.set_ylabel("N.º variables que superan el umbral", fontsize=11)
-ax.set_title("Sensibilidad del pre-filtrado al umbral de correlación", fontsize=12, fontweight="bold")
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.hist(abs_r.values, bins=15, color="steelblue", edgecolor="white")
+ax.axvline(0.40, color="red", linestyle="--", linewidth=1.5, label="Corte del pre-filtro: |r| ≥ 0.40")
+ax.set_xlabel("|Pearson| con TASA_DESEMPLEO_PCT", fontsize=11)
+ax.set_ylabel("N.º de covariables", fontsize=11)
+ax.set_title("Distribución de |Pearson| entre las covariables pre-filtradas\n"
+             "(magnitudes infladas por selección sobre la respuesta — solo ordenamiento relativo)",
+             fontsize=11, fontweight="bold")
 ax.legend(fontsize=10)
 ax.grid(True, linestyle=":", alpha=0.5)
 plt.tight_layout()
@@ -155,7 +172,7 @@ plt.close(fig)
 # MAGIC 2. **Significado de negocio:** la variable mide una dimensión conceptualmente clara del
 # MAGIC    desarrollo territorial que puede vincular causalmente con la dinámica del mercado laboral.
 # MAGIC
-# MAGIC Las 16 variables seleccionadas se agrupan en seis dimensiones conceptuales:
+# MAGIC Las variables seleccionadas se agrupan en siete dimensiones conceptuales:
 # MAGIC
 # MAGIC | Dimensión | Hipótesis de causalidad |
 # MAGIC |-----------|-------------------------|
@@ -165,6 +182,7 @@ plt.close(fig)
 # MAGIC | **Desempeño económico** | La productividad municipal determina la demanda agregada de trabajo |
 # MAGIC | **Seguridad y conflicto** | La inseguridad y el conflicto armado destruyen capital físico, generan desplazamiento y perturban los mercados laborales |
 # MAGIC | **Capacidad institucional** | La gestión y la inversión pública generan empleo directo e indirecto mediante la provisión de bienes públicos |
+# MAGIC | **Medio ambiente y territorio** | La cobertura de ecosistemas estratégicos se asocia con economías más extractivas y patrones diferenciados de empleo rural |
 
 # COMMAND ----------
 
@@ -175,6 +193,7 @@ CATALOGO_LITERATURA = [
     # ── INFRAESTRUCTURA BÁSICA ────────────────────────────────────────────────
     {"codigo": "030010002", "busqueda": None,
      "dimension": "Infraestructura básica",
+     "nivel_literatura": 2, "alias": "COB_ENER_RURAL",
      "justificacion": (
          "El acceso a energía eléctrica rural es condición necesaria para la actividad "
          "económica en zonas periféricas. Municipios con baja electrificación concentran "
@@ -185,6 +204,7 @@ CATALOGO_LITERATURA = [
     # ── CAPITAL HUMANO ────────────────────────────────────────────────────────
     {"codigo": "040010028", "busqueda": None,
      "dimension": "Capital humano",
+     "nivel_literatura": 2, "alias": "TASA_TRAN_EDU_SUP",
      "justificacion": (
          "La tasa de tránsito inmediata a la educación superior mide la proporción de "
          "bachilleres que continúan en el nivel terciario, predictor clave del capital humano "
@@ -193,6 +213,7 @@ CATALOGO_LITERATURA = [
 
     {"codigo": None, "busqueda": r"cobertura neta.*secundaria",
      "dimension": "Capital humano",
+     "nivel_literatura": 2, "alias": "COB_NET_SEC",
      "justificacion": (
          "La cobertura neta en educación secundaria es la base del sistema educativo local. "
          "Una baja cobertura limita la formación del capital humano mínimo requerido para "
@@ -200,6 +221,7 @@ CATALOGO_LITERATURA = [
 
     {"codigo": None, "busqueda": r"ciencia",
      "dimension": "Capital humano",
+     "nivel_literatura": 1, "alias": "IND_CIENCIA",
      "justificacion": (
          "El índice de ciencia e innovación captura la capacidad del territorio para generar "
          "conocimiento aplicado, determinante de la productividad total de los factores y "
@@ -207,6 +229,7 @@ CATALOGO_LITERATURA = [
 
     {"codigo": None, "busqueda": r"inversión.*educación",
      "dimension": "Capital humano",
+     "nivel_literatura": 1, "alias": "INV_EDUCACION",
      "justificacion": (
          "La inversión pública en educación es el mecanismo mediante el cual el municipio "
          "mejora la calidad del capital humano disponible, reduciendo el desempleo estructural "
@@ -215,6 +238,7 @@ CATALOGO_LITERATURA = [
     # ── CONDICIONES SOCIOECONÓMICAS ───────────────────────────────────────────
     {"codigo": "140010004", "busqueda": None,
      "dimension": "Condiciones socioeconómicas",
+     "nivel_literatura": 3, "alias": "IND_POB_MULT",
      "justificacion": (
          "El Índice de Pobreza Multidimensional (IPM) sintetiza privaciones en educación, "
          "salud, vivienda y condiciones laborales. Es el determinante estructural más robusto "
@@ -223,6 +247,7 @@ CATALOGO_LITERATURA = [
 
     {"codigo": None, "busqueda": r"índice de pobreza(?!.*multidimensional)",
      "dimension": "Condiciones socioeconómicas",
+     "nivel_literatura": 2, "alias": "IND_POB_MON",
      "justificacion": (
          "El índice de pobreza monetaria complementa el IPM capturando la insuficiencia de "
          "ingresos. Su inclusión permite discriminar entre pobreza por privaciones materiales "
@@ -230,6 +255,7 @@ CATALOGO_LITERATURA = [
 
     {"codigo": None, "busqueda": r"ingresos corrientes per cápita",
      "dimension": "Condiciones socioeconómicas",
+     "nivel_literatura": 1, "alias": "ING_CORR_PC",
      "justificacion": (
          "Los ingresos corrientes per cápita del municipio reflejan su capacidad fiscal para "
          "financiar servicios públicos generadores de empleo directo e indirecto. Bogotá "
@@ -239,6 +265,7 @@ CATALOGO_LITERATURA = [
     # ── DESEMPEÑO ECONÓMICO ───────────────────────────────────────────────────
     {"codigo": "310010008", "busqueda": None,
      "dimension": "Desempeño económico",
+     "nivel_literatura": 3, "alias": "IND_PROD",
      "justificacion": (
          "El índice de productividad municipal mide la eficiencia económica del territorio "
          "en términos de valor agregado por unidad de factor productivo. Mayor productividad "
@@ -249,6 +276,7 @@ CATALOGO_LITERATURA = [
     # ── SEGURIDAD Y CONFLICTO ─────────────────────────────────────────────────
     {"codigo": None, "busqueda": r"incidencia del conflicto armado|iica",
      "dimension": "Seguridad y conflicto",
+     "nivel_literatura": 2, "alias": "IICA_CONFLICTO",
      "justificacion": (
          "El Índice de Incidencia del Conflicto Armado (IICA) captura la exposición histórica "
          "a la violencia organizada, que genera desplazamiento forzado, destrucción de capital "
@@ -257,6 +285,7 @@ CATALOGO_LITERATURA = [
 
     {"codigo": None, "busqueda": r"hurto a personas",
      "dimension": "Seguridad y conflicto",
+     "nivel_literatura": 1, "alias": "TASA_HURTO",
      "justificacion": (
          "La tasa de hurto a personas mide la inseguridad ciudadana cotidiana. Altos niveles "
          "de inseguridad desincentivan la inversión privada, reducen la movilidad de "
@@ -266,6 +295,7 @@ CATALOGO_LITERATURA = [
     # ── CAPACIDAD INSTITUCIONAL ───────────────────────────────────────────────
     {"codigo": None, "busqueda": r"posición nacional en gestión|gestión.*alcaldía",
      "dimension": "Capacidad institucional",
+     "nivel_literatura": 1, "alias": "POS_GESTION",
      "justificacion": (
          "La posición nacional en gestión municipal mide la eficiencia de las alcaldías para "
          "movilizar y ejecutar recursos de inversión pública. Mayor capacidad institucional "
@@ -274,6 +304,7 @@ CATALOGO_LITERATURA = [
 
     {"codigo": None, "busqueda": r"inversión.*transporte",
      "dimension": "Capacidad institucional",
+     "nivel_literatura": 1, "alias": "INV_TRANSPORTE",
      "justificacion": (
          "La inversión en infraestructura de transporte reduce los costos de movilidad de "
          "trabajadores, conecta mercados laborales regionales y facilita el acceso a "
@@ -281,6 +312,7 @@ CATALOGO_LITERATURA = [
 
     {"codigo": None, "busqueda": r"inversión.*desarrollo comunitario",
      "dimension": "Capacidad institucional",
+     "nivel_literatura": 1, "alias": "INV_DES_COMUN",
      "justificacion": (
          "La inversión en desarrollo comunitario fortalece el capital social del territorio. "
          "Mayor cohesión social se asocia con menor desempleo de larga duración mediante "
@@ -289,6 +321,7 @@ CATALOGO_LITERATURA = [
     # ── MEDIO AMBIENTE Y TERRITORIO ───────────────────────────────────────────
     {"codigo": None, "busqueda": r"ecosistemas estratégicos",
      "dimension": "Medio ambiente y territorio",
+     "nivel_literatura": 1, "alias": "IND_ECOSIST",
      "justificacion": (
          "El índice de ecosistemas estratégicos refleja la proporción de áreas naturales "
          "protegidas o de alta importancia ambiental. En Colombia, alta cobertura de "
@@ -317,6 +350,13 @@ VARS_LITERATURA = [
 ]
 catalogo_activo = [e for e in CATALOGO_LITERATURA if e.get("codigo") in VARS_LITERATURA]
 df_lit = df_pd[VARS_LITERATURA].copy()
+
+# ── Mapas de nivel de literatura (L, 0–3) y alias, resueltos por código ────────
+# L se fija EXCLUSIVAMENTE desde la revisión de literatura (Etapa 2), antes de
+# computar cualquier métrica empírica (Etapas 3–6): así L es independiente de Q
+# y no se reintroduce circularidad en la selección final.
+L_LITERATURA     = {e["codigo"]: e["nivel_literatura"] for e in catalogo_activo}
+ALIAS_LITERATURA = {e["codigo"]: e["alias"] for e in catalogo_activo}
 
 print(f"Variables con respaldo en literatura: {len(VARS_LITERATURA)} de {len(CATALOGO_LITERATURA)} definidas")
 
@@ -349,13 +389,20 @@ display(spark.createDataFrame(filas_justificacion))
 # MAGIC en literatura, identificar la presencia y naturaleza de valores atípicos, y evaluar si las
 # MAGIC distribuciones son aproximadamente normales.
 # MAGIC
-# MAGIC La normalidad es relevante porque el modelo Fay-Herriot asume distribución normal para los
-# MAGIC efectos aleatorios. Si una covariable presenta asimetría extrema, su transformación logarítmica
-# MAGIC puede mejorar el ajuste del predictor sintético.
+# MAGIC **Aclaración importante:** el modelo Fay-Herriot asume normalidad de los **efectos aleatorios y
+# MAGIC de los errores de muestreo**, *no* de las covariables —que pueden tener cualquier distribución.
+# MAGIC Por tanto, aquí la normalidad/asimetría **no es un requisito del modelo**, sino un diagnóstico para
+# MAGIC decidir transformaciones (p. ej. logarítmica) que mejoren la **linealidad** de la relación con Y y
+# MAGIC reduzcan el **apalancamiento (leverage)** de valores extremos en la regresión sintética. Una covariable
+# MAGIC muy asimétrica no se descarta por ello; solo señala que conviene revisar su forma funcional.
+# MAGIC
+# MAGIC > **Potencia de Shapiro-Wilk a n=23:** con esta muestra el test tiene baja potencia, así que
+# MAGIC > *no rechazar* H₀ no equivale a "es normal". Se usa de forma descriptiva, junto a la asimetría
+# MAGIC > y los boxplots, no como criterio binario de inclusión/exclusión.
 # MAGIC
 # MAGIC Se reportan:
-# MAGIC - **Estadísticas descriptivas** completas (media, mediana, desviación estándar, asimetría, rango)
-# MAGIC - **Test de Shapiro-Wilk** (apropiado para n=23; H₀: distribución normal)
+# MAGIC - **Estadísticas descriptivas** completas (media, mediana, desviación muestral, asimetría, rango)
+# MAGIC - **Test de Shapiro-Wilk** (descriptivo a n=23; H₀: distribución normal)
 # MAGIC - **Outliers IQR** con identificación del departamento correspondiente
 
 # COMMAND ----------
@@ -383,8 +430,8 @@ for col in VARS_LITERATURA:
         "Dimension":             next((e["dimension"] for e in catalogo_activo if e["codigo"] == col), ""),
         "Media":                 round(float(np.mean(data)), 2),
         "Mediana":               round(float(np.median(data)), 2),
-        "Desv_Std":              round(float(np.std(data)), 4),
-        "Asimetria":             round(float(stats.skew(data)), 3),
+        "Desv_Std":              round(float(np.std(data, ddof=1)), 4),
+        "Asimetria":             round(float(stats.skew(data, bias=False)), 3),
         "Rango":                 round(float(np.ptp(data)), 2),
         "N_Outliers_IQR":        int(mask_out.sum()),
         "Departamentos_Outlier": ", ".join(outlier_depts) if outlier_depts else "—",
@@ -456,6 +503,12 @@ plt.close(fig)
 # MAGIC
 # MAGIC Los scatter plots muestran todos los dominios etiquetados con el nombre del departamento,
 # MAGIC lo que permite identificar visualmente qué territorios se comportan como casos especiales.
+# MAGIC
+# MAGIC > **Sobre los p-valores:** dado que estas variables ya fueron seleccionadas por su correlación con Y
+# MAGIC > (Etapa previa) y se evalúan múltiples covariables sin corrección por multiplicidad, los p-valores
+# MAGIC > mostrados **no tienen interpretación inferencial nominal** (riesgo de falsos positivos inflado).
+# MAGIC > Se reportan solo como referencia descriptiva; las decisiones se apoyan en el **IC bootstrap**
+# MAGIC > (¿incluye 0?), la **concordancia Pearson/Spearman** y la **robustez LOO**, no en el p-valor.
 
 # COMMAND ----------
 
@@ -646,7 +699,16 @@ plt.close(fig)
 # MAGIC Se construye una matriz de pesos espaciales W basada en la **distancia inversa**
 # MAGIC entre los centroides de los 23 dominios (coordenadas de `dim_divipola`),
 # MAGIC estandarizada por filas. La significancia se evalúa con una prueba de permutación
-# MAGIC (999 aleatorizaciones de Y).
+# MAGIC (999 aleatorizaciones).
+# MAGIC
+# MAGIC > **Qué se prueba y dónde.** El supuesto de FH es sobre los **residuos** (lo que queda tras
+# MAGIC > condicionar por las covariables), no sobre Y cruda: las covariables pueden *explicar* parte de la
+# MAGIC > estructura espacial de Y. Por eso aquí Moran sobre **Y cruda** es solo **descriptivo** (¿hay
+# MAGIC > estructura espacial en el fenómeno?), y el test metodológicamente relevante —Moran sobre los
+# MAGIC > **residuos** del modelo con las covariables seleccionadas— se realiza al cierre de la Etapa 7.
+# MAGIC >
+# MAGIC > **Nota técnica:** bajo H₀ el valor esperado de Moran's I no es 0 sino E[I] = −1/(n−1)
+# MAGIC > (≈ −0.045 con n=23); el contraste por permutación lo tiene en cuenta empíricamente.
 
 # COMMAND ----------
 
@@ -735,81 +797,230 @@ except Exception as e:
 # MAGIC (5 parámetros en total) sin riesgo serio de sobreajuste. La comparación AIC/BIC entre
 # MAGIC especificaciones alternativas se realiza en `fay_herriot.py`.
 # MAGIC
-# MAGIC ## 7.2 VIF de las 4 covariables seleccionadas
+# MAGIC ## 7.2 Selección por ranking compuesto (libre, dirigido por datos)
 # MAGIC
-# MAGIC El Variance Inflation Factor (VIF) cuantifica la multicolinealidad entre covariables.
-# MAGIC Un VIF > 5 indica colinealidad moderada problemática; VIF > 10 es severo.
-# MAGIC Las 4 covariables finales deben presentar VIF < 5 para garantizar la estabilidad
-# MAGIC numérica de la estimación GLS.
+# MAGIC En lugar de fijar las 4 covariables a mano, la selección **emerge de un ranking reproducible**
+# MAGIC que combina dos componentes en un único score:
+# MAGIC
+# MAGIC $$C \;=\; (1-\alpha)\,\underbrace{Q}_{\text{robustez empírica}} \;+\; \alpha\,\underbrace{\tfrac{L}{3}}_{\text{respaldo en literatura}}, \qquad \alpha = 0.30$$
+# MAGIC
+# MAGIC **Q — score cuantitativo (lo decide el dato).** Promedio de cinco *deseabilidades* en [0,1]
+# MAGIC (mayor = mejor), todas derivadas de las Etapas 3–6:
+# MAGIC
+# MAGIC | Componente | Definición | Qué premia |
+# MAGIC |-----------|-----------|-----------|
+# MAGIC | `fuerza_IC` | \|r\| **conservador** = extremo del IC bootstrap más cercano a 0; **0 si el IC cruza 0** | señal fuerte **y precisa** (ataca el *winner's curse*) |
+# MAGIC | `concordancia` | $1-\min(\lvert r-\rho\rvert,0.3)/0.3$ | acuerdo Pearson/Spearman (no dominada por outliers) |
+# MAGIC | `estab_LOO` | $1-\min(\max\lvert\Delta\rvert,0.3)/0.3$ | correlación estable al excluir cada dominio |
+# MAGIC | `baja_influencia` | $1-\min(\max\text{CookD},1)/1$ | no apalancada en un solo punto |
+# MAGIC | `no_redundancia` | $1-\max\lvert\text{corr con las demás candidatas}\rvert$ | aporta información nueva |
+# MAGIC
+# MAGIC **L — score de literatura (0–3).** Nivel ordinal asignado en la Etapa 2 con rúbrica escrita
+# MAGIC (3 = determinante directo y documentado en Colombia; 2 = documentado en economías en desarrollo
+# MAGIC con mecanismo claro; 1 = mecanismo plausible / proxy). **L se fijó antes de mirar Q**, por lo que
+# MAGIC no reintroduce circularidad.
+# MAGIC
+# MAGIC **Cierre del ranking.** Se ordena por C, se aplica **diversidad dimensional** (≤1 covariable por
+# MAGIC dimensión, para máxima cobertura conceptual y mínima redundancia) y se hace una **prueba de
+# MAGIC sensibilidad a α** ∈ {0.2, 0.3, 0.4}: si el conjunto ganador no cambia, la selección es robusta
+# MAGIC al peso que se le dé a la literatura. La parsimonia (7.1) fija el tamaño del conjunto en **4**.
 
 # COMMAND ----------
 
-# DBTITLE 1,VIF de las 4 covariables seleccionadas
-VARS_FINALES = ["030010002", "040010028", "140010004", "310010008"]
-RENAME_FINAL = {
-    "030010002": "COB_ENER_RURAL",
-    "040010028": "TASA_TRAN_EDU_SUP",
-    "140010004": "IND_POB_MULT",
-    "310010008": "IND_PROD",
-}
+# DBTITLE 1,Construcción del score compuesto C = (1−α)·Q + α·(L/3)
+# Reutiliza las métricas ya calculadas y mostradas en las Etapas 4–5
+corr_map   = {r["Codigo"]: r for r in corr_rows}   # Etapa 4 (r, ρ, IC bootstrap)
+cook_map   = {r["Codigo"]: r for r in cook_rows}   # Etapa 5 (Max_CooksD)
+delta_cols = [c for c in loo_df.columns if c.startswith("delta_")]  # Etapa 5 (LOO)
 
-# Verificar que las 4 variables están en df_lit
-vars_disponibles = [v for v in VARS_FINALES if v in df_lit.columns]
-if len(vars_disponibles) < len(VARS_FINALES):
-    faltantes = set(VARS_FINALES) - set(vars_disponibles)
-    print(f"⚠ Variables finales no disponibles en df_lit: {faltantes}")
+# No redundancia: 1 − máx |correlación| con las demás candidatas
+corr16_abs = df_lit[VARS_LITERATURA].corr().abs()
+np.fill_diagonal(corr16_abs.values, 0.0)
+max_corr_otras = corr16_abs.max(axis=1)
 
-X_vif   = df_lit[vars_disponibles].values
+ALPHA_BASE = 0.30   # peso de la literatura
+CAP_DIVERG = 0.30   # |r−ρ| que anula la concordancia
+CAP_DELTA  = 0.30   # |Δ| LOO que anula la estabilidad
+CAP_COOK   = 1.00   # Cook's D que anula la deseabilidad de baja influencia
+
+rank_rows = []
+for col in VARS_LITERATURA:
+    cm    = corr_map[col]
+    r_p   = cm["Pearson_r"];     r_s   = cm["Spearman_rho"]
+    ci_lo = cm["IC_inf_95pct"];  ci_hi = cm["IC_sup_95pct"]
+
+    # fuerza PRECISA: |r| conservador desde el IC; 0 si el IC cruza 0
+    fuerza = 0.0 if (ci_lo <= 0 <= ci_hi) else min(abs(ci_lo), abs(ci_hi))
+
+    concord = 1 - min(abs(r_p - r_s), CAP_DIVERG) / CAP_DIVERG
+
+    lo_row    = loo_df[loo_df["Codigo"] == col]
+    max_delta = float(lo_row[delta_cols].abs().max(axis=1).values[0]) if not lo_row.empty else np.nan
+    estab_loo = (1 - min(max_delta, CAP_DELTA) / CAP_DELTA) if not np.isnan(max_delta) else 0.0
+
+    max_ck = cook_map[col]["Max_CooksD"]
+    influ  = 1 - min(max_ck, CAP_COOK) / CAP_COOK
+
+    nonredund = float(1 - max_corr_otras[col])
+
+    Q = float(np.mean([fuerza, concord, estab_loo, influ, nonredund]))
+    L = L_LITERATURA[col]
+    C = (1 - ALPHA_BASE) * Q + ALPHA_BASE * (L / 3.0)
+
+    rank_rows.append({
+        "Codigo":          col,
+        "Alias":           ALIAS_LITERATURA[col],
+        "Variable":        indicadores_dict.get(col, col)[:45],
+        "Dimension":       next((e["dimension"] for e in catalogo_activo if e["codigo"] == col), ""),
+        "fuerza_IC":       round(fuerza, 3),
+        "concordancia":    round(concord, 3),
+        "estab_LOO":       round(estab_loo, 3),
+        "baja_influencia": round(influ, 3),
+        "no_redundancia":  round(nonredund, 3),
+        "Q":               round(Q, 3),
+        "L":               L,
+        "C":               round(C, 3),
+    })
+
+rank_df = pd.DataFrame(rank_rows).sort_values("C", ascending=False).reset_index(drop=True)
+rank_df.insert(0, "Rank", rank_df.index + 1)
+display(spark.createDataFrame(rank_df))
+print(f"Q = promedio de 5 deseabilidades (pesos iguales)  |  C = {1-ALPHA_BASE:.1f}·Q + {ALPHA_BASE:.1f}·(L/3)")
+
+# COMMAND ----------
+
+# DBTITLE 1,Selección por ranking + diversidad dimensional + sensibilidad a α
+def seleccionar(df, score_col, k=4, max_per_dim=1):
+    """Recorre las variables ordenadas por score y selecciona hasta k,
+    admitiendo a lo sumo max_per_dim por dimensión."""
+    sel, dim_count = [], {}
+    for _, r in df.sort_values(score_col, ascending=False).iterrows():
+        d = r["Dimension"]
+        if dim_count.get(d, 0) < max_per_dim:
+            sel.append(r["Codigo"])
+            dim_count[d] = dim_count.get(d, 0) + 1
+        if len(sel) == k:
+            break
+    return sel
+
+K_FINAL     = 4   # tamaño máximo por parsimonia (7.1): n/5 ≈ 4.6
+MAX_PER_DIM = 1   # ≤1 por dimensión → cobertura conceptual amplia, redundancia mínima
+
+# Selección base (α = 0.30) y comparación con el top-4 sin restricción de diversidad
+seleccionadas      = seleccionar(rank_df, "C", k=K_FINAL, max_per_dim=MAX_PER_DIM)
+top_sin_diversidad = rank_df.sort_values("C", ascending=False)["Codigo"].head(K_FINAL).tolist()
+
+# Sensibilidad a α: ¿cambia el conjunto ganador?
+Q_series = rank_df.set_index("Codigo")["Q"]
+L_series = pd.Series(L_LITERATURA)
+sel_por_alpha = {}
+for alpha in [0.20, 0.30, 0.40]:
+    tmp = rank_df.copy()
+    tmp["C"] = tmp["Codigo"].map((1 - alpha) * Q_series + alpha * (L_series / 3.0))
+    sel_por_alpha[alpha] = seleccionar(tmp, "C", k=K_FINAL, max_per_dim=MAX_PER_DIM)
+
+sens_rows = []
+for col in VARS_LITERATURA:
+    fila = {"Alias": ALIAS_LITERATURA[col]}
+    for a in [0.20, 0.30, 0.40]:
+        fila[f"sel_a{a:.1f}"] = "✓" if col in sel_por_alpha[a] else ""
+    sens_rows.append(fila)
+sens_df = pd.DataFrame(sens_rows)
+sens_df = sens_df[(sens_df.drop(columns="Alias") == "✓").any(axis=1)]
+display(spark.createDataFrame(sens_df))
+
+estable = all(set(sel_por_alpha[a]) == set(seleccionadas) for a in [0.20, 0.30, 0.40])
+print("Conjunto seleccionado (α=0.30, ≤1 por dimensión):")
+for c in seleccionadas:
+    print(f"  • {ALIAS_LITERATURA[c]:18s}  {indicadores_dict.get(c, c)[:55]}")
+print(f"\nTop-4 por C sin restricción de diversidad: {[ALIAS_LITERATURA[c] for c in top_sin_diversidad]}")
+print(f"¿Selección estable en α∈{{0.2,0.3,0.4}}?  {'SÍ — robusta al peso de la literatura' if estable else 'NO — reportar la dependencia de α'}")
+
+# COMMAND ----------
+
+# DBTITLE 1,Matriz de correlación entre las 16 candidatas (evidencia de redundancia)
+# Respalda con números las exclusiones por colinealidad (p. ej. pobreza monetaria vs IPM).
+# No se calcula un VIF conjunto de las 16 porque con n=23 el sistema sería casi singular
+# (16 predictores + intercepto ≈ n); la correlación por pares es el diagnóstico apropiado aquí.
+corr16_signed = df_lit[VARS_LITERATURA].corr()
+labels16 = [ALIAS_LITERATURA[c] for c in VARS_LITERATURA]
+
+fig, ax = plt.subplots(figsize=(11, 9))
+sns.heatmap(corr16_signed, annot=True, fmt=".2f", cmap="RdBu_r", center=0,
+            vmin=-1, vmax=1, xticklabels=labels16, yticklabels=labels16,
+            linewidths=0.5, linecolor="white", annot_kws={"size": 6},
+            cbar_kws={"label": "Correlación"}, ax=ax)
+ax.set_title("Correlación entre las 16 candidatas — base para juzgar redundancia",
+             fontsize=12, fontweight="bold")
+plt.xticks(rotation=45, ha="right", fontsize=7)
+plt.yticks(rotation=0, fontsize=7)
+plt.tight_layout()
+display(fig)
+plt.close(fig)
+
+# Pareja más correlacionada de cada candidata
+redund_rows = []
+for col in VARS_LITERATURA:
+    serie = corr16_signed[col].drop(col)
+    j = serie.abs().idxmax()
+    redund_rows.append({
+        "Variable":               ALIAS_LITERATURA[col],
+        "Mas_correlacionada_con": ALIAS_LITERATURA[j],
+        "Correlacion":            round(float(serie[j]), 3),
+    })
+display(spark.createDataFrame(pd.DataFrame(redund_rows)))
+
+# COMMAND ----------
+
+# DBTITLE 1,VIF del conjunto seleccionado
+# El VIF se valida solo sobre las covariables finales (sistema bien condicionado con n=23).
+X_vif   = df_lit[seleccionadas].values
 X_vif_c = add_constant(X_vif)
 vif_rows = [
     {
         "Codigo":   col,
-        "Variable": indicadores_dict.get(col, col)[:55],
-        "Alias":    RENAME_FINAL[col],
+        "Alias":    ALIAS_LITERATURA[col],
+        "Variable": indicadores_dict.get(col, col)[:50],
         "VIF":      float(round(variance_inflation_factor(X_vif_c, i + 1), 3)),
     }
-    for i, col in enumerate(vars_disponibles)
+    for i, col in enumerate(seleccionadas)
 ]
 display(spark.createDataFrame(pd.DataFrame(vif_rows)))
-print("VIF < 5: multicolinealidad baja  |  5–10: moderada  |  > 10: severa")
+print("VIF < 5: colinealidad baja  |  5–10: moderada  |  > 10: severa")
 
 # COMMAND ----------
 
-# DBTITLE 1,Tabla maestra de decisión — las 16 candidatas
+# DBTITLE 1,Tabla maestra de decisión y clasificación de las no seleccionadas
+# Clasifica cada variable NO seleccionada en dos categorías honestas:
+#  · "Débil genuina": el IC bootstrap cruza 0 o la asociación es débil en Pearson Y Spearman.
+#  · "Frágil a n=23": asociación real pero inestable a outliers/LOO → candidata a otras
+#                     especificaciones o con más dominios; NO es una variable inservible.
 decision_rows = []
+for _, r in rank_df.iterrows():
+    col   = r["Codigo"]
+    cm    = corr_map[col]
+    ci_lo = cm["IC_inf_95pct"]; ci_hi = cm["IC_sup_95pct"]
+    cruza_cero = ci_lo <= 0 <= ci_hi
+    debil      = (abs(cm["Pearson_r"]) < 0.40) and (abs(cm["Spearman_rho"]) < 0.40)
 
-cook_map = {r["Codigo"]: r for r in cook_rows}
-delta_col_names = [c for c in loo_df.columns if c.startswith("delta_")]
-
-for col in VARS_LITERATURA:
-    nombre    = indicadores_dict.get(col, col)
-    x         = df_lit[col].values
-    r_p, _    = pearsonr(x, Y)
-    r_s, _    = spearmanr(x, Y)
-    ci        = bootstrap_pearson_ci(x, Y)
-    sw_s, sw_p = shapiro(x)
-
-    ck = cook_map.get(col, {})
-    lo_row = loo_df[loo_df["Codigo"] == col]
-    deltas = lo_row[delta_col_names].abs().values.flatten().tolist() if not lo_row.empty else []
-    max_delta = round(float(max(deltas)), 3) if deltas else None
-
-    seleccionada = col in VARS_FINALES
-    dimension    = next((e["dimension"] for e in catalogo_activo if e["codigo"] == col), "")
+    if col in seleccionadas:
+        estado = "SELECCIONADA"
+    elif cruza_cero or debil:
+        estado = "Débil genuina"
+    else:
+        estado = "Frágil a n=23 (candidata a otras especificaciones)"
 
     decision_rows.append({
-        "Codigo":          col,
-        "Variable":        nombre[:50],
-        "Dimension":       dimension,
-        "Pearson_r":       round(r_p, 3),
-        "IC_95":           f"[{ci[0]:.2f}, {ci[1]:.2f}]",
-        "Spearman_rho":    round(r_s, 3),
-        "SW_p":            round(sw_p, 3),
-        "Normal_SW":       "✓" if sw_p > 0.05 else "✗",
-        "Max_CooksD":      ck.get("Max_CooksD"),
-        "Max_LOO_delta":   max_delta,
-        "Robusta_LOO":     "✓" if (max_delta is not None and max_delta < 0.10) else "✗",
-        "SELECCIONADA":    "✓" if seleccionada else "✗",
+        "Rank":         int(r["Rank"]),
+        "Alias":        r["Alias"],
+        "Dimension":    r["Dimension"],
+        "Q":            r["Q"],
+        "L":            r["L"],
+        "C":            r["C"],
+        "Pearson_r":    cm["Pearson_r"],
+        "IC_95":        f"[{ci_lo:.2f}, {ci_hi:.2f}]",
+        "Spearman_rho": cm["Spearman_rho"],
+        "Estado":       estado,
     })
 
 decision_df = pd.DataFrame(decision_rows)
@@ -819,84 +1030,94 @@ display(spark.createDataFrame(decision_df))
 
 # MAGIC %md
 # MAGIC
-# MAGIC ## 7.3 Justificación de las 4 covariables seleccionadas
+# MAGIC ## 7.3 Lectura de la selección y reencuadre de las no seleccionadas
 # MAGIC
-# MAGIC A partir de los criterios estadísticos de las etapas anteriores y los fundamentos conceptuales
-# MAGIC de la Etapa 2, se seleccionan las siguientes cuatro covariables:
+# MAGIC Las 4 covariables finales **no se fijaron a priori**: son las que encabezan el ranking de $C$
+# MAGIC (tabla de la celda 7.2) bajo la restricción de ≤1 por dimensión. La justificación de cada una se
+# MAGIC lee directamente de sus métricas en la **tabla maestra**: `fuerza_IC` alto (IC que no cruza 0),
+# MAGIC `concordancia` Pearson/Spearman alta, `estab_LOO` alta (no depende de un dominio), `baja_influencia`
+# MAGIC (Cook's D moderado) y `no_redundancia` alta, sumadas a un nivel de literatura $L$ que aporta el
+# MAGIC respaldo conceptual. La **prueba de sensibilidad a α** indica si el conjunto se mantiene cuando se
+# MAGIC pesa más o menos la literatura; si es estable, la elección no es un artefacto del valor α = 0.30.
 # MAGIC
-# MAGIC ---
+# MAGIC ### Las "no seleccionadas" no son "inservibles"
 # MAGIC
-# MAGIC ### Cobertura de energía eléctrica rural (`COB_ENER_RURAL`)
-# MAGIC **Dimensión:** Infraestructura básica
+# MAGIC Una variable puede quedar fuera de **esta especificación parsimoniosa** (n/5 ≈ 4) sin ser
+# MAGIC irrelevante. La tabla maestra las clasifica en dos grupos con implicaciones distintas:
 # MAGIC
-# MAGIC Esta variable presenta una correlación negativa significativa con la tasa de desempleo:
-# MAGIC municipios con menor acceso a energía eléctrica rural tienden a presentar mayor desempleo
-# MAGIC estructural. El comportamiento es consistente entre Pearson y Spearman, lo que descarta que
-# MAGIC la asociación esté dominada por outliers. Aunque Riohacha presenta un valor extremo inferior
-# MAGIC (cobertura cercana al 44 %), este refleja una brecha real de infraestructura con consecuencias
-# MAGIC laborales documentadas, no un error de medición. El análisis LOO confirma robustez.
+# MAGIC | Estado | Significado | Qué hacer en el futuro |
+# MAGIC |--------|-------------|------------------------|
+# MAGIC | **Frágil a n=23** | La asociación con Y es **real y del signo esperado**, pero inestable a outliers/LOO con solo 23 dominios (típico de IICA, hurto, ingresos per cápita, gestión municipal, dominados por Bogotá/Quibdó/Cúcuta). | **Candidatas legítimas** para especificaciones alternativas del modelo, transformaciones, o cuando se amplíe el n de dominios. No se descartan conceptualmente. |
+# MAGIC | **Débil genuina** | La señal es poco fiable incluso al margen del tamaño muestral: el **IC bootstrap cruza 0** o la asociación es débil en Pearson **y** Spearman (típico de cobertura secundaria, ecosistemas, ciencia). | Poco prometedoras como predictores lineales directos; podrían reconsiderarse solo con otra forma funcional o como interacción. |
 # MAGIC
-# MAGIC ---
+# MAGIC Además, algunas variables quedan fuera por **redundancia**, no por debilidad: si dos covariables
+# MAGIC miden la misma dimensión y están muy correlacionadas (ver matriz de las 16), entra la de mayor $C$
+# MAGIC y la otra se omite para no inflar el VIF —p. ej. pobreza monetaria frente al IPM, o inversión en
+# MAGIC educación frente a tránsito a educación superior—. La omitida sigue siendo válida; simplemente
+# MAGIC **aporta poca información nueva** dado lo que ya entró.
 # MAGIC
-# MAGIC ### Tasa de tránsito inmediata a educación superior (`TASA_TRAN_EDU_SUP`)
-# MAGIC **Dimensión:** Capital humano
-# MAGIC
-# MAGIC Presenta distribución aproximadamente simétrica con baja dispersión (desviación estándar ≈ 7 pp),
-# MAGIC lo que la convierte en la covariable más estable del conjunto. La correlación con Y es consistente
-# MAGIC en Pearson y Spearman, con bajos deltas LOO: la asociación no depende de ningún departamento
-# MAGIC particular. Aporta la dimensión de capital humano, complementaria a las demás variables.
-# MAGIC La baja correlación con las otras tres candidatas (< 0.33 en valor absoluto) garantiza
-# MAGIC información no redundante al modelo.
-# MAGIC
-# MAGIC ---
-# MAGIC
-# MAGIC ### Índice de Pobreza Multidimensional (`IND_POB_MULT`)
-# MAGIC **Dimensión:** Condiciones socioeconómicas
-# MAGIC
-# MAGIC El IPM es el predictor conceptualmente más sólido del desempleo estructural: concentra en un
-# MAGIC solo índice privaciones en educación, salud, vivienda y condiciones de trabajo. Presenta
-# MAGIC distribución asimétrica positiva (municipios con IPM muy alto, como Quibdó), pero estos valores
-# MAGIC reflejan realidades territoriales reales que deben capturarse en el modelo, no corregirse.
-# MAGIC La correlación negativa moderada con COB_ENER_RURAL (−0.61) es la más alta entre el par
-# MAGIC seleccionado; el VIF confirma que la colinealidad no es problemática (VIF < 5).
-# MAGIC
-# MAGIC ---
-# MAGIC
-# MAGIC ### Índice de Productividad (`IND_PROD`)
-# MAGIC **Dimensión:** Desempeño económico
-# MAGIC
-# MAGIC La productividad municipal determina la demanda agregada de trabajo: territorios más productivos
-# MAGIC absorben más empleo formal. Bogotá, Medellín y Barranquilla presentan valores extremos superiores
-# MAGIC coherentes con su rol como polos económicos. El análisis LOO muestra que excluir estos centros
-# MAGIC reduce moderadamente la correlación, pero la dirección e interpretación se mantienen, lo que
-# MAGIC valida su inclusión. Junto con el IPM, esta variable cierra el cuadro causal:
-# MAGIC más productividad → más empleo; más pobreza → menos participación laboral.
-# MAGIC
-# MAGIC ---
-# MAGIC
-# MAGIC ### Variables excluidas y razón de exclusión
-# MAGIC
-# MAGIC | Variable | Razón de exclusión |
-# MAGIC |----------|-------------------|
-# MAGIC | Posición nacional en gestión | Alta variabilidad LOO; correlación inestable al excluir 1–2 municipios. Alta dispersión reduce la confiabilidad del predictor con n=23. |
-# MAGIC | Índice de Pobreza (monetaria) | Altamente colineal con IPM (VIF > 5 al combinar ambas). El IPM es más informativo al integrar múltiples dimensiones. |
-# MAGIC | Ingresos corrientes per cápita | Bogotá es un outlier extremo (Cook's D muy alto). Al excluirlo, la correlación colapsa. La variable captura más la concentración económica de Bogotá que una relación generalizable. |
-# MAGIC | IICA (conflicto armado) | Correlación Pearson/Spearman divergentes; fuerte inestabilidad LOO al excluir Quibdó/Cúcuta/Cali. |
-# MAGIC | Tasa de hurto | Dominada por Bogotá (Cook's D > umbral). La corrección de inestabilidad LOO es severa. |
-# MAGIC | Ecosistemas estratégicos | Correlación con Y débil y con IC bootstrap que incluye 0; no aporta predictibilidad robusta. |
-# MAGIC | Inversión - Transporte | Outlier único con asignación extrema distorsiona la correlación (IC bootstrap muy amplio). |
-# MAGIC | Inversión - Desarrollo comunitario | Cuatro outliers con valores extremos; correlación inconsistente entre Pearson y Spearman. |
-# MAGIC | Inversión - Educación | Colineal con Tasa de tránsito a educación superior (misma dimensión causal, menor robustez). |
-# MAGIC | Cobertura neta secundaria | Correlación débil y no significativa con Y; IC bootstrap cruza 0 en ambas direcciones. |
-# MAGIC | Índice de ciencia | Correlación débil; no supera el criterio de robustez LOO al excluir Bogotá/Medellín. |
-# MAGIC | Posición nacional en gestión (institucional) | Excluida por inestabilidad estadística, no por falta de relevancia conceptual. |
+# MAGIC > En síntesis: el modelo final usa 4 covariables por parsimonia estadística, **no** porque las
+# MAGIC > demás carezcan de valor. La tabla maestra deja trazado, para cada variable, *por qué* entró o no,
+# MAGIC > de forma reproducible a partir de las métricas.
 
 # COMMAND ----------
 
-# DBTITLE 1,Correlación y scatter matrix entre las 4 covariables finales
-data_finales = df_lit[VARS_FINALES].copy()
-data_finales.columns = [RENAME_FINAL[v] for v in VARS_FINALES]
-x_labels = list(RENAME_FINAL.values())
+# DBTITLE 1,Moran's I sobre los residuos del modelo con las covariables seleccionadas
+# Test metodológicamente relevante para el supuesto de independencia de Fay-Herriot:
+# la autocorrelación espacial se evalúa sobre los RESIDUOS, no sobre Y cruda (ver Etapa 6).
+try:
+    Xr    = add_constant(df_lit[seleccionadas].values)
+    fitr  = OLS(Y, Xr).fit()
+    resid = fitr.resid
+
+    df_divipola_r = (
+        spark.table("tesis.dim.dim_divipola")
+        .filter(F.col("CODIGO_MUNICIPIO").isin(df_meta["CODIGO_MUNICIPIO"].tolist()))
+        .select("CODIGO_MUNICIPIO", "LATITUD", "LONGITUD").toPandas()
+    )
+    coords_r = (
+        df_meta[["CODIGO_MUNICIPIO"]]
+        .merge(df_divipola_r, on="CODIGO_MUNICIPIO", how="left")[["LATITUD", "LONGITUD"]]
+        .values.astype(float)
+    )
+    if np.isnan(coords_r).any():
+        coords_r = pd.DataFrame(coords_r, columns=["LAT", "LON"]).fillna(
+            pd.DataFrame(coords_r, columns=["LAT", "LON"]).mean()
+        ).values
+
+    dist_r = cdist(coords_r, coords_r)
+    np.fill_diagonal(dist_r, np.inf)
+    Wr = 1.0 / dist_r
+    Wr = Wr / Wr.sum(axis=1, keepdims=True)
+
+    def _moran_resid(y, W):
+        n  = len(y)
+        yc = y - y.mean()
+        return n * np.sum(W * np.outer(yc, yc)) / (np.sum(W) * np.sum(yc ** 2))
+
+    I_res  = _moran_resid(resid, Wr)
+    rng_r  = np.random.default_rng(42)
+    I_perm_r = [_moran_resid(rng_r.permutation(resid), Wr) for _ in range(999)]
+    p_res  = np.mean(np.abs(I_perm_r) >= abs(I_res))
+
+    print(f"Moran's I (residuos)   = {I_res:.4f}")
+    print(f"p-valor (permutación)  = {p_res:.4f}")
+    print(f"Referencia bajo H0: E[I] = -1/(n-1) = {-1/(len(Y)-1):.4f}")
+    if p_res < 0.05:
+        print("→ Autocorrelación espacial en los RESIDUOS: el supuesto de independencia de FH queda")
+        print("  comprometido aun con covariables; considerar Spatial FH (Singh et al. 2005).")
+    else:
+        print("→ Sin autocorrelación espacial significativa en los residuos: las covariables capturan")
+        print("  la estructura espacial; el supuesto de independencia del FH estándar es razonable.")
+except Exception as e:
+    print(f"No se pudo calcular Moran's I sobre residuos: {e}")
+
+# COMMAND ----------
+
+# DBTITLE 1,Correlación y scatter matrix entre las covariables seleccionadas
+data_finales = df_lit[seleccionadas].copy()
+data_finales.columns = [ALIAS_LITERATURA[v] for v in seleccionadas]
+x_labels = list(data_finales.columns)
 
 # Matriz de correlación
 corr_final = data_finales.corr()
@@ -924,7 +1145,7 @@ sns.heatmap(
     cbar_kws={"label": "Correlación"},
     ax=ax
 )
-ax.set_title("Matriz de correlación — 4 covariables seleccionadas",
+ax.set_title("Matriz de correlación — covariables seleccionadas",
              fontsize=12, fontweight="bold", pad=14)
 plt.xticks(rotation=30, ha="right", fontsize=10)
 plt.yticks(rotation=0, fontsize=10)
@@ -933,8 +1154,9 @@ display(fig)
 plt.close(fig)
 
 # Scatter matrix
-fig, axes = plt.subplots(4, 4, figsize=(12, 12))
-cols_fin  = data_finales.columns.tolist()
+cols_fin = data_finales.columns.tolist()
+k        = len(cols_fin)
+fig, axes = plt.subplots(k, k, figsize=(3 * k, 3 * k))
 for i, ci in enumerate(cols_fin):
     for j, cj in enumerate(cols_fin):
         ax = axes[i][j]
@@ -945,12 +1167,12 @@ for i, ci in enumerate(cols_fin):
         else:
             ax.scatter(data_finales[cj].values, data_finales[ci].values,
                        color="steelblue", edgecolors="white", s=40, alpha=0.8)
-        if i == 3:
+        if i == k - 1:
             ax.set_xlabel(cj, fontsize=7)
         ax.tick_params(labelsize=6)
         ax.grid(True, linestyle=":", alpha=0.3)
 
-fig.suptitle("Scatter matrix — 4 covariables seleccionadas",
+fig.suptitle("Scatter matrix — covariables seleccionadas",
              fontsize=13, fontweight="bold", y=1.01)
 plt.tight_layout()
 display(fig)
@@ -960,29 +1182,27 @@ plt.close(fig)
 
 # MAGIC %md
 # MAGIC
-# MAGIC # Base final con las 4 covariables seleccionadas
+# MAGIC # Base final con las covariables seleccionadas
 # MAGIC
-# MAGIC Las cuatro covariables ganadoras del EDA — **COB_ENER_RURAL**, **TASA_TRAN_EDU_SUP**,
-# MAGIC **IND_POB_MULT** e **IND_PROD** — se escriben junto con los metadatos de estimación directa
-# MAGIC en la tabla `tesis.preprocesamiento.covariables_seleccionadas`, que sirve como insumo
-# MAGIC directo del notebook `fay_herriot.py`.
+# MAGIC Las covariables ganadoras del ranking compuesto (Etapa 7) se escriben junto con los metadatos de
+# MAGIC estimación directa en la tabla `tesis.preprocesamiento.covariables_seleccionadas`, que sirve como
+# MAGIC insumo directo del notebook `fay_herriot.py`. La lista proviene de la variable `seleccionadas`
+# MAGIC calculada por el ranking —no se vuelve a fijar a mano— de modo que la tabla siempre refleja el
+# MAGIC resultado reproducible del EDA.
 
 # COMMAND ----------
 
 # DBTITLE 1,Escritura de la tabla de covariables seleccionadas
-VARS_SELECCIONADAS = ["030010002", "040010028", "140010004", "310010008"]
-RENAME_MAP = {
-    "030010002": "COB_ENER_RURAL",
-    "040010028": "TASA_TRAN_EDU_SUP",
-    "140010004": "IND_POB_MULT",
-    "310010008": "IND_PROD",
-}
+# La selección proviene del ranking compuesto (celda 7.2), no de una lista hardcodeada.
+VARS_SELECCIONADAS = list(seleccionadas)
+RENAME_MAP         = {cod: ALIAS_LITERATURA[cod] for cod in VARS_SELECCIONADAS}
 
-cols_salida   = METADATA_COLS + [v for v in VARS_SELECCIONADAS if v not in METADATA_COLS]
+cols_salida     = METADATA_COLS + [v for v in VARS_SELECCIONADAS if v not in METADATA_COLS]
 df_seleccionado = df_full.select(cols_salida)
 for cod, alias in RENAME_MAP.items():
     df_seleccionado = df_seleccionado.withColumnRenamed(cod, alias)
 
 display(df_seleccionado)
-df_seleccionado.write.mode("overwrite").saveAsTable("tesis.preprocesamiento.covariables_seleccionadas")
+df_seleccionado.write.mode("overwrite").option("mergeSchema","true").saveAsTable("tesis.preprocesamiento.covariables_seleccionadas")
 print("✓ Tabla escrita: tesis.preprocesamiento.covariables_seleccionadas")
+print(f"  Covariables: {[ALIAS_LITERATURA[c] for c in VARS_SELECCIONADAS]}")

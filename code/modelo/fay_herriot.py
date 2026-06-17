@@ -38,7 +38,7 @@ warnings.filterwarnings("ignore")
 # -----------------------------------------------------------------------------
 # 1. CARGA DE DATOS
 # -----------------------------------------------------------------------------
-df = spark.table("tesis.modelo.tasa_desempleo_covariables_seleccionadas").toPandas()
+df = spark.table("tesis.preprocesamiento.covariables_seleccionadas").toPandas()
 # O si está en DBFS:
 #   df = pd.read_csv("/dbfs/mnt/tu_ruta/fay_herriot.csv")
 
@@ -67,29 +67,34 @@ n  = len(Y)
 # Agrega o quita subconjuntos según los escenarios que quieras comparar.
 # Si solo hay un subconjunto, no se calcula AIC (no hay comparación).
 COVAR_SETS = [
-    ["COB_ENER_RURAL", "TASA_TRAN_EDU_SUP"],
-    ["COB_ENER_RURAL", "TASA_TRAN_EDU_SUP", "IND_POB_MULT", "IND_PROD"],
+    ["IICA_CONFLICTO", "TASA_TRAN_EDU_SUP", "IND_POB_MULT", "IND_PROD"],
+    ["TASA_TRAN_EDU_SUP", "IND_POB_MULT"],
+    ["IICA_CONFLICTO","IND_PROD"],
+    ["IICA_CONFLICTO", "TASA_TRAN_EDU_SUP"],
 ]
 
 # -----------------------------------------------------------------------------
 # 3. FUNCIONES AUXILIARES
 # -----------------------------------------------------------------------------
-def gls_beta(A, Y, X, Di):
-    """Estimación GLS de beta: β̂ = (X'V⁻¹X)⁻¹ X'V⁻¹Y, donde V = diag(Di + A)."""
+def _vi_xtvi_xtvix(A, X, Di):
+    """Componentes comunes de GLS: V⁻¹ (diagonal), X'V⁻¹ y X'V⁻¹X, con V = diag(Di + A)."""
     Vi    = 1.0 / (Di + A)
     XtVi  = X.T * Vi
     XtViX = XtVi @ X
-    XtViY = XtVi @ Y
-    beta  = np.linalg.solve(XtViX, XtViY)
+    return Vi, XtVi, XtViX
+
+
+def gls_beta(A, Y, X, Di):
+    """Estimación GLS de beta: β̂ = (X'V⁻¹X)⁻¹ X'V⁻¹Y, donde V = diag(Di + A)."""
+    Vi, XtVi, XtViX = _vi_xtvi_xtvix(A, X, Di)
+    beta = np.linalg.solve(XtViX, XtVi @ Y)
     return beta, XtVi, XtViX
 
 
 def neg_reml_loglik(log_A, Y, X, Di):
     """Log-verosimilitud REML negativa — usada para estimar A."""
-    A    = np.exp(log_A)
-    Vi   = 1.0 / (Di + A)
-    Vi_X = X.T * Vi
-    Q    = Vi_X @ X
+    A = np.exp(log_A)
+    Vi, Vi_X, Q = _vi_xtvi_xtvix(A, X, Di)
     try:
         Qinv = np.linalg.inv(Q)
     except np.linalg.LinAlgError:
@@ -103,11 +108,10 @@ def neg_reml_loglik(log_A, Y, X, Di):
 
 def neg_ml_loglik(log_A, Y, X, Di):
     """Log-verosimilitud ML negativa — usada para calcular AIC entre modelos."""
-    A    = np.exp(log_A)
-    Vi   = 1.0 / (Di + A)
-    XtVi = X.T * Vi
+    A = np.exp(log_A)
+    Vi, XtVi, XtViX = _vi_xtvi_xtvix(A, X, Di)
     try:
-        beta = np.linalg.solve(XtVi @ X, XtVi @ Y)
+        beta = np.linalg.solve(XtViX, XtVi @ Y)
     except np.linalg.LinAlgError:
         return 1e10
     resid     = Y - X @ beta
@@ -301,6 +305,11 @@ for i, m in enumerate(models, 1):
     #    inestables hacia la tendencia central.
     municipios = m["results_df"]["MUNICIPIO"].values
 
+    def _annotate(ax, xs, ys, labels):
+        for xi, yi, lab in zip(xs, ys, labels):
+            ax.annotate(lab, (xi, yi), textcoords="offset points",
+                        xytext=(4, 3), fontsize=7, color="dimgray")
+
     # GVF: ajuste log-lineal  log(Di) = a + b·log(Y)
     # Usamos solo dominios con Y > 0 y Di > 0
     mask_pos    = (Y > 0) & (Di > 0)
@@ -326,11 +335,9 @@ for i, m in enumerate(models, 1):
     # --- Gráfica 1: Residuos GVF ---
     ax = axes[0]
     ax.axhline(0, color="red", linestyle="--", linewidth=1.2, label="Referencia 0")
-    sc1 = ax.scatter(Y, resid_gvf, color="steelblue", edgecolors="white",
-                     s=70, alpha=0.85, zorder=3)
-    for xi, yi, lab in zip(Y, resid_gvf, municipios):
-        ax.annotate(lab, (xi, yi), textcoords="offset points",
-                    xytext=(4, 3), fontsize=7, color="dimgray")
+    ax.scatter(Y, resid_gvf, color="steelblue", edgecolors="white",
+               s=70, alpha=0.85, zorder=3)
+    _annotate(ax, Y, resid_gvf, municipios)
     ax.set_xlabel("Estimación directa Yd  (%)", fontsize=10)
     ax.set_ylabel("Residuo GVF  (Di − D̂i)", fontsize=10)
     ax.set_title("Residuos de la GVF", fontsize=11, fontweight="bold")
@@ -345,9 +352,7 @@ for i, m in enumerate(models, 1):
     ax.plot(d_range, d_range, "r--", linewidth=1.4, label="y = x")
     ax.scatter(Di, Di_gvf_pred, color="steelblue", edgecolors="white",
                s=70, alpha=0.85, zorder=3)
-    for xi, yi, lab in zip(Di, Di_gvf_pred, municipios):
-        ax.annotate(lab, (xi, yi), textcoords="offset points",
-                    xytext=(4, 3), fontsize=7, color="dimgray")
+    _annotate(ax, Di, Di_gvf_pred, municipios)
     ax.set_xlim(d_range)
     ax.set_ylim(d_range)
     ax.set_xlabel("Varianza directa observada (Di)", fontsize=10)
@@ -361,9 +366,7 @@ for i, m in enumerate(models, 1):
     ax.axhline(0, color="red", linestyle="--", linewidth=1.2, label="Referencia 0")
     colors_fh = ["tomato" if r > 0 else "steelblue" for r in resid_fh]
     ax.scatter(Y, resid_fh, c=colors_fh, edgecolors="white", s=70, alpha=0.85, zorder=3)
-    for xi, yi, lab in zip(Y, resid_fh, municipios):
-        ax.annotate(lab, (xi, yi), textcoords="offset points",
-                    xytext=(4, 3), fontsize=7, color="dimgray")
+    _annotate(ax, Y, resid_fh, municipios)
     ax.set_xlabel("Estimación directa Yd  (%)", fontsize=10)
     ax.set_ylabel("Residuo FH  (Yd − EBLUP)", fontsize=10)
     ax.set_title("Efecto suavizador del EBLUP", fontsize=11, fontweight="bold")
@@ -507,16 +510,11 @@ X_new          = np.column_stack([np.ones(len(df_new))] + [df_new[c].values for 
 y_sintetico    = X_new @ beta_best
 
 # Incertidumbre: sólo el componente g2i (varianza del predictor sintético)
-#   Var(ŷ_d) = x_d' Cov(β̂) x_d
-cov_beta_best  = np.linalg.inv(
-    np.linalg.inv(np.diag(1.0 / (df[SE_col].values**2 + best_model["A_hat"])))
-    # Reconstruimos XtViX del modelo ganador
-)
-# Forma directa más limpia:
-A_best   = best_model["A_hat"]
-Vi_in    = 1.0 / (df[SE_col].values**2 + A_best)
-X_in     = np.column_stack([np.ones(n)] + [df[c].values for c in covars_best])
-XtViX    = (X_in.T * Vi_in) @ X_in
+#   Var(ŷ_d) = x_d' Cov(β̂) x_d, reconstruyendo XtViX del modelo ganador.
+A_best        = best_model["A_hat"]
+Vi_in         = 1.0 / (df[SE_col].values**2 + A_best)
+X_in          = np.column_stack([np.ones(n)] + [df[c].values for c in covars_best])
+XtViX         = (X_in.T * Vi_in) @ X_in
 cov_beta_best = np.linalg.inv(XtViX)
 
 var_beta       = np.array([X_new[i] @ cov_beta_best @ X_new[i] for i in range(len(df_new))])

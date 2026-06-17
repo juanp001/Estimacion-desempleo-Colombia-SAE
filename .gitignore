@@ -1,2 +1,3 @@
 .databricks
 .vscode
+code/analisis/__pycache__/*.pyc
