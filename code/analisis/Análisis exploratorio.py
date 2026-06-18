@@ -53,6 +53,7 @@
 import sys
 import os
 import re
+import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.getcwd()))
 
@@ -87,7 +88,18 @@ for col_name in [f.name for f in df_cov.schema.fields if str(f.dataType) == "Str
 df_meta   = df_full.select(METADATA_COLS).toPandas()
 df_pd     = df_cov.toPandas()
 Y         = df_meta["TASA_DESEMPLEO_PCT"].values
-entidades = df_meta["ENTIDAD_NORMALIZADO"].values
+entidades = df_meta["MUNICIPIO"].values
+
+# ── Normalización de nombres de municipio para comparaciones robustas ─────────
+# MUNICIPIO puede traer tildes, comas o sufijos ("Bogotá, D.C.") que no coinciden
+# con cadenas escritas a mano (p. ej. en DEPT_LOO). normalizar_municipio() reduce
+# ambos lados a MAYÚSCULAS sin tildes ni puntuación antes de comparar, evitando
+# falsos negativos como el que afectaba al filtro LOO de Bogotá.
+def normalizar_municipio(nombre):
+    sin_tildes = unicodedata.normalize("NFKD", str(nombre)).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^A-Z0-9]", "", sin_tildes.upper())
+
+entidades_norm = np.array([normalizar_municipio(e) for e in entidades])
 
 print(f"Dominios de estimación (n): {len(Y)}")
 print(f"Covariables pre-filtradas:  {len(df_pd.columns)}")
@@ -156,6 +168,17 @@ plt.close(fig)
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC La distribución está concentrada cerca del corte: 13 de las ~84 covariables tienen |Pearson|
+# MAGIC apenas entre 0.40 y 0.42, y la frecuencia decrece de forma bastante uniforme hacia la derecha
+# MAGIC (8, 7, 5, 7, 8, 10, 6, 5, 5, 4 variables en los bins sucesivos hasta 0.55). Solo 6 variables superan
+# MAGIC |r| ≥ 0.55 y apenas 1 supera 0.60. Es decir, la señal **no** está concentrada en unas pocas variables
+# MAGIC muy fuertes: la mayoría de las 84 sobrevivientes están cerca del umbral mínimo, lo que es consistente
+# MAGIC con el riesgo de *winner's curse* señalado arriba — muchas de ellas probablemente pasaron el filtro
+# MAGIC por azar muestral con n=23. Esto refuerza la necesidad de las etapas posteriores (literatura, IC
+# MAGIC bootstrap, LOO) para depurar el conjunto antes de construir el modelo.
 # MAGIC
 # MAGIC # Etapa 2 — Filtro cualitativo: de ~84 a 16 variables con respaldo en literatura
 # MAGIC
@@ -383,6 +406,17 @@ display(spark.createDataFrame(filas_justificacion))
 
 # MAGIC %md
 # MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC En la ejecución registrada, solo **11 de las 16** variables del catálogo de literatura se resolvieron
+# MAGIC contra `dim_indicadores` y `covariables_prefiltradas` (las 5 restantes —cobertura neta en secundaria
+# MAGIC ya resuelta aparte, ciencia, inversión en educación, inversión en transporte, inversión en desarrollo
+# MAGIC comunitario— no se encontraron con los patrones de búsqueda o no pasaron el pre-filtro cuantitativo).
+# MAGIC Las etapas 3 a 7 siguientes trabajan, por tanto, sobre estas **11 candidatas**, que cubren igualmente
+# MAGIC las siete dimensiones conceptuales: infraestructura básica, capital humano (2 variables), condiciones
+# MAGIC socioeconómicas (3 variables), desempeño económico, seguridad y conflicto (2 variables), capacidad
+# MAGIC institucional y medio ambiente y territorio.
+# MAGIC
 # MAGIC # Etapa 3 — Análisis descriptivo de las 16 candidatas
 # MAGIC
 # MAGIC El objetivo de esta etapa es caracterizar las distribuciones de las 16 variables con respaldo
@@ -484,6 +518,33 @@ plt.close(fig)
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC Las estadísticas descriptivas y los boxplots muestran un patrón recurrente: **8 de las 11 variables**
+# MAGIC fallan Shapiro-Wilk (p < 0.05) y la mayoría tiene entre 1 y 3 outliers IQR, casi siempre los mismos
+# MAGIC departamentos en los extremos —Bogotá, Riohacha, Quibdó, Cúcuta, Valledupar y Santa Marta—:
+# MAGIC
+# MAGIC - **Cobertura de energía eléctrica rural**: fuertemente asimétrica a la izquierda (asimetría -1.99,
+# MAGIC   Shapiro p≈0); Valledupar, Cúcuta y Riohacha quedan muy por debajo del resto (~64-70 % vs. >88 %
+# MAGIC   en la mayoría), comportándose como un grupo aparte de baja electrificación rural.
+# MAGIC - **Ingresos corrientes per cápita**: el outlier es Bogotá, con un valor (~$1,25M) más de 2 veces
+# MAGIC   el de cualquier otro dominio — esperable dada su concentración de actividad económica.
+# MAGIC - **Índice de pobreza / IPM**: Riohacha es outlier superior en IPM (45 vs. máximo ~30 del resto),
+# MAGIC   coherente con su perfil de pobreza estructural.
+# MAGIC - **Índice de Productividad**: Bogotá, Medellín y Barranquilla destacan como los tres polos de mayor
+# MAGIC   productividad, separados del resto de dominios.
+# MAGIC - **IICA (conflicto armado)**: Quibdó y Cúcuta son outliers superiores (0.10 y 0.06 frente a una
+# MAGIC   mediana de 0.03), consistente con su historia de conflicto; Cali también se aparta moderadamente.
+# MAGIC - **Tasa de hurto** y **Posición en gestión**: Bogotá y Quibdó respectivamente son los únicos outliers,
+# MAGIC   cada uno en un extremo distinto de su distribución.
+# MAGIC - **Tasa de tránsito a educación superior** y **cobertura neta en secundaria**: son las dos variables
+# MAGIC   más simétricas y sin outliers relevantes (Shapiro no rechaza H₀ para tránsito a educación superior),
+# MAGIC   lo que las hace candidatas más estables para una regresión lineal sin necesidad de transformación.
+# MAGIC
+# MAGIC En general, los outliers no son ruido aleatorio sino casos territorialmente interpretables (capitales
+# MAGIC grandes, zonas de conflicto, periferias con baja cobertura de servicios), lo que se retoma en la
+# MAGIC Etapa 5 al evaluar cuánto pesan estos puntos sobre la correlación con la tasa de desempleo.
 # MAGIC
 # MAGIC # Etapa 4 — Relación con TASA_DESEMPLEO_PCT
 # MAGIC
@@ -590,6 +651,41 @@ display(spark.createDataFrame(corr_df))
 
 # MAGIC %md
 # MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC Los scatter plots y la tabla comparativa muestran que **ninguna** de las 11 candidatas tiene un IC
+# MAGIC bootstrap que cruce 0, y en ningún caso |Pearson − Spearman| > 0.15: Pearson y Spearman concuerdan
+# MAGIC en signo y magnitud para las 11 variables, sin señal de "Divergencia_outlier" marcada (columna
+# MAGIC `Divergencia_outlier` = "—" en todas las filas). Esto es una señal positiva de que, a pesar del
+# MAGIC tamaño muestral pequeño, las asociaciones no dependen de forma desproporcionada de un único punto
+# MAGIC extremo en estas 11 variables.
+# MAGIC
+# MAGIC Por magnitud de Pearson, el ranking observado es:
+# MAGIC
+# MAGIC 1. **Posición nacional en gestión** (r=0.602, IC [0.22, 0.80]) — la asociación más fuerte: peor
+# MAGIC    posición de gestión (valor más alto) se asocia con mayor desempleo.
+# MAGIC 2. **Cobertura de energía eléctrica rural** (r=-0.595, IC [-0.81, -0.21]) — a mayor electrificación
+# MAGIC    rural, menor desempleo; visualmente domina el "grupo Caribe" (Riohacha, Valledupar, Cúcuta) con
+# MAGIC    baja cobertura y desempleo alto.
+# MAGIC 3. **Cobertura neta en secundaria** (r=-0.521) y **tasa de tránsito a educación superior** (r=0.487,
+# MAGIC    pero con signo *contraintuitivo*: a mayor tránsito a educación superior, *mayor* desempleo en el
+# MAGIC    scatter — Cúcuta y Riohacha tienen alto tránsito educativo y alto desempleo simultáneamente, lo
+# MAGIC    que probablemente refleja que estas ciudades retienen estudiantes porque no hay suficiente oferta
+# MAGIC    laboral, no que la educación cause desempleo).
+# MAGIC 4. **Índice de Ecosistemas estratégicos** (r=-0.514) e **Ingresos corrientes per cápita** (r=-0.483)
+# MAGIC    muestran asociación negativa moderada; en el caso de ingresos, el patrón está apalancado por la
+# MAGIC    posición extrema de Bogotá con bajo desempleo relativo y muy altos ingresos.
+# MAGIC 5. **IPM** (r=0.443) e **IICA-conflicto** (r=0.429) confirman la dirección esperada por literatura
+# MAGIC    (más pobreza/conflicto → más desempleo), aunque con los IC más anchos del grupo (bordeando 0 por
+# MAGIC    el lado inferior), señal de que su evidencia es la menos precisa con n=23.
+# MAGIC 6. **Productividad** (r=-0.414) y **tasa de hurto** (r=-0.412) cierran el grupo con asociaciones de
+# MAGIC    magnitud similar y signo esperado (más productividad/seguridad ciudadana → menos desempleo).
+# MAGIC
+# MAGIC Un patrón recurrente en los gráficos es el rol de **Cúcuta, Riohacha, Valledupar y Quibdó** como
+# MAGIC dominios con desempleo alto (>14.9 %) que tiran las rectas de regresión, mientras **Bucaramanga,
+# MAGIC Pereira, Santa Marta y Pasto** anclan el extremo de bajo desempleo (<8.7 %). Esta heterogeneidad
+# MAGIC geográfica es justamente lo que la Etapa 5 (LOO) cuantifica de forma rigurosa.
+# MAGIC
 # MAGIC # Etapa 5 — Análisis de influencia de outliers
 # MAGIC
 # MAGIC Con n=23 dominios, un único punto puede cambiar drásticamente una correlación o el signo
@@ -635,8 +731,42 @@ print(f"Umbral Cook's D > 4/n = {COOK_THRESHOLD:.4f}")
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC Con el umbral de 4/n = 0.174, **4 de las 11 variables** tienen al menos un punto influyente:
+# MAGIC
+# MAGIC | Variable | Cook's D máx. | Punto influyente |
+# MAGIC |---|---|---|
+# MAGIC | Ingresos corrientes per cápita | 0.676 | Bogotá |
+# MAGIC | Cobertura de energía eléctrica rural | 0.450 | Riohacha |
+# MAGIC | Tasa de hurto a personas | 0.513 | Bogotá |
+# MAGIC | Índice de Ecosistemas estratégicos | 0.306 | Santa Marta |
+# MAGIC
+# MAGIC Las otras 7 variables (tránsito a educación superior, cobertura neta en secundaria, IPM/Índice de
+# MAGIC Pobreza, productividad, IICA-conflicto y posición en gestión) tienen Cook's D máximo entre 0.11 y 0.17,
+# MAGIC por debajo del umbral — ningún dominio individual domina su regresión simple con Y. Es notable que
+# MAGIC **ingresos per cápita y tasa de hurto** comparten a Bogotá como su único punto influyente, lo cual es
+# MAGIC consistente con que Bogotá es un valor atípico extremo en ambas variables (ver boxplots de la
+# MAGIC Etapa 3); esto debilita la confianza en esas dos asociaciones como evidencia generalizable más allá
+# MAGIC del caso de la capital.
+
+# COMMAND ----------
+
 # DBTITLE 1,Leave-one-out: estabilidad de la correlación ante exclusión de outliers
-DEPT_LOO = ["BOGOTA D.C.", "MEDELLIN", "QUIBDO", "CALI", "CUCUTA"]
+# Nombres comunes (no necesariamente el nombre oficial completo del DANE, p. ej.
+# MUNICIPIO trae "SANTIAGO DE CALI" y "SAN JOSÉ DE CÚCUTA"). Por eso el match se
+# hace por substring sobre el nombre normalizado, no por igualdad exacta.
+DEPT_LOO = ["BOGOTA", "MEDELLIN", "QUIBDO", "CALI", "CUCUTA"]
+DEPT_LOO_NORM = [normalizar_municipio(d) for d in DEPT_LOO]
+
+# Verificación: cada nombre de DEPT_LOO debe matchear al menos un municipio real;
+# si no, el filtro LOO de ese departamento se ejecutaría sobre todos los dominios
+# sin excluir ninguno (bug silencioso).
+for dept, dept_norm in zip(DEPT_LOO, DEPT_LOO_NORM):
+    if not any(dept_norm in e for e in entidades_norm):
+        print(f"⚠ '{dept}' no matchea ningún MUNICIPIO — revisar nombre exacto en entidades_norm.")
 
 loo_rows = []
 for col in VARS_LITERATURA:
@@ -644,8 +774,8 @@ for col in VARS_LITERATURA:
     x        = df_lit[col].values
     r_full, _ = pearsonr(x, Y)
     fila = {"Codigo": col, "Variable": nombre[:45], "r_full": round(r_full, 3)}
-    for dept in DEPT_LOO:
-        mask = entidades != dept
+    for dept, dept_norm in zip(DEPT_LOO, DEPT_LOO_NORM):
+        mask = np.array([dept_norm not in e for e in entidades_norm])
         if mask.sum() >= 3:
             r_loo, _ = pearsonr(x[mask], Y[mask])
             clave = dept[:5].replace(".", "")
@@ -684,6 +814,26 @@ plt.close(fig)
 
 # MAGIC %md
 # MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC Con el filtro ya corregido, `delta_BOGOT` deja de ser 0.00 en todas las filas: excluir Bogotá mueve
+# MAGIC la correlación de **ingresos corrientes per cápita** en Δ=-0.073 y la de **tasa de hurto** en
+# MAGIC Δ=-0.063 — ambas dentro de lo esperable dado que Cook's D ya señalaba a Bogotá como punto influyente
+# MAGIC en esas dos variables (Etapa 5). El resto de variables, y el resto de departamentos (Medellín,
+# MAGIC Quibdó, Cali, Cúcuta), se mantienen con |Δr| ≤ 0.10, sin que ninguna cruce el umbral de fragilidad
+# MAGIC de forma consistente en más de un dominio.
+# MAGIC
+# MAGIC > **Corrección aplicada (dos pasos):** en una versión anterior, `delta_BOGOT` era siempre 0.00 porque
+# MAGIC > el filtro comparaba `entidades != "BOGOTA D.C."` contra `ENTIDAD_NORMALIZADO`, cuyo valor real para
+# MAGIC > la capital era `"BOGOTA"` (sin "D.C.") — la máscara nunca excluía ninguna fila. Al cambiar la
+# MAGIC > fuente a `MUNICIPIO` (nombre oficial DANE) y normalizar (mayúsculas, sin tildes ni puntuación) se
+# MAGIC > arregló Bogotá, pero expuso un segundo mismatch: `MUNICIPIO` guarda el nombre oficial completo
+# MAGIC > ("SANTIAGO DE CALI", "SAN JOSÉ DE CÚCUTA"), no el nombre corto ("CALI", "CUCUTA"), así que la
+# MAGIC > igualdad exacta seguía sin matchear esos dos dominios. La solución final compara por **substring**
+# MAGIC > (`dept_norm in entidad_norm`) en vez de igualdad exacta, lo que matchea el nombre corto dentro del
+# MAGIC > nombre oficial completo para los cinco departamentos sin depender de su forma exacta. Se mantiene
+# MAGIC > la verificación explícita que avisa si algún nombre de `DEPT_LOO` no matchea ningún municipio real.
+# MAGIC
 # MAGIC # Etapa 6 — Estructura espacial: Moran's I
 # MAGIC
 # MAGIC El modelo Fay-Herriot estándar supone que los errores de los dominios son **independientes**.
@@ -721,7 +871,7 @@ try:
         .toPandas()
     )
     df_coords = (
-        df_meta[["CODIGO_MUNICIPIO", "ENTIDAD_NORMALIZADO"]]
+        df_meta[["CODIGO_MUNICIPIO", "MUNICIPIO"]]
         .merge(df_divipola, on="CODIGO_MUNICIPIO", how="left")
     )
     coords = df_coords[["LATITUD", "LONGITUD"]].values.astype(float)
@@ -778,6 +928,17 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC El Moran's I observado sobre `TASA_DESEMPLEO_PCT` cruda es **I = -0.0865** (p = 0.222 por
+# MAGIC permutación), valor cercano al esperado bajo independencia para n=23 (E[I] = -1/(n-1) ≈ -0.045) y
+# MAGIC sin significancia estadística. El histograma de permutaciones muestra que el valor observado cae
+# MAGIC cómodamente dentro de la distribución nula (la mayoría de la masa entre -0.10 y 0.05). **No hay
+# MAGIC evidencia de autocorrelación espacial en la tasa de desempleo cruda** entre estos 23 dominios usando
+# MAGIC pesos de distancia inversa. Esta es solo una primera mirada descriptiva: el chequeo metodológicamente
+# MAGIC relevante para el supuesto de independencia de Fay-Herriot es sobre los **residuos** del modelo con
+# MAGIC covariables, que se evalúa al cierre de la Etapa 7 — y, como se verá allí, el resultado cambia.
 # MAGIC
 # MAGIC # Etapa 7 — Selección final: de 16 a 4 covariables
 # MAGIC
@@ -889,6 +1050,36 @@ print(f"Q = promedio de 5 deseabilidades (pesos iguales)  |  C = {1-ALPHA_BASE:.
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC El ranking por C produce el siguiente orden: **(1) Índice de Productividad** (C=0.706),
+# MAGIC **(2) Tasa de tránsito a educación superior** (C=0.686), (3) Cobertura neta en secundaria (C=0.664),
+# MAGIC **(4) IPM** (C=0.615), **(5) IICA-conflicto** (C=0.590), seguidas de cobertura de energía rural,
+# MAGIC Índice de Pobreza, posición en gestión, ecosistemas, tasa de hurto e ingresos per cápita.
+# MAGIC
+# MAGIC Algunos patrones notables en los componentes de Q:
+# MAGIC
+# MAGIC - **Productividad** lidera no por tener el Pearson más fuerte (es el séptimo en magnitud, r=-0.414),
+# MAGIC   sino porque combina alta concordancia Pearson/Spearman (0.967), alta estabilidad LOO (0.847) y baja
+# MAGIC   influencia de outliers (0.852) — es la variable más "limpia" estadísticamente, aunque su
+# MAGIC   `no_redundancia` es baja (0.105) por su alta correlación con ingresos per cápita (r=0.895, ver
+# MAGIC   Etapa 7.4).
+# MAGIC - **Tránsito a educación superior** combina el mejor balance entre Q (0.694) y L=2, con la mayor
+# MAGIC   `no_redundancia` del grupo (0.67) — es la variable más "única" de las 11 en términos de información.
+# MAGIC - **IPM e Índice de Pobreza** (la misma dimensión socioeconómica, prácticamente colineales) comparten
+# MAGIC   exactamente Q=0.45 por construcción matemática (son la misma variable con signo invertido), pero
+# MAGIC   IPM tiene L=3 frente a L=2 de Índice de Pobreza, lo que la separa en el ranking (C=0.615 vs 0.515).
+# MAGIC - **Posición en gestión**, a pesar de tener el Pearson más fuerte del grupo (r=0.602) y baja
+# MAGIC   influencia (0.879), queda en el puesto 8 por su literatura más débil (L=1) y por tener la
+# MAGIC   `fuerza_IC` relativamente moderada (0.223) dado que su IC bootstrap es el más ancho proporcionalmente.
+# MAGIC - **Ingresos corrientes per cápita** cierra el ranking (C=0.413): es la variable con peor
+# MAGIC   `baja_influencia` (0.324, reflejando el Cook's D de 0.676 de Bogotá visto en la Etapa 5) combinada
+# MAGIC   con L=1.
+
+# COMMAND ----------
+
 # DBTITLE 1,Selección por ranking + diversidad dimensional + sensibilidad a α
 def seleccionar(df, score_col, k=4, max_per_dim=1):
     """Recorre las variables ordenadas por score y selecciona hasta k,
@@ -938,6 +1129,26 @@ print(f"¿Selección estable en α∈{{0.2,0.3,0.4}}?  {'SÍ — robusta al peso
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC El conjunto seleccionado —**Productividad, Tránsito a educación superior, IPM, IICA-conflicto**—
+# MAGIC se mantiene **idéntico** en α ∈ {0.20, 0.30, 0.40}: las cuatro variables aparecen marcadas con "✓"
+# MAGIC en las tres columnas de la tabla de sensibilidad, sin que ninguna otra variable entre o salga del
+# MAGIC conjunto al mover el peso de la literatura. Esto confirma que la selección **no es un artefacto**
+# MAGIC del valor arbitrario α=0.30, sino un resultado robusto tanto si se pesa más el dato empírico (α=0.20)
+# MAGIC como si se pesa más la literatura (α=0.40).
+# MAGIC
+# MAGIC Vale notar que el top-4 por C **sin** la restricción de diversidad dimensional sería
+# MAGIC {Productividad, Tránsito a educación superior, Cobertura neta en secundaria, IPM} — es decir, sin la
+# MAGIC regla de ≤1 por dimensión, dos de las cuatro covariables pertenecerían a la misma dimensión
+# MAGIC (capital humano), desplazando a IICA-conflicto. La restricción de diversidad es, por tanto, la que
+# MAGIC introduce cobertura de la dimensión de seguridad y conflicto en el modelo final, a cambio de una
+# MAGIC variable (cobertura neta en secundaria) con C apenas 0.05 puntos menor.
+
+# COMMAND ----------
+
 # DBTITLE 1,Matriz de correlación entre las 16 candidatas (evidencia de redundancia)
 # Respalda con números las exclusiones por colinealidad (p. ej. pobreza monetaria vs IPM).
 # No se calcula un VIF conjunto de las 16 porque con n=23 el sistema sería casi singular
@@ -972,6 +1183,31 @@ display(spark.createDataFrame(pd.DataFrame(redund_rows)))
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC La matriz confirma varios pares redundantes entre las 11 candidatas:
+# MAGIC
+# MAGIC - **IND_POB_MULT vs. IND_POB_MON: r = -1.00** (perfectamente colineales, como se esperaba al ser la
+# MAGIC   misma fuente de pobreza expresada en sentidos opuestos). El ranking de la Etapa 7.2 resuelve esta
+# MAGIC   redundancia eligiendo IND_POB_MULT (mayor L=3 por su respaldo en literatura colombiana) y
+# MAGIC   descartando IND_POB_MON.
+# MAGIC - **ING_CORR_PC vs. IND_PROD: r = 0.895** — ambas miden, en esencia, desempeño económico territorial.
+# MAGIC   El ranking elige Productividad (C=0.706, primer lugar) y descarta ingresos (C=0.413, último
+# MAGIC   lugar), evitando así introducir las dos variables casi colineales en el modelo final.
+# MAGIC - **POS_GESTION vs. IND_POB_MON: r = -0.859** (y por tanto ≈ +0.86 con IND_POB_MULT) — la capacidad
+# MAGIC   de gestión municipal está fuertemente ligada al nivel de pobreza del territorio, lo que explica
+# MAGIC   por qué posición en gestión pierde relevancia marginal una vez que IPM ya está en el modelo.
+# MAGIC - El resto de pares tiene correlaciones moderadas (|r| entre 0.30 y 0.67), como cobertura de energía
+# MAGIC   rural con ecosistemas estratégicos (r=0.668) o IICA-conflicto con IPM (r=0.567), consistentes con
+# MAGIC   covarianza social/territorial esperable pero sin llegar a colinealidad severa.
+# MAGIC
+# MAGIC Esta evidencia respalda por qué el ranking de C, al maximizar `no_redundancia`, tiende naturalmente
+# MAGIC a evitar combinar variables de estos pares en el conjunto final de 4.
+
+# COMMAND ----------
+
 # DBTITLE 1,VIF del conjunto seleccionado
 # El VIF se valida solo sobre las covariables finales (sistema bien condicionado con n=23).
 X_vif   = df_lit[seleccionadas].values
@@ -987,6 +1223,21 @@ vif_rows = [
 ]
 display(spark.createDataFrame(pd.DataFrame(vif_rows)))
 print("VIF < 5: colinealidad baja  |  5–10: moderada  |  > 10: severa")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC Los 4 VIF son todos bajos: **Tránsito a educación superior (1.034)**, **Productividad (1.414)**,
+# MAGIC **IICA-conflicto (1.536)** e **IPM (2.028)**. Ninguno se acerca al umbral de colinealidad moderada
+# MAGIC (5), confirmando que la regla de diversidad dimensional y el criterio de `no_redundancia` de la
+# MAGIC Etapa 7.2 lograron su objetivo: el conjunto final no sufre de multicolinealidad, a pesar de que entre
+# MAGIC las 11 candidatas originales existían pares casi perfectamente colineales (IND_POB_MULT/IND_POB_MON,
+# MAGIC r=-1.00). El VIF más alto, IPM (2.03), es coherente con su correlación moderada con IICA-conflicto
+# MAGIC (r=0.567, ver matriz de redundancia) — ambas reflejan condiciones estructurales del territorio que
+# MAGIC se solapan parcialmente, pero sin comprometer la estabilidad de las estimaciones de β.
 
 # COMMAND ----------
 
@@ -1059,6 +1310,13 @@ display(spark.createDataFrame(decision_df))
 # MAGIC > En síntesis: el modelo final usa 4 covariables por parsimonia estadística, **no** porque las
 # MAGIC > demás carezcan de valor. La tabla maestra deja trazado, para cada variable, *por qué* entró o no,
 # MAGIC > de forma reproducible a partir de las métricas.
+# MAGIC
+# MAGIC **Resultado de esta ejecución:** de las 7 candidatas no seleccionadas, las **7** quedan clasificadas
+# MAGIC como "Frágil a n=23" — ninguna cae en "Débil genuina", porque para todas el IC bootstrap no cruza 0
+# MAGIC y al menos uno de Pearson/Spearman supera 0.40 en valor absoluto. Esto significa que, en este
+# MAGIC catálogo de 11 candidatas con respaldo en literatura, **todas** tienen una asociación estadísticamente
+# MAGIC defendible con la tasa de desempleo; lo que las separa del grupo final es exclusivamente parsimonia
+# MAGIC (n/5 ≈ 4) y redundancia con las variables ya seleccionadas, no falta de señal.
 
 # COMMAND ----------
 
@@ -1111,6 +1369,31 @@ try:
         print("  la estructura espacial; el supuesto de independencia del FH estándar es razonable.")
 except Exception as e:
     print(f"No se pudo calcular Moran's I sobre residuos: {e}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC Este es el resultado **metodológicamente más relevante** de todo el notebook y contrasta con la
+# MAGIC Etapa 6: el Moran's I sobre los **residuos** del modelo con las 4 covariables seleccionadas es
+# MAGIC **I = -0.1253**, con **p = 0.035** (significativo al 5 %), frente al I=-0.0865 (p=0.222, no
+# MAGIC significativo) que se obtuvo sobre la tasa de desempleo cruda en la Etapa 6.
+# MAGIC
+# MAGIC En otras palabras: **las covariables no solo no eliminan la estructura espacial, sino que el
+# MAGIC residuo resultante se aleja más del valor esperado bajo independencia** (E[I]=-0.0455) de lo que
+# MAGIC se alejaba la variable original. Esto es consistente con que las 4 covariables (productividad,
+# MAGIC tránsito a educación superior, IPM, conflicto armado) explican patrones que coinciden parcialmente
+# MAGIC con clústeres geográficos de desempleo (p. ej. el eje fronterizo Cúcuta-Riohacha-Valledupar con alto
+# MAGIC desempleo y baja cobertura/alta pobreza), dejando en el residuo una estructura espacial remanente que
+# MAGIC antes quedaba "diluida" dentro de la variabilidad total de Y.
+# MAGIC
+# MAGIC **Implicación para `fay_herriot.py`:** el supuesto de independencia entre los errores de los dominios
+# MAGIC del modelo Fay-Herriot estándar queda comprometido con esta especificación de 4 covariables. Conviene
+# MAGIC reportar esta limitación explícitamente y considerar, como extensión, un modelo Spatial Fay-Herriot
+# MAGIC (Singh et al. 2005) que incorpore la matriz de pesos espaciales W ya construida aquí, o al menos
+# MAGIC evaluar si los errores estándar de los β estimados deberían ajustarse por esta dependencia residual.
 
 # COMMAND ----------
 
@@ -1181,6 +1464,22 @@ plt.close(fig)
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC
+# MAGIC ### Interpretación
+# MAGIC
+# MAGIC La matriz de correlación en escala de grises confirma que el conjunto final tiene **correlaciones
+# MAGIC cruzadas bajas**: la más alta en valor absoluto es IND_POB_MULT vs. IICA_CONFLICTO (r=0.57), seguida
+# MAGIC de IND_PROD vs. IND_POB_MULT (r=-0.53); las otras cuatro combinaciones están por debajo de |r|=0.21
+# MAGIC (Tránsito a educación superior es casi ortogonal a las otras tres: |r| ≤ 0.09 en todos los casos).
+# MAGIC Esto es coherente con los VIF bajos reportados antes y con el hecho de que la regla de diversidad
+# MAGIC dimensional efectivamente produjo un conjunto de predictores que cubren ángulos distintos del
+# MAGIC fenómeno (desempeño económico, capital humano, pobreza, conflicto) sin solaparse en exceso.
+# MAGIC
+# MAGIC El *scatter matrix* refuerza visualmente esta lectura: las nubes de puntos entre pares de covariables
+# MAGIC no muestran patrones lineales marcados (consistente con las correlaciones bajas), mientras que los
+# MAGIC histogramas en la diagonal muestran las asimetrías ya documentadas en la Etapa 3 — IND_PROD e
+# MAGIC IICA_CONFLICTO con colas hacia la derecha (pocos dominios con valores altos de productividad o
+# MAGIC conflicto) y TASA_TRAN_EDU_SUP con la distribución más simétrica de las cuatro.
 # MAGIC
 # MAGIC # Base final con las covariables seleccionadas
 # MAGIC
