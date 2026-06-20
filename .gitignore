@@ -1,0 +1,5 @@
+.databricks
+.vscode
+code/analisis/__pycache__/*.pyc
+code/modelo/shared/__pycache__/config.cpython-311.pyc
+**__pycache__**
