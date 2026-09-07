@@ -4,9 +4,9 @@
 # MAGIC # Modelo Fay-Herriot para Estimación de Tasa de Desempleo
 # MAGIC
 # MAGIC Ajusta y compara modelos Fay-Herriot clásicos sobre distintos subconjuntos de
-# MAGIC covariables, selecciona el ganador por AIC + BIC + MSE medio + RMSE-LOOCV, y
-# MAGIC produce una tabla consolidada de estimaciones (EBLUP donde hay encuesta directa,
-# MAGIC sintético donde no la hay).
+# MAGIC covariables, selecciona el ganador por AIC + MSE medio, y produce una tabla
+# MAGIC consolidada de estimaciones (EBLUP donde hay encuesta directa, sintético donde
+# MAGIC no la hay).
 # MAGIC
 # MAGIC Dominio: PER + MES + DEPARTAMENTO + MUNICIPIO.
 # MAGIC La lógica del modelo vive en `shared/` (ver `shared/modelo_area_pequena.py` y
@@ -45,18 +45,14 @@ print(f"Columnas disponibles:  {df.columns.tolist()}\n")
 
 # COMMAND ----------
 
-# DBTITLE 1,2. Ajuste de todos los modelos (incluye validación cruzada LOOCV)
+# DBTITLE 1,2. Ajuste de todos los modelos
 nombres_covars = COVAR_SETS
 
 print(f"Ajustando {len(nombres_covars)} modelo(s)...\n")
 modelos = [FayHerriotClasico(covars, df, Y_COL, SE_COL) for covars in nombres_covars]
 for modelo in modelos:
     modelo.ajustar()
-
-print("Ejecutando validación cruzada leave-one-out (LOOCV)...\n")
-for modelo in modelos:
-    modelo.rmse_loocv = modelo.loocv()["rmse_loocv"]
-    modelo.resultados  = modelo.tabla_resultados(metadata_cols=DOMINIO_COLS)
+    modelo.resultados = modelo.tabla_resultados(metadata_cols=DOMINIO_COLS)
 
 # COMMAND ----------
 
@@ -79,9 +75,10 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     print("=" * 65)
     print(explicacion_graficas())
 
-    fig = graficar_validacion(modelo, etiqueta)
-    display(fig)
-    plt.close(fig)
+    figuras = graficar_validacion(modelo, etiqueta)
+    for fig in figuras:
+        display(fig)
+        plt.close(fig)
 
     print(interpretar_validacion(modelo))
     print()
@@ -123,7 +120,6 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
           + ("✓ normalidad" if sw_ok else "✗ revisar normalidad"))
     print(f"  Reducción media del CV:       {modelo.resultados['MEJORA_CV_PCT'].mean():.2f} pp")
     print(f"  Shrinkage promedio (γ̄):       {modelo.gamma_i.mean():.4f}")
-    print(f"  RMSE-LOOCV (sintético, fuera de muestra): {modelo.rmse_loocv:.4f}")
 
     validacion = modelo.validar_mse_directo()
     print("\nVALIDACIÓN MSE EBLUP vs VARIANZA DIRECTA:")
@@ -156,14 +152,13 @@ if len(modelos) > 1:
     print("  Wilcoxon_pval: p-valor test Di>MSE_EBLUP (<0.05 -> reducción significativa)")
     print("  Pct_dom_mejoran: % dominios con MSE_EBLUP < Di")
     print("  Ratio_MSE_medio: Di/MSE_EBLUP medio (>1 indica ganancia de eficiencia)")
-    print("  RMSE_LOOCV: error de predicción fuera de muestra (validación cruzada leave-one-out)")
 
     print("\n" + "=" * 65)
-    print("TABLA 2 — SELECCIÓN DE MODELO (AIC / BIC / MSE medio / RMSE-LOOCV)")
+    print("TABLA 2 — SELECCIÓN DE MODELO (AIC / MSE medio)")
     print("=" * 65)
     display(tabla_seleccion(modelos, nombres_covars))
-    print("  Ranking por suma de posiciones en AIC + BIC + MSE_medio + RMSE_LOOCV")
-    print("  Delta_AIC/Delta_BIC: < 2 equivalentes · 2-7 moderado · > 10 sustancial")
+    print("  Ranking por suma de posiciones en AIC + MSE_medio")
+    print("  Delta_AIC: < 2 equivalentes · 2-7 moderado · > 10 sustancial")
 
 # COMMAND ----------
 

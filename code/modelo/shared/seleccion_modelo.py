@@ -18,37 +18,28 @@ def _rank_by(modelos: list, key_fn) -> dict:
 
 
 def _ranking_compuesto(modelos: list) -> list:
-    """Suma de posiciones en AIC, BIC, MSE medio y RMSE-LOOCV para cada modelo.
-
-    Requiere que cada modelo ya tenga `rmse_loocv` calculado (ver
-    `ModeloAreaPequena.loocv()`), porque recalcularlo aquí sería costoso
-    (reajusta el modelo n veces) y duplicaría trabajo ya hecho por el
-    orquestador.
+    """Suma de posiciones en AIC y MSE medio para cada modelo.
 
     Args:
-        modelos (list[ModeloAreaPequena]): Modelos ya ajustados, con
-            `rmse_loocv` asignado.
+        modelos (list[ModeloAreaPequena]): Modelos ya ajustados.
 
     Returns:
         list[int]: Puntaje de ranking compuesto (menor es mejor), mismo
             orden que `modelos`.
 
     Raises:
-        AttributeError: Si algún modelo no tiene `rmse_loocv` asignado.
+        AttributeError: Si algún modelo no ha sido ajustado (sin `aic` o `mse`).
     """
-    rk_aic   = _rank_by(modelos, lambda m: m.aic)
-    rk_bic   = _rank_by(modelos, lambda m: m.bic)
-    rk_mse   = _rank_by(modelos, lambda m: m.mse.mean())
-    rk_loocv = _rank_by(modelos, lambda m: m.rmse_loocv)
-    return [rk_aic[i] + rk_bic[i] + rk_mse[i] + rk_loocv[i] for i in range(len(modelos))]
+    rk_aic = _rank_by(modelos, lambda m: m.aic)
+    rk_mse = _rank_by(modelos, lambda m: m.mse.mean())
+    return [rk_aic[i] + rk_mse[i] for i in range(len(modelos))]
 
 
 def elegir_ganador(modelos: list, nombres_covars: list) -> ModeloAreaPequena:
-    """Elige el modelo con menor ranking compuesto (AIC + BIC + MSE medio + RMSE-LOOCV).
+    """Elige el modelo con menor ranking compuesto (AIC + MSE medio).
 
     Args:
-        modelos (list[ModeloAreaPequena]): Modelos ya ajustados con
-            `rmse_loocv` asignado.
+        modelos (list[ModeloAreaPequena]): Modelos ya ajustados.
         nombres_covars (list[list[str]]): Lista de covariables por modelo,
             mismo orden que `modelos` (solo se usa para mensajes).
 
@@ -56,7 +47,7 @@ def elegir_ganador(modelos: list, nombres_covars: list) -> ModeloAreaPequena:
         ModeloAreaPequena: El modelo ganador.
 
     Raises:
-        AttributeError: Si algún modelo no tiene `rmse_loocv` asignado.
+        AttributeError: Si algún modelo no ha sido ajustado.
         ValueError: Si `modelos` está vacío.
     """
     if not modelos:
@@ -73,20 +64,18 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
 
     Args:
         modelos (list[ModeloAreaPequena]): Modelos ajustados, con
-            `rmse_loocv` y `resultados` (resultado de `tabla_resultados()`)
-            ya asignados.
+            `resultados` (resultado de `tabla_resultados()`) ya asignado.
         nombres_covars (list[list[str]]): Lista de covariables por modelo,
             mismo orden que `modelos`.
 
     Returns:
         pd.DataFrame: Una fila por modelo con R², media/SD de residuos,
             p-valor de Shapiro-Wilk, reducción media de CV, shrinkage
-            promedio, % de dominios que mejoran el MSE, ratio MSE medio,
-            p-valor de Wilcoxon y RMSE-LOOCV.
+            promedio, % de dominios que mejoran el MSE, ratio MSE medio y
+            p-valor de Wilcoxon.
 
     Raises:
-        AttributeError: Si algún modelo no tiene `rmse_loocv` o
-            `resultados` asignados.
+        AttributeError: Si algún modelo no tiene `resultados` asignado.
     """
     filas = []
     for i, m in enumerate(modelos, 1):
@@ -103,7 +92,6 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
             "Pct_dom_mejoran": round(validacion["dominios_mejoran"] * 100, 1),
             "Ratio_MSE_medio": round(validacion["mse_ratio"].mean(), 4),
             "Wilcoxon_pval":   round(validacion["wil_pval"], 4),
-            "RMSE_LOOCV":      round(m.rmse_loocv, 4),
         })
     return pd.DataFrame(filas)
 
@@ -112,28 +100,24 @@ def tabla_seleccion(modelos: list, nombres_covars: list) -> pd.DataFrame:
     """Tabla de selección de modelo por ranking compuesto (Tabla 2 de la narrativa).
 
     Usa el mismo criterio de ranking que `elegir_ganador()` (suma de
-    posiciones en AIC, BIC, MSE medio y RMSE-LOOCV), por lo que el modelo
-    en la fila `Rank == 1` siempre coincide con el resultado de
-    `elegir_ganador()`.
+    posiciones en AIC y MSE medio), por lo que el modelo en la fila
+    `Rank == 1` siempre coincide con el resultado de `elegir_ganador()`.
 
     Args:
-        modelos (list[ModeloAreaPequena]): Modelos ajustados, con
-            `rmse_loocv` ya asignado.
+        modelos (list[ModeloAreaPequena]): Modelos ajustados.
         nombres_covars (list[list[str]]): Lista de covariables por modelo,
             mismo orden que `modelos`.
 
     Returns:
         pd.DataFrame: Una fila por modelo, ordenada por ranking, con AIC,
-            BIC, MSE medio, RMSE-LOOCV y sus diferencias frente al mejor
-            valor de cada métrica.
+            MSE medio y sus diferencias frente al mejor valor de cada
+            métrica.
 
     Raises:
-        AttributeError: Si algún modelo no tiene `rmse_loocv` asignado.
+        AttributeError: Si algún modelo no ha sido ajustado.
     """
-    best_aic   = min(m.aic for m in modelos)
-    best_bic   = min(m.bic for m in modelos)
-    best_mse   = min(m.mse.mean() for m in modelos)
-    best_loocv = min(m.rmse_loocv for m in modelos)
+    best_aic = min(m.aic for m in modelos)
+    best_mse = min(m.mse.mean() for m in modelos)
 
     puntajes = _ranking_compuesto(modelos)
     orden = sorted(range(len(modelos)), key=lambda i: puntajes[i])
@@ -143,17 +127,13 @@ def tabla_seleccion(modelos: list, nombres_covars: list) -> pd.DataFrame:
         m = modelos[idx]
         mse_medio = m.mse.mean()
         filas.append({
-            "Rank":          rank,
-            "Modelo":        f"M{idx + 1}",
-            "Covariables":   " + ".join(nombres_covars[idx]),
-            "AIC":           round(m.aic, 4),
-            "Delta_AIC":     round(m.aic - best_aic, 4),
-            "BIC":           round(m.bic, 4),
-            "Delta_BIC":     round(m.bic - best_bic, 4),
-            "MSE_medio":     round(mse_medio, 6),
-            "Delta_MSE":     round(mse_medio - best_mse, 6),
-            "RMSE_LOOCV":    round(m.rmse_loocv, 4),
-            "Delta_RMSE_CV": round(m.rmse_loocv - best_loocv, 4),
-            "Ganador":       "←" if rank == 1 else "",
+            "Rank":        rank,
+            "Modelo":      f"M{idx + 1}",
+            "Covariables": " + ".join(nombres_covars[idx]),
+            "AIC":         round(m.aic, 4),
+            "Delta_AIC":   round(m.aic - best_aic, 4),
+            "MSE_medio":   round(mse_medio, 6),
+            "Delta_MSE":   round(mse_medio - best_mse, 6),
+            "Ganador":     "←" if rank == 1 else "",
         })
     return pd.DataFrame(filas)

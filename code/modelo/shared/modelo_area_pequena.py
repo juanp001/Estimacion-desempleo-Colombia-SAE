@@ -9,18 +9,18 @@ class ModeloAreaPequena(ABC):
     """Interfaz base para modelos de estimación de áreas pequeñas (SAE) tipo Fay-Herriot.
 
     Centraliza lo que es común a cualquier variante (clásica, espacial,
-    temporal): construcción de la matriz de diseño, validación cruzada
-    leave-one-out, comparación del MSE contra la varianza directa y el
-    armado de la tabla de resultados por dominio. La construcción de la
-    matriz de varianzas V, la log-verosimilitud y el MSE de Prasad-Rao
-    difieren entre variantes y quedan a cargo de `ajustar()` en cada
-    subclase concreta (patrón Template Method).
+    temporal): construcción de la matriz de diseño, comparación del MSE
+    contra la varianza directa y el armado de la tabla de resultados por
+    dominio. La construcción de la matriz de varianzas V, la
+    log-verosimilitud y el MSE de Prasad-Rao difieren entre variantes y
+    quedan a cargo de `ajustar()` en cada subclase concreta (patrón
+    Template Method).
 
     Tras llamar a `ajustar()`, la subclase debe poblar los siguientes
     atributos de instancia: `A_hat` (float), `beta_hat`, `se_beta`,
     `t_stats`, `p_vals` (np.ndarray, shape (p,)), `cov_beta` (np.ndarray,
     shape (p, p)), `mu_hat`, `eblup`, `mse`, `rmse`, `cv`, `residuals`
-    (np.ndarray, shape (n,)), `sw_stat`, `sw_pval`, `r2`, `aic`, `bic`
+    (np.ndarray, shape (n,)), `sw_stat`, `sw_pval`, `r2` y `aic`
     (float). `gamma_i` (np.ndarray, shape (n,)) es opcional: solo aplica a
     variantes con shrinkage escalar por dominio (la clásica lo tiene; una
     variante espacial con matriz de covarianza completa puede omitirlo).
@@ -44,7 +44,6 @@ class ModeloAreaPequena(ABC):
         ...         pass  # ver shared/fay_herriot.py
         >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
         >>> modelo.ajustar()
-        >>> modelo.loocv()["rmse_loocv"]
     """
 
     def __init__(self, covars: list, df: pd.DataFrame, y_col: str, se_col: str):
@@ -73,40 +72,6 @@ class ModeloAreaPequena(ABC):
         varianzas V. Debe poblar los atributos documentados en el
         docstring de la clase.
         """
-
-    def loocv(self) -> dict:
-        """Validación cruzada leave-one-out sobre el predictor sintético.
-
-        Para cada dominio, reentrena una instancia nueva del mismo tipo de
-        modelo excluyéndolo y predice con el estimador sintético
-        X_d'β̂_(-d). Es agnóstico a la estructura interna de V: solo
-        requiere que la subclase tenga un constructor compatible con
-        `ModeloAreaPequena` y que `ajustar()` pueble `beta_hat`.
-
-        Returns:
-            dict: `preds_loocv` (np.ndarray), `resid_loocv` (np.ndarray) y
-                `rmse_loocv` (float), el error de predicción genuino fuera
-                de muestra.
-
-        Raises:
-            RuntimeError: Si se llama antes de `ajustar()`.
-        """
-        if not hasattr(self, "beta_hat"):
-            raise RuntimeError("Llama a ajustar() antes de loocv().")
-
-        preds = np.empty(self.n)
-        for i in range(self.n):
-            df_fold = self.df.drop(self.df.index[i])
-            modelo_fold = type(self)(self.covars, df_fold, self.y_col, self.se_col)
-            modelo_fold.ajustar()
-            preds[i] = self.X[i] @ modelo_fold.beta_hat
-
-        resid_loocv = self.Y - preds
-        return {
-            "preds_loocv": preds,
-            "resid_loocv": resid_loocv,
-            "rmse_loocv":  float(np.sqrt(np.mean(resid_loocv ** 2))),
-        }
 
     def validar_mse_directo(self) -> dict:
         """Compara el MSE del predictor contra la varianza directa Di.

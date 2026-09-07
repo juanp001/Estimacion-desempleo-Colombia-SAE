@@ -8,10 +8,10 @@ from shared.modelo_area_pequena import ModeloAreaPequena
 
 
 def explicacion_graficas() -> str:
-    """Texto narrativo que explica qué observar en las 3 gráficas de validación.
+    """Texto narrativo que explica qué observar en las 4 gráficas de validación.
 
     Returns:
-        str: Explicación lista para imprimir antes de mostrar la figura de
+        str: Explicación lista para imprimir antes de mostrar las figuras de
             `graficar_validacion()`.
     """
     return (
@@ -26,6 +26,11 @@ def explicacion_graficas() -> str:
         "el residuo sea negativo (el EBLUP sube la estimación) y para valores\n"
         "grandes sea positivo (el EBLUP la baja), confirmando que el modelo\n"
         "corrige los valores extremos inestables hacia la tendencia central.\n"
+        "Gráfica 4 (Histograma de residuos estandarizados): distribución de\n"
+        "(Y − ŷ_sintético)/√(Di+Â). Bajo el supuesto del modelo deben verse\n"
+        "aproximadamente normales, centrados en 0 y con desviación ≈ 1 (línea\n"
+        "de densidad normal de referencia superpuesta); es el respaldo visual\n"
+        "del test de Shapiro-Wilk reportado en los diagnósticos.\n"
     )
 
 
@@ -120,7 +125,6 @@ def _graficar_residuos_gvf(ax, Y: np.ndarray, resid_gvf: np.ndarray, municipios:
     _annotate(ax, Y, resid_gvf, municipios)
     ax.set_xlabel("Estimación directa Yd  (%)", fontsize=10)
     ax.set_ylabel("Residuo GVF  (Di − D̂i)", fontsize=10)
-    ax.set_title("Residuos de la GVF", fontsize=11, fontweight="bold")
     ax.xaxis.set_major_formatter(mticker.FormatStrFormatter("%.2f"))
     ax.legend(fontsize=9)
     ax.grid(True, linestyle=":", alpha=0.5)
@@ -138,7 +142,6 @@ def _graficar_gvf_pred_vs_obs(ax, Di: np.ndarray, Di_gvf_pred: np.ndarray,
     ax.set_ylim(d_range)
     ax.set_xlabel("Varianza directa observada (Di)", fontsize=10)
     ax.set_ylabel("Varianza GVF predicha (D̂i)", fontsize=10)
-    ax.set_title("GVF: Predicha vs Observada", fontsize=11, fontweight="bold")
     ax.legend(fontsize=9)
     ax.grid(True, linestyle=":", alpha=0.5)
 
@@ -151,7 +154,6 @@ def _graficar_efecto_suavizador(ax, Y: np.ndarray, resid_fh: np.ndarray, municip
     _annotate(ax, Y, resid_fh, municipios)
     ax.set_xlabel("Estimación directa Yd  (%)", fontsize=10)
     ax.set_ylabel("Residuo FH  (Yd − EBLUP)", fontsize=10)
-    ax.set_title("Efecto suavizador del EBLUP", fontsize=11, fontweight="bold")
     leyenda = [
         Line2D([0], [0], marker="o", color="w", markerfacecolor="tomato", markersize=8,
                label="EBLUP < Yd  (suaviza hacia abajo)"),
@@ -162,34 +164,56 @@ def _graficar_efecto_suavizador(ax, Y: np.ndarray, resid_fh: np.ndarray, municip
     ax.grid(True, linestyle=":", alpha=0.5)
 
 
-def graficar_validacion(modelo: ModeloAreaPequena, etiqueta: str):
-    """Construye la figura de 3 paneles de validación de un modelo ajustado.
+def _graficar_histograma_residuos(ax, residuals: np.ndarray) -> None:
+    """Dibuja el histograma de los residuos estandarizados con curva normal de referencia."""
+    ax.axvline(0, color="red", linestyle="--", linewidth=1.2, label="Referencia 0")
+    ax.hist(residuals, bins=min(15, max(5, len(residuals) // 3)),
+            color="steelblue", edgecolor="white", alpha=0.85, density=True, zorder=3)
+
+    xs = np.linspace(residuals.min() - 1, residuals.max() + 1, 200)
+    ax.plot(xs, stats.norm.pdf(xs, 0, 1), color="darkorange", linewidth=1.8,
+            label="N(0,1) referencia")
+
+    ax.set_xlabel("Residuo estandarizado  (Y − ŷ_sintético) / √(Di+Â)", fontsize=10)
+    ax.set_ylabel("Densidad", fontsize=10)
+    ax.legend(fontsize=9)
+    ax.grid(True, linestyle=":", alpha=0.5)
+
+
+def graficar_validacion(modelo: ModeloAreaPequena, etiqueta: str) -> list:
+    """Construye las 4 figuras individuales de validación de un modelo ajustado.
 
     Args:
         modelo (ModeloAreaPequena): Modelo ya ajustado, con `resultados`
-            (salida de `tabla_resultados()`) asignado para obtener los
-            nombres de municipio.
+            (salida de `tabla_resultados()`) y `residuals` asignados.
         etiqueta (str): Texto descriptivo del modelo para el título
             (p. ej. "Modelo 1: IND_PROD + IND_POB_MULT").
 
     Returns:
-        matplotlib.figure.Figure: Figura con los 3 paneles (residuos GVF,
-            GVF predicha vs observada, efecto suavizador del EBLUP).
+        list[matplotlib.figure.Figure]: Una figura por gráfica (residuos GVF,
+            GVF predicha vs observada, efecto suavizador del EBLUP,
+            histograma de residuos estandarizados), cada una independiente.
 
     Raises:
-        AttributeError: Si el modelo no tiene `resultados` asignado.
+        AttributeError: Si el modelo no tiene `resultados` o `residuals` asignados.
     """
     municipios = modelo.resultados["MUNICIPIO"].values
     Di_gvf_pred, mask_pos = _ajustar_gvf(modelo.Y, modelo.Di)
     resid_gvf = modelo.Di - Di_gvf_pred
     resid_fh  = modelo.Y - modelo.eblup
 
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-    fig.suptitle(f"Validación {etiqueta}", fontsize=13, fontweight="bold")
+    paneles = [
+        (_graficar_residuos_gvf, (modelo.Y, resid_gvf, municipios)),
+        (_graficar_gvf_pred_vs_obs, (modelo.Di, Di_gvf_pred, mask_pos, municipios)),
+        (_graficar_efecto_suavizador, (modelo.Y, resid_fh, municipios)),
+        (_graficar_histograma_residuos, (modelo.residuals,)),
+    ]
 
-    _graficar_residuos_gvf(axes[0], modelo.Y, resid_gvf, municipios)
-    _graficar_gvf_pred_vs_obs(axes[1], modelo.Di, Di_gvf_pred, mask_pos, municipios)
-    _graficar_efecto_suavizador(axes[2], modelo.Y, resid_fh, municipios)
+    figuras = []
+    for funcion_graficado, args in paneles:
+        fig, ax = plt.subplots(figsize=(8, 6.5))
+        funcion_graficado(ax, *args)
+        plt.tight_layout()
+        figuras.append(fig)
 
-    plt.tight_layout()
-    return fig
+    return figuras

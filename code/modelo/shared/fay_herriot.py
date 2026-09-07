@@ -71,12 +71,12 @@ def _neg_reml_loglik(log_A: float, Y: np.ndarray, X: np.ndarray, Di: np.ndarray)
 
 
 def _neg_ml_loglik(log_A: float, Y: np.ndarray, X: np.ndarray, Di: np.ndarray) -> float:
-    """Log-verosimilitud ML negativa bajo V = diag(Di + A); usada para AIC/BIC.
+    """Log-verosimilitud ML negativa bajo V = diag(Di + A); usada para el AIC.
 
     A diferencia de REML, ML no penaliza por la pérdida de grados de
     libertad al estimar beta, por lo que sus valores no son comparables
     entre sí para distintos A, pero sí lo son entre modelos con distinto
-    número de covariables (lo que requiere AIC/BIC).
+    número de covariables (lo que requiere el AIC).
 
     Args:
         log_A (float): Logaritmo de la varianza de efectos aleatorios.
@@ -204,11 +204,11 @@ class FayHerriotClasico(ModeloAreaPequena):
         r2 = 1 - np.sum((self.Y - mu_hat) ** 2) / np.sum((self.Y - self.Y.mean()) ** 2)
         return residuals, sw_stat, sw_pval, r2
 
-    def _calcular_aic_bic(self) -> tuple:
-        """AIC y BIC vía la log-verosimilitud ML (A se reoptimiza con ML, no REML).
+    def _calcular_aic(self) -> float:
+        """AIC vía la log-verosimilitud ML (A se reoptimiza con ML, no REML).
 
         Returns:
-            tuple: (aic, bic).
+            float: AIC del modelo ajustado.
         """
         res_ml = minimize_scalar(
             _neg_ml_loglik,
@@ -217,16 +217,14 @@ class FayHerriotClasico(ModeloAreaPequena):
             args=(self.Y, self.X, self.Di),
         )
         log_lik_ml = -res_ml.fun
-        aic = -2 * log_lik_ml + 2 * (self.p + 1)            # p coefs + 1 para A
-        bic = -2 * log_lik_ml + np.log(self.n) * (self.p + 1)
-        return aic, bic
+        return -2 * log_lik_ml + 2 * (self.p + 1)           # p coefs + 1 para A
 
     def ajustar(self) -> None:
         """Ajusta el modelo Fay-Herriot clásico completo.
 
         Orquesta la estimación de A por REML, beta por GLS, el predictor
         EBLUP, su MSE de Prasad-Rao, los diagnósticos de residuos y el
-        AIC/BIC. Puebla todos los atributos del contrato documentado en
+        AIC. Puebla todos los atributos del contrato documentado en
         `ModeloAreaPequena`.
         """
         self.A_hat = self._estimar_varianza_aleatoria()
@@ -240,4 +238,4 @@ class FayHerriotClasico(ModeloAreaPequena):
         self.residuals, self.sw_stat, self.sw_pval, self.r2 = (
             self._diagnosticos_residuos(self.A_hat, self.mu_hat)
         )
-        self.aic, self.bic = self._calcular_aic_bic()
+        self.aic = self._calcular_aic()
