@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # DBTITLE 1,Documentación
 # MAGIC %md
 # MAGIC # Análisis descriptivo de los datos previo al modelamiento
@@ -322,4 +326,3 @@ display(spark.createDataFrame(pares) if not pares.empty else spark.createDataFra
 
 print(f"Tablas escritas:\n  · {TBL_DESCRIPTIVO_UNI}\n  · {TBL_DESCRIPTIVO_BI}")
 print(f"Candidatas caracterizadas: {len(CANDIDATAS)}")
-
