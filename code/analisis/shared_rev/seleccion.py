@@ -1,119 +1,37 @@
 """Selección final de covariables auxiliares.
 
-Sustituye al ranking compuesto de la versión original, en el que la decisión provenía de un
-score ``C = (1-α)·Q + α·(L/3)`` con Q igual al promedio de cinco deseabilidades. Ese
-procedimiento presentaba cuatro problemas que no admiten defensa metodológica:
+La selección es **cualitativa y secuencial**: cada paso descarta por una razón única,
+verificable con estadística básica, y el recorrido de cada covariable queda registrado. No
+hay pesos, puntajes compuestos ni criterios de información.
 
-1. Los pesos del promedio y los topes de normalización (0.30, 0.30, 1.00) eran arbitrarios,
-   igual que el valor α = 0.30.
-2. Tres de las cinco componentes —concordancia entre coeficientes, estabilidad ante
-   exclusión de dominios y baja influencia— miden el mismo fenómeno, la sensibilidad a
-   valores extremos, de modo que esa información entraba al score contada tres veces.
-3. La componente de no redundancia dependía de qué otras candidatas estuvieran presentes,
-   por lo que el score de una covariable cambiaba sin que cambiara la covariable.
-4. El resultado lo determinaba en realidad la restricción de una covariable por dimensión,
-   no el score: sin esa restricción el conjunto ganador era otro.
+    candidatas conceptualmente elegibles (catálogo de literatura)
+      → filtro de robustez        (se descarta lo que depende de un solo dominio)
+      → resolución de redundancia (un representante por grupo de covariables equivalentes)
+      → ficha de decisión         (intervalo de la correlación y signo esperado; entre las
+                                   elegibles, las de mayor asociación hasta la cota de
+                                   parsimonia)
+      → verificación              (multicolinealidad del conjunto elegido)
 
-En su lugar la selección es **secuencial y sin pesos**. Cada paso descarta por una razón
-única y verificable, y el paso final usa el criterio de información de Akaike sobre el
-propio modelo Fay-Herriot, que ya está definido en el marco teórico y es la práctica
-documentada en la literatura de estimación en áreas pequeñas revisada por el proyecto.
+Por qué no se usa el AIC ni un ranking compuesto
+-----------------------------------------------
+Una versión anterior cerraba con una búsqueda exhaustiva de especificaciones por AIC sobre
+el modelo Fay-Herriot, y otra con un puntaje ``C = (1-α)·Q + α·(L/3)``. Ambas se retiran.
+El puntaje mezclaba componentes que medían lo mismo con pesos arbitrarios, y el resultado
+lo fijaba una restricción de una covariable por dimensión. La búsqueda por AIC, con 23
+dominios, reutilizaba los mismos datos que ajustan el modelo y producía docenas de
+especificaciones equivalentes entre las que la elección volvía a ser una regla añadida. La
+selección cualitativa es más fácil de sustentar: cada covariable entra o sale por una
+razón que se puede leer en su fila de la ficha de decisión.
 
-    candidatas conceptualmente elegibles
-      → resolución de redundancia   (un representante por grupo de covariables equivalentes)
-      → filtro de robustez          (se descarta lo que depende de un solo dominio)
-      → búsqueda exhaustiva por AIC (subconjuntos de tamaño <= p_max)
-      → verificación                (multicolinealidad, signo de los coeficientes)
-
-La restricción de diversidad temática desaparece como regla impuesta: la cobertura de
-dimensiones distintas pasa a ser consecuencia del criterio de redundancia, que sí tiene
-fundamento estadístico.
-
-Nota sobre reutilización de datos: elegir por AIC emplea los mismos dominios que ajustan el
-modelo. La diferencia con el pre-filtro por correlación que se eliminó es que aquí se aplica
-sobre un conjunto ya acotado por criterio conceptual, es el procedimiento estándar en la
-literatura del área, y sus resultados no se presentan como evidencia confirmatoria sino
-como criterio de comparación entre especificaciones.
+La comparación entre especificaciones del modelo, con AIC, error cuadrático medio y
+distancia de Cook, se hace en el notebook del modelo sobre el conjunto elegido y sus
+variantes dejando una covariable fuera.
 """
-
-from itertools import combinations
 
 import numpy as np
 import pandas as pd
 
-
-def resolver_redundancia(
-    df: pd.DataFrame,
-    columnas: list,
-    literatura: dict,
-    influencia: dict,
-    alias: dict = None,
-    umbral: float = 0.80,
-) -> tuple:
-    """Conserva una sola covariable por grupo de covariables mutuamente redundantes.
-
-    Agrupa las candidatas por componentes conexas del grafo de correlaciones de magnitud
-    mayor o igual que `umbral` y elige un representante por grupo. El desempate es
-    determinista y está ordenado por fuerza del argumento:
-
-    1. mayor nivel de respaldo conceptual, que se fijó antes de mirar los datos;
-    2. menor distancia de Cook máxima, es decir, la asociación menos dependiente de un
-       dominio individual;
-    3. orden alfabético del código, que solo actúa si las dos anteriores empatan.
-
-    Ninguno de los tres criterios usa la magnitud de la correlación con la respuesta, de
-    modo que la resolución de redundancia no reintroduce selección sobre la variable
-    dependiente.
-
-    Args:
-        df (pd.DataFrame): Datos con una fila por dominio.
-        columnas (list[str]): Covariables candidatas.
-        literatura (dict): Mapa código → nivel de respaldo conceptual.
-        influencia (dict): Mapa código → distancia de Cook máxima.
-        alias (dict | None): Mapa código → alias legible.
-        umbral (float): Magnitud de correlación que define la redundancia.
-
-    Returns:
-        tuple[list, pd.DataFrame]: (representantes, reporte). El reporte tiene una fila por
-            covariable con su grupo, si fue elegida representante y el motivo.
-
-    Example:
-        >>> representantes, reporte = resolver_redundancia(df, codigos, L, cook, alias)
-    """
-    alias = alias or {}
-    grupos = _componentes_conexas(df[columnas], umbral)
-
-    representantes, filas = [], []
-    for n_grupo, grupo in enumerate(grupos, 1):
-        elegida = min(
-            grupo,
-            key=lambda c: (-literatura.get(c, 0), influencia.get(c, np.inf), c),
-        )
-        representantes.append(elegida)
-        for codigo in grupo:
-            if len(grupo) == 1:
-                motivo = "sin covariables redundantes"
-            elif codigo == elegida:
-                motivo = (f"representante del grupo: mayor respaldo conceptual "
-                          f"(L={literatura.get(codigo)}) y Cook máxima "
-                          f"{influencia.get(codigo, float('nan')):.3f}")
-            else:
-                motivo = (f"redundante con {alias.get(elegida, elegida)} "
-                          f"(|r| >= {umbral})")
-            filas.append({
-                "Alias":         alias.get(codigo, codigo),
-                "Codigo":        codigo,
-                "Grupo":         n_grupo,
-                "Tamano_grupo":  len(grupo),
-                "Representante": "sí" if codigo == elegida else "no",
-                "Motivo":        motivo,
-            })
-
-    reporte = pd.DataFrame(filas).sort_values(["Grupo", "Representante"], ascending=[True, False])
-    print(f"Resolución de redundancia (|r| >= {umbral}): "
-          f"{len(columnas)} → {len(representantes)} covariables "
-          f"({len(grupos)} grupos)")
-    return sorted(representantes), reporte
+from analisis.shared_rev.diagnosticos import vif_conjunto
 
 
 def filtrar_por_robustez(
@@ -148,127 +66,347 @@ def filtrar_por_robustez(
         >>> robustas, reporte = filtrar_por_robustez(candidatas, df_cook, df_loo)
     """
     alias = alias or {}
-    cook  = influencia.set_index("Codigo")
-    loo   = estabilidad.set_index("Codigo")
+    cook = influencia.set_index("Codigo")
+    loo = estabilidad.set_index("Codigo")
 
     robustas, filas = [], []
     for codigo in columnas:
-        cook_max   = float(cook.loc[codigo, "Cook_max"])
+        cook_max = float(cook.loc[codigo, "Cook_max"])
         umbral_cook = float(cook.loc[codigo, "Umbral"])
-        delta_max  = float(loo.loc[codigo, "Delta_max_abs"])
-        invierte   = str(loo.loc[codigo, "Invierte_signo"]) != "—"
+        delta_max = float(loo.loc[codigo, "Delta_max_abs"])
+        invierte = str(loo.loc[codigo, "Invierte_signo"]) != "—"
 
         apalancada = cook_max > umbral_cook
-        inestable  = delta_max > umbral_delta or invierte
+        inestable = delta_max > umbral_delta or invierte
 
         if apalancada and inestable:
             decision = "descartada"
-            motivo = (f"Cook máxima {cook_max:.3f} > {umbral_cook:.3f} en "
-                      f"{cook.loc[codigo, 'Dominios_influyentes']}, y al excluir "
-                      f"{loo.loc[codigo, 'Dominio_critico']} la correlación cambia "
-                      f"{delta_max:.3f}" + (" e invierte el signo" if invierte else ""))
+            motivo = (
+                f"Cook máxima {cook_max:.3f} > {umbral_cook:.3f} en "
+                f"{cook.loc[codigo, 'Dominios_influyentes']}, y al excluir "
+                f"{loo.loc[codigo, 'Dominio_critico']} la correlación cambia "
+                f"{delta_max:.3f}" + (" e invierte el signo" if invierte else "")
+            )
         else:
             decision = "conservada"
             robustas.append(codigo)
             if apalancada:
-                motivo = (f"un dominio domina la regresión (Cook {cook_max:.3f}) pero la "
-                          f"correlación solo cambia {delta_max:.3f} al excluirlo")
+                motivo = (
+                    f"un dominio domina la regresión (Cook {cook_max:.3f}) pero la "
+                    f"correlación solo cambia {delta_max:.3f} al excluirlo"
+                )
             elif inestable:
-                motivo = (f"la correlación cambia {delta_max:.3f} al excluir un dominio, "
-                          f"sin que ninguno domine la regresión (Cook {cook_max:.3f})")
+                motivo = (
+                    f"la correlación cambia {delta_max:.3f} al excluir un dominio, "
+                    f"sin que ninguno domine la regresión (Cook {cook_max:.3f})"
+                )
             else:
                 motivo = "asociación estable ante la exclusión de cualquier dominio"
 
-        filas.append({
-            "Alias":      alias.get(codigo, codigo),
-            "Codigo":     codigo,
-            "Cook_max":   round(cook_max, 4),
-            "Delta_LOO_max": round(delta_max, 3),
-            "Invierte_signo": "sí" if invierte else "no",
-            "Decision":   decision,
-            "Motivo":     motivo,
-        })
+        filas.append(
+            {
+                "Alias": alias.get(codigo, codigo),
+                "Codigo": codigo,
+                "Cook_max": round(cook_max, 4),
+                "Delta_LOO_max": round(delta_max, 3),
+                "Invierte_signo": "sí" if invierte else "no",
+                "Decision": decision,
+                "Motivo": motivo,
+            }
+        )
 
     print(f"Filtro de robustez: {len(columnas)} → {len(robustas)} covariables")
     return robustas, pd.DataFrame(filas)
 
 
-def busqueda_exhaustiva_aic(
+def resolver_redundancia(
     df: pd.DataFrame,
     columnas: list,
-    modelo_cls,
-    y_col: str,
-    se_col: str,
-    p_maximo: int = 4,
+    influencia: dict,
     alias: dict = None,
-) -> pd.DataFrame:
-    """Ajusta todos los subconjuntos de covariables hasta `p_maximo` y los ordena por AIC.
+    umbral: float = 0.80,
+) -> tuple:
+    """Conserva una sola covariable por grupo de covariables mutuamente redundantes.
 
-    Con una decena de candidatas, evaluar exhaustivamente los subconjuntos de tamaño uno a
-    `p_maximo` son unos pocos cientos de ajustes: es más barato que un procedimiento por
-    pasos y, a diferencia de este, no depende del orden de entrada ni deja fuera
-    combinaciones por el camino recorrido. El resultado es reconstruible en su totalidad.
-
-    El límite `p_maximo` proviene de la cota de parsimonia del proyecto: con 23 dominios el
-    modelo admite del orden de cuatro covariables más el intercepto.
+    Agrupa las candidatas por componentes conexas del grafo de correlaciones de magnitud
+    mayor o igual que `umbral` y elige un representante por grupo. El desempate es
+    determinista: la asociación menos dependiente de un dominio individual (menor distancia
+    de Cook máxima) y, a igualdad, el orden alfabético del código. No usa la magnitud de la
+    correlación con la respuesta, de modo que resolver la redundancia no reintroduce
+    selección sobre la variable dependiente.
 
     Args:
-        df (pd.DataFrame): Datos con una fila por dominio, con `y_col`, `se_col` y las
-            covariables.
-        columnas (list[str]): Covariables candidatas.
-        modelo_cls (type): Clase del modelo Fay-Herriot; debe aceptar
-            ``(covars, df, y_col, se_col)`` y exponer `aic` y `r2` tras `ajustar()`.
-        y_col (str): Columna con la estimación directa.
-        se_col (str): Columna con su error estándar.
-        p_maximo (int): Número máximo de covariables por especificación.
+        df (pd.DataFrame): Datos con una fila por dominio.
+        columnas (list[str]): Covariables candidatas (normalmente las robustas).
+        influencia (dict): Mapa código → distancia de Cook máxima.
+        alias (dict | None): Mapa código → alias legible.
+        umbral (float): Magnitud de correlación que define la redundancia.
+
+    Returns:
+        tuple[list, pd.DataFrame]: (representantes, reporte). El reporte tiene una fila por
+            covariable con su grupo, si fue elegida representante y el motivo.
+
+    Example:
+        >>> representantes, reporte = resolver_redundancia(df, codigos, cook, alias)
+    """
+    alias = alias or {}
+    grupos = _componentes_conexas(df[columnas], umbral)
+
+    representantes, filas = [], []
+    for n_grupo, grupo in enumerate(grupos, 1):
+        elegida = min(grupo, key=lambda c: (influencia.get(c, np.inf), c))
+        representantes.append(elegida)
+        for codigo in grupo:
+            if len(grupo) == 1:
+                motivo = "sin covariables redundantes"
+            elif codigo == elegida:
+                motivo = (
+                    f"representante del grupo: la asociación menos dependiente de un dominio "
+                    f"(Cook máxima {influencia.get(codigo, float('nan')):.3f})"
+                )
+            else:
+                motivo = (
+                    f"redundante con {alias.get(elegida, elegida)} (|r| >= {umbral})"
+                )
+            filas.append(
+                {
+                    "Alias": alias.get(codigo, codigo),
+                    "Codigo": codigo,
+                    "Grupo": n_grupo,
+                    "Tamano_grupo": len(grupo),
+                    "Representante": "sí" if codigo == elegida else "no",
+                    "Motivo": motivo,
+                }
+            )
+
+    reporte = pd.DataFrame(filas).sort_values(
+        ["Grupo", "Representante"], ascending=[True, False]
+    )
+    print(
+        f"Resolución de redundancia (|r| >= {umbral}): "
+        f"{len(columnas)} → {len(representantes)} covariables "
+        f"({len(grupos)} grupos)"
+    )
+    return sorted(representantes), reporte
+
+
+def ficha_decision(
+    candidatas: list,
+    bivariado: pd.DataFrame,
+    ic: pd.DataFrame,
+    robustez: pd.DataFrame,
+    redundancia: pd.DataFrame,
+    signo_esperado: dict,
+    alias: dict = None,
+    dimension: dict = None,
+    p_maximo: int = 4,
+) -> tuple:
+    """Construye la ficha de decisión de cada candidata y elige el conjunto final.
+
+    Reúne en una fila por covariable la evidencia descriptiva y diagnóstica ya calculada y
+    aplica, en este orden, reglas explícitas:
+
+    1. Descartada por robustez → ``descartada``.
+    2. No es representante de su grupo de redundancia → ``descartada``.
+    3. El intervalo de Fisher de la correlación contiene el cero → ``no elegible``: la
+       evidencia no determina siquiera el signo de la asociación.
+    4. El signo observado contradice el mecanismo del catálogo (cuando este fija una
+       dirección) → ``no elegible``: una covariable cuyo efecto va en contra de la razón por
+       la que se propuso no puede sustentarse en el documento.
+    5. Entre las ``elegibles`` se seleccionan las `p_maximo` de mayor asociación en valor
+       absoluto, medida con el coeficiente que `tabla_bivariada()` declaró interpretable
+       (Pearson, o Spearman cuando valores extremos condicionan la relación lineal). El
+       resto queda como ``elegible, no seleccionada por parsimonia``.
+
+    Args:
+        candidatas (list[str]): Códigos de las candidatas conceptualmente elegibles.
+        bivariado (pd.DataFrame): Salida de `descriptivos.tabla_bivariada()`.
+        ic (pd.DataFrame): Salida de `diagnosticos.tabla_ic_correlacion()`.
+        robustez (pd.DataFrame): Salida de `filtrar_por_robustez()`.
+        redundancia (pd.DataFrame): Salida de `resolver_redundancia()`.
+        signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
+        alias (dict | None): Mapa código → alias legible.
+        dimension (dict | None): Mapa código → dimensión conceptual.
+        p_maximo (int): Número máximo de covariables seleccionadas.
+
+    Returns:
+        tuple[list, pd.DataFrame]: (seleccionadas, ficha). `seleccionadas` conserva el orden
+            por asociación descendente; `ficha` tiene una fila por candidata con la
+            evidencia y la decisión.
+
+    Raises:
+        ValueError: Si ninguna candidata resulta elegible.
+
+    Example:
+        >>> seleccionadas, ficha = ficha_decision(CANDIDATAS, bivariado, df_ic, df_robustez,
+        ...                                       df_redundancia, SIGNO, ALIAS, DIMENSION)
+    """
+    alias = alias or {}
+    dimension = dimension or {}
+    biv = bivariado.set_index("Codigo")
+    ic_idx = ic.set_index("Codigo")
+    rob = robustez.set_index("Codigo")
+    red = redundancia.set_index("Codigo")
+
+    filas = []
+    for codigo in candidatas:
+        medida = biv.loc[codigo, "Medida_interpretable"]
+        r = float(
+            biv.loc[codigo, "Spearman_rho"]
+            if medida == "Spearman"
+            else biv.loc[codigo, "Pearson_r"]
+        )
+        esperado = signo_esperado.get(codigo, "±")
+        observado = "+" if r > 0 else "-"
+        contiene_cero = ic_idx.loc[codigo, "IC_contiene_cero"] == "sí"
+        robusta = rob.loc[codigo, "Decision"] == "conservada"
+        representante = codigo in red.index and red.loc[codigo, "Representante"] == "sí"
+
+        if not robusta:
+            decision, motivo = "descartada", f"robustez: {rob.loc[codigo, 'Motivo']}"
+        elif not representante:
+            decision, motivo = "descartada", f"redundancia: {red.loc[codigo, 'Motivo']}"
+        elif contiene_cero:
+            decision, motivo = (
+                "no elegible",
+                f"el intervalo de la correlación [{ic_idx.loc[codigo, 'IC_inf']:.2f}, "
+                f"{ic_idx.loc[codigo, 'IC_sup']:.2f}] contiene el cero",
+            )
+        elif esperado != "±" and observado != esperado:
+            decision, motivo = (
+                "no elegible",
+                f"signo observado ({observado}) contrario al esperado por el mecanismo ({esperado})",
+            )
+        else:
+            decision, motivo = "elegible", ""
+
+        filas.append(
+            {
+                "Alias": alias.get(codigo, codigo),
+                "Codigo": codigo,
+                "Dimension": dimension.get(codigo, "—"),
+                "Signo_esperado": esperado,
+                "Signo_observado": observado,
+                "Medida": medida,
+                "r_interpretable": round(r, 3),
+                "IC_inf": float(ic_idx.loc[codigo, "IC_inf"]),
+                "IC_sup": float(ic_idx.loc[codigo, "IC_sup"]),
+                "IC_contiene_cero": "sí" if contiene_cero else "no",
+                "Robustez": rob.loc[codigo, "Decision"],
+                "Redundancia": (
+                    "representante"
+                    if representante
+                    else ("redundante" if codigo in red.index else "no evaluada")
+                ),
+                "Decision": decision,
+                "Motivo": motivo,
+            }
+        )
+
+    ficha = pd.DataFrame(filas)
+    elegibles = ficha[ficha["Decision"] == "elegible"].copy()
+    if elegibles.empty:
+        raise ValueError(
+            "Ninguna candidata resulta elegible; revisar los diagnósticos antes de continuar."
+        )
+
+    elegibles["abs_r"] = elegibles["r_interpretable"].abs()
+    elegibles = elegibles.sort_values(["abs_r", "Codigo"], ascending=[False, True])
+    seleccionadas = elegibles["Codigo"].head(p_maximo).tolist()
+
+    for i, fila in elegibles.reset_index().iterrows():
+        idx = ficha.index[ficha["Codigo"] == fila["Codigo"]][0]
+        if fila["Codigo"] in seleccionadas:
+            ficha.loc[idx, "Decision"] = "seleccionada"
+            ficha.loc[idx, "Motivo"] = (
+                f"elegible; puesto {i + 1} de {len(elegibles)} por asociación con la respuesta "
+                f"(|{fila['Medida']}| = {fila['abs_r']:.2f}), dentro de la cota de {p_maximo} covariables"
+            )
+        else:
+            ficha.loc[idx, "Decision"] = "no seleccionada"
+            ficha.loc[idx, "Motivo"] = (
+                f"elegible; puesto {i + 1} de {len(elegibles)} por asociación "
+                f"(|{fila['Medida']}| = {fila['abs_r']:.2f}), fuera de la cota de {p_maximo} covariables"
+            )
+
+    ficha["abs_r"] = ficha["r_interpretable"].abs()
+    orden_decision = {
+        "seleccionada": 0,
+        "no seleccionada": 1,
+        "no elegible": 2,
+        "descartada": 3,
+    }
+    ficha = (
+        ficha.assign(_orden=ficha["Decision"].map(orden_decision))
+        .sort_values(["_orden", "abs_r"], ascending=[True, False])
+        .drop(columns=["_orden", "abs_r"])
+        .reset_index(drop=True)
+    )
+
+    print(
+        f"Ficha de decisión: {len(candidatas)} candidatas → {len(elegibles)} elegibles → {len(seleccionadas)} seleccionadas"
+    )
+    for estado, n in ficha["Decision"].value_counts().items():
+        print(f"  · {estado}: {n}")
+    return seleccionadas, ficha
+
+
+def ajustar_por_vif(
+    df: pd.DataFrame,
+    seleccionadas: list,
+    elegibles_restantes: list,
+    vif_max: float = 5.0,
+    alias: dict = None,
+) -> tuple:
+    """Garantiza que el conjunto seleccionado no presente multicolinealidad.
+
+    Mientras el mayor factor de inflación de la varianza supere `vif_max`, retira la
+    covariable responsable y la sustituye por la siguiente elegible (en el orden de
+    asociación que fijó la ficha). Si no quedan sustitutas, el conjunto simplemente se
+    reduce. Cada sustitución queda registrada.
+
+    Args:
+        df (pd.DataFrame): Datos con una fila por dominio.
+        seleccionadas (list[str]): Conjunto elegido por `ficha_decision()`.
+        elegibles_restantes (list[str]): Elegibles no seleccionadas, en orden de prioridad.
+        vif_max (float): Umbral de multicolinealidad.
         alias (dict | None): Mapa código → alias legible.
 
     Returns:
-        pd.DataFrame: Una fila por especificación ajustada, ordenada por AIC ascendente,
-            con el número de covariables, el AIC, su diferencia frente al mejor y el R² del
-            predictor sintético. Las especificaciones que no convergen se omiten y se
-            informan por consola.
-
-    Raises:
-        ValueError: Si `columnas` está vacío.
+        tuple[list, pd.DataFrame, list]: (conjunto final, tabla VIF del conjunto final,
+            lista de cadenas que describen cada sustitución realizada).
 
     Example:
-        >>> busqueda_exhaustiva_aic(df, robustas, FayHerriotClasico,
-        ...                         "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
+        >>> finales, df_vif, cambios = ajustar_por_vif(df_cand, seleccionadas, restantes)
     """
-    if not columnas:
-        raise ValueError("No hay covariables candidatas para la búsqueda.")
-
     alias = alias or {}
-    filas, fallidas = [], 0
+    conjunto = list(seleccionadas)
+    pendientes = list(elegibles_restantes)
+    sustituciones = []
 
-    for tamano in range(1, min(p_maximo, len(columnas)) + 1):
-        for subconjunto in combinations(sorted(columnas), tamano):
-            try:
-                modelo = modelo_cls(list(subconjunto), df, y_col, se_col)
-                modelo.ajustar()
-            except Exception:
-                fallidas += 1
-                continue
-            filas.append({
-                "N_covariables": tamano,
-                "Covariables":   " + ".join(alias.get(c, c) for c in subconjunto),
-                "Codigos":       ",".join(subconjunto),
-                "AIC":           round(float(modelo.aic), 3),
-                "R2":            round(float(modelo.r2), 4),
-            })
+    while True:
+        tabla_vif = vif_conjunto(df, conjunto, alias=alias)
+        vif_maximo = float(tabla_vif["VIF"].max())
+        if vif_maximo <= vif_max or len(conjunto) < 2:
+            break
+        saliente = tabla_vif.loc[tabla_vif["VIF"].idxmax(), "Codigo"]
+        conjunto.remove(saliente)
+        mensaje = (
+            f"{alias.get(saliente, saliente)} sale por VIF {vif_maximo:.2f} > {vif_max}"
+        )
+        if pendientes:
+            entrante = pendientes.pop(0)
+            conjunto.append(entrante)
+            mensaje += f"; entra {alias.get(entrante, entrante)}"
+        else:
+            mensaje += "; sin sustituta, el conjunto se reduce"
+        sustituciones.append(mensaje)
+        print(f"  VIF: {mensaje}")
 
-    if not filas:
-        raise ValueError("Ninguna especificación pudo ajustarse.")
-
-    resultado = pd.DataFrame(filas).sort_values("AIC").reset_index(drop=True)
-    resultado.insert(0, "Rank", resultado.index + 1)
-    resultado["Delta_AIC"] = (resultado["AIC"] - resultado["AIC"].min()).round(3)
-
-    print(f"Búsqueda exhaustiva: {len(resultado)} especificaciones ajustadas "
-          f"(hasta {p_maximo} covariables)" +
-          (f", {fallidas} no convergieron" if fallidas else ""))
-    return resultado
+    print(
+        f"Verificación de multicolinealidad: VIF máximo {float(tabla_vif['VIF'].max()):.3f} (umbral {vif_max})"
+    )
+    return conjunto, tabla_vif, sustituciones
 
 
 def _componentes_conexas(df: pd.DataFrame, umbral: float) -> list:
@@ -292,7 +430,7 @@ def _componentes_conexas(df: pd.DataFrame, umbral: float) -> list:
         return c
 
     for i, a in enumerate(cols):
-        for b in cols[i + 1:]:
+        for b in cols[i + 1 :]:
             if corr.loc[a, b] >= umbral:
                 ra, rb = raiz(a), raiz(b)
                 if ra != rb:
@@ -302,82 +440,7 @@ def _componentes_conexas(df: pd.DataFrame, umbral: float) -> list:
     for c in cols:
         grupos.setdefault(raiz(c), []).append(c)
 
-    return [sorted(g) for g in sorted(grupos.values(), key=lambda g: (-len(g), sorted(g)[0]))]
-
-
-def figura_aic(resultado: pd.DataFrame, n_mostrar: int = 15):
-    """Compara las mejores especificaciones de la búsqueda exhaustiva por su AIC.
-
-    Muestra la diferencia de AIC frente a la mejor especificación, que es la magnitud
-    interpretable: diferencias por debajo de dos unidades indican especificaciones
-    prácticamente equivalentes en ajuste, de modo que el gráfico deja ver si la ganadora se
-    separa del resto o si comparte el primer puesto con otras.
-
-    Args:
-        resultado (pd.DataFrame): Salida de `busqueda_exhaustiva_aic()`.
-        n_mostrar (int): Número de especificaciones a graficar.
-
-    Returns:
-        matplotlib.figure.Figure: Figura de barras horizontales ordenadas por AIC.
-
-    Example:
-        >>> fig = figura_aic(busqueda)
-    """
-    import matplotlib.pyplot as plt
-
-    mejores = resultado.head(n_mostrar).iloc[::-1]
-    colores = ["firebrick" if d == 0 else "steelblue" for d in mejores["Delta_AIC"]]
-
-    fig, ax = plt.subplots(figsize=(9, 0.42 * len(mejores) + 1.5))
-    ax.barh(np.arange(len(mejores)), mejores["Delta_AIC"], color=colores, edgecolor="white")
-    ax.axvline(2, color="dimgray", linestyle="--", linewidth=1.2,
-               label="Diferencia de AIC = 2 (ajuste equivalente)")
-    ax.set_yticks(np.arange(len(mejores)))
-    ax.set_yticklabels(mejores["Covariables"], fontsize=8)
-    ax.set_xlabel("Diferencia de AIC frente a la mejor especificación", fontsize=10)
-    ax.legend(fontsize=9)
-    ax.grid(True, axis="x", linestyle=":", alpha=0.4)
-    plt.tight_layout()
-    return fig
-
-
-def elegir_con_parsimonia(resultado: pd.DataFrame, delta_max: float = 2.0) -> pd.Series:
-    """Elige la especificación definitiva entre las que el AIC considera equivalentes.
-
-    Tomar sin más la de menor AIC haría depender el resultado de diferencias que el propio
-    criterio declara irrelevantes: una diferencia de unas centésimas no distingue dos
-    especificaciones. Por eso la regla es la que el proyecto ya aplica a la comparación de
-    modelos: entre las especificaciones con ``Delta_AIC <= delta_max`` se elige la de menor
-    número de covariables y, a igualdad de número, la de menor AIC.
-
-    El umbral proviene de la tabla de criterios de decisión del marco teórico, donde una
-    diferencia de AIC inferior a dos unidades define modelos equivalentes.
-
-    Args:
-        resultado (pd.DataFrame): Salida de `busqueda_exhaustiva_aic()`.
-        delta_max (float): Diferencia de AIC por debajo de la cual dos especificaciones se
-            consideran equivalentes.
-
-    Returns:
-        pd.Series: La fila de la especificación elegida.
-
-    Raises:
-        ValueError: Si `resultado` está vacío.
-
-    Example:
-        >>> elegida = elegir_con_parsimonia(busqueda)
-        >>> elegida["Codigos"].split(",")
-    """
-    if resultado.empty:
-        raise ValueError("La tabla de especificaciones está vacía.")
-
-    equivalentes = resultado[resultado["Delta_AIC"] <= delta_max]
-    elegida = equivalentes.sort_values(["N_covariables", "AIC"]).iloc[0]
-
-    print(f"Especificaciones equivalentes (diferencia de AIC <= {delta_max}): {len(equivalentes)}")
-    print(f"  mejor AIC:   {resultado.iloc[0]['Covariables']} "
-          f"({resultado.iloc[0]['N_covariables']} covariables, AIC {resultado.iloc[0]['AIC']:.3f})")
-    print(f"  elegida:     {elegida['Covariables']} "
-          f"({elegida['N_covariables']} covariables, AIC {elegida['AIC']:.3f}, "
-          f"diferencia {elegida['Delta_AIC']:.3f})")
-    return elegida
+    return [
+        sorted(g)
+        for g in sorted(grupos.values(), key=lambda g: (-len(g), sorted(g)[0]))
+    ]

@@ -54,6 +54,7 @@ def guardar_figura(fig, nombre: str, directorio: str = None) -> str:
 # 1. ANÁLISIS UNIVARIADO
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def resumen_univariado(
     df: pd.DataFrame,
     columnas: list,
@@ -99,38 +100,45 @@ def resumen_univariado(
         n_val = len(datos)
 
         q1, q3 = np.percentile(datos, [25, 75])
-        iqr    = q3 - q1
+        iqr = q3 - q1
         limites = (q1 - 1.5 * iqr, q3 + 1.5 * iqr)
         n_extremos = int(((datos < limites[0]) | (datos > limites[1])).sum())
 
         media = float(np.mean(datos))
-        desv  = float(np.std(datos, ddof=1))
-        cv = (100 * desv / media) if (incluir_cv and n_val and (datos > 0).all()) else np.nan
+        desv = float(np.std(datos, ddof=1))
+        cv = (
+            (100 * desv / media)
+            if (incluir_cv and n_val and (datos > 0).all())
+            else np.nan
+        )
 
-        filas.append({
-            "Variable":     etiquetas.get(col, col),
-            "Codigo":       col,
-            "N":            n_val,
-            "Faltantes":    int(serie.isna().sum()),
-            "Faltantes_pct": round(100 * serie.isna().sum() / len(serie), 2),
-            "Media":        round(media, 4),
-            "Mediana":      round(float(np.median(datos)), 4),
-            "Desv_Std":     round(desv, 4),
-            "Minimo":       round(float(np.min(datos)), 4),
-            "Q1":           round(float(q1), 4),
-            "Q3":           round(float(q3), 4),
-            "Maximo":       round(float(np.max(datos)), 4),
-            "IQR":          round(float(iqr), 4),
-            "CV_pct":       round(cv, 2) if not np.isnan(cv) else None,
-            "Asimetria":    round(float(stats.skew(datos, bias=False)), 3),
-            "N_extremos_IQR": n_extremos,
-        })
+        filas.append(
+            {
+                "Variable": etiquetas.get(col, col),
+                "Codigo": col,
+                "N": n_val,
+                "Faltantes": int(serie.isna().sum()),
+                "Faltantes_pct": round(100 * serie.isna().sum() / len(serie), 2),
+                "Media": round(media, 4),
+                "Mediana": round(float(np.median(datos)), 4),
+                "Desv_Std": round(desv, 4),
+                "Minimo": round(float(np.min(datos)), 4),
+                "Q1": round(float(q1), 4),
+                "Q3": round(float(q3), 4),
+                "Maximo": round(float(np.max(datos)), 4),
+                "IQR": round(float(iqr), 4),
+                "CV_pct": round(cv, 2) if not np.isnan(cv) else None,
+                "Asimetria": round(float(stats.skew(datos, bias=False)), 3),
+                "N_extremos_IQR": n_extremos,
+            }
+        )
 
     return pd.DataFrame(filas)
 
 
-def dominios_extremos(df: pd.DataFrame, columnas: list, etiquetas_dominio: np.ndarray,
-                      alias: dict = None) -> pd.DataFrame:
+def dominios_extremos(
+    df: pd.DataFrame, columnas: list, etiquetas_dominio: np.ndarray, alias: dict = None
+) -> pd.DataFrame:
     """Identifica qué dominios quedan fuera del rango intercuartílico de cada variable.
 
     La detección es descriptiva: nombrar el territorio permite juzgar si un valor extremo
@@ -157,17 +165,23 @@ def dominios_extremos(df: pd.DataFrame, columnas: list, etiquetas_dominio: np.nd
         iqr = q3 - q1
         mascara = (datos < q1 - 1.5 * iqr) | (datos > q3 + 1.5 * iqr)
         nombres = [etiquetas_dominio[i] for i in np.where(mascara)[0]]
-        filas.append({
-            "Alias":      alias.get(col, col),
-            "Codigo":     col,
-            "N_extremos": len(nombres),
-            "Dominios":   ", ".join(nombres) if nombres else "—",
-        })
+        filas.append(
+            {
+                "Alias": alias.get(col, col),
+                "Codigo": col,
+                "N_extremos": len(nombres),
+                "Dominios": ", ".join(nombres) if nombres else "—",
+            }
+        )
     return pd.DataFrame(filas)
 
 
-def figura_respuesta(y: np.ndarray, se: np.ndarray, nombre_y: str = "Tasa de desempleo (%)",
-                     nombre_se: str = "Error estándar (puntos porcentuales)"):
+def figura_respuesta(
+    y: np.ndarray,
+    se: np.ndarray,
+    nombre_y: str = "Tasa de desempleo (%)",
+    nombre_se: str = "Error estándar (puntos porcentuales)",
+):
     """Panel descriptivo de la variable respuesta y de su medida de precisión.
 
     Cuatro paneles: histograma y diagrama de caja de la estimación directa, y los mismos
@@ -191,17 +205,31 @@ def figura_respuesta(y: np.ndarray, se: np.ndarray, nombre_y: str = "Tasa de des
 
     for fila, (datos, etiqueta) in enumerate([(y, nombre_y), (se, nombre_se)]):
         axes[fila][0].hist(datos, bins=8, color="steelblue", edgecolor="white")
-        axes[fila][0].axvline(np.mean(datos), color="firebrick", linestyle="--",
-                              linewidth=1.5, label=f"Media = {np.mean(datos):.2f}")
-        axes[fila][0].axvline(np.median(datos), color="darkgreen", linestyle=":",
-                              linewidth=1.5, label=f"Mediana = {np.median(datos):.2f}")
+        axes[fila][0].axvline(
+            np.mean(datos),
+            color="firebrick",
+            linestyle="--",
+            linewidth=1.5,
+            label=f"Media = {np.mean(datos):.2f}",
+        )
+        axes[fila][0].axvline(
+            np.median(datos),
+            color="darkgreen",
+            linestyle=":",
+            linewidth=1.5,
+            label=f"Mediana = {np.median(datos):.2f}",
+        )
         axes[fila][0].set_xlabel(etiqueta, fontsize=10)
         axes[fila][0].set_ylabel("N.º de dominios", fontsize=10)
         axes[fila][0].legend(fontsize=8)
 
-        axes[fila][1].boxplot(datos, vert=False, patch_artist=True,
-                              boxprops=dict(facecolor="lightsteelblue", color="steelblue"),
-                              medianprops=dict(color="navy", linewidth=2))
+        axes[fila][1].boxplot(
+            datos,
+            vert=False,
+            patch_artist=True,
+            boxprops=dict(facecolor="lightsteelblue", color="steelblue"),
+            medianprops=dict(color="navy", linewidth=2),
+        )
         axes[fila][1].set_xlabel(etiqueta, fontsize=10)
         axes[fila][1].set_yticks([])
 
@@ -209,13 +237,17 @@ def figura_respuesta(y: np.ndarray, se: np.ndarray, nombre_y: str = "Tasa de des
     return fig
 
 
-def figura_territorial(y: np.ndarray, etiquetas_dominio: np.ndarray,
-                       nombre_y: str = "Tasa de desempleo (%)"):
+def figura_territorial(
+    y: np.ndarray,
+    etiquetas_dominio: np.ndarray,
+    nombre_y: str = "Tasa de desempleo (%)",
+):
     """Distribución territorial de la variable respuesta, ordenada por magnitud.
 
     Descripción territorial, no contraste espacial: muestra qué dominios se sitúan en cada
-    extremo, sin evaluar hipótesis alguna sobre dependencia entre vecinos. El contraste
-    formal de autocorrelación espacial se realiza sobre los residuos del modelo.
+    extremo, sin evaluar hipótesis alguna sobre dependencia entre vecinos. El modelo
+    Fay-Herriot clásico del proyecto supone efectos independientes por dominio, de modo que
+    no se realiza ningún contraste de autocorrelación espacial.
 
     Args:
         y (np.ndarray): Estimación directa por dominio.
@@ -231,8 +263,13 @@ def figura_territorial(y: np.ndarray, etiquetas_dominio: np.ndarray,
     orden = np.argsort(y)
     fig, ax = plt.subplots(figsize=(8, 0.32 * len(y) + 1.5))
     ax.barh(np.arange(len(y)), y[orden], color="steelblue", edgecolor="white")
-    ax.axvline(np.mean(y), color="firebrick", linestyle="--", linewidth=1.5,
-               label=f"Media nacional de los dominios = {np.mean(y):.2f}")
+    ax.axvline(
+        np.mean(y),
+        color="firebrick",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Media nacional de los dominios = {np.mean(y):.2f}",
+    )
     ax.set_yticks(np.arange(len(y)))
     ax.set_yticklabels([etiquetas_dominio[i] for i in orden], fontsize=8)
     ax.set_xlabel(nombre_y, fontsize=10)
@@ -267,13 +304,24 @@ def figura_panel_boxplots(df: pd.DataFrame, columnas: list, alias: dict = None):
     etiquetas = [alias.get(c, c) for c in columnas]
 
     fig, ax = plt.subplots(figsize=(9, 0.45 * len(columnas) + 2))
-    ax.boxplot(datos, vert=False, patch_artist=True, labels=etiquetas,
-               boxprops=dict(facecolor="lightsteelblue", color="steelblue"),
-               medianprops=dict(color="navy", linewidth=2),
-               flierprops=dict(marker="o", markersize=4, markerfacecolor="firebrick",
-                               markeredgecolor="firebrick"))
+    ax.boxplot(
+        datos,
+        vert=False,
+        patch_artist=True,
+        labels=etiquetas,
+        boxprops=dict(facecolor="lightsteelblue", color="steelblue"),
+        medianprops=dict(color="navy", linewidth=2),
+        flierprops=dict(
+            marker="o",
+            markersize=4,
+            markerfacecolor="firebrick",
+            markeredgecolor="firebrick",
+        ),
+    )
     ax.axvline(0, color="dimgray", linewidth=1)
-    ax.set_xlabel("Desviaciones estándar respecto a la media del indicador", fontsize=10)
+    ax.set_xlabel(
+        "Desviaciones estándar respecto a la media del indicador", fontsize=10
+    )
     ax.tick_params(labelsize=9)
     plt.tight_layout()
     return fig
@@ -282,6 +330,7 @@ def figura_panel_boxplots(df: pd.DataFrame, columnas: list, alias: dict = None):
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. ANÁLISIS BIVARIADO
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def tabla_bivariada(
     df: pd.DataFrame,
@@ -331,27 +380,40 @@ def tabla_bivariada(
 
         discrepancia = abs(r_p - r_s)
         if n_extremos > 0 and discrepancia > umbral_divergencia:
-            medida, motivo = "Spearman", "valores extremos condicionan la relación lineal"
+            medida, motivo = (
+                "Spearman",
+                "valores extremos condicionan la relación lineal",
+            )
         else:
-            medida, motivo = "Pearson", "relación aproximadamente lineal, sin punto dominante"
+            medida, motivo = (
+                "Pearson",
+                "relación aproximadamente lineal, sin punto dominante",
+            )
 
-        filas.append({
-            "Alias":         alias.get(col, col),
-            "Codigo":        col,
-            "Pearson_r":     round(r_p, 3),
-            "Spearman_rho":  round(r_s, 3),
-            "Discrepancia":  round(discrepancia, 3),
-            "N_extremos_IQR": n_extremos,
-            "Medida_interpretable": medida,
-            "Motivo":        motivo,
-        })
+        filas.append(
+            {
+                "Alias": alias.get(col, col),
+                "Codigo": col,
+                "Pearson_r": round(r_p, 3),
+                "Spearman_rho": round(r_s, 3),
+                "Discrepancia": round(discrepancia, 3),
+                "N_extremos_IQR": n_extremos,
+                "Medida_interpretable": medida,
+                "Motivo": motivo,
+            }
+        )
 
     return pd.DataFrame(filas).sort_values("Pearson_r", key=abs, ascending=False)
 
 
-def figura_panel_dispersion(df: pd.DataFrame, columnas: list, y: np.ndarray,
-                            alias: dict = None, nombre_y: str = "Tasa de desempleo (%)",
-                            ncols: int = 3):
+def figura_panel_dispersion(
+    df: pd.DataFrame,
+    columnas: list,
+    y: np.ndarray,
+    alias: dict = None,
+    nombre_y: str = "Tasa de desempleo (%)",
+    ncols: int = 3,
+):
     """Panel de diagramas de dispersión de cada covariable frente a la respuesta.
 
     Un solo panel en lugar de una figura por covariable, con la recta de mínimos cuadrados
@@ -386,7 +448,9 @@ def figura_panel_dispersion(df: pd.DataFrame, columnas: list, y: np.ndarray,
         ax.plot(rejilla, pendiente * rejilla + intercepto, "r--", linewidth=1.3)
         r_p = stats.pearsonr(x, y)[0]
         r_s = stats.spearmanr(x, y)[0]
-        ax.set_title(f"{alias.get(col, col)}\nr = {r_p:.2f}   ρ = {r_s:.2f}", fontsize=9)
+        ax.set_title(
+            f"{alias.get(col, col)}\nr = {r_p:.2f}   ρ = {r_s:.2f}", fontsize=9
+        )
         ax.set_ylabel(nombre_y, fontsize=8)
         ax.tick_params(labelsize=7)
 
@@ -400,6 +464,7 @@ def figura_panel_dispersion(df: pd.DataFrame, columnas: list, y: np.ndarray,
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. ANÁLISIS MULTIVARIADO
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def orden_por_agrupamiento(df: pd.DataFrame, columnas: list) -> list:
     """Ordena las covariables por agrupamiento jerárquico sobre su matriz de correlación.
@@ -428,8 +493,9 @@ def orden_por_agrupamiento(df: pd.DataFrame, columnas: list) -> list:
     return [columnas[i] for i in leaves_list(enlace)]
 
 
-def figura_correlacion_agrupada(df: pd.DataFrame, columnas: list, alias: dict = None,
-                                titulo: str = None):
+def figura_correlacion_agrupada(
+    df: pd.DataFrame, columnas: list, alias: dict = None, titulo: str = None
+):
     """Mapa de calor de la matriz de correlación entre covariables, reordenado por bloques.
 
     Responde a una pregunta que el análisis por pares no contesta: qué grupos de
@@ -451,7 +517,7 @@ def figura_correlacion_agrupada(df: pd.DataFrame, columnas: list, alias: dict = 
     """
     alias = alias or {}
     orden = orden_por_agrupamiento(df, columnas)
-    corr  = df[orden].corr()
+    corr = df[orden].corr()
     etiquetas = [alias.get(c, c) for c in orden]
 
     fig, ax = plt.subplots(figsize=(1.0 * len(orden) + 3, 0.85 * len(orden) + 2.5))
@@ -466,8 +532,15 @@ def figura_correlacion_agrupada(df: pd.DataFrame, columnas: list, alias: dict = 
     for i in range(len(orden)):
         for j in range(len(orden)):
             valor = corr.values[i, j]
-            ax.text(j, i, f"{valor:.2f}", ha="center", va="center", fontsize=7,
-                    color="white" if abs(valor) > 0.6 else "black")
+            ax.text(
+                j,
+                i,
+                f"{valor:.2f}",
+                ha="center",
+                va="center",
+                fontsize=7,
+                color="white" if abs(valor) > 0.6 else "black",
+            )
 
     fig.colorbar(imagen, ax=ax, shrink=0.75, label="Correlación de Pearson")
     if titulo:
@@ -476,8 +549,9 @@ def figura_correlacion_agrupada(df: pd.DataFrame, columnas: list, alias: dict = 
     return fig, orden
 
 
-def tabla_pares_correlacionados(df: pd.DataFrame, columnas: list, alias: dict = None,
-                                umbral: float = 0.80) -> pd.DataFrame:
+def tabla_pares_correlacionados(
+    df: pd.DataFrame, columnas: list, alias: dict = None, umbral: float = 0.80
+) -> pd.DataFrame:
     """Lista los pares de covariables cuya correlación supera un umbral de magnitud.
 
     Resume en forma de tabla lo que el mapa de calor muestra gráficamente, para que la
@@ -499,14 +573,334 @@ def tabla_pares_correlacionados(df: pd.DataFrame, columnas: list, alias: dict = 
     corr = df[columnas].corr()
     filas = []
     for i, a in enumerate(columnas):
-        for b in columnas[i + 1:]:
+        for b in columnas[i + 1 :]:
             valor = float(corr.loc[a, b])
             if abs(valor) >= umbral:
-                filas.append({
-                    "Variable_1":  alias.get(a, a),
-                    "Variable_2":  alias.get(b, b),
-                    "Correlacion": round(valor, 3),
-                })
-    return (pd.DataFrame(filas)
-            .sort_values("Correlacion", key=abs, ascending=False)
-            .reset_index(drop=True))
+                filas.append(
+                    {
+                        "Variable_1": alias.get(a, a),
+                        "Variable_2": alias.get(b, b),
+                        "Correlacion": round(valor, 3),
+                    }
+                )
+    return (
+        pd.DataFrame(filas)
+        .sort_values("Correlacion", key=abs, ascending=False)
+        .reset_index(drop=True)
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 4. INTERPRETACIÓN DE LAS FIGURAS
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Cada función calcula, a partir de los mismos datos que se grafican, las cantidades que
+# el lector necesita para leer la figura y las traduce en una lectura concreta. Se sigue
+# el patrón de `interpretar_validacion()` en `modelo/shared/diagnosticos_plot.py`: el texto
+# se genera desde los datos, de modo que no queda desactualizado si cambian.
+
+
+def _nombres(indices, etiquetas_dominio: np.ndarray) -> str:
+    """Une los nombres de dominio de una lista de índices en una cadena legible."""
+    return ", ".join(str(etiquetas_dominio[i]) for i in indices)
+
+
+def interpretar_respuesta(
+    y: np.ndarray, se: np.ndarray, etiquetas_dominio: np.ndarray
+) -> str:
+    """Lectura de la figura de distribución de la respuesta y de su error estándar.
+
+    Cuantifica lo que los cuatro paneles muestran: rango y forma de la tasa de desempleo,
+    rango y forma de su error estándar, qué dominios ocupan los extremos de ambos, y cuánto
+    se relacionan entre sí. La relación entre error estándar y nivel de la tasa importa
+    porque el modelo Fay-Herriot contrae más las estimaciones con mayor varianza de
+    muestreo: si el error crece con la tasa, los dominios de mayor desempleo serán los más
+    suavizados.
+
+    Args:
+        y (np.ndarray): Estimación directa por dominio.
+        se (np.ndarray): Error estándar de la estimación directa.
+        etiquetas_dominio (np.ndarray): Nombre de cada dominio, en el orden de las filas.
+
+    Returns:
+        str: Interpretación lista para imprimir junto a la figura.
+
+    Example:
+        >>> print(interpretar_respuesta(Y, SE, entidades))
+    """
+    asim_y = float(stats.skew(y, bias=False))
+    asim_se = float(stats.skew(se, bias=False))
+    r_se_y = float(stats.pearsonr(y, se)[0])
+    orden_y = np.argsort(y)
+    orden_se = np.argsort(se)
+    cv_dir = 100 * se / np.abs(y)
+
+    def forma(asim):
+        if abs(asim) < 0.5:
+            return "aproximadamente simétrica"
+        lado = (
+            "derecha (cola hacia valores altos)"
+            if asim > 0
+            else "izquierda (cola hacia valores bajos)"
+        )
+        grado = "moderadamente" if abs(asim) < 1 else "marcadamente"
+        return f"{grado} asimétrica hacia la {lado}"
+
+    lineas = [
+        "INTERPRETACIÓN DE LA FIGURA:",
+        f"  Tasa de desempleo: entre {y.min():.1f} % ({_nombres(orden_y[:1], etiquetas_dominio)}) y "
+        f"{y.max():.1f} % ({_nombres(orden_y[-1:], etiquetas_dominio)}); media {y.mean():.1f} %, "
+        f"mediana {np.median(y):.1f} %.",
+        f"  Forma de la distribución de la tasa: {forma(asim_y)} (asimetría {asim_y:.2f}). "
+        + (
+            "Media y mediana casi coinciden: no hay un grupo de dominios que arrastre el promedio."
+            if abs(asim_y) < 0.5
+            else "La separación entre media y mediana señala que unos pocos dominios extremos arrastran el promedio."
+        ),
+        f"  Error estándar: entre {se.min():.2f} y {se.max():.2f} puntos porcentuales; los dominios con "
+        f"estimación menos precisa son {_nombres(orden_se[-3:][::-1], etiquetas_dominio)}, y los más "
+        f"precisos {_nombres(orden_se[:3], etiquetas_dominio)}.",
+        f"  Forma de la distribución del error estándar: {forma(asim_se)} (asimetría {asim_se:.2f}).",
+        f"  Coeficiente de variación de la estimación directa: entre {cv_dir.min():.1f} % y {cv_dir.max():.1f} %; "
+        f"{int((cv_dir >= 15).sum())} de {len(y)} dominios superan el 15 % que define una estimación confiable.",
+        f"  Correlación entre error estándar y tasa: r = {r_se_y:.2f}. "
+        + (
+            "El error crece con la tasa, de modo que los dominios de mayor desempleo son también los menos "
+            "precisos y serán los que el modelo contraiga con más fuerza hacia el predictor sintético."
+            if r_se_y > 0.3
+            else "La precisión no depende del nivel de la tasa; la contracción del modelo la fijará el "
+            "tamaño de muestra de cada dominio, no su nivel de desempleo."
+        ),
+    ]
+    return "\n".join(lineas)
+
+
+def interpretar_territorial(y: np.ndarray, etiquetas_dominio: np.ndarray) -> str:
+    """Lectura de la figura de barras ordenadas de la tasa de desempleo por dominio.
+
+    Args:
+        y (np.ndarray): Estimación directa por dominio.
+        etiquetas_dominio (np.ndarray): Nombre de cada dominio.
+
+    Returns:
+        str: Interpretación lista para imprimir junto a la figura.
+
+    Example:
+        >>> print(interpretar_territorial(Y, entidades))
+    """
+    orden = np.argsort(y)
+    media = y.mean()
+    sobre_media = int((y > media).sum())
+    brecha = y.max() - y.min()
+    lineas = [
+        "INTERPRETACIÓN DE LA FIGURA:",
+        f"  Dominios con mayor tasa: {_nombres(orden[-3:][::-1], etiquetas_dominio)} "
+        f"({y[orden[-1]]:.1f}, {y[orden[-2]]:.1f} y {y[orden[-3]]:.1f} %).",
+        f"  Dominios con menor tasa: {_nombres(orden[:3], etiquetas_dominio)} "
+        f"({y[orden[0]]:.1f}, {y[orden[1]]:.1f} y {y[orden[2]]:.1f} %).",
+        f"  {sobre_media} de {len(y)} dominios están por encima de la media ({media:.1f} %); la brecha entre "
+        f"el máximo y el mínimo es de {brecha:.1f} puntos porcentuales, es decir, el dominio más alto "
+        f"{'duplica' if y.max() >= 2 * y.min() else 'supera en más de la mitad a'} el más bajo.",
+        "  Lectura: es la heterogeneidad territorial que el modelo debe explicar con las covariables. Que un "
+        "dominio ocupe un extremo lo convierte en candidato a dominio influyente en el diagnóstico de robustez, "
+        "no en un dato a corregir.",
+    ]
+    return "\n".join(lineas)
+
+
+def interpretar_boxplots(resumen: pd.DataFrame, alias: dict = None) -> str:
+    """Lectura del panel de diagramas de caja de las covariables candidatas.
+
+    Usa la tabla de `resumen_univariado()` para nombrar las covariables más asimétricas,
+    las que concentran más valores extremos y las de mayor dispersión relativa, que son
+    exactamente los rasgos que el panel estandarizado deja ver.
+
+    Args:
+        resumen (pd.DataFrame): Salida de `resumen_univariado()` sobre las candidatas.
+        alias (dict | None): Mapa código → alias legible; si la tabla ya trae `Alias` se usa.
+
+    Returns:
+        str: Interpretación lista para imprimir junto a la figura.
+
+    Example:
+        >>> print(interpretar_boxplots(desc_covariables))
+    """
+    alias = alias or {}
+    tabla = resumen.copy()
+    if "Alias" not in tabla.columns:
+        tabla["Alias"] = [alias.get(c, c) for c in tabla["Codigo"]]
+
+    asimetricas = tabla.reindex(
+        tabla["Asimetria"].abs().sort_values(ascending=False).index
+    ).head(3)
+    con_extremos = tabla[tabla["N_extremos_IQR"] > 0].sort_values(
+        "N_extremos_IQR", ascending=False
+    )
+    simetricas = tabla[tabla["Asimetria"].abs() < 0.5]
+    con_cv = tabla.dropna(subset=["CV_pct"]).sort_values("CV_pct", ascending=False)
+
+    lineas = [
+        "INTERPRETACIÓN DE LA FIGURA:",
+        f"  Covariables con distribución aproximadamente simétrica (|asimetría| < 0.5): "
+        f"{len(simetricas)} de {len(tabla)}"
+        + (f" ({', '.join(simetricas['Alias'])})." if len(simetricas) else "."),
+        "  Covariables más asimétricas: "
+        + "; ".join(
+            f"{fila['Alias']} ({fila['Asimetria']:+.2f}, cola hacia valores {'altos' if fila['Asimetria'] > 0 else 'bajos'})"
+            for _, fila in asimetricas.iterrows()
+        )
+        + ".",
+        f"  Covariables con valores extremos por el criterio del rango intercuartílico: {len(con_extremos)}"
+        + (
+            "; las que más acumulan son "
+            + ", ".join(
+                f"{fila['Alias']} ({int(fila['N_extremos_IQR'])})"
+                for _, fila in con_extremos.head(3).iterrows()
+            )
+            + "."
+            if len(con_extremos)
+            else "."
+        ),
+    ]
+    if len(con_cv):
+        lineas.append(
+            "  Mayor dispersión relativa (coeficiente de variación): "
+            + ", ".join(
+                f"{fila['Alias']} ({fila['CV_pct']:.0f} %)"
+                for _, fila in con_cv.head(3).iterrows()
+            )
+            + "; menor: "
+            + ", ".join(
+                f"{fila['Alias']} ({fila['CV_pct']:.0f} %)"
+                for _, fila in con_cv.tail(2).iterrows()
+            )
+            + "."
+        )
+    lineas.append(
+        "  Lectura: una covariable asimétrica o con extremos no se descarta por serlo. Lo que importa es si esos "
+        "puntos determinan por sí solos su relación con el desempleo, y eso se comprueba en el diagnóstico de "
+        "robustez de la etapa de selección."
+    )
+    return "\n".join(lineas)
+
+
+def interpretar_dispersion(bivariado: pd.DataFrame, signo_esperado: dict = None) -> str:
+    """Lectura del panel de dispersión de cada candidata frente a la tasa de desempleo.
+
+    Resume la tabla de `tabla_bivariada()`: asociaciones más fuertes y su dirección,
+    cuáles requieren leerse con Spearman por estar condicionadas por valores extremos, cuáles
+    son prácticamente nulas y, si se aporta el signo esperado del catálogo, cuáles lo
+    contradicen.
+
+    Args:
+        bivariado (pd.DataFrame): Salida de `tabla_bivariada()`.
+        signo_esperado (dict | None): Mapa código → `"+"`, `"-"` o `"±"` del catálogo.
+
+    Returns:
+        str: Interpretación lista para imprimir junto a la figura.
+
+    Example:
+        >>> print(interpretar_dispersion(bivariado, SIGNO))
+    """
+    signo_esperado = signo_esperado or {}
+    tabla = bivariado.copy()
+    tabla["r_interp"] = np.where(
+        tabla["Medida_interpretable"] == "Spearman",
+        tabla["Spearman_rho"],
+        tabla["Pearson_r"],
+    )
+    tabla = tabla.reindex(tabla["r_interp"].abs().sort_values(ascending=False).index)
+
+    fuertes = tabla[tabla["r_interp"].abs() >= 0.5]
+    moderadas = tabla[
+        (tabla["r_interp"].abs() >= 0.3) & (tabla["r_interp"].abs() < 0.5)
+    ]
+    debiles = tabla[tabla["r_interp"].abs() < 0.3]
+    spearman = tabla[tabla["Medida_interpretable"] == "Spearman"]
+
+    def lista(df):
+        return ", ".join(
+            f"{fila['Alias']} ({fila['r_interp']:+.2f})" for _, fila in df.iterrows()
+        )
+
+    lineas = [
+        "INTERPRETACIÓN DE LA FIGURA:",
+        f"  Asociación fuerte (|r| >= 0.5): {len(fuertes)}"
+        + (f" — {lista(fuertes)}." if len(fuertes) else "."),
+        f"  Asociación moderada (0.3 <= |r| < 0.5): {len(moderadas)}"
+        + (f" — {lista(moderadas)}." if len(moderadas) else "."),
+        f"  Asociación débil o nula (|r| < 0.3): {len(debiles)}"
+        + (f" — {lista(debiles)}." if len(debiles) else "."),
+        f"  Covariables cuya relación lineal está condicionada por valores extremos (se lee Spearman): "
+        f"{len(spearman)}"
+        + (f" — {', '.join(spearman['Alias'])}." if len(spearman) else "."),
+    ]
+    if signo_esperado:
+        contrarias = [
+            fila["Alias"]
+            for _, fila in tabla.iterrows()
+            if signo_esperado.get(fila["Codigo"], "±") != "±"
+            and np.sign(fila["r_interp"])
+            != (1 if signo_esperado[fila["Codigo"]] == "+" else -1)
+        ]
+        lineas.append(
+            f"  Covariables cuyo signo observado contradice el mecanismo del catálogo: {len(contrarias)}"
+            + (f" — {', '.join(contrarias)}." if contrarias else ".")
+        )
+    lineas.append(
+        "  Lectura: en la recta de referencia de cada panel se ve la dirección de la asociación; los puntos que se "
+        "apartan del patrón son los dominios que después se examinan con la distancia de Cook. Ninguna "
+        "covariable se incluye ni se excluye aquí por su coeficiente."
+    )
+    return "\n".join(lineas)
+
+
+def interpretar_correlacion(
+    pares: pd.DataFrame, orden: list, alias: dict = None, umbral: float = 0.80
+) -> str:
+    """Lectura del mapa de calor de correlaciones entre covariables.
+
+    Args:
+        pares (pd.DataFrame): Salida de `tabla_pares_correlacionados()`.
+        orden (list[str]): Orden de covariables devuelto por `figura_correlacion_agrupada()`.
+        alias (dict | None): Mapa código → alias legible.
+        umbral (float): Umbral de redundancia usado para listar los pares.
+
+    Returns:
+        str: Interpretación lista para imprimir junto a la figura.
+
+    Example:
+        >>> print(interpretar_correlacion(pares, orden_agrupado, ALIAS))
+    """
+    alias = alias or {}
+    lineas = ["INTERPRETACIÓN DE LA FIGURA:"]
+    if pares.empty:
+        lineas.append(
+            f"  Ningún par de candidatas supera |r| = {umbral}: no hay bloques de covariables que midan lo "
+            "mismo y el criterio de redundancia no descartará ninguna."
+        )
+    else:
+        lineas.append(
+            f"  Pares con |r| >= {umbral}: {len(pares)}. Los más fuertes: "
+            + "; ".join(
+                f"{fila['Variable_1']} – {fila['Variable_2']} ({fila['Correlacion']:+.2f})"
+                for _, fila in pares.head(4).iterrows()
+            )
+            + "."
+        )
+        negativos = pares[pares["Correlacion"] < 0]
+        if len(negativos):
+            lineas.append(
+                f"  {len(negativos)} de esos pares tienen correlación negativa: miden el mismo aspecto en sentido "
+                "inverso (por ejemplo, una carencia y su cobertura)."
+            )
+        lineas.append(
+            "  Lectura: en el mapa reordenado esos pares aparecen como bloques contiguos de color intenso. De "
+            "cada bloque entrará una sola covariable al modelo; cuál, se decide en la etapa de selección."
+        )
+    lineas.append(
+        "  Orden de presentación (covariables parecidas quedan juntas): "
+        + " · ".join(alias.get(c, c) for c in orden)
+        + "."
+    )
+    return "\n".join(lineas)
