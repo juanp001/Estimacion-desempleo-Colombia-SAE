@@ -24,20 +24,20 @@
 # MAGIC ### Desventajas:
 # MAGIC ❌ **Alta variabilidad en áreas pequeñas**: Muestras chicas → errores grandes
 # MAGIC ❌ **Intervalos de confianza amplios**: Poca precisión para municipios pequeños
-# MAGIC ❌ **Coeficientes de variación altos**: CV > 30% son comunes en municipios pequeños
+# MAGIC ❌ **Coeficientes de variación altos**: CV ≥ 20% son comunes en municipios pequeños
 # MAGIC ❌ **Imposible estimar dominios con muestra cero**: Sin observaciones → sin estimación
 # MAGIC
 # MAGIC ### ¿Cuándo usar estimación directa?
 # MAGIC
 # MAGIC **Usar cuando**:
 # MAGIC * El dominio tiene **muestra suficiente** (n ≥ 30 típicamente)
-# MAGIC * El **CV es aceptable** (< 15% ideal, < 30% aceptable)
+# MAGIC * El **CV es aceptable** (< 5% confiable, < 20% aceptable)
 # MAGIC * Se requiere **transparencia metodológica**
 # MAGIC * Es el **baseline** para comparar con métodos SAE
 # MAGIC
 # MAGIC **NO usar cuando**:
 # MAGIC * El dominio tiene muestra muy pequeña (n < 10)
-# MAGIC * El CV es muy alto (> 30%)
+# MAGIC * El CV es muy alto (≥ 20%)
 # MAGIC * Se requieren estimaciones para **todos** los municipios (incluso sin muestra)
 # MAGIC
 # MAGIC ## Estimador de Hájek
@@ -80,9 +80,9 @@
 # MAGIC CV = (SE / Estimación) × 100
 # MAGIC ```
 # MAGIC
-# MAGIC * **CV < 15%**: Estimación CONFIABLE ✅
-# MAGIC * **15% ≤ CV < 30%**: Estimación ACEPTABLE ⚠️
-# MAGIC * **CV ≥ 30%**: Estimación NO CONFIABLE ❌
+# MAGIC * **CV < 5%**: Estimación CONFIABLE ✅
+# MAGIC * **5% ≤ CV < 20%**: Estimación ACEPTABLE ⚠️
+# MAGIC * **CV ≥ 20%**: Estimación NO CONFIABLE ❌
 # MAGIC
 # MAGIC ## Flujo de Datos
 # MAGIC

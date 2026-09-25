@@ -316,7 +316,7 @@ for codigo in SELECCIONADAS:
 # MAGIC factor sin sentido.
 # MAGIC
 # MAGIC Los coeficientes del modelo Fay-Herriot sobre este conjunto, su signo y su precisión
-# MAGIC se reportan en `fay_herriot_rev`, que además compara el conjunto con sus variantes
+# MAGIC se reportan en `fay_herriot`, que además compara el conjunto con sus variantes
 # MAGIC dejando una covariable fuera.
 
 # COMMAND ----------

@@ -42,7 +42,7 @@
 # MAGIC        │   3. Multivariado:  estructura conjunta de las candidatas
 # MAGIC        │
 # MAGIC        ▼  eda_seleccion_covariables_rev  →  diagnóstico y selección cualitativa
-# MAGIC        ▼  fay_herriot_rev
+# MAGIC        ▼  fay_herriot
 # MAGIC ```
 # MAGIC
 # MAGIC ## Sobre el tamaño muestral

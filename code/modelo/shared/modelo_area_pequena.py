@@ -53,15 +53,15 @@ class ModeloAreaPequena(ABC):
             raise ValueError(f"Columnas faltantes en df: {sorted(faltantes)}")
 
         self.covars = covars
-        self.df     = df
-        self.y_col  = y_col
+        self.df = df
+        self.y_col = y_col
         self.se_col = se_col
 
-        self.Y  = df[y_col].values
+        self.Y = df[y_col].values
         self.Di = df[se_col].values ** 2
-        self.X  = np.column_stack([np.ones(len(df))] + [df[c].values for c in covars])
-        self.n  = len(self.Y)
-        self.p  = self.X.shape[1]
+        self.X = np.column_stack([np.ones(len(df))] + [df[c].values for c in covars])
+        self.n = len(self.Y)
+        self.p = self.X.shape[1]
 
     @abstractmethod
     def ajustar(self) -> None:
@@ -88,19 +88,21 @@ class ModeloAreaPequena(ABC):
         if not hasattr(self, "mse"):
             raise RuntimeError("Llama a ajustar() antes de validar_mse_directo().")
 
-        mse_ratio        = self.Di / self.mse
-        pct_mejora_mse   = 100 * (self.Di - self.mse) / self.Di
+        mse_ratio = self.Di / self.mse
+        pct_mejora_mse = 100 * (self.Di - self.mse) / self.Di
         dominios_mejoran = float(np.mean(self.mse < self.Di))
         wil_stat, wil_pval = stats.wilcoxon(self.Di - self.mse, alternative="greater")
         return {
-            "mse_ratio":        mse_ratio,
-            "pct_mejora_mse":   pct_mejora_mse,
+            "mse_ratio": mse_ratio,
+            "pct_mejora_mse": pct_mejora_mse,
             "dominios_mejoran": dominios_mejoran,
-            "wil_stat":         wil_stat,
-            "wil_pval":         wil_pval,
+            "wil_stat": wil_stat,
+            "wil_pval": wil_pval,
         }
 
-    def tabla_resultados(self, dominio_col: str = "DOMINIO", metadata_cols: list = None) -> pd.DataFrame:
+    def tabla_resultados(
+        self, dominio_col: str = "DOMINIO", metadata_cols: list = None
+    ) -> pd.DataFrame:
         """Construye la tabla de resultados por dominio.
 
         Args:
@@ -124,7 +126,13 @@ class ModeloAreaPequena(ABC):
             raise RuntimeError("Llama a ajustar() antes de tabla_resultados().")
 
         metadata_cols = metadata_cols or ["PER", "MES", "DEPARTAMENTO", "MUNICIPIO"]
-        columnas_base = [dominio_col, *metadata_cols, self.y_col, self.se_col, "CV_PORCENTAJE"]
+        columnas_base = [
+            dominio_col,
+            *metadata_cols,
+            self.y_col,
+            self.se_col,
+            "CV_PORCENTAJE",
+        ]
         faltantes = set(columnas_base) - set(self.df.columns)
         if faltantes:
             raise ValueError(f"Columnas faltantes en df: {sorted(faltantes)}")
@@ -136,13 +144,15 @@ class ModeloAreaPequena(ABC):
         res_df["VARIANZA_DIRECTA"] = self.Di
         if gamma is not None:
             res_df["GAMMA_SHRINKAGE"] = gamma.round(4)
-        res_df["PRED_SINTETICO"]  = self.mu_hat.round(4)
-        res_df["EBLUP"]           = self.eblup.round(4)
-        res_df["MSE_EBLUP"]       = self.mse.round(6)
-        res_df["RMSE_EBLUP"]      = self.rmse.round(4)
-        res_df["CV_EBLUP_PCT"]    = self.cv.round(2)
-        res_df["MEJORA_CV_PCT"]   = (res_df["CV_PORCENTAJE"] - res_df["CV_EBLUP_PCT"]).round(2)
-        res_df["RATIO_MSE"]       = validacion["mse_ratio"].round(4)
-        res_df["MEJORA_MSE_PCT"]  = validacion["pct_mejora_mse"].round(2)
-        res_df["MEJORA_MSE"]      = np.where(self.mse < self.Di, "✓", "✗")
+        res_df["PRED_SINTETICO"] = self.mu_hat.round(4)
+        res_df["EBLUP"] = self.eblup.round(4)
+        res_df["MSE_EBLUP"] = self.mse.round(6)
+        res_df["RMSE_EBLUP"] = self.rmse.round(4)
+        res_df["CV_EBLUP_PCT"] = self.cv.round(2)
+        res_df["MEJORA_CV_PCT"] = (
+            res_df["CV_PORCENTAJE"] - res_df["CV_EBLUP_PCT"]
+        ).round(2)
+        res_df["RATIO_MSE"] = validacion["mse_ratio"].round(4)
+        res_df["MEJORA_MSE_PCT"] = validacion["pct_mejora_mse"].round(2)
+        res_df["MEJORA_MSE"] = np.where(self.mse < self.Di, "✓", "✗")
         return res_df

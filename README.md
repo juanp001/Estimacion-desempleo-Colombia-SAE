@@ -67,11 +67,11 @@ code/
 ├── modelo/
 │   ├── fay_herriot.py              # Orquestador: ajuste, selección y consolidación del modelo final
 │   └── shared/
-│       ├── config.py               # Nombres de tablas, sets de covariables a comparar
-│       ├── modelo_area_pequena.py  # Interfaz base ModeloAreaPequena (matriz de diseño, LOOCV, comparación MSE)
-│       ├── fay_herriot.py          # FayHerriotClasico: ajuste, diagnósticos, LOOCV
-│       ├── seleccion_modelo.py     # Tablas de diagnóstico y selección entre modelos (AIC/BIC/MSE/RMSE-LOOCV)
-│       ├── diagnosticos_plot.py    # Gráficas de validación
+│       ├── config.py               # Tablas, umbrales de CV, ΔAIC de equivalencia, α de significancia
+│       ├── modelo_area_pequena.py  # Interfaz base ModeloAreaPequena (matriz de diseño, comparación MSE)
+│       ├── fay_herriot.py          # FayHerriotClasico: REML, GLS, EBLUP, MSE de Prasad-Rao, AIC
+│       ├── seleccion_modelo.py     # Variantes dejar-una-fuera, Cook, selección (significancia + AIC + parsimonia)
+│       ├── diagnosticos.py         # Gráficas de validación, CV directo vs EBLUP, avisos
 │       └── consolidacion.py        # Unión EBLUP (dominios con GEIH) + predicción sintética (sin GEIH)
 └── analisis/
     └── Análisis exploratorio.py    # EDA en 7 etapas sobre el dataset pre-filtrado de covariables
@@ -116,12 +116,12 @@ estimacion_directa.py                            │
                             │
                             ▼
                        fay_herriot.py
-              ajusta y compara modelos sobre subconjuntos de covariables
-              selección por AIC + BIC + MSE medio + RMSE-LOOCV
+              compara el conjunto seleccionado con sus variantes dejar-una-fuera
+              selección: todas las covariables p < 0.05 → menor AIC → parsimonia (ΔAIC ≤ 2)
                             │
                             ▼
         EBLUP (23 dominios con encuesta directa) + predicción sintética
-        (municipios sin cobertura GEIH, vía tesis.*.municipios_sin_encuesta)
+        (municipios sin cobertura GEIH, vía tesis.preprocesamiento.municipios_sin_encuesta_rev)
                             │
                             ▼
               tabla final consolidada (EBLUP + sintético)
@@ -209,25 +209,29 @@ diagnósticos, validación cruzada) se deja para la etapa de modelado, no para e
 
 ### 5. Modelo Fay-Herriot (`code/modelo/fay_herriot.py`)
 
-Orquestador fino sobre `tesis.preprocesamiento.covariables_seleccionadas`; el dominio se define como
-`PER + MES + DEPARTAMENTO + MUNICIPIO`. Pasos:
+Orquestador fino sobre `tesis.preprocesamiento.covariables_seleccionadas_rev` (salida de
+`eda_seleccion_covariables_rev`); el dominio se define como `PER + MES + DEPARTAMENTO + MUNICIPIO`. Las
+decisiones se apoyan en Morales et al. (2021). Pasos:
 
-1. **Ajuste de modelos**: para cada subconjunto de covariables en `COVAR_SETS` (`shared/config.py`) se
-   ajusta un `FayHerriotClasico` (`shared/fay_herriot.py`, que hereda de la interfaz base
-   `ModeloAreaPequena` en `shared/modelo_area_pequena.py` — pensada para futuras variantes SAE como
-   espacial o temporal) y se corre validación cruzada **leave-one-out (LOOCV)**.
+1. **Ajuste de modelos**: el conjunto seleccionado y sus variantes dejando una covariable fuera
+   (`shared/seleccion_modelo.py`) se ajustan con `FayHerriotClasico` (`shared/fay_herriot.py`, que hereda
+   de la interfaz base `ModeloAreaPequena` en `shared/modelo_area_pequena.py`): Â por REML, β̂ por GLS,
+   AIC por ML y MSE de Prasad-Rao con `g3 = D²/(D+Â)³·avar(Â)` (p. 440). Las varianzas D_i son las
+   bootstrap de la estimación directa, tratadas como conocidas (p. 427), sin GVF.
 2. **Resultados EBLUP por dominio**: para cada modelo, tabla con estimación directa, EBLUP, CV del EBLUP,
    factor de *shrinkage* (γ) y mejora de CV vs. estimación directa.
-3. **Gráficas y diagnósticos de validación** por modelo (`shared/diagnosticos_plot.py`): varianza de
-   efectos aleatorios (Â), coeficientes con SE/z/p-valor, R² del predictor sintético, normalidad de
-   residuos (Shapiro-Wilk), reducción media del CV, shrinkage promedio, RMSE-LOOCV, y validación
-   MSE(EBLUP) vs. varianza directa (test de Wilcoxon).
-4. **Selección de modelo** (`shared/seleccion_modelo.py`, solo si hay más de un subconjunto): tabla de
-   diagnósticos + tabla de selección, ranking por suma de posiciones en AIC + BIC + MSE medio + RMSE-LOOCV;
-   se reporta ΔAIC/ΔBIC (< 2 equivalentes, 2–7 moderado, > 10 sustancial). El modelo ganador se exporta a
-   `tesis.modelo.fay_herriot_resultados`.
+3. **Gráficas y diagnósticos** por modelo (`shared/diagnosticos.py`): efecto suavizador, histograma de
+   residuos estandarizados, coeficientes con SE/z/p-valor, R², Shapiro-Wilk, distancia de Cook y ganancia
+   de precisión MSE(EBLUP) vs. varianza directa (Wilcoxon). Las figuras se muestran sin título y no se
+   guardan en volúmenes.
+4. **Selección de modelo** (`shared/seleccion_modelo.py`): candidatas = variantes con todas las
+   covariables p < 0.05 (p. 453); entre ellas la de menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de
+   menos covariables. MSE y Cook no deciden: se reportan como ganancia de precisión y robustez del
+   ganador (incluye reajuste sin el dominio más influyente). Se exportan `tesis.modelo.fh_diagnosticos_variantes`,
+   `fh_cook`, `fh_seleccion_modelo`, `fh_coeficientes` y `tesis.modelo.fay_herriot_resultados`.
 5. **Predicción sintética** para municipios sin estimación directa (sin cobertura GEIH, leídos desde
-   `tesis.*.municipios_sin_encuesta`): ŷ = X'β̂ del modelo ganador, **sin shrinkage** (γ=0, porque no hay
+   `tesis.preprocesamiento.municipios_sin_encuesta_rev`), con avisos de extrapolación y de tasas fuera
+   de [0, 100]: ŷ = X'β̂ del modelo ganador, **sin shrinkage** (γ=0, porque no hay
    varianza de muestreo); la incertidumbre combina la varianza de β̂ propagada (x'·Cov(β̂)·x) con la
    varianza de efectos aleatorios (Â). Se exporta a `tesis.modelo.fay_herriot_prediccion_sintetica`.
 6. **Tabla final consolidada** (`shared/consolidacion.py`): une EBLUP (dominios con encuesta directa) +

@@ -45,5 +45,5 @@ CORR_MODO         = "threshold"
 CORR_VALOR        = 0.4
 
 # Umbrales de calidad de estimación (criterios DANE/CEPAL)
-CV_CONFIABLE = 15.0   # CV < 15 %  → confiable
-CV_ACEPTABLE = 30.0   # CV < 30 %  → aceptable; >= 30 % → no confiable
+CV_CONFIABLE = 5.0    # CV < 5 %   → confiable
+CV_ACEPTABLE = 20.0   # CV < 20 %  → aceptable; >= 20 % → no confiable
