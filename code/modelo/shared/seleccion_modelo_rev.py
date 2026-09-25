@@ -1,16 +1,16 @@
 """Selección entre especificaciones del modelo Fay-Herriot — versión revisada.
 
-Complementa a `shared/seleccion_modelo.py`, que no se modifica, con tres cosas:
+Complementa a `shared/seleccion_modelo.py`, que no se modifica, con:
 
-1. **Distancia de Cook** de cada dominio en el ajuste por mínimos cuadrados generalizados
-   del modelo, como diagnóstico de influencia. Con 23 dominios un solo territorio puede
-   determinar los coeficientes; el criterio de selección debe penalizar las
-   especificaciones que dependen de uno.
-2. **Ranking compuesto ampliado**: suma de posiciones en AIC, error cuadrático medio del
-   EBLUP y distancia de Cook máxima. El original sumaba solo las dos primeras.
-3. **Variantes dejar-una-fuera** del conjunto elegido por el análisis exploratorio, que
-   sustituyen a la lista fija de combinaciones y a la búsqueda por AIC: responden a la
-   pregunta «¿aporta cada covariable?» sin recorrer docenas de especificaciones.
+1. **Variantes dejar-una-fuera** del conjunto elegido por el análisis exploratorio: responden a
+   la pregunta «¿aporta cada covariable?» sin recorrer docenas de especificaciones.
+2. **Criterio de selección** basado en Morales et al. (2021, p. 453): cuando el modelo se usa
+   para predecir fuera de muestra (aquí, la predicción sintética de municipios sin encuesta) no
+   conviene sobreparametrizar y se recomienda que todas las covariables sean significativas
+   (p < 0.05). Entre las variantes que lo cumplen se elige por AIC y, entre las equivalentes
+   (ΔAIC ≤ 2), la de menos covariables.
+3. **Distancia de Cook** como diagnóstico de robustez del modelo elegido (no entra en la
+   decisión): con 23 dominios, un solo territorio puede sostener los coeficientes.
 
 Distancia de Cook en el modelo Fay-Herriot
 ------------------------------------------
@@ -23,7 +23,9 @@ con pesos conocidos ``w_i = 1/(D_i + Â)``. Para esa regresión:
     D_i  = r_i² · h_ii / (p · (1 − h_ii)²)          distancia de Cook
 
 que coincide con la definición ``(β̂ − β̂_(i))' X'WX (β̂ − β̂_(i)) / p`` cuando se refita sin
-el dominio *i* manteniendo ``Â`` fijo. El umbral convencional es ``4/n``.
+el dominio *i* manteniendo ``Â`` fijo. El umbral convencional es ``4/n``. No es un
+diagnóstico del libro de referencia sino de regresión general; `sensibilidad_cook` completa la
+lectura reajustando el modelo (con ``Â`` reestimado) sin el dominio más influyente.
 """
 
 import numpy as np
@@ -124,98 +126,125 @@ def tabla_cook(
     return pd.DataFrame(filas)
 
 
-def _rank_by(modelos: list, key_fn) -> dict:
-    """Asigna un rango (1 = mejor) a cada modelo según una métrica donde menor es mejor.
+def todas_significativas(modelo: ModeloAreaPequena, alfa: float = 0.05) -> bool:
+    """Indica si todas las covariables del modelo (sin el intercepto) tienen p-valor < alfa.
+
+    Los p-valores son los de la prueba z con la distribución normal asintótica de β̂ REML,
+    la misma que usa el libro de referencia (Morales et al., p. 272).
 
     Args:
-        modelos (list[ModeloAreaPequena]): Modelos ajustados.
-        key_fn (Callable[[ModeloAreaPequena], float]): Métrica a rankear.
+        modelo (ModeloAreaPequena): Modelo ya ajustado, con `p_vals` poblado.
+        alfa (float): Nivel de significancia.
 
     Returns:
-        dict[int, int]: índice del modelo (posición en `modelos`) → rango (1-indexado).
-    """
-    orden = sorted(range(len(modelos)), key=lambda i: key_fn(modelos[i]))
-    return {idx: rango for rango, idx in enumerate(orden, 1)}
-
-
-def _ranking_compuesto(modelos: list) -> list:
-    """Suma de posiciones en AIC, MSE medio y distancia de Cook máxima.
-
-    Args:
-        modelos (list[ModeloAreaPequena]): Modelos ajustados.
-
-    Returns:
-        list[int]: Puntaje de ranking compuesto (menor es mejor), mismo orden que `modelos`.
-    """
-    rk_aic = _rank_by(modelos, lambda m: m.aic)
-    rk_mse = _rank_by(modelos, lambda m: m.mse.mean())
-    rk_cook = _rank_by(modelos, lambda m: distancia_cook(m).max())
-    return [rk_aic[i] + rk_mse[i] + rk_cook[i] for i in range(len(modelos))]
-
-
-def tabla_seleccion_rev(modelos: list, nombres_covars: list) -> pd.DataFrame:
-    """Tabla de selección de modelo por ranking compuesto AIC + MSE medio + Cook máxima.
-
-    Args:
-        modelos (list[ModeloAreaPequena]): Modelos ajustados.
-        nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
-
-    Returns:
-        pd.DataFrame: Una fila por modelo, ordenada por ranking, con AIC, MSE medio, Cook
-            máxima, sus diferencias frente al mejor valor de cada métrica, las posiciones
-            parciales y el puntaje compuesto. `Rank == 1` es el primer puesto del ranking,
-            que no coincide con la variante elegida cuando interviene el desempate por
-            parsimonia de `elegir_ganador_rev()`.
+        bool: True si todas las covariables son significativas al nivel `alfa`.
 
     Example:
-        >>> tabla_seleccion_rev(modelos, nombres_covars)
+        >>> todas_significativas(modelo, alfa=0.05)
     """
-    aics = [m.aic for m in modelos]
-    mses = [m.mse.mean() for m in modelos]
-    cooks = [distancia_cook(m).max() for m in modelos]
-    rk_aic = _rank_by(modelos, lambda m: m.aic)
-    rk_mse = _rank_by(modelos, lambda m: m.mse.mean())
-    rk_cook = _rank_by(modelos, lambda m: distancia_cook(m).max())
-    puntajes = _ranking_compuesto(modelos)
-    orden = sorted(range(len(modelos)), key=lambda i: (puntajes[i], aics[i]))
-
-    filas = []
-    for rank, idx in enumerate(orden, 1):
-        filas.append(
-            {
-                "Rank": rank,
-                "Modelo": f"M{idx + 1}",
-                "Covariables": " + ".join(nombres_covars[idx]),
-                "N_covariables": len(nombres_covars[idx]),
-                "AIC": round(aics[idx], 4),
-                "Delta_AIC": round(aics[idx] - min(aics), 4),
-                "MSE_medio": round(mses[idx], 6),
-                "Delta_MSE": round(mses[idx] - min(mses), 6),
-                "Cook_max": round(cooks[idx], 4),
-                "Delta_Cook": round(cooks[idx] - min(cooks), 4),
-                "Pos_AIC": rk_aic[idx],
-                "Pos_MSE": rk_mse[idx],
-                "Pos_Cook": rk_cook[idx],
-                "Puntaje": puntajes[idx],
-            }
-        )
-    return pd.DataFrame(filas)
+    return bool(np.all(modelo.p_vals[1:] < alfa))
 
 
-def elegir_ganador_rev(
-    modelos: list, nombres_covars: list, delta_aic: float = 2.0
-) -> ModeloAreaPequena:
-    """Elige la especificación ganadora por ranking compuesto con desempate por parsimonia.
-
-    El ranking suma las posiciones en AIC, MSE medio y Cook máxima. Entre las variantes
-    cuya diferencia de AIC frente a la mejor es menor o igual que `delta_aic` (equivalentes
-    según la tabla de criterios de decisión del marco teórico) se elige la de menos
-    covariables y, a igualdad, la mejor posicionada en el ranking.
+def _indice_ganador(
+    modelos: list, nombres_covars: list, delta_aic: float, alfa: float
+) -> tuple:
+    """Aplica el criterio de selección y devuelve el índice elegido y su contexto.
 
     Args:
         modelos (list[ModeloAreaPequena]): Modelos ajustados.
         nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
         delta_aic (float): Diferencia de AIC que define variantes equivalentes.
+        alfa (float): Nivel de significancia exigido a todas las covariables.
+
+    Returns:
+        tuple: (idx_ganador, candidatas, equivalentes, hay_candidatas). `candidatas` y
+            `equivalentes` son listas de índices; `hay_candidatas` es False cuando ninguna
+            variante tiene todas sus covariables significativas y se usaron todas.
+    """
+    candidatas = [i for i, m in enumerate(modelos) if todas_significativas(m, alfa)]
+    hay_candidatas = bool(candidatas)
+    if not hay_candidatas:
+        candidatas = list(range(len(modelos)))
+    mejor_aic = min(modelos[i].aic for i in candidatas)
+    equivalentes = [i for i in candidatas if modelos[i].aic - mejor_aic <= delta_aic]
+    idx_ganador = min(
+        equivalentes, key=lambda i: (len(nombres_covars[i]), modelos[i].aic)
+    )
+    return idx_ganador, candidatas, equivalentes, hay_candidatas
+
+
+def tabla_seleccion_rev(
+    modelos: list, nombres_covars: list, delta_aic: float = 2.0, alfa: float = 0.05
+) -> pd.DataFrame:
+    """Tabla de selección: significancia de las covariables, AIC y parsimonia.
+
+    Solo las columnas `Todas_signif`, `AIC` y `N_covariables` intervienen en la decisión.
+    `MSE_medio` y `Cook_max` se reportan como información (ganancia de precisión y
+    robustez), sin rol en la elección.
+
+    Args:
+        modelos (list[ModeloAreaPequena]): Modelos ajustados.
+        nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
+        delta_aic (float): Diferencia de AIC que define variantes equivalentes.
+        alfa (float): Nivel de significancia exigido a todas las covariables.
+
+    Returns:
+        pd.DataFrame: Una fila por modelo con número de covariables, AIC, diferencia de AIC
+            frente a la mejor candidata, p-valor máximo de las covariables, si todas son
+            significativas, si es candidata, si es equivalente por AIC, si es la elegida, y
+            las columnas informativas MSE_medio y Cook_max. Ordenada con las candidatas
+            primero y, dentro de cada grupo, por AIC.
+
+    Example:
+        >>> tabla_seleccion_rev(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)
+    """
+    idx_ganador, candidatas, equivalentes, _ = _indice_ganador(
+        modelos, nombres_covars, delta_aic, alfa
+    )
+    mejor_aic = min(modelos[i].aic for i in candidatas)
+
+    filas = []
+    for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars)):
+        filas.append(
+            {
+                "Modelo": f"M{i + 1}",
+                "Covariables": " + ".join(covars),
+                "N_covariables": len(covars),
+                "AIC": round(float(modelo.aic), 4),
+                "Delta_AIC": round(float(modelo.aic - mejor_aic), 4),
+                "p_max_covariables": round(float(modelo.p_vals[1:].max()), 4),
+                "Todas_signif": "sí" if todas_significativas(modelo, alfa) else "no",
+                "Candidata": "sí" if i in candidatas else "no",
+                "Equivalente_AIC": "sí" if i in equivalentes else "no",
+                "Elegida": "sí" if i == idx_ganador else "",
+                "MSE_medio": round(float(modelo.mse.mean()), 6),
+                "Cook_max": round(float(distancia_cook(modelo).max()), 4),
+            }
+        )
+    tabla = pd.DataFrame(filas)
+    tabla["_orden"] = tabla["Candidata"].map({"sí": 0, "no": 1})
+    return (
+        tabla.sort_values(["_orden", "AIC"])
+        .drop(columns="_orden")
+        .reset_index(drop=True)
+    )
+
+
+def elegir_ganador_rev(
+    modelos: list, nombres_covars: list, delta_aic: float = 2.0, alfa: float = 0.05
+) -> ModeloAreaPequena:
+    """Elige la especificación por significancia, AIC y parsimonia (Morales et al., p. 453).
+
+    1. Candidatas: variantes con todas sus covariables significativas (p < `alfa`). Si
+       ninguna lo cumple, se usan todas y se imprime un aviso.
+    2. Equivalentes: candidatas con AIC a lo sumo `delta_aic` por encima de la mejor.
+    3. Ganadora: la equivalente con menos covariables; a igualdad, la de menor AIC.
+
+    Args:
+        modelos (list[ModeloAreaPequena]): Modelos ajustados.
+        nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
+        delta_aic (float): Diferencia de AIC que define variantes equivalentes.
+        alfa (float): Nivel de significancia exigido a todas las covariables.
 
     Returns:
         ModeloAreaPequena: El modelo elegido.
@@ -224,39 +253,91 @@ def elegir_ganador_rev(
         ValueError: Si `modelos` está vacío.
 
     Example:
-        >>> ganador = elegir_ganador_rev(modelos, nombres_covars)
+        >>> ganador = elegir_ganador_rev(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)
     """
     if not modelos:
         raise ValueError("La lista de modelos está vacía.")
 
-    puntajes = _ranking_compuesto(modelos)
-    posicion = {
-        i: rango
-        for rango, i in enumerate(
-            sorted(range(len(modelos)), key=lambda i: (puntajes[i], modelos[i].aic)), 1
-        )
-    }
-    idx_ranking = min(range(len(modelos)), key=lambda i: posicion[i])
-
-    mejor_aic = min(m.aic for m in modelos)
-    equivalentes = [i for i, m in enumerate(modelos) if m.aic - mejor_aic <= delta_aic]
-    idx_ganador = min(equivalentes, key=lambda i: (len(nombres_covars[i]), posicion[i]))
-
-    print(
-        f"Primer puesto del ranking compuesto: M{idx_ranking + 1} ({' + '.join(nombres_covars[idx_ranking])})"
+    idx_ganador, candidatas, equivalentes, hay_candidatas = _indice_ganador(
+        modelos, nombres_covars, delta_aic, alfa
     )
-    if idx_ganador != idx_ranking:
+    if hay_candidatas:
         print(
-            f"Variantes equivalentes (diferencia de AIC <= {delta_aic}): {len(equivalentes)}"
+            f"Variantes con todas las covariables significativas (p < {alfa}): "
+            + ", ".join(f"M{i + 1}" for i in candidatas)
         )
+    else:
         print(
-            f"  elegida por parsimonia: M{idx_ganador + 1} ({' + '.join(nombres_covars[idx_ganador])}, "
-            f"{len(nombres_covars[idx_ganador])} covariables)"
+            f"⚠ AVISO: ninguna variante tiene todas sus covariables significativas "
+            f"(p < {alfa}). Se elige entre todas por AIC y parsimonia, pero el modelo no "
+            f"cumple la recomendación del libro para predecir fuera de muestra (p. 453)."
         )
+    print(
+        f"Equivalentes por AIC (ΔAIC ≤ {delta_aic}): "
+        + ", ".join(f"M{i + 1}" for i in equivalentes)
+    )
     print(
         f"Modelo ganador: M{idx_ganador + 1} ({' + '.join(nombres_covars[idx_ganador])})"
     )
     return modelos[idx_ganador]
+
+
+def sensibilidad_cook(
+    modelo: ModeloAreaPequena,
+    clase_modelo: type,
+    municipios: np.ndarray,
+    alfa: float = 0.05,
+) -> pd.DataFrame:
+    """Reajusta el modelo sin el dominio de mayor distancia de Cook y compara los β̂.
+
+    A diferencia de la distancia de Cook (que fija ``Â``), aquí se reestima todo el modelo,
+    incluida la varianza de efectos aleatorios, así que el cambio refleja la influencia
+    completa del dominio.
+
+    Args:
+        modelo (ModeloAreaPequena): Modelo ya ajustado (normalmente el ganador).
+        clase_modelo (type): Clase con la que reajustar (p. ej. `FayHerriotClasicoRev`).
+        municipios (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
+        alfa (float): Nivel de significancia para marcar pérdidas de significancia.
+
+    Returns:
+        pd.DataFrame: Una fila por parámetro (intercepto y covariables) con el dominio
+            excluido, β̂ completo, β̂ sin el dominio, cambio relativo en %, si cambia el
+            signo y si la covariable deja de ser significativa. Incluye una fila `A_hat`.
+
+    Example:
+        >>> sensibilidad_cook(ganador, FayHerriotClasicoRev, df["MUNICIPIO"].values)
+    """
+    cook = distancia_cook(modelo)
+    idx = int(np.argmax(cook))
+    df_sin = modelo.df.drop(index=modelo.df.index[idx]).reset_index(drop=True)
+    reajuste = clase_modelo(modelo.covars, df_sin, modelo.y_col, modelo.se_col)
+    reajuste.ajustar()
+
+    parametros = ["Intercepto"] + list(modelo.covars) + ["A_hat"]
+    completo = np.append(modelo.beta_hat, modelo.A_hat)
+    sin_dominio = np.append(reajuste.beta_hat, reajuste.A_hat)
+    p_completo = np.append(modelo.p_vals, np.nan)
+    p_sin = np.append(reajuste.p_vals, np.nan)
+
+    return pd.DataFrame(
+        {
+            "Dominio_excluido": str(municipios[idx]),
+            "Cook": round(float(cook[idx]), 4),
+            "Parametro": parametros,
+            "Valor_completo": completo.round(4),
+            "Valor_sin_dominio": sin_dominio.round(4),
+            "Cambio_pct": (100 * (sin_dominio - completo) / np.abs(completo)).round(1),
+            "Cambia_signo": np.where(
+                np.sign(sin_dominio) != np.sign(completo), "sí", "no"
+            ),
+            "p_completo": np.round(p_completo, 4),
+            "p_sin_dominio": np.round(p_sin, 4),
+            "Pierde_signif": np.where(
+                (p_completo < alfa) & (p_sin >= alfa), "sí", "no"
+            ),
+        }
+    )
 
 
 def figura_cook(modelos: list, nombres_covars: list, municipios: np.ndarray):
@@ -272,7 +353,7 @@ def figura_cook(modelos: list, nombres_covars: list, municipios: np.ndarray):
             umbral 4/n; las barras que lo superan se pintan en rojo.
 
     Example:
-        >>> fig = figura_cook(modelos, nombres_covars, df["MUNICIPIO"].values)
+        >>> fig = figura_cook([ganador], [ganador.covars], df["MUNICIPIO"].values)
     """
     import matplotlib.pyplot as plt
 
@@ -306,48 +387,54 @@ def figura_cook(modelos: list, nombres_covars: list, municipios: np.ndarray):
 
 
 def interpretar_cook(
-    modelos: list, nombres_covars: list, municipios: np.ndarray
+    modelo: ModeloAreaPequena, municipios: np.ndarray, sensibilidad: pd.DataFrame
 ) -> str:
-    """Lectura textual de la figura de distancia de Cook por especificación.
+    """Lectura textual de la robustez del modelo elegido frente al dominio más influyente.
 
     Args:
-        modelos (list[ModeloAreaPequena]): Modelos ajustados.
-        nombres_covars (list[list[str]]): Covariables por modelo.
+        modelo (ModeloAreaPequena): Modelo ya ajustado (normalmente el ganador).
         municipios (np.ndarray): Nombre de cada dominio.
+        sensibilidad (pd.DataFrame): Salida de `sensibilidad_cook` para ese modelo.
 
     Returns:
-        str: Interpretación lista para imprimir junto a la figura.
+        str: Interpretación lista para imprimir junto a la figura y la tabla de sensibilidad.
 
     Example:
-        >>> print(interpretar_cook(modelos, nombres_covars, municipios))
+        >>> print(interpretar_cook(ganador, municipios, sensibilidad_cook(ganador, ...)))
     """
-    tabla = tabla_cook(modelos, nombres_covars, municipios)
-    recurrentes = pd.Series(
-        [
-            d.split(" (")[0]
-            for cadena in tabla["Dominios_influyentes"]
-            for d in cadena.split("; ")
-            if d != "—"
-        ]
-    ).value_counts()
-    mejor = tabla.loc[tabla["Cook_max"].idxmin()]
-    peor = tabla.loc[tabla["Cook_max"].idxmax()]
+    cook = distancia_cook(modelo)
+    umbral = 4 / modelo.n
+    influyentes = municipios[cook > umbral]
+    covars = sensibilidad[sensibilidad["Parametro"].isin(modelo.covars)]
+    cambios_signo = covars.loc[covars["Cambia_signo"] == "sí", "Parametro"].tolist()
+    perdidas = covars.loc[covars["Pierde_signif"] == "sí", "Parametro"].tolist()
+    dominio = sensibilidad["Dominio_excluido"].iloc[0]
+
     lineas = [
-        "INTERPRETACIÓN DE LA FIGURA:",
-        f"  Especificación con menor dependencia de un dominio: {mejor['Modelo']} "
-        f"(Cook máxima {mejor['Cook_max']:.3f} en {mejor['Dominio_Cook_max']}).",
-        f"  Especificación con mayor dependencia: {peor['Modelo']} "
-        f"(Cook máxima {peor['Cook_max']:.3f} en {peor['Dominio_Cook_max']}).",
-        "  Dominios que superan el umbral en más especificaciones: "
-        + (
-            ", ".join(
-                f"{k} ({v} de {len(modelos)})" for k, v in recurrentes.head(3).items()
-            )
-            if len(recurrentes)
-            else "ninguno"
-        )
+        "INTERPRETACIÓN (robustez del modelo elegido):",
+        f"  Dominios por encima del umbral 4/n = {umbral:.3f}: "
+        + (", ".join(map(str, influyentes)) if len(influyentes) else "ninguno")
         + ".",
-        "  Lectura: una covariable cuya inclusión eleva la Cook máxima está apoyando el ajuste en un solo "
-        "territorio; el ranking compuesto penaliza esa especificación aunque su AIC sea algo menor.",
+        f"  Dominio más influyente: {dominio} (Cook = {cook.max():.3f}). Al reajustar sin él, "
+        f"el mayor cambio relativo en una covariable es "
+        f"{covars['Cambio_pct'].abs().max():.1f} %.",
     ]
+    if cambios_signo or perdidas:
+        lineas.append(
+            "  ✗ Sin ese dominio "
+            + (
+                f"cambia el signo de {', '.join(cambios_signo)}"
+                if cambios_signo
+                else ""
+            )
+            + ("; " if cambios_signo and perdidas else "")
+            + (f"dejan de ser significativas {', '.join(perdidas)}" if perdidas else "")
+            + ": la conclusión depende de un solo territorio y debe reportarse como "
+            "limitación."
+        )
+    else:
+        lineas.append(
+            "  ✓ Sin ese dominio ninguna covariable cambia de signo ni pierde "
+            "significancia: el modelo no depende de un solo territorio."
+        )
     return "\n".join(lineas)

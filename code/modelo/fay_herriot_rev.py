@@ -4,30 +4,50 @@
 # MAGIC # Modelo Fay-Herriot sobre el conjunto de covariables revisado
 # MAGIC
 # MAGIC Versión revisada de `fay_herriot`. El notebook original permanece sin cambios; este
-# MAGIC escribe en tablas con sufijo `_rev`.
+# MAGIC escribe en tablas con sufijo `_rev`. Las decisiones metodológicas se apoyan en
+# MAGIC Morales et al. (2021), *A Course on Small Area Estimation and Mixed Models*.
 # MAGIC
-# MAGIC **La lógica del modelo no se toca.** Se reutilizan sin modificación
-# MAGIC `shared/fay_herriot.py`, `shared/modelo_area_pequena.py`, `shared/diagnosticos_plot.py`
-# MAGIC y `shared/consolidacion.py`. Es un Fay-Herriot **clásico**: efectos aleatorios
-# MAGIC independientes por dominio, sin componente espacial, de modo que no se calcula ningún
-# MAGIC índice de autocorrelación espacial. Cambian cuatro cosas:
+# MAGIC Es un Fay-Herriot **clásico**: efectos aleatorios independientes por dominio, sin
+# MAGIC componente espacial. Â se estima por REML, β̂ por mínimos cuadrados generalizados y
+# MAGIC el AIC con la verosimilitud ML (`shared/fay_herriot.py`, sin cambios). Frente al
+# MAGIC notebook original cambian estas cosas:
 # MAGIC
-# MAGIC 1. **De dónde salen las covariables.** El conjunto lo elige
-# MAGIC    `eda_seleccion_covariables_rev` con una ficha de decisión cualitativa, y aquí se
-# MAGIC    compara ese conjunto con sus **variantes dejando una covariable fuera**. La
-# MAGIC    comparación responde a si cada covariable aporta, y el modelo no puede quedar
-# MAGIC    desincronizado del análisis exploratorio.
-# MAGIC 2. **Cómo se elige el ganador.** Al ranking original por posiciones en AIC y error
-# MAGIC    cuadrático medio se añade la **distancia de Cook máxima**: con 23 dominios una
-# MAGIC    especificación puede ajustar bien porque un solo territorio sostiene sus
-# MAGIC    coeficientes, y eso debe penalizarse. Entre variantes equivalentes por AIC se elige
-# MAGIC    la más parsimoniosa (`shared/seleccion_modelo_rev.py`).
-# MAGIC 3. **De dónde salen los dominios objetivo.** Se usa
-# MAGIC    `municipios_sin_encuesta_rev`, derivada de las fuentes por
-# MAGIC    `dominios_sin_encuesta_rev`, en lugar de una tabla que ningún notebook construye.
-# MAGIC 4. **Dónde se escriben los resultados.**
+# MAGIC 1. **MSE del EBLUP corregido.** `shared/fay_herriot_rev.py` usa el término g3 de
+# MAGIC    Prasad-Rao para REML del libro (p. 440): `g3 = D²/(D+Â)³ · avar(Â)`. La versión
+# MAGIC    original omitía un factor `1/(D+Â)` y sobrestimaba el MSE y el CV del EBLUP.
+# MAGIC 2. **De dónde salen las covariables.** El conjunto lo elige
+# MAGIC    `eda_seleccion_covariables_rev`, y aquí se compara con sus **variantes dejando una
+# MAGIC    covariable fuera**, para responder si cada covariable aporta.
+# MAGIC 3. **Cómo se elige el ganador.** El modelo se usa para predecir municipios sin
+# MAGIC    encuesta, y para ese objetivo el libro (p. 453) desaconseja sobreparametrizar y
+# MAGIC    recomienda que todas las covariables sean significativas (p < 0.05). Solo compiten
+# MAGIC    las variantes que lo cumplen; entre ellas gana la de menor AIC y, entre las
+# MAGIC    equivalentes (ΔAIC ≤ 2), la de menos covariables. El MSE del EBLUP y la distancia
+# MAGIC    de Cook se muestran después como diagnósticos del modelo elegido: ganancia de
+# MAGIC    precisión y robustez.
+# MAGIC 4. **Avisos.** Encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y
+# MAGIC    municipios cuya predicción sintética es una extrapolación.
+# MAGIC 5. **Dominios objetivo y destino.** Se usa `municipios_sin_encuesta_rev` y se escribe
+# MAGIC    en tablas `_rev`.
 # MAGIC
 # MAGIC Dominio: PER + MES + DEPARTAMENTO + MUNICIPIO.
+
+# COMMAND ----------
+
+# DBTITLE 1,Nota sobre las varianzas de muestreo
+# MAGIC %md
+# MAGIC ## Nota sobre las varianzas de muestreo
+# MAGIC
+# MAGIC El modelo Fay-Herriot trata las varianzas de muestreo σ²_d de las estimaciones directas
+# MAGIC como **conocidas**. El libro (Morales et al., 2021, p. 427) da dos maneras de
+# MAGIC fijarlas: (a) tomar la varianza estimada con los microdatos de la encuesta y tratarla
+# MAGIC como constante conocida, o (b) suavizarla con una función de varianza generalizada
+# MAGIC (GVF). Aquí se usa la alternativa (a): σ²_d es la varianza **bootstrap** de la
+# MAGIC estimación directa (`estimacion_directa`), sin suavizar.
+# MAGIC
+# MAGIC Limitación: el bootstrap simple no incorpora el diseño muestral de la GEIH (estratos,
+# MAGIC conglomerados), cuyas variables no están disponibles. Si subestima σ²_d, el peso γ_d de
+# MAGIC la estimación directa en el EBLUP queda algo sobrestimado.
 
 # COMMAND ----------
 
@@ -42,7 +62,11 @@ from scipy import stats
 
 
 def _directorio_codigo() -> str:
-    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job."""
+    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job.
+
+    Returns:
+        str: Ruta del directorio `code/` del repositorio.
+    """
     try:
         contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
         return "/Workspace" + os.path.dirname(
@@ -58,7 +82,7 @@ for _ruta in (CODE_DIR, os.path.join(CODE_DIR, "modelo")):
         sys.path.insert(0, _ruta)
 
 from shared.config_rev import *
-from shared.fay_herriot import FayHerriotClasico
+from shared.fay_herriot_rev import FayHerriotClasicoRev
 from shared.seleccion_modelo import tabla_diagnosticos
 from shared.seleccion_modelo_rev import (
     variantes_dejar_una_fuera,
@@ -66,19 +90,43 @@ from shared.seleccion_modelo_rev import (
     tabla_cook,
     tabla_seleccion_rev,
     elegir_ganador_rev,
+    sensibilidad_cook,
     figura_cook,
     interpretar_cook,
 )
-from shared.diagnosticos_plot import (
-    graficar_validacion,
-    explicacion_graficas,
-    interpretar_validacion,
+from shared.diagnosticos_rev import (
+    graficar_validacion_rev,
+    explicacion_graficas_rev,
+    interpretar_validacion_rev,
+    figura_cv_directo_vs_eblup,
+    interpretar_cv,
+    aviso_encuesta_sin_peso,
+    marca_fuera_de_rango,
+    marca_extrapolacion,
 )
 from shared.consolidacion import construir_tabla_final
 
 import warnings
 
 warnings.filterwarnings("ignore")
+
+
+def guardar_figura(fig, nombre: str) -> None:
+    """Guarda una figura en el volumen de figuras del flujo `_rev`, si está configurado.
+
+    Args:
+        fig (matplotlib.figure.Figure): Figura a guardar.
+        nombre (str): Nombre del archivo sin extensión; se antepone el prefijo `fh_rev_`.
+
+    Returns:
+        None
+    """
+    if VOLUMEN_FIGURAS:
+        os.makedirs(VOLUMEN_FIGURAS, exist_ok=True)
+        ruta = os.path.join(VOLUMEN_FIGURAS, f"fh_rev_{nombre}.png")
+        fig.savefig(ruta, dpi=200, bbox_inches="tight")
+        print(f"  figura guardada: {ruta}")
+
 
 # COMMAND ----------
 
@@ -131,7 +179,7 @@ for i, covars in enumerate(nombres_covars, 1):
 
 # DBTITLE 1,3. Ajuste de todos los modelos
 print(f"\nAjustando {len(nombres_covars)} modelo(s)...\n")
-modelos = [FayHerriotClasico(covars, df, Y_COL, SE_COL) for covars in nombres_covars]
+modelos = [FayHerriotClasicoRev(covars, df, Y_COL, SE_COL) for covars in nombres_covars]
 for modelo in modelos:
     modelo.ajustar()
     modelo.resultados = modelo.tabla_resultados(metadata_cols=DOMINIO_COLS)
@@ -164,49 +212,18 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     print("=" * 65)
     print(f"{etiqueta} — GRÁFICAS DE VALIDACIÓN")
     print("=" * 65)
-    print(explicacion_graficas())
+    print(explicacion_graficas_rev())
 
-    # Las cuatro figuras que devuelve `graficar_validacion()` llegan en orden fijo. Se guardan
-    # con el prefijo `fh_rev_` para que el capítulo de resultados referencie las de esta
-    # versión y no las del procedimiento anterior, que corresponden a otras covariables.
-    figuras = graficar_validacion(modelo, etiqueta)
-    for fig, tipo in zip(figuras, NOMBRES_FIGURAS_VALIDACION):
+    # Se guardan con el prefijo `fh_rev_` para que el capítulo de resultados referencie las
+    # de esta versión y no las del procedimiento anterior.
+    figuras = graficar_validacion_rev(modelo, etiqueta)
+    for fig, tipo in zip(figuras, NOMBRES_FIGURAS_VALIDACION_REV):
         display(fig)
-        if VOLUMEN_FIGURAS:
-            os.makedirs(VOLUMEN_FIGURAS, exist_ok=True)
-            ruta = os.path.join(VOLUMEN_FIGURAS, f"fh_rev_m{i}_{tipo}.png")
-            fig.savefig(ruta, dpi=200, bbox_inches="tight")
-            print(f"  figura guardada: {ruta}")
+        guardar_figura(fig, f"m{i}_{tipo}")
         plt.close(fig)
 
-    print(interpretar_validacion(modelo))
+    print(interpretar_validacion_rev(modelo))
     print()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Influencia por dominio: distancia de Cook
-# MAGIC
-# MAGIC **Cómo leer la figura.** Un panel por especificación; cada barra es un dominio y su
-# MAGIC altura es la distancia de Cook en el ajuste por mínimos cuadrados generalizados del
-# MAGIC modelo, es decir, cuánto cambiarían los coeficientes si ese dominio no estuviera. La
-# MAGIC línea discontinua es el umbral convencional 4/n y las barras rojas lo superan. Lo que
-# MAGIC interesa comparar entre paneles es si al añadir o quitar una covariable aparece un
-# MAGIC dominio que pasa a sostener el ajuste por sí solo: esa especificación, aunque tenga
-# MAGIC menor AIC, depende de un único territorio y el ranking compuesto la penaliza.
-
-# COMMAND ----------
-
-# DBTITLE 1,Figura: distancia de Cook por dominio y especificación
-fig = figura_cook(modelos, nombres_covars, municipios)
-display(fig)
-if VOLUMEN_FIGURAS:
-    os.makedirs(VOLUMEN_FIGURAS, exist_ok=True)
-    ruta = os.path.join(VOLUMEN_FIGURAS, f"fh_rev_{NOMBRE_FIGURA_COOK}.png")
-    fig.savefig(ruta, dpi=200, bbox_inches="tight")
-    print(f"  figura guardada: {ruta}")
-plt.close(fig)
-print(interpretar_cook(modelos, nombres_covars, municipios))
 
 # COMMAND ----------
 
@@ -220,8 +237,13 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
 
     print(f"\nVarianza de efectos aleatorios (Â):   {modelo.A_hat:.6f}")
     print(f"Desv. estándar de efectos aleatorios: {np.sqrt(modelo.A_hat):.6f}")
+    aviso = aviso_encuesta_sin_peso(modelo, UMBRAL_GAMMA_SIN_PESO)
+    if aviso:
+        print(aviso)
 
-    print("\nCOEFICIENTES:")
+    print(
+        "\nCOEFICIENTES (prueba z con la normal asintótica de β̂, Morales et al. p. 272):"
+    )
     coef_df = pd.DataFrame(
         {
             "Parametro": param_names,
@@ -244,7 +266,7 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
         f"  Media residuos estand.:       {modelo.residuals.mean():.4f}  (esperado ≈ 0)"
     )
     print(
-        f"  Desv. std residuos estand.:   {modelo.residuals.std():.4f}  (esperado ≈ 1)"
+        f"  Desv. std residuos estand.:   {modelo.residuals.std(ddof=1):.4f}  (esperado ≈ 1)"
     )
     sw_ok = modelo.sw_pval > 0.05
     print(
@@ -265,29 +287,21 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
         + (f": {', '.join(municipios[influyentes])})" if len(influyentes) else ")")
     )
 
+    # La comparación MSE_EBLUP frente a Di es descriptiva: g1 = γ·Di < Di por construcción,
+    # de modo que el EBLUP «mejora» casi siempre; lo informativo es cuánto (p. 440).
     validacion = modelo.validar_mse_directo()
-    print("\nVALIDACIÓN MSE EBLUP vs VARIANZA DIRECTA:")
     print(
-        f"  Dominios con MSE_EBLUP < Di: {validacion['dominios_mejoran']*100:.1f}%  "
-        + (
-            "✓ mejora generalizada"
-            if validacion["dominios_mejoran"] >= 0.9
-            else (
-                "~ mejora parcial"
-                if validacion["dominios_mejoran"] >= 0.5
-                else "✗ sin mejora clara"
-            )
-        )
+        "\nGANANCIA DE PRECISIÓN (descriptiva: MSE_EBLUP < Di es lo esperado, p. 440):"
     )
+    print(f"  Dominios con MSE_EBLUP < Di: {validacion['dominios_mejoran']*100:.1f}%")
     print(f"  Reducción media del MSE:      {validacion['pct_mejora_mse'].mean():.2f}%")
     print(
         f"  Ratio Di/MSE medio:           {validacion['mse_ratio'].mean():.4f}  (>1 indica ganancia)"
     )
     print(f"  Ratio Di/MSE mediana:         {np.median(validacion['mse_ratio']):.4f}")
-    wil_ok = validacion["wil_pval"] < 0.05
     print(
-        f"  Wilcoxon (Di > MSE_EBLUP):   W={validacion['wil_stat']:.1f}, p={validacion['wil_pval']:.4f}  "
-        + ("✓ reducción significativa" if wil_ok else "✗ no significativa")
+        f"  Wilcoxon (Di > MSE_EBLUP):   W={validacion['wil_stat']:.1f}, "
+        f"p={validacion['wil_pval']:.4f}"
     )
 
     print("\n  Detalle por dominio (Di vs MSE_EBLUP):")
@@ -307,14 +321,13 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
 # DBTITLE 1,7. Selección de modelo (solo cuando hay más de una especificación)
 if len(modelos) > 1:
     print("=" * 65)
-    print("TABLA 1 — DIAGNÓSTICOS POR MODELO")
+    print("TABLA 1 — DIAGNÓSTICOS POR MODELO (informativa)")
     print("=" * 65)
     df_diag_variantes = tabla_diagnosticos(modelos, nombres_covars)
 
-    # La metodología reporta el efecto suavizador para todas las variantes, no solo para la
-    # elegida: la correlación entre la estimación directa y la corrección que el modelo le
-    # aplica mide cuánto de esa corrección responde al nivel del dominio. Se añade aquí, y no
-    # en `tabla_diagnosticos()`, para no alterar el módulo que comparte el notebook original.
+    # Efecto suavizador para todas las variantes: correlación entre la estimación directa y
+    # la corrección que el modelo le aplica. Se añade aquí, y no en `tabla_diagnosticos()`,
+    # para no alterar el módulo que comparte el notebook original.
     correlaciones = [stats.pearsonr(m.Y, m.Y - m.eblup) for m in modelos]
     df_diag_variantes["Corr_suavizador"] = [
         round(float(c[0]), 4) for c in correlaciones
@@ -332,24 +345,31 @@ if len(modelos) > 1:
 
     display(df_diag_variantes)
     print("  SW_pval: p-valor Shapiro-Wilk (>0.05 -> normalidad)")
-    print(
-        "  Wilcoxon_pval: p-valor test Di>MSE_EBLUP (<0.05 -> reducción significativa)"
-    )
-    print("  Pct_dom_mejoran: % dominios con MSE_EBLUP < Di")
-    print("  Ratio_MSE_medio: Di/MSE_EBLUP medio (>1 indica ganancia de eficiencia)")
+    print("  Pct_dom_mejoran / Ratio_MSE_medio / Wilcoxon_pval: ganancia de precisión")
+    print("    del EBLUP frente a la estimación directa (descriptiva, p. 440)")
     print(
         "  Cook_max / N_influyentes: distancia de Cook máxima y dominios que superan 4/n"
     )
 
     print("\n" + "=" * 65)
-    print("TABLA 2 — SELECCIÓN DE MODELO (AIC / MSE medio / Cook máxima)")
+    print("TABLA 2 — SELECCIÓN DE MODELO (significancia + AIC + parsimonia)")
     print("=" * 65)
-    df_sel_modelo = tabla_seleccion_rev(modelos, nombres_covars)
+    df_sel_modelo = tabla_seleccion_rev(
+        modelos,
+        nombres_covars,
+        delta_aic=DELTA_AIC_EQUIVALENTE,
+        alfa=ALFA_SIGNIFICANCIA,
+    )
     display(df_sel_modelo)
     print(
-        "  Puntaje: suma de posiciones en AIC + MSE_medio + Cook_max (menor es mejor)"
+        f"  Candidata: todas las covariables con p < {ALFA_SIGNIFICANCIA} "
+        "(Morales et al., p. 453: no sobreparametrizar al predecir fuera de muestra)"
     )
-    print("  Delta_AIC: < 2 equivalentes · 2-7 moderado · > 10 sustancial")
+    print(
+        f"  Equivalente_AIC: ΔAIC ≤ {DELTA_AIC_EQUIVALENTE} frente a la mejor candidata; "
+        "entre ellas se elige la de menos covariables"
+    )
+    print("  MSE_medio y Cook_max: informativas, no intervienen en la decisión")
 
     (
         spark.createDataFrame(df_diag_variantes)
@@ -367,14 +387,24 @@ if len(modelos) > 1:
     )
     print(f"Tabla escrita: {TBL_FH_COOK_REV}")
 
+    (
+        spark.createDataFrame(df_sel_modelo)
+        .write.mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable(TBL_FH_SELECCION_MODELO_REV)
+    )
+    print(f"Tabla escrita: {TBL_FH_SELECCION_MODELO_REV}")
+
 # COMMAND ----------
 
-# DBTITLE 1,8. Exportar resultados del modelo ganador
-# `elegir_ganador_rev()` ordena por la suma de posiciones en AIC, error cuadrático medio y
-# distancia de Cook máxima y, entre las variantes equivalentes por AIC, aplica el principio
-# de parsimonia que establece la metodología: elegir la de menos covariables.
+# DBTITLE 1,8. Modelo ganador
 modelo_ganador = (
-    elegir_ganador_rev(modelos, nombres_covars, delta_aic=DELTA_AIC_EQUIVALENTE)
+    elegir_ganador_rev(
+        modelos,
+        nombres_covars,
+        delta_aic=DELTA_AIC_EQUIVALENTE,
+        alfa=ALFA_SIGNIFICANCIA,
+    )
     if len(modelos) > 1
     else modelos[0]
 )
@@ -384,30 +414,68 @@ if set(modelo_ganador.covars) != set(covars_eda):
         "\nAVISO: el modelo ganador no coincide con el conjunto completo elegido por el análisis"
     )
     print(
-        "exploratorio: alguna covariable no aporta ajuste suficiente para justificar su inclusión."
+        "exploratorio: alguna covariable no es significativa o no aporta ajuste suficiente."
     )
     print("Ambas cifras deben reportarse y la diferencia explicarse en el documento.")
     print(f"  conjunto del EDA: {' + '.join(covars_eda)}")
     print(f"  modelo ganador:   {' + '.join(modelo_ganador.covars)}")
 
-# La tabla de selección se persiste una vez conocida la variante elegida, con una columna que
-# la identifica: `Rank == 1` señala el primer puesto del ranking compuesto, que no coincide
-# con la elegida cuando interviene el desempate por parsimonia.
-if len(modelos) > 1:
-    df_sel_modelo = df_sel_modelo.copy()
-    covars_ganador_txt = " + ".join(modelo_ganador.covars)
-    df_sel_modelo["Elegida"] = [
-        "sí" if fila == covars_ganador_txt else ""
-        for fila in df_sel_modelo["Covariables"]
-    ]
-    (
-        spark.createDataFrame(df_sel_modelo)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(TBL_FH_SELECCION_MODELO_REV)
-    )
-    print(f"Tabla escrita: {TBL_FH_SELECCION_MODELO_REV}")
+aviso = aviso_encuesta_sin_peso(modelo_ganador, UMBRAL_GAMMA_SIN_PESO)
+if aviso:
+    print("\n" + aviso)
 
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Ganancia de precisión del modelo elegido
+# MAGIC
+# MAGIC **Cómo leer la figura.** Cada columna es un dominio, ordenados de menor a mayor
+# MAGIC varianza directa D_d. El punto gris es el CV de la estimación directa y el azul el CV
+# MAGIC del EBLUP; el segmento entre ambos es la ganancia. Las líneas discontinuas marcan los
+# MAGIC umbrales de confiabilidad (15 % y 30 %). Es la misma lectura que las comparaciones de
+# MAGIC RMSE directo frente a EBLUP del libro (Fig. 17.2, Tabla 19.5): la ganancia debe ser
+# MAGIC grande a la derecha (muestras pequeñas) y casi nula a la izquierda, donde el MSE del
+# MAGIC EBLUP tiende a D_d (p. 440).
+
+# COMMAND ----------
+
+# DBTITLE 1,Figura: CV directo vs CV EBLUP del modelo elegido
+fig = figura_cv_directo_vs_eblup(modelo_ganador, municipios)
+display(fig)
+guardar_figura(fig, NOMBRE_FIGURA_CV)
+plt.close(fig)
+print(interpretar_cv(modelo_ganador))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Robustez del modelo elegido: distancia de Cook
+# MAGIC
+# MAGIC **Cómo leer la figura.** Cada barra es un dominio y su altura es la distancia de Cook
+# MAGIC en el ajuste por mínimos cuadrados generalizados del modelo elegido: cuánto cambiarían
+# MAGIC los coeficientes si ese dominio no estuviera. La línea discontinua es el umbral
+# MAGIC convencional 4/n y las barras rojas lo superan. La tabla siguiente reajusta el modelo
+# MAGIC completo (incluida Â) sin el dominio más influyente: si ninguna covariable cambia de
+# MAGIC signo ni pierde significancia, la conclusión no depende de un solo territorio. Cook no
+# MAGIC interviene en la selección; es un diagnóstico de regresión general, no del libro.
+
+# COMMAND ----------
+
+# DBTITLE 1,Figura y tabla: distancia de Cook y sensibilidad del modelo elegido
+fig = figura_cook([modelo_ganador], [modelo_ganador.covars], municipios)
+display(fig)
+guardar_figura(fig, NOMBRE_FIGURA_COOK)
+plt.close(fig)
+
+df_sensibilidad = sensibilidad_cook(
+    modelo_ganador, FayHerriotClasicoRev, municipios, alfa=ALFA_SIGNIFICANCIA
+)
+display(df_sensibilidad)
+print(interpretar_cook(modelo_ganador, municipios, df_sensibilidad))
+
+# COMMAND ----------
+
+# DBTITLE 1,9. Exportar resultados del modelo ganador
 # Coeficientes del modelo ganador, para el capítulo de resultados.
 cook_ganador = distancia_cook(modelo_ganador)
 df_coef_ganador = pd.DataFrame(
@@ -434,17 +502,31 @@ print(f"Tabla escrita: {TBL_FH_COEFICIENTES_REV}")
 
 resultados_ganador = modelo_ganador.resultados.copy()
 resultados_ganador["COOK_D"] = cook_ganador.round(4)
+resultados_ganador["FUERA_DE_RANGO"] = marca_fuera_de_rango(
+    modelo_ganador.eblup, TASA_MINIMA, TASA_MAXIMA
+)
+if resultados_ganador["FUERA_DE_RANGO"].any():
+    print(
+        f"⚠ AVISO: EBLUP fuera de [{TASA_MINIMA}, {TASA_MAXIMA}] en: "
+        + ", ".join(
+            f"{m} ({v:.2f})"
+            for m, v in resultados_ganador.loc[
+                resultados_ganador["FUERA_DE_RANGO"], ["MUNICIPIO", "EBLUP"]
+            ].values
+        )
+    )
 spark_df = spark.createDataFrame(resultados_ganador)
 spark_df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     TBL_FAY_HERRIOT_RESULTADOS_REV
 )
+print(f"Tabla escrita: {TBL_FAY_HERRIOT_RESULTADOS_REV}")
 
 # COMMAND ----------
 
-# DBTITLE 1,9. Predicción sintética para dominios sin estimación directa
+# DBTITLE 1,10. Predicción sintética para dominios sin estimación directa
 # Para municipios donde NO existe estimación directa (Y ni Di), el EBLUP no puede
-# calcularse: el predictor óptimo es el sintético ŷ_d = X_d'β̂ del modelo ganador,
-# sin contracción (γ=0) porque no hay varianza de muestreo.
+# calcularse: el predictor es el sintético ŷ_d = x_d'β̂ del modelo ganador, sin contracción.
+# Su MSE es x_d'Cov(β̂)x_d + Â (Morales et al., p. 441).
 covars_ganador = modelo_ganador.covars
 beta_ganador = modelo_ganador.beta_hat
 
@@ -487,11 +569,8 @@ X_new = np.column_stack(
 )
 y_sintetico = X_new @ beta_ganador
 
-# Incertidumbre: solo el componente de varianza del predictor sintético, x_d'Cov(β̂)x_d,
-# más A_hat (efecto aleatorio no observado en un dominio sin muestra).
-var_beta = np.array(
-    [X_new[i] @ modelo_ganador.cov_beta @ X_new[i] for i in range(len(df_new))]
-)
+# Incertidumbre: x_d'Cov(β̂)x_d (estimar β) + Â (efecto aleatorio no observado).
+var_beta = np.einsum("ij,jk,ik->i", X_new, modelo_ganador.cov_beta, X_new)
 var_sintetico = var_beta + modelo_ganador.A_hat
 rmse_sintetico = np.sqrt(var_sintetico)
 cv_sintetico = 100 * rmse_sintetico / np.abs(y_sintetico)
@@ -501,18 +580,43 @@ df_pred["PRED_SINTETICO"] = y_sintetico.round(4)
 df_pred["RMSE_SINTETICO"] = rmse_sintetico.round(4)
 df_pred["CV_SINTETICO_PCT"] = cv_sintetico.round(2)
 df_pred["TIPO"] = "SINTETICO"
+# EXTRAPOLA: x_d'Cov(β̂)x_d mayor que el máximo de la muestra de ajuste, es decir, un
+# municipio más alejado del centro de los datos que cualquiera de los que vio el modelo.
+df_pred["EXTRAPOLA"] = marca_extrapolacion(var_beta, modelo_ganador)
+df_pred["FUERA_DE_RANGO"] = marca_fuera_de_rango(y_sintetico, TASA_MINIMA, TASA_MAXIMA)
 
 print(f"\nPredicciones sintéticas para {len(df_pred)} dominios sin encuesta:")
 display(df_pred)
+
+n_extrapola = int(df_pred["EXTRAPOLA"].sum())
+print(
+    f"\nMunicipios cuya predicción es una extrapolación: {n_extrapola} de {len(df_pred)}"
+    + (
+        ": " + ", ".join(df_pred.loc[df_pred["EXTRAPOLA"], "MUNICIPIO"])
+        if n_extrapola
+        else ""
+    )
+)
+if df_pred["FUERA_DE_RANGO"].any():
+    print(
+        f"⚠ AVISO: predicción sintética fuera de [{TASA_MINIMA}, {TASA_MAXIMA}] en: "
+        + ", ".join(
+            f"{m} ({v:.2f})"
+            for m, v in df_pred.loc[
+                df_pred["FUERA_DE_RANGO"], ["MUNICIPIO", "PRED_SINTETICO"]
+            ].values
+        )
+    )
 
 spark_df_pred = spark.createDataFrame(df_pred)
 spark_df_pred.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     TBL_FAY_HERRIOT_PREDICCION_SINTETICA_REV
 )
+print(f"Tabla escrita: {TBL_FAY_HERRIOT_PREDICCION_SINTETICA_REV}")
 
 # COMMAND ----------
 
-# DBTITLE 1,10. Tabla final consolidada (EBLUP + sintético)
+# DBTITLE 1,11. Tabla final consolidada (EBLUP + sintético)
 tabla_entrenamiento = modelo_ganador.resultados[
     ["DOMINIO"] + DOMINIO_COLS + ["EBLUP", "CV_EBLUP_PCT"]
 ].rename(columns={"EBLUP": "TASA_DESEMPLEO_PCT", "CV_EBLUP_PCT": "CV_PCT"})
@@ -524,6 +628,17 @@ tabla_sintetica = df_pred.rename(
 
 df_final = construir_tabla_final(tabla_entrenamiento, tabla_sintetica)
 
+# Las marcas se añaden después de consolidar para no modificar `consolidacion.py`. Los
+# dominios con EBLUP no extrapolan (están en la muestra de ajuste).
+marcas = pd.concat(
+    [
+        resultados_ganador[["DOMINIO", "FUERA_DE_RANGO"]].assign(EXTRAPOLA=False),
+        df_pred[["DOMINIO", "FUERA_DE_RANGO", "EXTRAPOLA"]],
+    ],
+    ignore_index=True,
+).drop_duplicates(subset="DOMINIO", keep="first")
+df_final = df_final.merge(marcas, on="DOMINIO", how="left")
+
 print(
     f"\nTabla final consolidada: {len(df_final)} dominios "
     f"({(df_final['TIPO']=='EBLUP').sum()} EBLUP + {(df_final['TIPO']=='SINTETICO').sum()} sintéticos)"
@@ -534,3 +649,4 @@ spark_df_final = spark.createDataFrame(df_final.drop(columns=["DOMINIO"]))
 spark_df_final.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     TBL_FAY_HERRIOT_ESTIMACIONES_FINALES_REV
 )
+print(f"Tabla escrita: {TBL_FAY_HERRIOT_ESTIMACIONES_FINALES_REV}")

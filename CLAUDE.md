@@ -135,8 +135,10 @@ TerriData bronce → TerriData plata (covariables anchas) ──┐
 
 Coexiste con el flujo original sin tocarlo: los notebooks y módulos llevan sufijo `_rev` (o viven en
 `analisis/shared_rev/`), y escriben tablas `_rev`. Los módulos originales (`modelo/shared/fay_herriot.py`,
-`seleccion_modelo.py`, `diagnosticos_plot.py`, `preprocesamiento/shared/feature_selection.py`, `config.py`)
-**no se modifican**; cualquier cambio de comportamiento va en los archivos `_rev` / `shared_rev`.
+`seleccion_modelo.py`, `diagnosticos_plot.py`, `consolidacion.py`,
+`preprocesamiento/shared/feature_selection.py`, `config.py`) **no se modifican**; cualquier cambio de
+comportamiento va en los archivos `_rev` / `shared_rev`. Nota: `modelo/shared/fay_herriot.py` conserva un
+g3 incorrecto (D²/(D+A)²) que solo está corregido en `fay_herriot_rev.py`.
 
 ```
 preprocesamiento/pre_filtrado_covariables_rev.py
@@ -163,9 +165,17 @@ analisis/eda_seleccion_covariables_rev.py
     covariables_seleccionadas_rev
         ↓
 modelo/fay_herriot_rev.py
+  → modelo FayHerriotClasicoRev (shared/fay_herriot_rev.py): hereda de FayHerriotClasico y solo
+    corrige el g3 del MSE de Prasad-Rao a D²/(D+Â)³·avar(Â) (Morales et al., p. 440)
   → variantes = conjunto seleccionado + dejar-una-fuera (shared/seleccion_modelo_rev.py)
-  → ganador por suma de posiciones en AIC + MSE medio + distancia de Cook máxima, con desempate por
-    parsimonia entre variantes con ΔAIC ≤ 2
+  → ganador (Morales et al., p. 453): candidatas = variantes con todas las covariables p < 0.05;
+    entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
+    MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
+    robustez (Cook + reajuste sin el dominio más influyente) del ganador
+  → avisos (shared/diagnosticos_rev.py): Â ≈ 0 (γ máx < 0.01), tasas fuera de [0,100]
+    (FUERA_DE_RANGO) y extrapolación sintética (EXTRAPOLA: x'Cov(β̂)x > máximo de la muestra)
+  → D_i = varianza bootstrap tratada como conocida (p. 427), sin GVF ni figuras GVF; sin validación
+    cruzada
   → fh_seleccion_modelo_rev, fh_cook_rev, fh_coeficientes_rev, fay_herriot_*_rev
 ```
 
