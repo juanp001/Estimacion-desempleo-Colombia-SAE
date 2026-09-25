@@ -345,12 +345,13 @@ def sensibilidad_cook(
         modelo (ModeloAreaPequena): Modelo ya ajustado (normalmente el ganador).
         clase_modelo (type): Clase con la que reajustar (p. ej. `FayHerriotClasico`).
         municipios (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
-        alfa (float): Nivel de significancia para marcar pérdidas de significancia.
+        alfa (float): Nivel de significancia para marcar cambios de significancia.
 
     Returns:
         pd.DataFrame: Una fila por parámetro (intercepto y covariables) con el dominio
             excluido, β̂ completo, β̂ sin el dominio, cambio relativo en %, si cambia el
-            signo y si la covariable deja de ser significativa. Incluye una fila `A_hat`.
+            signo y si cruza el umbral `alfa` en cualquier sentido (`Cambio_signif`:
+            "pierde", "gana" o "no"). Incluye una fila `A_hat`.
 
     Example:
         >>> sensibilidad_cook(ganador, FayHerriotClasico, df["MUNICIPIO"].values)
@@ -380,8 +381,16 @@ def sensibilidad_cook(
             ),
             "p_completo": np.round(p_completo, 4),
             "p_sin_dominio": np.round(p_sin, 4),
-            "Pierde_signif": np.where(
-                (p_completo < alfa) & (p_sin >= alfa), "sí", "no"
+            # Se marca el cruce del umbral en ambos sentidos: si ninguna covariable es
+            # significativa en el modelo completo, «perder» significancia es imposible y
+            # solo el caso «gana» revela dependencia de un dominio.
+            "Cambio_signif": np.select(
+                [
+                    (p_completo < alfa) & (p_sin >= alfa),
+                    (p_completo >= alfa) & (p_sin < alfa),
+                ],
+                ["pierde", "gana"],
+                default="no",
             ),
         }
     )
@@ -433,14 +442,24 @@ def figura_cook(modelos: list, nombres_covars: list, municipios: np.ndarray):
 
 
 def interpretar_cook(
-    modelo: ModeloAreaPequena, municipios: np.ndarray, sensibilidad: pd.DataFrame
+    modelo: ModeloAreaPequena,
+    municipios: np.ndarray,
+    sensibilidad: pd.DataFrame,
+    alfa: float = 0.05,
 ) -> str:
     """Lectura textual de la robustez del modelo elegido frente al dominio más influyente.
+
+    El modelo se declara robusto solo si, sin el dominio más influyente, ninguna covariable
+    cambia de signo ni cruza el umbral de significancia en ningún sentido. Si ninguna
+    covariable era significativa en el modelo completo, la ausencia de pérdidas de
+    significancia no demuestra nada, así que no se declara robustez: se informa el cambio
+    relativo de cada coeficiente para que la estabilidad se juzgue por su magnitud.
 
     Args:
         modelo (ModeloAreaPequena): Modelo ya ajustado (normalmente el ganador).
         municipios (np.ndarray): Nombre de cada dominio.
         sensibilidad (pd.DataFrame): Salida de `sensibilidad_cook` para ese modelo.
+        alfa (float): Nivel de significancia usado en `sensibilidad_cook`.
 
     Returns:
         str: Interpretación lista para imprimir junto a la figura y la tabla de sensibilidad.
@@ -453,7 +472,9 @@ def interpretar_cook(
     influyentes = municipios[cook > umbral]
     covars = sensibilidad[sensibilidad["Parametro"].isin(modelo.covars)]
     cambios_signo = covars.loc[covars["Cambia_signo"] == "sí", "Parametro"].tolist()
-    perdidas = covars.loc[covars["Pierde_signif"] == "sí", "Parametro"].tolist()
+    perdidas = covars.loc[covars["Cambio_signif"] == "pierde", "Parametro"].tolist()
+    ganancias = covars.loc[covars["Cambio_signif"] == "gana", "Parametro"].tolist()
+    ninguna_signif = bool((covars["p_completo"] >= alfa).all())
     dominio = sensibilidad["Dominio_excluido"].iloc[0]
 
     lineas = [
@@ -461,26 +482,38 @@ def interpretar_cook(
         f"  Dominios por encima del umbral 4/n = {umbral:.3f}: "
         + (", ".join(map(str, influyentes)) if len(influyentes) else "ninguno")
         + ".",
-        f"  Dominio más influyente: {dominio} (Cook = {cook.max():.3f}). Al reajustar sin él, "
-        f"el mayor cambio relativo en una covariable es "
-        f"{covars['Cambio_pct'].abs().max():.1f} %.",
+        f"  Dominio más influyente: {dominio} (Cook = {cook.max():.3f}). Cambio relativo "
+        "de cada coeficiente al reajustar sin él: "
+        + ", ".join(
+            f"{fila.Parametro} {fila.Cambio_pct:+.1f} %" for fila in covars.itertuples()
+        )
+        + ".",
     ]
-    if cambios_signo or perdidas:
+
+    hallazgos = []
+    if cambios_signo:
+        hallazgos.append(f"cambia el signo de {', '.join(cambios_signo)}")
+    if perdidas:
+        hallazgos.append(f"dejan de ser significativas {', '.join(perdidas)}")
+    if ganancias:
+        hallazgos.append(f"pasan a ser significativas {', '.join(ganancias)}")
+
+    if hallazgos:
         lineas.append(
             "  ✗ Sin ese dominio "
-            + (
-                f"cambia el signo de {', '.join(cambios_signo)}"
-                if cambios_signo
-                else ""
-            )
-            + ("; " if cambios_signo and perdidas else "")
-            + (f"dejan de ser significativas {', '.join(perdidas)}" if perdidas else "")
-            + ": la conclusión depende de un solo territorio y debe reportarse como "
-            "limitación."
+            + "; ".join(hallazgos)
+            + ": la significancia de las covariables depende de un solo territorio y "
+            "debe reportarse como limitación."
+        )
+    elif ninguna_signif:
+        lineas.append(
+            f"  ⚠ Ninguna covariable es significativa (p < {alfa}) en el modelo completo, "
+            "así que no puede perder significancia: esta prueba no permite afirmar "
+            "robustez. La estabilidad se juzga por la magnitud de los cambios anteriores."
         )
     else:
         lineas.append(
-            "  ✓ Sin ese dominio ninguna covariable cambia de signo ni pierde "
-            "significancia: el modelo no depende de un solo territorio."
+            "  ✓ Sin ese dominio ninguna covariable cambia de signo ni cruza el umbral de "
+            "significancia: las conclusiones no dependen de un solo territorio."
         )
     return "\n".join(lineas)

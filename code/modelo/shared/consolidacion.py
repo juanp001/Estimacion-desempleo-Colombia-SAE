@@ -27,38 +27,49 @@ def clasificar_confiabilidad(cv: float) -> str:
 
 
 def construir_tabla_final(
-    tabla_entrenamiento: pd.DataFrame, tabla_sintetica: pd.DataFrame
+    tabla_entrenamiento: pd.DataFrame,
+    tabla_sintetica: pd.DataFrame,
+    dim_divipola: pd.DataFrame,
 ) -> pd.DataFrame:
     """Consolida estimaciones EBLUP (con encuesta) y sintéticas (sin encuesta).
 
-    Si un dominio (identificado por la columna DOMINIO) aparece en ambas
-    tablas, se conserva únicamente su fila EBLUP —más eficiente al usar la
-    encuesta directa— y se descarta la fila sintética correspondiente.
+    Los dominios se identifican por código DIVIPOLA (columna DOMINIO =
+    PER_MES_CODIGO_MUNICIPIO), no por nombre: las dos fuentes escriben los
+    nombres con distinto formato («CAUCA» frente a «Cauca»). Los nombres de
+    departamento y municipio de la tabla final se toman de `dim_divipola` por
+    CODIGO_MUNICIPIO, de modo que todos quedan con la nomenclatura oficial.
+
+    Si un dominio aparece en ambas tablas, se conserva únicamente su fila EBLUP
+    —más eficiente al usar la encuesta directa— y se descarta la sintética.
 
     Args:
-        tabla_entrenamiento (pd.DataFrame): Debe contener DOMINIO, PER,
-            MES, DEPARTAMENTO, MUNICIPIO, TASA_DESEMPLEO_PCT, CV_PCT y
+        tabla_entrenamiento (pd.DataFrame): Debe contener DOMINIO, PER, MES,
+            CODIGO_DEPARTAMENTO, CODIGO_MUNICIPIO, TASA_DESEMPLEO_PCT, CV_PCT y
             TIPO="EBLUP".
         tabla_sintetica (pd.DataFrame): Mismo esquema, con TIPO="SINTETICO".
+        dim_divipola (pd.DataFrame): Nomenclatura DIVIPOLA con CODIGO_MUNICIPIO,
+            DEPARTAMENTO y MUNICIPIO (una fila por municipio).
 
     Returns:
-        pd.DataFrame: Tabla consolidada, ordenada por PER, MES,
-            DEPARTAMENTO, MUNICIPIO, con una columna adicional
-            CONFIABILIDAD (ver `clasificar_confiabilidad`).
+        pd.DataFrame: Tabla consolidada, ordenada por PER, MES y
+            CODIGO_MUNICIPIO, con DEPARTAMENTO y MUNICIPIO oficiales y una
+            columna adicional CONFIABILIDAD (ver `clasificar_confiabilidad`).
 
     Raises:
-        ValueError: Si falta la columna DOMINIO (u otra del esquema
-            esperado) en alguna de las dos tablas.
+        ValueError: Si falta alguna columna del esquema esperado en las tablas
+            de entrada, o si algún CODIGO_MUNICIPIO no existe en `dim_divipola`.
 
     Example:
-        >>> df_final = construir_tabla_final(tabla_entrenamiento, tabla_sintetica)
+        >>> df_final = construir_tabla_final(
+        ...     tabla_entrenamiento, tabla_sintetica, spark.table(TBL_DIM_DIVIPOLA).toPandas()
+        ... )
     """
     columnas_esquema = [
         "DOMINIO",
         "PER",
         "MES",
-        "DEPARTAMENTO",
-        "MUNICIPIO",
+        "CODIGO_DEPARTAMENTO",
+        "CODIGO_MUNICIPIO",
         "TASA_DESEMPLEO_PCT",
         "CV_PCT",
         "TIPO",
@@ -90,7 +101,20 @@ def construir_tabla_final(
         ],
         ignore_index=True,
     )
+    nombres = dim_divipola[["CODIGO_MUNICIPIO", "DEPARTAMENTO", "MUNICIPIO"]]
+    tabla_final = tabla_final.merge(
+        nombres, on="CODIGO_MUNICIPIO", how="left", validate="many_to_one"
+    )
+    sin_nombre = tabla_final.loc[tabla_final["MUNICIPIO"].isna(), "CODIGO_MUNICIPIO"]
+    if len(sin_nombre):
+        raise ValueError(
+            f"Códigos sin correspondencia en dim_divipola: {sorted(sin_nombre)}"
+        )
+
     tabla_final["CONFIABILIDAD"] = tabla_final["CV_PCT"].apply(clasificar_confiabilidad)
-    return tabla_final.sort_values(
-        ["PER", "MES", "DEPARTAMENTO", "MUNICIPIO"]
-    ).reset_index(drop=True)
+    orden = columnas_esquema[:5] + ["DEPARTAMENTO", "MUNICIPIO"] + columnas_esquema[5:]
+    return (
+        tabla_final[orden + ["CONFIABILIDAD"]]
+        .sort_values(["PER", "MES", "CODIGO_MUNICIPIO"])
+        .reset_index(drop=True)
+    )

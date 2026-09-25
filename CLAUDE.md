@@ -79,7 +79,8 @@ estimacion_directa.py
     período objetivo)
   → estimador de Hájek (θ̂ = Σ(w_i·y_i)/Σw_i) con el factor de expansión 2018
   → inferencia por bootstrap simple (2000 réplicas, semilla fija) porque no se tienen las variables del
-    diseño muestral; CV < 15% confiable, 15–30% aceptable, ≥30% no confiable
+    diseño muestral; CV < 5% confiable, 5–20% aceptable, ≥20% no confiable (mismos umbrales que
+    el modelo)
   → lógica en shared/estimador_sae.py (clase EstimacionDirecta, que hereda de la interfaz base
     EstimadorSAE — patrón Template Method/Strategy para futuros estimadores), parámetros en shared/config.py
         ↓

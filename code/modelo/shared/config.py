@@ -17,6 +17,10 @@ diagnósticos (ganancia de precisión y robustez), sin intervenir en la elecció
 TBL_COVARIABLES_SELECCIONADAS = "tesis.preprocesamiento.covariables_seleccionadas_rev"
 TBL_MUNICIPIOS_SIN_ENCUESTA = "tesis.preprocesamiento.municipios_sin_encuesta_rev"
 TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables_rev"
+# Nombres oficiales de departamento y municipio por código DIVIPOLA: las dos fuentes de
+# dominios escriben los nombres con distinto formato, así que la tabla final se une por
+# código y toma los nombres de aquí.
+TBL_DIM_DIVIPOLA = "tesis.dim.dim_divipola"
 
 # ── Tablas destino ───────────────────────────────────────────────────────────
 TBL_FAY_HERRIOT_RESULTADOS = "tesis.modelo.fay_herriot_resultados"
@@ -31,8 +35,16 @@ TBL_FH_COEFICIENTES = "tesis.modelo.fh_coeficientes"
 Y_COL = "TASA_DESEMPLEO_PCT"
 SE_COL = "SE_BOOTSTRAP_PCT"
 
-# Columnas que identifican un dominio (PER+MES+DEPARTAMENTO+MUNICIPIO)
-DOMINIO_COLS = ["PER", "MES", "DEPARTAMENTO", "MUNICIPIO"]
+# Columnas que identifican un dominio. La clave es PER + MES + CODIGO_MUNICIPIO (DIVIPOLA);
+# los nombres acompañan para lectura, pero no se usan para unir.
+DOMINIO_COLS = [
+    "PER",
+    "MES",
+    "CODIGO_DEPARTAMENTO",
+    "CODIGO_MUNICIPIO",
+    "DEPARTAMENTO",
+    "MUNICIPIO",
+]
 
 # ── Umbrales de confiabilidad del CV ─────────────────────────────────────────
 CV_CONFIABLE = 5.0  # CV < 5 %   → confiable

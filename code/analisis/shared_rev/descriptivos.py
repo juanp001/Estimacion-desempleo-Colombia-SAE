@@ -21,6 +21,9 @@ from scipy import stats
 from scipy.cluster.hierarchy import linkage, leaves_list
 from scipy.spatial.distance import squareform
 
+# Mismos umbrales de CV que la estimación directa y el modelo.
+from preprocesamiento.shared.config import CV_ACEPTABLE, CV_CONFIABLE
+
 matplotlib.rcParams["axes.grid"] = True
 matplotlib.rcParams["grid.linestyle"] = ":"
 matplotlib.rcParams["grid.alpha"] = 0.4
@@ -662,7 +665,9 @@ def interpretar_respuesta(
         f"precisos {_nombres(orden_se[:3], etiquetas_dominio)}.",
         f"  Forma de la distribución del error estándar: {forma(asim_se)} (asimetría {asim_se:.2f}).",
         f"  Coeficiente de variación de la estimación directa: entre {cv_dir.min():.1f} % y {cv_dir.max():.1f} %; "
-        f"{int((cv_dir >= 15).sum())} de {len(y)} dominios superan el 15 % que define una estimación confiable.",
+        f"de {len(y)} dominios, {int((cv_dir < CV_CONFIABLE).sum())} son confiables (CV < {CV_CONFIABLE:.0f} %), "
+        f"{int(((cv_dir >= CV_CONFIABLE) & (cv_dir < CV_ACEPTABLE)).sum())} aceptables y "
+        f"{int((cv_dir >= CV_ACEPTABLE).sum())} no confiables (CV ≥ {CV_ACEPTABLE:.0f} %).",
         f"  Correlación entre error estándar y tasa: r = {r_se_y:.2f}. "
         + (
             "El error crece con la tasa, de modo que los dominios de mayor desempleo son también los menos "

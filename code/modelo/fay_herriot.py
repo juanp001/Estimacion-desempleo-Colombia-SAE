@@ -27,7 +27,8 @@
 # MAGIC 5. **Dominios objetivo.** Municipios de `municipios_sin_encuesta_rev`, que reciben la
 # MAGIC    predicción sintética del modelo ganador.
 # MAGIC
-# MAGIC Dominio: PER + MES + DEPARTAMENTO + MUNICIPIO.
+# MAGIC Dominio: PER + MES + código DIVIPOLA del municipio. La tabla final toma los nombres
+# MAGIC de departamento y municipio de `dim_divipola` por código.
 
 # COMMAND ----------
 
@@ -121,14 +122,9 @@ alias_a_codigo = {alias: codigo for codigo, alias in mapa_alias.items()}
 
 df = spark.table(TBL_COVARIABLES_SELECCIONADAS).toPandas()
 
+# El dominio se identifica por código DIVIPOLA: los nombres cambian de formato entre fuentes.
 df["DOMINIO"] = (
-    df["PER"].astype(str)
-    + "_"
-    + df["MES"].astype(str)
-    + "_"
-    + df["DEPARTAMENTO"]
-    + "_"
-    + df["MUNICIPIO"]
+    df["PER"].astype(str) + "_" + df["MES"].astype(str) + "_" + df["CODIGO_MUNICIPIO"]
 )
 
 print(f"Dominios (municipios): {len(df)}")
@@ -418,9 +414,13 @@ print(interpretar_cv(modelo_ganador))
 # MAGIC en el ajuste por mínimos cuadrados generalizados del modelo elegido: cuánto cambiarían
 # MAGIC los coeficientes si ese dominio no estuviera. La línea discontinua es el umbral
 # MAGIC convencional 4/n y las barras rojas lo superan. La tabla siguiente reajusta el modelo
-# MAGIC completo (incluida Â) sin el dominio más influyente: si ninguna covariable cambia de
-# MAGIC signo ni pierde significancia, la conclusión no depende de un solo territorio. Cook no
-# MAGIC interviene en la selección; es un diagnóstico de regresión general, no del libro.
+# MAGIC completo (incluida Â) sin el dominio más influyente. `Cambio_signif` marca si una
+# MAGIC covariable cruza el umbral de significancia en cualquier sentido (pierde o gana): si
+# MAGIC ninguna cambia de signo ni de significancia, la conclusión no depende de un solo
+# MAGIC territorio. Si ninguna covariable era significativa en el modelo completo, no perder
+# MAGIC significancia no prueba nada y la estabilidad se lee en el cambio relativo de cada
+# MAGIC coeficiente. Cook no interviene en la selección; es un diagnóstico de regresión
+# MAGIC general, no del libro.
 
 # COMMAND ----------
 
@@ -433,7 +433,11 @@ df_sensibilidad = sensibilidad_cook(
     modelo_ganador, FayHerriotClasico, municipios, alfa=ALFA_SIGNIFICANCIA
 )
 display(df_sensibilidad)
-print(interpretar_cook(modelo_ganador, municipios, df_sensibilidad))
+print(
+    interpretar_cook(
+        modelo_ganador, municipios, df_sensibilidad, alfa=ALFA_SIGNIFICANCIA
+    )
+)
 
 # COMMAND ----------
 
@@ -521,9 +525,7 @@ df_new["DOMINIO"] = (
     + "_"
     + df_new["MES"].astype(str)
     + "_"
-    + df_new["DEPARTAMENTO"]
-    + "_"
-    + df_new["MUNICIPIO"]
+    + df_new["CODIGO_MUNICIPIO"]
 )
 
 X_new = np.column_stack(
@@ -588,7 +590,9 @@ tabla_sintetica = df_pred.rename(
     columns={"PRED_SINTETICO": "TASA_DESEMPLEO_PCT", "CV_SINTETICO_PCT": "CV_PCT"}
 )[["DOMINIO"] + DOMINIO_COLS + ["TASA_DESEMPLEO_PCT", "CV_PCT", "TIPO"]]
 
-df_final = construir_tabla_final(tabla_entrenamiento, tabla_sintetica)
+df_final = construir_tabla_final(
+    tabla_entrenamiento, tabla_sintetica, spark.table(TBL_DIM_DIVIPOLA).toPandas()
+)
 
 # Marcas de aviso por dominio. Los dominios con EBLUP no extrapolan (están en la muestra de
 # ajuste).
