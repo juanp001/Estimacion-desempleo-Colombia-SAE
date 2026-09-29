@@ -38,9 +38,9 @@
 # MAGIC
 # MAGIC ## Interpretación del CV (columna heredada de estimación directa)
 # MAGIC
-# MAGIC * CV < 15%: Estimación **confiable** ✅
-# MAGIC * 15% ≤ CV < 30%: Estimación **aceptable** ⚠️
-# MAGIC * CV ≥ 30%: Estimación **no confiable** ❌
+# MAGIC * CV < 5%: Estimación **confiable** ✅
+# MAGIC * 5% ≤ CV < 20%: Estimación **aceptable** ⚠️
+# MAGIC * CV ≥ 20%: Estimación **no confiable** ❌
 # MAGIC
 # MAGIC ## Referencias
 # MAGIC

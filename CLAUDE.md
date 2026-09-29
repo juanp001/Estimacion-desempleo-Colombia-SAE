@@ -79,7 +79,8 @@ estimacion_directa.py
     período objetivo)
   → estimador de Hájek (θ̂ = Σ(w_i·y_i)/Σw_i) con el factor de expansión 2018
   → inferencia por bootstrap simple (2000 réplicas, semilla fija) porque no se tienen las variables del
-    diseño muestral; CV < 15% confiable, 15–30% aceptable, ≥30% no confiable
+    diseño muestral; CV < 5% confiable, 5–20% aceptable, ≥20% no confiable (mismos umbrales que
+    el modelo)
   → lógica en shared/estimador_sae.py (clase EstimacionDirecta, que hereda de la interfaz base
     EstimadorSAE — patrón Template Method/Strategy para futuros estimadores), parámetros en shared/config.py
         ↓
@@ -94,23 +95,18 @@ code/analisis/Análisis exploratorio.py
   → análisis exploratorio (7 etapas) sobre el dataset pre-filtrado: sensibilidad al umbral, filtro
     cualitativo por literatura, descriptivos + normalidad, correlación con IC bootstrap, influencia de
     outliers (Cook's D + LOO), estructura espacial (Moran's I), ranking compuesto → covariables ganadoras
-        ↓
-code/modelo/fay_herriot.py
-  → ajusta y compara modelos Fay-Herriot clásicos (clase FayHerriotClasico en shared/fay_herriot.py, que
-    hereda de la interfaz base ModeloAreaPequena en shared/modelo_area_pequena.py — pensada para futuras
-    variantes SAE como espacial o temporal) sobre distintos subconjuntos de covariables
-  → selecciona el ganador por AIC + BIC + MSE medio + RMSE-LOOCV (shared/seleccion_modelo.py)
-  → EBLUP para dominios con encuesta directa; predicción sintética (ŷ = X'β̂, sin shrinkage) para
-    municipios sin cobertura GEIH
-  → consolida tabla final EBLUP + sintético (shared/consolidacion.py)
 ```
 
-Lógica compartida en `modelo/shared/`: `config.py` (nombres de tablas, sets de covariables a comparar),
-`modelo_area_pequena.py` (interfaz base ModeloAreaPequena: construcción de matriz de diseño, LOOCV,
-comparación de MSE, armado de tabla de resultados — común a cualquier variante SAE),
-`fay_herriot.py` (FayHerriotClasico: ajuste del modelo, diagnósticos, LOOCV), `seleccion_modelo.py` (tablas
-de diagnóstico y selección entre modelos), `diagnosticos_plot.py` (gráficas de validación),
-`consolidacion.py` (unión EBLUP + sintético).
+El modelo Fay-Herriot (`code/modelo/fay_herriot.py`) ya no consume la salida de este EDA original sino la
+del flujo `_rev` (ver más abajo).
+
+Lógica compartida en `modelo/shared/`: `config.py` (tablas fuente/destino, umbrales de CV 5/20,
+`DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`, avisos), `modelo_area_pequena.py` (interfaz base
+ModeloAreaPequena: matriz de diseño, comparación de MSE, tabla de resultados — común a cualquier variante
+SAE), `fay_herriot.py` (FayHerriotClasico: REML, GLS, EBLUP, MSE de Prasad-Rao con g3 de la p. 440, AIC
+por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de diagnósticos, Cook, tabla de selección
+y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV directo vs EBLUP, avisos),
+`consolidacion.py` (unión EBLUP + sintético y clasificación de confiabilidad).
 
 ### Flujo de tablas Unity Catalog (resumen end-to-end)
 
@@ -119,17 +115,87 @@ GEIH bronce → GEIH plata → GEIH oro (tesis.geih_oro.mercado_laboral)
                                   ↓
 TerriData bronce → TerriData plata (covariables anchas) ──┐
                                                             ↓
-                          estimacion_directa → tesis.modelo.tasa_desempleo_municipal
+                          estimacion_directa → tesis.preprocesamiento.tasa_desempleo_municipal
                                   ↓
                           adicion_covariables → pre_filtrado_covariables
                                   ↓
                           tesis.preprocesamiento.covariables_prefiltradas
                                   ↓
                           Análisis exploratorio.py → tesis.preprocesamiento.covariables_seleccionadas
+
+(flujo _rev) … → tesis.preprocesamiento.covariables_seleccionadas_rev
                                   ↓
                           fay_herriot.py → EBLUP + predicción sintética + tabla final consolidada
-                                          (tesis.modelo.fay_herriot_*)
+                                          (tesis.modelo.fay_herriot_*, tesis.modelo.fh_*)
 ```
+
+### Flujo revisado (`_rev`) — selección cualitativa de covariables
+
+En preprocesamiento y análisis coexiste con el flujo original sin tocarlo: los notebooks y módulos llevan
+sufijo `_rev` (o viven en `analisis/shared_rev/`), y escriben tablas `_rev`. Los módulos originales
+(`preprocesamiento/shared/feature_selection.py`, `config.py`) **no se modifican**; cualquier cambio de
+comportamiento va en los archivos `_rev` / `shared_rev`. El **modelo** ya no tiene versión `_rev`: el
+antiguo `fay_herriot_rev` pasó a ser `modelo/fay_herriot.py` (el FH original y sus módulos se eliminaron)
+y escribe tablas sin sufijo.
+
+```
+preprocesamiento/pre_filtrado_covariables_rev.py
+  → completitud + variabilidad invariante a escala (CV, proporción modal); SIN filtro por correlación
+    con la respuesta → tesis.preprocesamiento.covariables_prefiltradas_rev
+preprocesamiento/dominios_sin_encuesta_rev.py
+  → municipios objetivo de Cauca y Valle sin estimación directa, con todas las covariables prefiltradas
+    → tesis.preprocesamiento.municipios_sin_encuesta_rev
+        ↓
+analisis/analisis_descriptivo_rev.py
+  → catálogo de literatura (shared_rev/catalogo_literatura.py) → candidatas conceptuales
+  → univariado / bivariado / multivariado con interpretación calculada desde los datos
+    (shared_rev/descriptivos.py: figura_* + interpretar_*)
+  → catalogo_literatura_rev, descriptivo_univariado_rev, descriptivo_bivariado_rev
+        ↓
+analisis/eda_seleccion_covariables_rev.py
+  → 1 asociación (Pearson/Spearman + IC de Fisher + signo esperado)
+  → 2 robustez (Cook 4/n + dejar-uno-fuera sobre los 23 dominios)
+  → 3 redundancia (|r| ≥ 0.80, representante = menor Cook máx)
+  → 4 ficha de decisión (shared_rev/seleccion.py: ficha_decision): elegible = IC sin cero y signo
+      coherente con el mecanismo; seleccionadas = las P_MAXIMO (4) de mayor |r|
+  → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible)
+  → decision_covariables_rev, trazabilidad_covariables_rev, covariables_candidatas_rev (elegibles),
+    covariables_seleccionadas_rev
+        ↓
+modelo/fay_herriot.py
+  → FayHerriotClasico (shared/fay_herriot.py), MSE de Prasad-Rao con g3 = D²/(D+Â)³·avar(Â)
+    (Morales et al., p. 440)
+  → variantes = conjunto seleccionado + dejar-una-fuera (shared/seleccion_modelo.py)
+  → ganador (Morales et al., p. 453): candidatas = variantes con todas las covariables p < 0.05;
+    entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
+    MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
+    robustez (Cook + reajuste sin el dominio más influyente) del ganador
+  → avisos (shared/diagnosticos.py): Â ≈ 0 (γ máx < 0.01), tasas fuera de [0,100]
+    (FUERA_DE_RANGO) y extrapolación sintética (EXTRAPOLA: x'Cov(β̂)x > máximo de la muestra)
+  → D_i = varianza bootstrap tratada como conocida (p. 427), sin GVF ni figuras GVF; sin validación
+    cruzada
+  → figuras solo en pantalla (sin título y sin guardarse en volúmenes)
+  → fh_diagnosticos_variantes, fh_seleccion_modelo, fh_cook, fh_coeficientes, fay_herriot_resultados,
+    fay_herriot_prediccion_sintetica, fay_herriot_estimaciones_finales (tesis.modelo)
+```
+
+Reglas del flujo `_rev`:
+
+- **Catálogo de literatura**: solo entran variables con referencia en el documento de revisión de
+  literatura del proyecto (`compass_artifact_*.md`), resueltas a su código en `tesis.terridata.terridata_bronce`,
+  con dato 2018, que superen el pre-filtrado y estén completas en los municipios objetivo. Cada entrada
+  trae `signo_esperado` y `referencia`; **no existe nivel de respaldo L**. Las variables del documento sin
+  dato utilizable quedan en `CATALOGO_EXCLUIDAS` con su motivo. IICA es el proxy documentado de
+  «víctimas/desplazamiento»; la tasa de tránsito a educación superior se conserva por decisión del proyecto.
+- **Sin AIC en el EDA, sin Moran en ningún notebook**: el Fay-Herriot es clásico (efectos independientes)
+  y no se ajustan variantes espaciales, así que la autocorrelación espacial no cambia ninguna decisión.
+  La comparación entre especificaciones se hace solo en `modelo/fay_herriot.py`.
+- **Distancia de Cook en el FH**: `distancia_cook(modelo)` en `modelo/shared/seleccion_modelo.py` la calcula
+  sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
+- Parámetros en `preprocesamiento/shared/config_rev.py` (umbrales, tablas `_rev`, `P_MAXIMO`, `VIF_MAXIMO`)
+  y `modelo/shared/config.py` (tablas, `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`).
+- Las figuras del análisis `_rev` van al volumen `/Volumes/tesis/preprocesamiento/figuras_eda`
+  (prefijos `desc_`, `eda_`); las del modelo no se guardan.
 
 ## Estándares de código
 

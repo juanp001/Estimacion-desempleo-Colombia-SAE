@@ -9,18 +9,18 @@ class ModeloAreaPequena(ABC):
     """Interfaz base para modelos de estimación de áreas pequeñas (SAE) tipo Fay-Herriot.
 
     Centraliza lo que es común a cualquier variante (clásica, espacial,
-    temporal): construcción de la matriz de diseño, validación cruzada
-    leave-one-out, comparación del MSE contra la varianza directa y el
-    armado de la tabla de resultados por dominio. La construcción de la
-    matriz de varianzas V, la log-verosimilitud y el MSE de Prasad-Rao
-    difieren entre variantes y quedan a cargo de `ajustar()` en cada
-    subclase concreta (patrón Template Method).
+    temporal): construcción de la matriz de diseño, comparación del MSE
+    contra la varianza directa y el armado de la tabla de resultados por
+    dominio. La construcción de la matriz de varianzas V, la
+    log-verosimilitud y el MSE de Prasad-Rao difieren entre variantes y
+    quedan a cargo de `ajustar()` en cada subclase concreta (patrón
+    Template Method).
 
     Tras llamar a `ajustar()`, la subclase debe poblar los siguientes
     atributos de instancia: `A_hat` (float), `beta_hat`, `se_beta`,
     `t_stats`, `p_vals` (np.ndarray, shape (p,)), `cov_beta` (np.ndarray,
     shape (p, p)), `mu_hat`, `eblup`, `mse`, `rmse`, `cv`, `residuals`
-    (np.ndarray, shape (n,)), `sw_stat`, `sw_pval`, `r2`, `aic`, `bic`
+    (np.ndarray, shape (n,)), `sw_stat`, `sw_pval`, `r2` y `aic`
     (float). `gamma_i` (np.ndarray, shape (n,)) es opcional: solo aplica a
     variantes con shrinkage escalar por dominio (la clásica lo tiene; una
     variante espacial con matriz de covarianza completa puede omitirlo).
@@ -44,7 +44,6 @@ class ModeloAreaPequena(ABC):
         ...         pass  # ver shared/fay_herriot.py
         >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
         >>> modelo.ajustar()
-        >>> modelo.loocv()["rmse_loocv"]
     """
 
     def __init__(self, covars: list, df: pd.DataFrame, y_col: str, se_col: str):
@@ -54,15 +53,15 @@ class ModeloAreaPequena(ABC):
             raise ValueError(f"Columnas faltantes en df: {sorted(faltantes)}")
 
         self.covars = covars
-        self.df     = df
-        self.y_col  = y_col
+        self.df = df
+        self.y_col = y_col
         self.se_col = se_col
 
-        self.Y  = df[y_col].values
+        self.Y = df[y_col].values
         self.Di = df[se_col].values ** 2
-        self.X  = np.column_stack([np.ones(len(df))] + [df[c].values for c in covars])
-        self.n  = len(self.Y)
-        self.p  = self.X.shape[1]
+        self.X = np.column_stack([np.ones(len(df))] + [df[c].values for c in covars])
+        self.n = len(self.Y)
+        self.p = self.X.shape[1]
 
     @abstractmethod
     def ajustar(self) -> None:
@@ -73,40 +72,6 @@ class ModeloAreaPequena(ABC):
         varianzas V. Debe poblar los atributos documentados en el
         docstring de la clase.
         """
-
-    def loocv(self) -> dict:
-        """Validación cruzada leave-one-out sobre el predictor sintético.
-
-        Para cada dominio, reentrena una instancia nueva del mismo tipo de
-        modelo excluyéndolo y predice con el estimador sintético
-        X_d'β̂_(-d). Es agnóstico a la estructura interna de V: solo
-        requiere que la subclase tenga un constructor compatible con
-        `ModeloAreaPequena` y que `ajustar()` pueble `beta_hat`.
-
-        Returns:
-            dict: `preds_loocv` (np.ndarray), `resid_loocv` (np.ndarray) y
-                `rmse_loocv` (float), el error de predicción genuino fuera
-                de muestra.
-
-        Raises:
-            RuntimeError: Si se llama antes de `ajustar()`.
-        """
-        if not hasattr(self, "beta_hat"):
-            raise RuntimeError("Llama a ajustar() antes de loocv().")
-
-        preds = np.empty(self.n)
-        for i in range(self.n):
-            df_fold = self.df.drop(self.df.index[i])
-            modelo_fold = type(self)(self.covars, df_fold, self.y_col, self.se_col)
-            modelo_fold.ajustar()
-            preds[i] = self.X[i] @ modelo_fold.beta_hat
-
-        resid_loocv = self.Y - preds
-        return {
-            "preds_loocv": preds,
-            "resid_loocv": resid_loocv,
-            "rmse_loocv":  float(np.sqrt(np.mean(resid_loocv ** 2))),
-        }
 
     def validar_mse_directo(self) -> dict:
         """Compara el MSE del predictor contra la varianza directa Di.
@@ -123,19 +88,21 @@ class ModeloAreaPequena(ABC):
         if not hasattr(self, "mse"):
             raise RuntimeError("Llama a ajustar() antes de validar_mse_directo().")
 
-        mse_ratio        = self.Di / self.mse
-        pct_mejora_mse   = 100 * (self.Di - self.mse) / self.Di
+        mse_ratio = self.Di / self.mse
+        pct_mejora_mse = 100 * (self.Di - self.mse) / self.Di
         dominios_mejoran = float(np.mean(self.mse < self.Di))
         wil_stat, wil_pval = stats.wilcoxon(self.Di - self.mse, alternative="greater")
         return {
-            "mse_ratio":        mse_ratio,
-            "pct_mejora_mse":   pct_mejora_mse,
+            "mse_ratio": mse_ratio,
+            "pct_mejora_mse": pct_mejora_mse,
             "dominios_mejoran": dominios_mejoran,
-            "wil_stat":         wil_stat,
-            "wil_pval":         wil_pval,
+            "wil_stat": wil_stat,
+            "wil_pval": wil_pval,
         }
 
-    def tabla_resultados(self, dominio_col: str = "DOMINIO", metadata_cols: list = None) -> pd.DataFrame:
+    def tabla_resultados(
+        self, dominio_col: str = "DOMINIO", metadata_cols: list = None
+    ) -> pd.DataFrame:
         """Construye la tabla de resultados por dominio.
 
         Args:
@@ -159,7 +126,13 @@ class ModeloAreaPequena(ABC):
             raise RuntimeError("Llama a ajustar() antes de tabla_resultados().")
 
         metadata_cols = metadata_cols or ["PER", "MES", "DEPARTAMENTO", "MUNICIPIO"]
-        columnas_base = [dominio_col, *metadata_cols, self.y_col, self.se_col, "CV_PORCENTAJE"]
+        columnas_base = [
+            dominio_col,
+            *metadata_cols,
+            self.y_col,
+            self.se_col,
+            "CV_PORCENTAJE",
+        ]
         faltantes = set(columnas_base) - set(self.df.columns)
         if faltantes:
             raise ValueError(f"Columnas faltantes en df: {sorted(faltantes)}")
@@ -171,13 +144,15 @@ class ModeloAreaPequena(ABC):
         res_df["VARIANZA_DIRECTA"] = self.Di
         if gamma is not None:
             res_df["GAMMA_SHRINKAGE"] = gamma.round(4)
-        res_df["PRED_SINTETICO"]  = self.mu_hat.round(4)
-        res_df["EBLUP"]           = self.eblup.round(4)
-        res_df["MSE_EBLUP"]       = self.mse.round(6)
-        res_df["RMSE_EBLUP"]      = self.rmse.round(4)
-        res_df["CV_EBLUP_PCT"]    = self.cv.round(2)
-        res_df["MEJORA_CV_PCT"]   = (res_df["CV_PORCENTAJE"] - res_df["CV_EBLUP_PCT"]).round(2)
-        res_df["RATIO_MSE"]       = validacion["mse_ratio"].round(4)
-        res_df["MEJORA_MSE_PCT"]  = validacion["pct_mejora_mse"].round(2)
-        res_df["MEJORA_MSE"]      = np.where(self.mse < self.Di, "✓", "✗")
+        res_df["PRED_SINTETICO"] = self.mu_hat.round(4)
+        res_df["EBLUP"] = self.eblup.round(4)
+        res_df["MSE_EBLUP"] = self.mse.round(6)
+        res_df["RMSE_EBLUP"] = self.rmse.round(4)
+        res_df["CV_EBLUP_PCT"] = self.cv.round(2)
+        res_df["MEJORA_CV_PCT"] = (
+            res_df["CV_PORCENTAJE"] - res_df["CV_EBLUP_PCT"]
+        ).round(2)
+        res_df["RATIO_MSE"] = validacion["mse_ratio"].round(4)
+        res_df["MEJORA_MSE_PCT"] = validacion["pct_mejora_mse"].round(2)
+        res_df["MEJORA_MSE"] = np.where(self.mse < self.Di, "✓", "✗")
         return res_df
