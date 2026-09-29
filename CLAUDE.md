@@ -115,7 +115,7 @@ GEIH bronce → GEIH plata → GEIH oro (tesis.geih_oro.mercado_laboral)
                                   ↓
 TerriData bronce → TerriData plata (covariables anchas) ──┐
                                                             ↓
-                          estimacion_directa → tesis.modelo.tasa_desempleo_municipal
+                          estimacion_directa → tesis.preprocesamiento.tasa_desempleo_municipal
                                   ↓
                           adicion_covariables → pre_filtrado_covariables
                                   ↓

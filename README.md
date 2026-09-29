@@ -91,12 +91,12 @@ Bronce → Plata → Oro                        Bronce → Plata
     ▼                                            │
 estimacion_directa.py                            │
   Hájek + bootstrap (2000 réplicas)               │
-  → tesis.modelo.tasa_desempleo_municipal          │
+  → tesis.preprocesamiento.tasa_desempleo_municipal │
   (23 dominios/municipios con muestra GEIH)        │
     │                                            │
     └──────────────► adicion_covariables.py ◄────┘
                   LEFT JOIN estimaciones × TerriData
-                  → tesis.modelo.tasa_desempleo_covariables
+                  → tesis.preprocesamiento.tasa_desempleo_covariables
                   (23 filas × ~1.590 cols)
                             │
                             ▼
@@ -162,14 +162,14 @@ y el error estándar es la desviación estándar de las B réplicas (IC 95% = pe
 considera CV < 15% confiable, 15–30% aceptable, ≥30% no confiable. La lógica vive en
 `shared/estimador_sae.py` (clase `EstimacionDirecta`, que hereda de la interfaz base `EstimadorSAE` —
 patrón Template Method/Strategy pensado para futuros estimadores). Resultado: 23 municipios con muestra
-GEIH → `tesis.modelo.tasa_desempleo_municipal`.
+GEIH → `tesis.preprocesamiento.tasa_desempleo_municipal`.
 
 ### 4. Selección de covariables
 
 **a) Unión con TerriData** (`adicion_covariables.py`): hace un `LEFT JOIN` entre las 23 estimaciones
 directas y `tesis.terridata.terridata_extendido_plata` por `CODIGO_MUNICIPIO = CODIGO_ENTIDAD`,
 `PER = ANO`, `MES = MES`. El `LEFT JOIN` preserva las 23 filas aunque algún municipio no tenga covariables
-en TerriData. Resultado: `tesis.modelo.tasa_desempleo_covariables` (23 filas × ~1.590 columnas).
+en TerriData. Resultado: `tesis.preprocesamiento.tasa_desempleo_covariables` (23 filas × ~1.590 columnas).
 
 **b) Pre-filtrado cuantitativo** (`pre_filtrado_covariables.py`, lógica en `shared/feature_selection.py`),
 tres filtros secuenciales sobre las ~1.582 covariables candidatas:
