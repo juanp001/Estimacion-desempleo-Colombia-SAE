@@ -47,6 +47,20 @@ class ModeloAreaPequena(ABC):
     """
 
     def __init__(self, covars: list, df: pd.DataFrame, y_col: str, se_col: str):
+        """Construye Y, Di = SE², la matriz de diseño X (con intercepto), n y p.
+
+        Args:
+            covars (list[str]): Nombres de las covariables (columnas de `df`).
+            df (pd.DataFrame): Una fila por dominio.
+            y_col (str): Columna con la estimación directa.
+            se_col (str): Columna con el error estándar de la estimación directa.
+
+        Raises:
+            ValueError: Si falta alguna de las columnas requeridas en `df`.
+
+        Example:
+            >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
+        """
         columnas_requeridas = set(covars) | {y_col, se_col}
         faltantes = columnas_requeridas - set(df.columns)
         if faltantes:

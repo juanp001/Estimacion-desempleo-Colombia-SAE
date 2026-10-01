@@ -599,7 +599,7 @@ def tabla_pares_correlacionados(
 #
 # Cada función calcula, a partir de los mismos datos que se grafican, las cantidades que
 # el lector necesita para leer la figura y las traduce en una lectura concreta. Se sigue
-# el patrón de `interpretar_validacion()` en `modelo/shared/diagnosticos_plot.py`: el texto
+# el patrón de `interpretar_validacion()` en `modelo/shared/diagnosticos.py`: el texto
 # se genera desde los datos, de modo que no queda desactualizado si cambian.
 
 
@@ -639,6 +639,7 @@ def interpretar_respuesta(
     cv_dir = 100 * se / np.abs(y)
 
     def forma(asim):
+        """Describe la asimetría: (float) coeficiente de asimetría → (str) texto de la forma."""
         if abs(asim) < 0.5:
             return "aproximadamente simétrica"
         lado = (
@@ -824,6 +825,7 @@ def interpretar_dispersion(bivariado: pd.DataFrame, signo_esperado: dict = None)
     spearman = tabla[tabla["Medida_interpretable"] == "Spearman"]
 
     def lista(df):
+        """Lista covariables: (pd.DataFrame) con `Alias` y `r_interp` → (str) "ALIAS (+0.12), ..."."""
         return ", ".join(
             f"{fila['Alias']} ({fila['r_interp']:+.2f})" for _, fila in df.iterrows()
         )

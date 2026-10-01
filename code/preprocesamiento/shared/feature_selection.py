@@ -248,6 +248,7 @@ def agrupar_por_correlacion(df: pd.DataFrame, umbral: float = 0.80) -> list:
     padre = {c: c for c in cols}
 
     def raiz(c):
+        """Raíz del grupo de `c` (str → str) en la estructura union-find, con compresión de camino."""
         while padre[c] != c:
             padre[c] = padre[padre[c]]
             c = padre[c]

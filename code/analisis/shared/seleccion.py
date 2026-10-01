@@ -412,6 +412,10 @@ def ajustar_por_vif(
 def _componentes_conexas(df: pd.DataFrame, umbral: float) -> list:
     """Componentes conexas del grafo de correlaciones de magnitud alta.
 
+    Nota:
+        Duplica la lógica de `preprocesamiento.shared.feature_selection.agrupar_por_correlacion`;
+        un cambio en una debe replicarse en la otra.
+
     Args:
         df (pd.DataFrame): Covariables numéricas.
         umbral (float): Magnitud mínima de correlación para unir dos covariables.
@@ -424,6 +428,7 @@ def _componentes_conexas(df: pd.DataFrame, umbral: float) -> list:
     padre = {c: c for c in cols}
 
     def raiz(c):
+        """Raíz del grupo de `c` (str → str) en la estructura union-find, con compresión de camino."""
         while padre[c] != c:
             padre[c] = padre[padre[c]]
             c = padre[c]

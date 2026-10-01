@@ -18,7 +18,9 @@ TBL_FEX_PLATA = f"{CATALOG}.{SCHEMA_PLATA}.dim_fex"
 TBL_MERCADO_LABORAL = f"{CATALOG}.{SCHEMA_ORO}.mercado_laboral"
 
 # Dimension tables
-TBL_DIM_DIVIPOLA = f"{CATALOG}.dim.dim_geih_divipola"
+# Nota: pese al nombre, apunta a dim_geih_divipola (32 áreas GEIH con CODIGO_AREA_GEIH),
+# no a la dim_divipola completa.
+TBL_DIM_DIVIPOLA =f"{CATALOG}.dim.dim_geih_divipola"
 
 # Source table names — bronce (marco nuevo)
 TBL_CG_BRONCE  = f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales"

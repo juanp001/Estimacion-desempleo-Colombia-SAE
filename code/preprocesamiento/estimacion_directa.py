@@ -10,7 +10,7 @@
 # MAGIC Calcular estimaciones de **tasa de desempleo por municipio** a partir de microdatos de la GEIH, incluyendo:
 # MAGIC * **Estimación puntual**: Tasa de desempleo (porcentaje)
 # MAGIC * **Medidas de precisión**: Error estándar, intervalos de confianza 95%, coeficiente de variación
-# MAGIC * **Inferencia estadística**: Basada en bootstrap simple (600 réplicas)
+# MAGIC * **Inferencia estadística**: Basada en bootstrap simple (2000 réplicas, semilla 42)
 # MAGIC
 # MAGIC ## ¿Qué es Estimación Directa?
 # MAGIC
@@ -91,7 +91,7 @@
 # MAGIC tesis.geih_oro.mercado_laboral
 # MAGIC   → filter(MUNICIPIO not null, PEA == 1, PER == anio_estimacion, MES == mes_estimacion)
 # MAGIC   → EstimacionDirecta.estimar()   [bootstrap 2000 réplicas]
-# MAGIC   → tesis.modelo.tasa_desempleo_municipal
+# MAGIC   → tesis.preprocesamiento.tasa_desempleo_municipal
 # MAGIC ```
 # MAGIC
 # MAGIC ## Referencias

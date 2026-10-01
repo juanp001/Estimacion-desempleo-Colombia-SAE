@@ -20,6 +20,16 @@ class EstimadorSAE(ABC):
     """
 
     def __init__(self, spark, num_replicas: int = 1000, seed: int = 42):
+        """Guarda la sesión y los parámetros del bootstrap.
+
+        Args:
+            spark: SparkSession activa.
+            num_replicas (int): Réplicas bootstrap (el notebook usa `BOOTSTRAP_REPLICAS`=2000).
+            seed (int): Semilla aleatoria (el notebook usa `BOOTSTRAP_SEED`=42).
+
+        Example:
+            >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)
+        """
         self.spark = spark
         self.num_replicas = num_replicas
         self.seed = seed
@@ -72,7 +82,7 @@ class EstimadorSAE(ABC):
 
         Args:
             tabla_destino (str): Nombre calificado catalog.schema.tabla
-                (ej. "tesis.modelo.tasa_desempleo_municipal").
+                (ej. "tesis.preprocesamiento.tasa_desempleo_municipal").
             tabla_origen (str | list[str] | None): Tabla(s) fuente para lineage.
             modo (str): Modo de escritura Spark ("overwrite", "append", etc.).
 
@@ -81,7 +91,7 @@ class EstimadorSAE(ABC):
 
         Example:
             >>> estimador.exportar(
-            ...     "tesis.modelo.tasa_desempleo_municipal",
+            ...     "tesis.preprocesamiento.tasa_desempleo_municipal",
             ...     tabla_origen="tesis.geih_oro.mercado_laboral",
             ... )
         """
@@ -135,7 +145,7 @@ class EstimacionDirecta(EstimadorSAE):
         >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)
         >>> resultado = est.estimar(df, grupo_cols=["PER", "MES", "MUNICIPIO"])
         >>> est.exportar(
-        ...     "tesis.modelo.tasa_desempleo_municipal",
+        ...     "tesis.preprocesamiento.tasa_desempleo_municipal",
         ...     tabla_origen="tesis.geih_oro.mercado_laboral",
         ... )
     """

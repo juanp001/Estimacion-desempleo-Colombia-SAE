@@ -82,6 +82,11 @@ code/
         ├── descriptivos.py         # Figuras e interpretaciones calculadas desde los datos
         ├── diagnosticos.py         # Asociación, Cook, dejar-uno-fuera, VIF
         └── seleccion.py            # Ficha de decisión y ajuste por VIF
+databricks.yml                      # Bundle DAB: variables de período, includes y exclusiones de sync
+dab/
+├── resources/                      # Un job por etapa (dimensiones, ingesta_geih, ingesta_terridata,
+│                                   #   preprocesamiento, analisis, modelo)
+└── targets/dev.yml                 # Target `dev` (workspace)
 ```
 
 ---
@@ -145,7 +150,8 @@ estimacion_directa.py                            │
 - Módulos trabajados: `características generales`, `ocupados`, `no ocupados`, `fuerza de trabajo`,
   `inactivos` (solo marco antiguo).
 - `geih_oro.py` junta características generales + fuerza de trabajo + no ocupados + ocupados + factores de
-  expansión + `dim_divipola` en una tabla de mercado laboral lista para estimar la tasa de desempleo.
+  expansión + `dim_geih_divipola` (las 32 áreas GEIH; fuera de ellas `MUNICIPIO` queda en NULL) en una tabla
+  de mercado laboral lista para estimar la tasa de desempleo.
 - `dim_fex` (factores de expansión actualizados del DANE) **no** vive en `dimensiones/`: se genera dentro
   del propio pipeline GEIH (`TBL_FEX_BRONCE`/`TBL_FEX_PLATA` en `geih_config.py`, construida en
   `geih_plata.py`). Es usable para años ≤ 2018 si se quiere el factor nuevo; para los demás años los
@@ -167,7 +173,7 @@ Estima el desempleo por dominio (municipio) sobre `tesis.geih_oro.mercado_labora
 parametrizable en `shared/config.py`) porque no se cuenta con las variables del diseño muestral para un
 estimador de varianza analítico: se calcula θ̂ en la muestra original, se remuestrea con reemplazo B veces,
 y el error estándar es la desviación estándar de las B réplicas (IC 95% = percentiles 2.5%/97.5%). Se
-considera CV < 15% confiable, 15–30% aceptable, ≥30% no confiable. La lógica vive en
+considera CV < 5% confiable, 5–20% aceptable, ≥20% no confiable (`CV_CONFIABLE`/`CV_ACEPTABLE` en `shared/config.py`, los mismos umbrales del modelo). La lógica vive en
 `shared/estimador_sae.py` (clase `EstimacionDirecta`, que hereda de la interfaz base `EstimadorSAE` —
 patrón Template Method/Strategy pensado para futuros estimadores). Resultado: 23 municipios con muestra
 GEIH → `tesis.preprocesamiento.tasa_desempleo_municipal`.
@@ -219,7 +225,7 @@ el modelo). Resultado: `tesis.preprocesamiento.covariables_seleccionadas`, junto
 ### 5. Modelo Fay-Herriot (`code/modelo/fay_herriot.py`)
 
 Orquestador fino sobre `tesis.preprocesamiento.covariables_seleccionadas` (salida de
-`eda_seleccion_covariables`); el dominio se define como `PER + MES + DEPARTAMENTO + MUNICIPIO`. Las
+`eda_seleccion_covariables`); el dominio es el municipio en el período (`PER`, `MES` y código DIVIPOLA `CODIGO_MUNICIPIO`; ver `DOMINIO_COLS` en `shared/config.py`). Las
 decisiones se apoyan en Morales et al. (2021). Pasos:
 
 1. **Ajuste de modelos**: el conjunto seleccionado y sus variantes dejando una covariable fuera
@@ -249,6 +255,34 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
 
 ---
 
+## Despliegue con Databricks Asset Bundles (DAB)
+
+`databricks.yml` y `dab/` definen seis jobs sobre cómputo serverless (target único `dev`). Cada job
+encadena los notebooks de su etapa:
+
+| Job | Tareas (en orden) |
+|-----|-------------------|
+| `dimensiones` | `dim_divipola` → `dim_geih_divipola` |
+| `ingesta_geih` | `geih_bronce` → `geih_plata` → `geih_oro` |
+| `ingesta_terridata` | `terridata_bronce` → `terridata_plata` |
+| `preprocesamiento` | `estimacion_directa` → `adicion_covariables` → `pre_filtrado_covariables` → `dominios_sin_encuesta` |
+| `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables` |
+| `modelo` | `fay_herriot` |
+
+Los jobs no declaran dependencias entre sí; el orden de ejecución es `dimensiones` → `ingesta_geih` e
+`ingesta_terridata` → `preprocesamiento` → `analisis` → `modelo`. El período de estimación se controla con
+las variables del bundle `anio_estimacion` (2018) y `mes_estimacion` (12), que `preprocesamiento` recibe
+como widgets. El volumen `/Volumes/tesis/preprocesamiento/figuras_eda` debe existir antes de correr
+`analisis` (el bundle no lo crea).
+
+```
+databricks bundle validate -t dev
+databricks bundle deploy -t dev
+databricks bundle run preprocesamiento -t dev --params anio_estimacion=2018,mes_estimacion=12
+```
+
+---
+
 ## Fuentes de datos
 
 | Fuente | Descripción |
@@ -262,7 +296,7 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
 
 ## Plataforma
 
-- **Databricks** sobre Azure (Unity Catalog)
+- **Databricks** (Unity Catalog)
 - **PySpark** para procesamiento distribuido
 - **Python** (pandas, scikit-learn, statsmodels) para análisis estadístico
 - Catálogo: `tesis` — esquemas: `geih_bronce`, `geih_plata`, `geih_oro`, `terridata`, `preprocesamiento`,

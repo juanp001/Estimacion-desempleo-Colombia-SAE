@@ -9,9 +9,10 @@ Fuente del catálogo
 -------------------
 Las entradas provienen de la revisión de literatura del proyecto (documento *Covariables de
 TerriData para un estimador sintético de la tasa de desempleo, corte 2018*), que propone
-diecisiete covariables con referencia bibliográfica verificable. Cada entrada conserva la
-cita tal como aparece en esa revisión, en el campo `referencia`, y describe el mecanismo en
-`justificacion`. Solo se incluyen variables con ese respaldo; no se admite ninguna por
+diecisiete covariables con referencia bibliográfica verificable; resueltas contra TerriData
+dan 24 indicadores (19 en `CATALOGO_LITERATURA` y 5 en `CATALOGO_EXCLUIDAS`). Cada entrada
+conserva la cita tal como aparece en esa revisión, en el campo `referencia`, y describe el
+mecanismo en `justificacion`. Solo se incluyen variables con ese respaldo; no se admite ninguna por
 plausibilidad sin fuente.
 
 Correspondencia con TerriData
