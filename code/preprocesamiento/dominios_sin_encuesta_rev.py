@@ -100,10 +100,12 @@ n_objetivo = df_objetivo.count()
 print(f"Municipios objetivo sin estimación directa: {n_objetivo}")
 
 if n_objetivo == 0:
-    raise ValueError(
-        f"No se encontraron municipios objetivo para ANO={PER_ESTIMACION}, "
-        f"MES={MES_ESTIMACION} en los departamentos {DEPARTAMENTOS_OBJETIVO}. "
-        f"Verificar el período disponible en {TBL_TERRIDATA}."
+    # Con el censo todos los municipios de los departamentos objetivo tienen tasa, así que
+    # no quedan dominios sin estimación; se escribe la tabla vacía y el modelo omite la
+    # predicción sintética.
+    print(
+        f"AVISO: no hay municipios objetivo para ANO={PER_ESTIMACION}, "
+        f"MES={MES_ESTIMACION} en {DEPARTAMENTOS_OBJETIVO}: todos tienen tasa censal."
     )
 
 display(df_objetivo.select("CODIGO_MUNICIPIO", "DEPARTAMENTO", "MUNICIPIO"))

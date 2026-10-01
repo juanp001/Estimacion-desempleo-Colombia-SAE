@@ -499,84 +499,103 @@ beta_ganador = modelo_ganador.beta_hat
 # La tabla de dominios objetivo conserva los códigos de indicador; se renombran a los
 # alias del modelo usando el mismo mapa que produjo la etapa de selección.
 df_new = spark.table(TBL_MUNICIPIOS_SIN_ENCUESTA).toPandas()
-df_new = df_new.rename(
-    columns={
-        alias_a_codigo[alias]: alias
-        for alias in covars_ganador
-        if alias_a_codigo.get(alias) in df_new.columns
-    }
-)
 
-faltantes = [c for c in covars_ganador if c not in df_new.columns]
-if faltantes:
-    raise ValueError(f"Faltan columnas en los datos nuevos: {faltantes}")
-
-sin_dato = df_new[covars_ganador].isna().any(axis=1)
-if sin_dato.any():
-    municipios_sin_dato = df_new.loc[sin_dato, "MUNICIPIO"].tolist()
-    raise ValueError(
-        f"{int(sin_dato.sum())} municipios objetivo no tienen valor para alguna covariable "
-        f"del modelo ganador y no admiten predicción sintética: {municipios_sin_dato}. "
-        f"Revisar la completitud reportada por dominios_sin_encuesta_rev."
+if df_new.empty:
+    # Con el censo todos los municipios son dominios de entrenamiento: no hay nada que predecir.
+    print("Sin dominios sin encuesta: se omite la predicción sintética.")
+    df_pred = pd.DataFrame(
+        columns=["DOMINIO"]
+        + DOMINIO_COLS
+        + [
+            "PRED_SINTETICO",
+            "RMSE_SINTETICO",
+            "CV_SINTETICO_PCT",
+            "TIPO",
+            "EXTRAPOLA",
+            "FUERA_DE_RANGO",
+        ]
+    )
+else:
+    df_new = df_new.rename(
+        columns={
+            alias_a_codigo[alias]: alias
+            for alias in covars_ganador
+            if alias_a_codigo.get(alias) in df_new.columns
+        }
     )
 
-df_new["DOMINIO"] = (
-    df_new["PER"].astype(str)
-    + "_"
-    + df_new["MES"].astype(str)
-    + "_"
-    + df_new["CODIGO_MUNICIPIO"]
-)
+    faltantes = [c for c in covars_ganador if c not in df_new.columns]
+    if faltantes:
+        raise ValueError(f"Faltan columnas en los datos nuevos: {faltantes}")
 
-X_new = np.column_stack(
-    [np.ones(len(df_new))] + [df_new[c].values for c in covars_ganador]
-)
-y_sintetico = X_new @ beta_ganador
+    sin_dato = df_new[covars_ganador].isna().any(axis=1)
+    if sin_dato.any():
+        municipios_sin_dato = df_new.loc[sin_dato, "MUNICIPIO"].tolist()
+        raise ValueError(
+            f"{int(sin_dato.sum())} municipios objetivo no tienen valor para alguna covariable "
+            f"del modelo ganador y no admiten predicción sintética: {municipios_sin_dato}. "
+            f"Revisar la completitud reportada por dominios_sin_encuesta_rev."
+        )
 
-# Incertidumbre: x_d'Cov(β̂)x_d (estimar β) + Â (efecto aleatorio no observado).
-var_beta = np.einsum("ij,jk,ik->i", X_new, modelo_ganador.cov_beta, X_new)
-var_sintetico = var_beta + modelo_ganador.A_hat
-rmse_sintetico = np.sqrt(var_sintetico)
-cv_sintetico = 100 * rmse_sintetico / np.abs(y_sintetico)
-
-df_pred = df_new[["DOMINIO"] + DOMINIO_COLS].copy()
-df_pred["PRED_SINTETICO"] = y_sintetico.round(4)
-df_pred["RMSE_SINTETICO"] = rmse_sintetico.round(4)
-df_pred["CV_SINTETICO_PCT"] = cv_sintetico.round(2)
-df_pred["TIPO"] = "SINTETICO"
-# EXTRAPOLA: x_d'Cov(β̂)x_d mayor que el máximo de la muestra de ajuste, es decir, un
-# municipio más alejado del centro de los datos que cualquiera de los que vio el modelo.
-df_pred["EXTRAPOLA"] = marca_extrapolacion(var_beta, modelo_ganador)
-df_pred["FUERA_DE_RANGO"] = marca_fuera_de_rango(y_sintetico, TASA_MINIMA, TASA_MAXIMA)
-
-print(f"\nPredicciones sintéticas para {len(df_pred)} dominios sin encuesta:")
-display(df_pred)
-
-n_extrapola = int(df_pred["EXTRAPOLA"].sum())
-print(
-    f"\nMunicipios cuya predicción es una extrapolación: {n_extrapola} de {len(df_pred)}"
-    + (
-        ": " + ", ".join(df_pred.loc[df_pred["EXTRAPOLA"], "MUNICIPIO"])
-        if n_extrapola
-        else ""
+    df_new["DOMINIO"] = (
+        df_new["PER"].astype(str)
+        + "_"
+        + df_new["MES"].astype(str)
+        + "_"
+        + df_new["CODIGO_MUNICIPIO"]
     )
-)
-if df_pred["FUERA_DE_RANGO"].any():
+
+    X_new = np.column_stack(
+        [np.ones(len(df_new))] + [df_new[c].values for c in covars_ganador]
+    )
+    y_sintetico = X_new @ beta_ganador
+
+    # Incertidumbre: x_d'Cov(β̂)x_d (estimar β) + Â (efecto aleatorio no observado).
+    var_beta = np.einsum("ij,jk,ik->i", X_new, modelo_ganador.cov_beta, X_new)
+    var_sintetico = var_beta + modelo_ganador.A_hat
+    rmse_sintetico = np.sqrt(var_sintetico)
+    cv_sintetico = 100 * rmse_sintetico / np.abs(y_sintetico)
+
+    df_pred = df_new[["DOMINIO"] + DOMINIO_COLS].copy()
+    df_pred["PRED_SINTETICO"] = y_sintetico.round(4)
+    df_pred["RMSE_SINTETICO"] = rmse_sintetico.round(4)
+    df_pred["CV_SINTETICO_PCT"] = cv_sintetico.round(2)
+    df_pred["TIPO"] = "SINTETICO"
+    # EXTRAPOLA: x_d'Cov(β̂)x_d mayor que el máximo de la muestra de ajuste, es decir, un
+    # municipio más alejado del centro de los datos que cualquiera de los que vio el modelo.
+    df_pred["EXTRAPOLA"] = marca_extrapolacion(var_beta, modelo_ganador)
+    df_pred["FUERA_DE_RANGO"] = marca_fuera_de_rango(
+        y_sintetico, TASA_MINIMA, TASA_MAXIMA
+    )
+
+    print(f"\nPredicciones sintéticas para {len(df_pred)} dominios sin encuesta:")
+    display(df_pred)
+
+    n_extrapola = int(df_pred["EXTRAPOLA"].sum())
     print(
-        f"⚠ AVISO: predicción sintética fuera de [{TASA_MINIMA}, {TASA_MAXIMA}] en: "
-        + ", ".join(
-            f"{m} ({v:.2f})"
-            for m, v in df_pred.loc[
-                df_pred["FUERA_DE_RANGO"], ["MUNICIPIO", "PRED_SINTETICO"]
-            ].values
+        f"\nMunicipios cuya predicción es una extrapolación: {n_extrapola} de {len(df_pred)}"
+        + (
+            ": " + ", ".join(df_pred.loc[df_pred["EXTRAPOLA"], "MUNICIPIO"])
+            if n_extrapola
+            else ""
         )
     )
+    if df_pred["FUERA_DE_RANGO"].any():
+        print(
+            f"⚠ AVISO: predicción sintética fuera de [{TASA_MINIMA}, {TASA_MAXIMA}] en: "
+            + ", ".join(
+                f"{m} ({v:.2f})"
+                for m, v in df_pred.loc[
+                    df_pred["FUERA_DE_RANGO"], ["MUNICIPIO", "PRED_SINTETICO"]
+                ].values
+            )
+        )
 
-spark_df_pred = spark.createDataFrame(df_pred)
-spark_df_pred.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    TBL_FAY_HERRIOT_PREDICCION_SINTETICA
-)
-print(f"Tabla escrita: {TBL_FAY_HERRIOT_PREDICCION_SINTETICA}")
+    spark_df_pred = spark.createDataFrame(df_pred)
+    spark_df_pred.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
+        TBL_FAY_HERRIOT_PREDICCION_SINTETICA
+    )
+    print(f"Tabla escrita: {TBL_FAY_HERRIOT_PREDICCION_SINTETICA}")
 
 # COMMAND ----------
 

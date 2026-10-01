@@ -110,7 +110,7 @@ df_meta = df_full.select(METADATA_COLS).toPandas()
 df_pd = df_cov_spark.toPandas()
 
 Y = df_meta[VARIABLE_OBJETIVO].values
-SE = df_meta["SE_BOOTSTRAP_PCT"].values
+SE = df_meta["SE_PCT"].values
 PSI = SE**2  # varianza de muestreo que el modelo toma como conocida
 entidades = df_meta["MUNICIPIO"].values
 
@@ -187,13 +187,13 @@ print(f"Tabla escrita: {TBL_CATALOGO_REV}")
 # DBTITLE 1,Descriptivos de la variable respuesta y de su precisión
 etiquetas_respuesta = {
     VARIABLE_OBJETIVO: "Tasa de desempleo (%)",
-    "SE_BOOTSTRAP_PCT": "Error estándar bootstrap (p.p.)",
+    "SE_PCT": "Error estándar binomial censal (p.p.)",
     "VARIANZA_MUESTREO": "Varianza de muestreo (p.p.²)",
     "CV_PORCENTAJE": "Coeficiente de variación de la estimación directa (%)",
 }
 desc_respuesta = desc.resumen_univariado(
     df_meta,
-    [VARIABLE_OBJETIVO, "SE_BOOTSTRAP_PCT", "VARIANZA_MUESTREO", "CV_PORCENTAJE"],
+    [VARIABLE_OBJETIVO, "SE_PCT", "VARIANZA_MUESTREO", "CV_PORCENTAJE"],
     etiquetas=etiquetas_respuesta,
 )
 display(spark.createDataFrame(desc_respuesta))

@@ -33,7 +33,7 @@ TBL_FH_COEFICIENTES = "tesis.modelo.fh_coeficientes"
 
 # ── Variable objetivo y varianza directa ─────────────────────────────────────
 Y_COL = "TASA_DESEMPLEO_PCT"
-SE_COL = "SE_BOOTSTRAP_PCT"
+SE_COL = "SE_PCT"
 
 # Columnas que identifican un dominio. La clave es PER + MES + CODIGO_MUNICIPIO (DIVIPOLA);
 # los nombres acompañan para lectura, pero no se usan para unir.

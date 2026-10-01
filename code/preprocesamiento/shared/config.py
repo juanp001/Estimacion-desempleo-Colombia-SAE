@@ -4,7 +4,10 @@ TBL_TERRIDATA        = "tesis.terridata.terridata_extendido_plata"
 TBL_DIM_INDICADORES  = "tesis.dim.dim_indicadores"
 
 # Tablas destino
-TBL_ESTIMACION_DIRECTA = "tesis.preprocesamiento.tasa_desempleo_municipal"
+TBL_PERSONAS_CENSO     = "tesis.censo_nal.personas"
+TBL_DIM_DIVIPOLA       = "tesis.dim.dim_divipola"
+DEPARTAMENTOS_CENSO    = [19, 76]
+TBL_ESTIMACION_DIRECTA = "tesis.censo_nal.tasa_desempleo"
 TBL_COVARIABLES        = "tesis.preprocesamiento.tasa_desempleo_covariables"
 TBL_PREFILTRADAS = "tesis.preprocesamiento.covariables_prefiltradas"
 
@@ -26,8 +29,8 @@ METADATA_COLS = [
     "PER", "MES",
     "CODIGO_DEPARTAMENTO", "DEPARTAMENTO",
     "CODIGO_MUNICIPIO", "MUNICIPIO",
-    "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT",
-    "IC_INF_PCT", "IC_SUP_PCT", "AMPLITUD_IC", "CV_PORCENTAJE",
+    "TASA_DESEMPLEO_PCT", "VARIANZA", "SE_PCT", "CV_PORCENTAJE",
+    "PET", "PEA", "OCUPADOS", "DESOCUPADOS", "INACTIVOS",
     "DEPARTAMENTO_NORMALIZADO", "ENTIDAD_NORMALIZADO",
 ]
 
