@@ -33,8 +33,8 @@ Dos decisiones del proyecto se documentan explícitamente:
 * La tasa de tránsito inmediato a la educación superior se conserva bajo el mecanismo de
   capital humano del documento, por decisión del equipo del proyecto.
 
-No existe un «nivel de respaldo» numérico: la versión anterior asignaba un valor L de 1 a 3
-por entrada, que resultaba arbitrario y complicaba el análisis sin aportar una decisión.
+No existe un «nivel de respaldo» numérico: asignar un valor L de 1 a 3 por entrada resultaría
+arbitrario y complicaría el análisis sin aportar una decisión.
 """
 
 import pandas as pd

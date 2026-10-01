@@ -1,0 +1,7 @@
+targets:
+  dev:
+    # Sin `mode: development`: ese modo antepone "[dev usuario]" al nombre de cada job y no hay
+    # forma de desactivar el prefijo (presets.name_prefix vacío se ignora).
+    default: true
+    workspace:
+      host: https://dbc-3bc323d9-edb3.cloud.databricks.com

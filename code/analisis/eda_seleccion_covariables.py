@@ -3,28 +3,25 @@
 # MAGIC %md
 # MAGIC # Diagnóstico y selección final de covariables
 # MAGIC
-# MAGIC Versión revisada de `Análisis exploratorio`. El notebook original permanece sin
-# MAGIC cambios; este escribe en tablas con sufijo `_rev` para poder compararlos.
-# MAGIC
 # MAGIC Este notebook **decide**. La caracterización de los datos se hizo antes, en
-# MAGIC `analisis_descriptivo_rev`, y no se repite aquí. La selección es **cualitativa**: se
+# MAGIC `analisis_descriptivo`, y no se repite aquí. La selección es **cualitativa**: se
 # MAGIC apoya en lo que el análisis descriptivo mostró sobre cada covariable (univariado y
 # MAGIC bivariado), en el pre-filtrado y en diagnósticos de estadística básica, y cada
 # MAGIC covariable entra o sale por una razón única que se puede leer en su fila de la ficha
 # MAGIC de decisión.
 # MAGIC
-# MAGIC ## Qué cambia frente a la versión original
+# MAGIC ## Qué no se hace y por qué
 # MAGIC
-# MAGIC | Procedimiento original | Decisión | Motivo |
+# MAGIC | Procedimiento | Decisión | Motivo |
 # MAGIC |---|---|---|
-# MAGIC | Sensibilidad al umbral de correlación | **Eliminada** | Contaba cuántas covariables superaban umbrales sobre un conjunto ya recortado por ese mismo umbral. |
-# MAGIC | Shapiro-Wilk sobre las covariables | **Eliminado** | El modelo supone normalidad de los efectos aleatorios y de los errores de muestreo, no de las covariables. |
-# MAGIC | Índice de Moran (sobre la respuesta y sobre los residuos) | **Eliminado** | El modelo Fay-Herriot clásico supone efectos independientes por dominio y el proyecto no ajusta variantes espaciales, de modo que el contraste no cambia ninguna decisión. |
-# MAGIC | Búsqueda exhaustiva de especificaciones por AIC | **Eliminada** | Con 23 dominios producía docenas de especificaciones equivalentes y reutilizaba los datos que ajustan el modelo; la elección entre ellas volvía a ser una regla añadida. La comparación entre especificaciones se hace en el notebook del modelo, con AIC, error cuadrático medio y distancia de Cook. |
-# MAGIC | Ranking compuesto C y Q, nivel de respaldo L | **Eliminados** | Pesos y topes arbitrarios; el nivel L complicaba el análisis sin decidir nada. |
-# MAGIC | Influencia y estabilidad | **Conservado** | Distancia de Cook y exclusión de dominios como dos evidencias de un único criterio de robustez. |
-# MAGIC | Redundancia | **Conservado** | Un representante por grupo de covariables equivalentes. |
-# MAGIC | — | **Ficha de decisión** | Reúne por covariable la evidencia descriptiva (signo esperado y observado, intervalo de la correlación) y los diagnósticos, y aplica reglas explícitas. |
+# MAGIC | Sensibilidad al umbral de correlación | **No se hace** | Contaría cuántas covariables superan umbrales sobre un conjunto ya recortado por ese mismo umbral. |
+# MAGIC | Shapiro-Wilk sobre las covariables | **No se hace** | El modelo supone normalidad de los efectos aleatorios y de los errores de muestreo, no de las covariables. |
+# MAGIC | Índice de Moran (sobre la respuesta y sobre los residuos) | **No se hace** | El modelo Fay-Herriot clásico supone efectos independientes por dominio y el proyecto no ajusta variantes espaciales, de modo que el contraste no cambia ninguna decisión. |
+# MAGIC | Búsqueda exhaustiva de especificaciones por AIC | **No se hace** | Con 23 dominios produciría docenas de especificaciones equivalentes y reutilizaría los datos que ajustan el modelo; la elección entre ellas volvería a ser una regla añadida. La comparación entre especificaciones se hace en el notebook del modelo (significancia de los coeficientes y AIC). |
+# MAGIC | Ranking compuesto C y Q, nivel de respaldo L | **No se usan** | Pesos y topes arbitrarios; el nivel L complicaría el análisis sin decidir nada. |
+# MAGIC | Influencia y estabilidad | **Se hace** | Distancia de Cook y exclusión de dominios como dos evidencias de un único criterio de robustez. |
+# MAGIC | Redundancia | **Se hace** | Un representante por grupo de covariables equivalentes. |
+# MAGIC | Ficha de decisión | **Se hace** | Reúne por covariable la evidencia descriptiva (signo esperado y observado, intervalo de la correlación) y los diagnósticos, y aplica reglas explícitas. |
 # MAGIC
 # MAGIC ## Procedimiento de selección
 # MAGIC
@@ -40,14 +37,14 @@
 # MAGIC
 # MAGIC ## Salidas
 # MAGIC
-# MAGIC * `tesis.preprocesamiento.diagnosticos_covariables_rev`
-# MAGIC * `tesis.preprocesamiento.robustez_covariables_rev`
-# MAGIC * `tesis.preprocesamiento.redundancia_covariables_rev`
-# MAGIC * `tesis.preprocesamiento.decision_covariables_rev`
-# MAGIC * `tesis.preprocesamiento.verificacion_seleccion_rev`
-# MAGIC * `tesis.preprocesamiento.trazabilidad_covariables_rev`
-# MAGIC * `tesis.preprocesamiento.covariables_candidatas_rev` (elegibles)
-# MAGIC * `tesis.preprocesamiento.covariables_seleccionadas_rev`
+# MAGIC * `tesis.preprocesamiento.diagnosticos_covariables`
+# MAGIC * `tesis.preprocesamiento.robustez_covariables`
+# MAGIC * `tesis.preprocesamiento.redundancia_covariables`
+# MAGIC * `tesis.preprocesamiento.decision_covariables`
+# MAGIC * `tesis.preprocesamiento.verificacion_seleccion`
+# MAGIC * `tesis.preprocesamiento.trazabilidad_covariables`
+# MAGIC * `tesis.preprocesamiento.covariables_candidatas` (elegibles)
+# MAGIC * `tesis.preprocesamiento.covariables_seleccionadas`
 # MAGIC * Figuras en el volumen `figuras_eda`, con prefijo `eda_`.
 
 # COMMAND ----------
@@ -76,14 +73,14 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config_rev import *
-from analisis.shared_rev import descriptivos as desc
-from analisis.shared_rev import diagnosticos as diag
-from analisis.shared_rev import seleccion as sel
-from analisis.shared_rev.catalogo_literatura import resolver_catalogo, mapas_catalogo
+from preprocesamiento.shared.config import *
+from analisis.shared import descriptivos as desc
+from analisis.shared import diagnosticos as diag
+from analisis.shared import seleccion as sel
+from analisis.shared.catalogo_literatura import resolver_catalogo, mapas_catalogo
 
 # ── Carga ─────────────────────────────────────────────────────────────────────
-df_full = spark.table(TBL_PREFILTRADAS_REV)
+df_full = spark.table(TBL_PREFILTRADAS)
 indicadores_dict = {
     fila["CODIGO_INDICADOR"]: fila["INDICADOR"]
     for fila in spark.table(TBL_DIM_INDICADORES)
@@ -380,7 +377,7 @@ display(fig)
 # MAGIC a candidata, qué mostró cada diagnóstico, en qué paso quedó fuera y por qué motivo. Las
 # MAGIC covariables descartadas durante el pre-filtrado no aparecen aquí una a una porque su
 # MAGIC exclusión se explica por el criterio del filtro, registrado en
-# MAGIC `cascada_prefiltrado_rev` y en el reporte de variabilidad.
+# MAGIC `cascada_prefiltrado` y en el reporte de variabilidad.
 
 # COMMAND ----------
 
@@ -443,12 +440,12 @@ df_diagnosticos = df_ic.merge(df_influencia.drop(columns=["Alias"]), on="Codigo"
 )
 
 for tabla, destino in [
-    (df_diagnosticos, TBL_DIAGNOSTICOS_REV),
-    (df_robustez, TBL_ROBUSTEZ_REV),
-    (df_redundancia, TBL_REDUNDANCIA_REV),
-    (df_ficha, TBL_DECISION_REV),
-    (df_verificacion, TBL_VERIFICACION_REV),
-    (df_trazabilidad, TBL_TRAZABILIDAD_REV),
+    (df_diagnosticos, TBL_DIAGNOSTICOS),
+    (df_robustez, TBL_ROBUSTEZ),
+    (df_redundancia, TBL_REDUNDANCIA),
+    (df_ficha, TBL_DECISION),
+    (df_verificacion, TBL_VERIFICACION),
+    (df_trazabilidad, TBL_TRAZABILIDAD),
 ]:
     (
         spark.createDataFrame(tabla)
@@ -490,5 +487,5 @@ def escribir_base(codigos, destino):
     return base
 
 
-escribir_base(ELEGIBLES, TBL_CANDIDATAS_REV)
-display(escribir_base(SELECCIONADAS, TBL_SELECCIONADAS_REV))
+escribir_base(ELEGIBLES, TBL_CANDIDATAS)
+display(escribir_base(SELECCIONADAS, TBL_SELECCIONADAS))

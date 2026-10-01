@@ -14,24 +14,24 @@ hay pesos, puntajes compuestos ni criterios de información.
 
 Por qué no se usa el AIC ni un ranking compuesto
 -----------------------------------------------
-Una versión anterior cerraba con una búsqueda exhaustiva de especificaciones por AIC sobre
-el modelo Fay-Herriot, y otra con un puntaje ``C = (1-α)·Q + α·(L/3)``. Ambas se retiran.
-El puntaje mezclaba componentes que medían lo mismo con pesos arbitrarios, y el resultado
-lo fijaba una restricción de una covariable por dimensión. La búsqueda por AIC, con 23
-dominios, reutilizaba los mismos datos que ajustan el modelo y producía docenas de
-especificaciones equivalentes entre las que la elección volvía a ser una regla añadida. La
+No se cierra con una búsqueda exhaustiva de especificaciones por AIC sobre el modelo
+Fay-Herriot ni con un puntaje compuesto ``C = (1-α)·Q + α·(L/3)``. Un puntaje así mezcla
+componentes que miden lo mismo con pesos arbitrarios, y el resultado lo fija una
+restricción de una covariable por dimensión. La búsqueda por AIC, con 23 dominios,
+reutilizaría los mismos datos que ajustan el modelo y produciría docenas de
+especificaciones equivalentes entre las que la elección volvería a ser una regla añadida. La
 selección cualitativa es más fácil de sustentar: cada covariable entra o sale por una
 razón que se puede leer en su fila de la ficha de decisión.
 
-La comparación entre especificaciones del modelo, con AIC, error cuadrático medio y
-distancia de Cook, se hace en el notebook del modelo sobre el conjunto elegido y sus
-variantes dejando una covariable fuera.
+La comparación entre especificaciones del modelo, con significancia de los coeficientes y
+AIC, se hace en el notebook del modelo sobre el conjunto elegido y sus variantes dejando
+una covariable fuera.
 """
 
 import numpy as np
 import pandas as pd
 
-from analisis.shared_rev.diagnosticos import vif_conjunto
+from analisis.shared.diagnosticos import vif_conjunto
 
 
 def filtrar_por_robustez(

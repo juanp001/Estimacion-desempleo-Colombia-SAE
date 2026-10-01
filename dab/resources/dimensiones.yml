@@ -1,0 +1,21 @@
+resources:
+  jobs:
+    dimensiones:
+      name: dimensiones
+      description: Nomenclatura DIVIPOLA y traducción de áreas GEIH a municipio (tesis.dim).
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "2"
+      tasks:
+        - task_key: dim_divipola
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/ingesta_datos/dimensiones/dim_divipola.py
+        - task_key: dim_geih_divipola
+          depends_on:
+            - task_key: dim_divipola
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/ingesta_datos/dimensiones/dim_geih_divipola.py

@@ -1,19 +1,27 @@
-# This is a Declarative Automation Bundle definition for Estimacion-desempleo-Colombia-SAE.
-# The Databricks extension requires databricks.yml configuration file.
-# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+# Declarative Automation Bundle de Estimacion-desempleo-Colombia-SAE.
+# Los jobs viven en dab/resources/ y los targets en dab/targets/.
+# Documentación: https://docs.databricks.com/dev-tools/bundles/index.html
 
 bundle:
   name: Estimacion-desempleo-Colombia-SAE
 
-targets:
-  dev:
-    mode: development
-    default: true
-    workspace:
-      host: https://dbc-3bc323d9-edb3.cloud.databricks.com
+include:
+  - dab/resources/*.yml
+  - dab/targets/*.yml
 
-  ## Optionally, there could be 'staging' or 'prod' targets here.
-  #
-  # prod:
-  #   workspace:
-  #     host: https://dbc-3bc323d9-edb3.cloud.databricks.com
+variables:
+  # Ventana de tiempo de la estimación (la leen estimacion_directa y dominios_sin_encuesta).
+  # Se cambia aquí o al ejecutar:
+  #   databricks bundle run preprocesamiento -t dev --params anio_estimacion=2024,mes_estimacion=6
+  anio_estimacion:
+    description: Año (PER) del período a estimar
+    default: "2018"
+  mes_estimacion:
+    description: Mes (1-12) del período a estimar
+    default: "12"
+
+sync:
+  exclude:
+    - data/**
+    - code/ingesta_datos/censo_nal/**
+    - code/analisis/renombrar_geih.py

@@ -168,11 +168,10 @@ def estabilidad_loo(
 ) -> pd.DataFrame:
     """Cambio en la correlación con la respuesta al excluir cada dominio, uno a uno.
 
-    Recorre **todos** los dominios, no un subconjunto elegido a mano. La versión original
-    evaluaba solo cinco territorios seleccionados por inspección de los diagramas de caja,
-    lo que introducía una decisión manual difícil de reproducir y dependía de un cotejo de
-    nombres propenso a fallar. Recorrer los 23 dominios cuesta lo mismo y elimina ambos
-    problemas.
+    Recorre **todos** los dominios, no un subconjunto elegido a mano: evaluar solo unos
+    pocos territorios elegidos por inspección de los diagramas de caja introduciría una
+    decisión manual difícil de reproducir y dependería de un cotejo de nombres propenso a
+    fallar. Recorrer los 23 dominios cuesta lo mismo y elimina ambos problemas.
 
     Args:
         df (pd.DataFrame): Datos con una fila por dominio.

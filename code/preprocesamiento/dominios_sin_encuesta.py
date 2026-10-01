@@ -1,7 +1,7 @@
 # Databricks notebook source
 # DBTITLE 1,Documentación
 # MAGIC %md
-# MAGIC # Dominios objetivo sin cobertura muestral — versión revisada
+# MAGIC # Dominios objetivo sin cobertura muestral
 # MAGIC
 # MAGIC Construye la tabla de covariables de los municipios de Cauca y Valle del Cauca sobre
 # MAGIC los que se producirán estimaciones sintéticas, es decir, aquellos donde la GEIH no
@@ -9,17 +9,13 @@
 # MAGIC
 # MAGIC ## Por qué existe este notebook
 # MAGIC
-# MAGIC La versión original consume `tesis.modelo.municipios_sin_encuesta`, una tabla que
-# MAGIC **ningún notebook del repositorio construye** y que contiene solo cinco covariables,
-# MAGIC ya renombradas a los alias del conjunto seleccionado en su momento. Eso tiene dos
-# MAGIC consecuencias: el paso de predicción sintética no es reproducible desde el código, y
-# MAGIC queda acoplado a un conjunto concreto de covariables, de modo que cualquier cambio en
-# MAGIC la selección lo rompe.
-# MAGIC
-# MAGIC Aquí la tabla se deriva de las fuentes, con **todas** las covariables que superaron el
-# MAGIC pre-filtrado y conservando los códigos de indicador. El notebook del modelo toma
-# MAGIC después las que necesite y las renombra, de forma que la predicción sintética funciona
-# MAGIC con cualquier conjunto seleccionado.
+# MAGIC La predicción sintética del modelo necesita las covariables de los municipios que no
+# MAGIC tienen estimación directa. Para que el paso sea reproducible desde el código y no
+# MAGIC quede acoplado a un conjunto concreto de covariables (de modo que un cambio en la
+# MAGIC selección no lo rompa), la tabla se deriva de las fuentes con **todas** las
+# MAGIC covariables que superaron el pre-filtrado y conservando los códigos de indicador. El
+# MAGIC notebook del modelo toma después las que necesite y las renombra, de forma que la
+# MAGIC predicción sintética funciona con cualquier conjunto seleccionado.
 # MAGIC
 # MAGIC ## Definición de los dominios
 # MAGIC
@@ -29,7 +25,7 @@
 # MAGIC
 # MAGIC ## Salida
 # MAGIC
-# MAGIC * `tesis.preprocesamiento.municipios_sin_encuesta_rev`
+# MAGIC * `tesis.preprocesamiento.municipios_sin_encuesta`
 
 # COMMAND ----------
 
@@ -53,12 +49,15 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config_rev import *
+from preprocesamiento.shared.config import *
+
+# Período a estimar: widgets anio_estimacion / mes_estimacion (parámetros del job).
+PER_ESTIMACION, MES_ESTIMACION = resolver_periodo(dbutils)
 
 # COMMAND ----------
 
 # DBTITLE 1,Covariables que superaron el pre-filtrado
-df_prefiltradas = spark.table(TBL_PREFILTRADAS_REV)
+df_prefiltradas = spark.table(TBL_PREFILTRADAS)
 codigos_prefiltrados = [c for c in df_prefiltradas.columns if c not in METADATA_COLS]
 
 dominios_con_encuesta = [
@@ -131,7 +130,7 @@ if incompletas:
 
 # DBTITLE 1,Escritura de la tabla de dominios objetivo
 (df_objetivo.write.mode("overwrite").option("overwriteSchema", "true")
- .saveAsTable(TBL_SIN_ENCUESTA_REV))
+ .saveAsTable(TBL_SIN_ENCUESTA))
 
-print(f"Tabla escrita: {TBL_SIN_ENCUESTA_REV}  ({n_objetivo} municipios)")
+print(f"Tabla escrita: {TBL_SIN_ENCUESTA}  ({n_objetivo} municipios)")
 

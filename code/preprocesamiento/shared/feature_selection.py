@@ -1,7 +1,25 @@
-import pandas as pd
-import numpy as np
+"""Pre-filtrado de covariables auxiliares.
 
-# COMMAND ----------
+El pre-filtrado es enteramente independiente de la variable respuesta: su único propósito
+es eliminar covariables inutilizables, no elegir las mejores.
+
+* `filtrar_columnas_sin_na()` descarta las columnas con algún dato faltante.
+* `filtrar_variabilidad()` aplica un criterio invariante a la escala de medida. Un umbral
+  absoluto de varianza depende de las unidades del indicador: una tasa expresada en tanto
+  por uno y la misma tasa expresada en porcentaje tienen varianzas que difieren en un
+  factor de 10.000, de modo que un único umbral absoluto no puede ser correcto para ambas.
+* No se filtra por correlación con la respuesta: hacerlo sobre los mismos dominios que
+  después ajustan el modelo sesga al alza las correlaciones de las supervivientes y
+  convierte al pre-filtrado en un mecanismo de selección. La asociación con la respuesta
+  se trata como evidencia descriptiva y diagnóstica en etapas posteriores.
+* `reportar_grupos_redundantes()` documenta —sin descartar nada— los grupos de covariables
+  mutuamente redundantes. La decisión sobre cuál conservar requiere el criterio conceptual
+  que solo está disponible más adelante en el flujo.
+"""
+
+import numpy as np
+import pandas as pd
+
 
 def filtrar_columnas_sin_na(df: pd.DataFrame) -> pd.DataFrame:
     """Conserva solo las columnas sin ningún valor faltante.
@@ -29,129 +47,224 @@ def filtrar_columnas_sin_na(df: pd.DataFrame) -> pd.DataFrame:
 
     cols_sin_na = df.columns[df.isna().sum() == 0].tolist()
     n_eliminadas = df.shape[1] - len(cols_sin_na)
-    print(f"Filtro NA: {df.shape[1]} → {len(cols_sin_na)} variables ({n_eliminadas} eliminadas)")
+    print(
+        f"Filtro NA: {df.shape[1]} → {len(cols_sin_na)} variables ({n_eliminadas} eliminadas)"
+    )
     return df[cols_sin_na]
 
 
-def filtrar_varianza_cero(df: pd.DataFrame, umbral: float = 0.00001) -> pd.DataFrame:
-    """Elimina columnas cuya varianza esté por debajo del umbral.
+def filtrar_variabilidad(
+    df: pd.DataFrame,
+    cv_min: float = 0.001,
+    prop_modal_max: float = 0.90,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Descarta covariables sin variación aprovechable entre los dominios.
 
-    Variables casi constantes producen singularidad en la matriz de diseño
-    de los modelos de regresión (colinealidad con el intercepto). El umbral
-    permite tolerar varianzas numéricamente pequeñas sin eliminar variables
-    con tasas muy bajas pero con variación real.
+    Aplica dos criterios invariantes a la escala de medida, ambos dirigidos al mismo
+    problema: una columna constante o casi constante es linealmente dependiente del
+    intercepto y vuelve singular la matriz de diseño de la regresión sintética.
+
+    1. **Concentración**: se descarta la columna si su valor más frecuente cubre una
+       proporción de los dominios mayor que `prop_modal_max`. Este criterio no depende de
+       las unidades y detecta indicadores que en la práctica solo toman un valor.
+    2. **Variación relativa**: se descarta la columna si su coeficiente de variación
+       muestral (desviación estándar sobre el valor absoluto de la media) es menor que
+       `cv_min`. El criterio solo se evalúa cuando la media está suficientemente lejos de
+       cero; para columnas centradas en cero el cociente no es interpretable y la decisión
+       queda en manos del criterio de concentración.
 
     Args:
-        df (pd.DataFrame): DataFrame de covariables numéricas.
-        umbral (float): Varianza mínima aceptable. Columnas con var < umbral
-            se descartan.
+        df (pd.DataFrame): Covariables numéricas (filas = dominios, columnas = indicadores).
+        cv_min (float): Coeficiente de variación mínimo aceptable.
+        prop_modal_max (float): Proporción máxima de dominios que puede acumular el valor
+            modal antes de considerar la columna casi constante.
 
     Returns:
-        pd.DataFrame: DataFrame sin las columnas de varianza casi cero.
+        tuple[pd.DataFrame, pd.DataFrame]: (df filtrado, reporte). El reporte tiene una
+            fila por columna evaluada con su desviación, media, coeficiente de variación,
+            proporción modal, decisión y motivo del descarte.
 
     Raises:
-        ValueError: Si df está vacío o no contiene columnas numéricas.
+        ValueError: Si `df` está vacío.
 
     Example:
-        >>> df_filtrado = filtrar_varianza_cero(df_sin_na, umbral=0.00001)
-        >>> print(df_filtrado.shape)
+        >>> df_filtrado, reporte = filtrar_variabilidad(df_sin_na)
+        >>> reporte[reporte["Decision"] == "descartada"]["Motivo"].value_counts()
     """
     if df.empty:
         raise ValueError("El DataFrame está vacío.")
 
-    varianzas = df.var()
-    cols_con_varianza = varianzas[varianzas > umbral].index.tolist()
-    cols_eliminadas = [c for c in df.columns if c not in cols_con_varianza]
+    n_dominios = len(df)
+    filas = []
+
+    for col in df.columns:
+        serie = df[col]
+        desv = float(serie.std(ddof=1))
+        media = float(serie.mean())
+        prop_modal = float(serie.value_counts(dropna=False).iloc[0] / n_dominios)
+
+        # El CV solo se interpreta si la media está lejos de cero en relación con la
+        # dispersión observada; en otro caso se marca como no evaluable.
+        cv_evaluable = abs(media) > max(desv, 1e-12) * 1e-6 and abs(media) > 1e-12
+        cv = abs(desv / media) if cv_evaluable else np.nan
+
+        if desv == 0.0:
+            decision, motivo = "descartada", "constante"
+        elif prop_modal > prop_modal_max:
+            decision, motivo = (
+                "descartada",
+                f"valor modal en {prop_modal:.0%} de los dominios",
+            )
+        elif cv_evaluable and cv < cv_min:
+            decision, motivo = (
+                "descartada",
+                f"coeficiente de variación {cv:.2e} < {cv_min}",
+            )
+        else:
+            decision, motivo = "conservada", ""
+
+        filas.append(
+            {
+                "Codigo": col,
+                "Desviacion": desv,
+                "Media": media,
+                "CV": cv,
+                "Proporcion_modal": prop_modal,
+                "Decision": decision,
+                "Motivo": motivo,
+            }
+        )
+
+    reporte = pd.DataFrame(filas)
+    conservadas = reporte.loc[reporte["Decision"] == "conservada", "Codigo"].tolist()
 
     print(
-        f"Filtro varianza (umbral={umbral}): {df.shape[1]} → {len(cols_con_varianza)} variables "
-        f"({len(cols_eliminadas)} eliminadas: {cols_eliminadas})"
+        f"Filtro de variabilidad (CV >= {cv_min}, proporción modal <= {prop_modal_max:.0%}): "
+        f"{df.shape[1]} → {len(conservadas)} variables "
+        f"({df.shape[1] - len(conservadas)} descartadas)"
     )
-    return df[cols_con_varianza]
+    return df[conservadas], reporte
 
 
-def seleccionar_variables_por_correlacion(
-    df_covariables: pd.DataFrame,
-    df_metadata: pd.DataFrame,
-    variable_objetivo: str,
-    df_diccionario: pd.DataFrame,
-    modo: str = "top_n",
-    valor: float = 12,
-) -> tuple[list, pd.DataFrame]:
-    """Selecciona covariables según su correlación de Pearson con la variable objetivo.
+def sensibilidad_variabilidad(
+    df: pd.DataFrame,
+    cvs: list = None,
+    props_modales: list = None,
+) -> pd.DataFrame:
+    """Cuenta cuántas covariables sobreviven al filtro de variabilidad bajo distintos umbrales.
 
-    Soporta dos estrategias: elegir las N variables con mayor correlación
-    absoluta ("top_n") o seleccionar todas las que superen un umbral ("threshold").
+    El barrido se calcula sobre el conjunto completo posterior al filtro de completitud
+    (no sobre uno ya recortado por el propio umbral), de modo que un umbral más laxo sí
+    puede devolver más covariables.
 
     Args:
-        df_covariables (pd.DataFrame): Covariables candidatas post-filtros
-            (filas = dominios, columnas = indicadores).
-        df_metadata (pd.DataFrame): DataFrame original que contiene la
-            variable objetivo (mismas filas que df_covariables).
-        variable_objetivo (str): Nombre de la columna objetivo
-            (ej. "TASA_DESEMPLEO_PCT").
-        df_diccionario (pd.DataFrame): Diccionario de TerriData con columnas
-            CODIGO_INDICADOR, INDICADOR y DIMENSION.
-        modo (str): Estrategia de selección: "top_n" o "threshold".
-        valor (float): Si modo="top_n", número de variables a seleccionar.
-            Si modo="threshold", umbral mínimo de correlación absoluta.
+        df (pd.DataFrame): Covariables numéricas posteriores al filtro de completitud.
+        cvs (list[float] | None): Umbrales de coeficiente de variación a evaluar.
+        props_modales (list[float] | None): Umbrales de proporción modal a evaluar.
 
     Returns:
-        tuple[list, pd.DataFrame]: (variables_ganadoras, df_reporte)
-            - variables_ganadoras: Códigos de las variables seleccionadas.
-            - df_reporte: Tabla con Puesto, Código, Dimensión, Nombre,
-              Correlación real y absoluta.
-
-    Raises:
-        ValueError: Si modo no es "top_n" ni "threshold".
+        pd.DataFrame: Una fila por combinación de umbrales con el número de supervivientes.
 
     Example:
-        >>> ganadoras, reporte = seleccionar_variables_por_correlacion(
-        ...     df_covariables=df_filtrado,
-        ...     df_metadata=df,
-        ...     variable_objetivo="TASA_DESEMPLEO_PCT",
-        ...     df_diccionario=df_diccionario,
-        ...     modo="threshold",
-        ...     valor=0.4,
-        ... )
+        >>> sensibilidad_variabilidad(df_sin_na)
     """
-    if modo not in ("top_n", "threshold"):
-        raise ValueError(f"modo debe ser 'top_n' o 'threshold', recibido: '{modo}'")
+    cvs = cvs if cvs is not None else [0.0001, 0.001, 0.01, 0.05]
+    props_modales = props_modales if props_modales is not None else [0.80, 0.90, 0.95]
 
-    correlaciones = {
-        col: df_covariables[col].corr(df_metadata[variable_objetivo])
-        for col in df_covariables.columns
-    }
+    filas = []
+    for cv in cvs:
+        for prop in props_modales:
+            supervivientes, _ = filtrar_variabilidad(df, cv_min=cv, prop_modal_max=prop)
+            filas.append(
+                {
+                    "CV_minimo": cv,
+                    "Proporcion_modal": prop,
+                    "Supervivientes": supervivientes.shape[1],
+                }
+            )
+    return pd.DataFrame(filas)
 
-    df_corr = (
-        pd.DataFrame.from_dict(correlaciones, orient="index", columns=["Correlacion_Real"])
-        .assign(Correlacion_Abs=lambda d: d["Correlacion_Real"].abs())
-        .sort_values("Correlacion_Abs", ascending=False)
+
+def reportar_grupos_redundantes(
+    df: pd.DataFrame, umbral: float = 0.999
+) -> pd.DataFrame:
+    """Documenta los grupos de covariables mutuamente redundantes, sin descartar ninguna.
+
+    Dos indicadores con correlación de magnitud prácticamente unitaria contienen la misma
+    información (con frecuencia son el mismo indicador expresado en sentido inverso, como
+    el índice de pobreza multidimensional y su complemento). Conservar ambos en el modelo
+    produce colinealidad exacta, pero decidir cuál retirar exige un criterio conceptual que
+    en esta etapa todavía no está disponible: por eso aquí solo se reporta.
+
+    Args:
+        df (pd.DataFrame): Covariables numéricas.
+        umbral (float): Magnitud de correlación a partir de la cual dos columnas se
+            consideran redundantes entre sí.
+
+    Returns:
+        pd.DataFrame: Una fila por grupo redundante con su tamaño y los códigos que lo
+            componen. Vacío si no hay grupos.
+
+    Example:
+        >>> reportar_grupos_redundantes(df_filtrado)
+    """
+    grupos = agrupar_por_correlacion(df, umbral=umbral)
+    filas = [
+        {"Grupo": i, "N_variables": len(g), "Codigos": ", ".join(g)}
+        for i, g in enumerate(grupos, 1)
+        if len(g) > 1
+    ]
+    reporte = pd.DataFrame(filas)
+    print(
+        f"Grupos redundantes (|r| >= {umbral}): {len(reporte)} "
+        f"({int(reporte['N_variables'].sum() - len(reporte)) if not reporte.empty else 0} "
+        f"variables excedentes)"
     )
+    return reporte
 
-    if modo == "top_n":
-        variables_ganadoras = df_corr.index[: int(valor)].tolist()
-        criterio = f"Top {int(valor)} variables con mayor |correlación|"
-    else:
-        variables_ganadoras = df_corr[df_corr["Correlacion_Abs"] >= valor].index.tolist()
-        criterio = f"Variables con |r| >= {valor}"
 
-    reporte = []
-    for idx, codigo in enumerate(variables_ganadoras, 1):
-        fila_dic = df_diccionario[df_diccionario["CODIGO_INDICADOR"] == codigo]
-        reporte.append({
-            "Puesto":            idx,
-            "Código":            codigo,
-            "Dimensión":         fila_dic["DIMENSION"].values[0]  if not fila_dic.empty else "N/A",
-            "Nombre Indicador":  fila_dic["INDICADOR"].values[0]  if not fila_dic.empty else "No encontrado",
-            "Corr. Real":        round(df_corr.loc[codigo, "Correlacion_Real"], 4),
-            "Corr. Abs":         round(df_corr.loc[codigo, "Correlacion_Abs"],  4),
-        })
+def agrupar_por_correlacion(df: pd.DataFrame, umbral: float = 0.80) -> list:
+    """Agrupa columnas en conjuntos conectados por correlaciones de magnitud alta.
 
-    df_reporte = pd.DataFrame(reporte)
+    Construye el grafo cuyos nodos son las covariables y cuyas aristas unen los pares con
+    ``|r| >= umbral``, y devuelve sus componentes conexas. Se usa tanto para reportar
+    redundancia exacta en el pre-filtrado como para resolverla en la etapa de selección.
 
-    print(f"Selección por correlación ({criterio}):")
-    print(f"  Evaluadas: {df_covariables.shape[1]} variables")
-    print(f"  Seleccionadas: {len(variables_ganadoras)}")
+    Args:
+        df (pd.DataFrame): Covariables numéricas.
+        umbral (float): Magnitud mínima de correlación para unir dos covariables.
 
-    return variables_ganadoras, df_reporte
+    Returns:
+        list[list[str]]: Grupos de códigos. Las covariables sin pareja forman grupos
+            unitarios. El orden dentro de cada grupo y entre grupos es determinista.
+
+    Example:
+        >>> agrupar_por_correlacion(df_candidatas, umbral=0.80)
+        [['140010004', '140010001'], ['310010008']]
+    """
+    cols = list(df.columns)
+    corr = df.corr().abs()
+
+    padre = {c: c for c in cols}
+
+    def raiz(c):
+        while padre[c] != c:
+            padre[c] = padre[padre[c]]
+            c = padre[c]
+        return c
+
+    for i, a in enumerate(cols):
+        for b in cols[i + 1 :]:
+            if corr.loc[a, b] >= umbral:
+                ra, rb = raiz(a), raiz(b)
+                if ra != rb:
+                    padre[rb] = ra
+
+    grupos = {}
+    for c in cols:
+        grupos.setdefault(raiz(c), []).append(c)
+
+    return [
+        sorted(g)
+        for g in sorted(grupos.values(), key=lambda g: (-len(g), sorted(g)[0]))
+    ]

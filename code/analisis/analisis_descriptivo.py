@@ -17,7 +17,7 @@
 # MAGIC El propósito de este notebook es **comprender los datos**: cómo se distribuyen, qué
 # MAGIC tan dispersos son, qué territorios se apartan del resto y cómo se relacionan entre sí.
 # MAGIC No descarta ninguna covariable. Las decisiones de selección se toman en
-# MAGIC `eda_seleccion_covariables_rev`, a partir de los diagnósticos correspondientes.
+# MAGIC `eda_seleccion_covariables`, a partir de los diagnósticos correspondientes.
 # MAGIC
 # MAGIC La distinción es deliberada y se sostiene a lo largo de todo el flujo:
 # MAGIC
@@ -31,7 +31,7 @@
 # MAGIC ## Posición en el flujo
 # MAGIC
 # MAGIC ```
-# MAGIC pre_filtrado_covariables_rev   →  covariables_prefiltradas_rev
+# MAGIC pre_filtrado_covariables   →  covariables_prefiltradas
 # MAGIC        │
 # MAGIC        ▼  elegibilidad conceptual (catálogo de literatura, independiente de la respuesta)
 # MAGIC        │
@@ -41,7 +41,7 @@
 # MAGIC        │   2. Bivariado:     cada candidata frente a la tasa de desempleo
 # MAGIC        │   3. Multivariado:  estructura conjunta de las candidatas
 # MAGIC        │
-# MAGIC        ▼  eda_seleccion_covariables_rev  →  diagnóstico y selección cualitativa
+# MAGIC        ▼  eda_seleccion_covariables  →  diagnóstico y selección cualitativa
 # MAGIC        ▼  fay_herriot
 # MAGIC ```
 # MAGIC
@@ -55,9 +55,9 @@
 # MAGIC
 # MAGIC ## Salidas
 # MAGIC
-# MAGIC * `tesis.preprocesamiento.catalogo_literatura_rev`
-# MAGIC * `tesis.preprocesamiento.descriptivo_univariado_rev`
-# MAGIC * `tesis.preprocesamiento.descriptivo_bivariado_rev`
+# MAGIC * `tesis.preprocesamiento.catalogo_literatura`
+# MAGIC * `tesis.preprocesamiento.descriptivo_univariado`
+# MAGIC * `tesis.preprocesamiento.descriptivo_bivariado`
 # MAGIC * Figuras en el volumen `figuras_eda`, con prefijo `desc_`.
 
 # COMMAND ----------
@@ -86,12 +86,12 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config_rev import *
-from analisis.shared_rev import descriptivos as desc
-from analisis.shared_rev.catalogo_literatura import resolver_catalogo, mapas_catalogo
+from preprocesamiento.shared.config import *
+from analisis.shared import descriptivos as desc
+from analisis.shared.catalogo_literatura import resolver_catalogo, mapas_catalogo
 
 # ── Carga ─────────────────────────────────────────────────────────────────────
-df_full = spark.table(TBL_PREFILTRADAS_REV)
+df_full = spark.table(TBL_PREFILTRADAS)
 indicadores_dict = {
     fila["CODIGO_INDICADOR"]: fila["INDICADOR"]
     for fila in spark.table(TBL_DIM_INDICADORES)
@@ -158,9 +158,9 @@ display(spark.createDataFrame(reporte_catalogo))
     spark.createDataFrame(reporte_catalogo)
     .write.mode("overwrite")
     .option("overwriteSchema", "true")
-    .saveAsTable(TBL_CATALOGO_REV)
+    .saveAsTable(TBL_CATALOGO)
 )
-print(f"Tabla escrita: {TBL_CATALOGO_REV}")
+print(f"Tabla escrita: {TBL_CATALOGO}")
 
 # COMMAND ----------
 

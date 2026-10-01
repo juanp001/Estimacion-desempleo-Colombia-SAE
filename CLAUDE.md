@@ -71,10 +71,10 @@ la transformación a ancho).
 - `dim_indicadores` (se crea dentro de `terridata_plata.py`, no en `dimensiones/`): diccionario
   código → nombre descriptivo de cada columna/indicador de `terridata_plata` extendido.
 
-### Preprocesamiento → selección de covariables — `code/preprocesamiento/`
+### Preprocesamiento → selección de covariables — `code/preprocesamiento/` y `code/analisis/`
 
 ```
-estimacion_directa.py
+preprocesamiento/estimacion_directa.py
   → estima el desempleo por dominio (municipio) sobre tesis.geih_oro.mercado_laboral (filtrado a PEA==1,
     período objetivo)
   → estimador de Hájek (θ̂ = Σ(w_i·y_i)/Σw_i) con el factor de expansión 2018
@@ -84,83 +84,33 @@ estimacion_directa.py
   → lógica en shared/estimador_sae.py (clase EstimacionDirecta, que hereda de la interfaz base
     EstimadorSAE — patrón Template Method/Strategy para futuros estimadores), parámetros en shared/config.py
         ↓
-adicion_covariables.py
+preprocesamiento/adicion_covariables.py
   → une las estimaciones directas con las covariables de TerriData plata
+    → tesis.preprocesamiento.tasa_desempleo_covariables
         ↓
-pre_filtrado_covariables.py
-  → filtro previo: sin NAs, varianza casi cero, |Pearson| ≥ umbral con la tasa de desempleo
-  → lógica de selección en shared/feature_selection.py
-        ↓
-code/analisis/Análisis exploratorio.py
-  → análisis exploratorio (7 etapas) sobre el dataset pre-filtrado: sensibilidad al umbral, filtro
-    cualitativo por literatura, descriptivos + normalidad, correlación con IC bootstrap, influencia de
-    outliers (Cook's D + LOO), estructura espacial (Moran's I), ranking compuesto → covariables ganadoras
-```
-
-El modelo Fay-Herriot (`code/modelo/fay_herriot.py`) ya no consume la salida de este EDA original sino la
-del flujo `_rev` (ver más abajo).
-
-Lógica compartida en `modelo/shared/`: `config.py` (tablas fuente/destino, umbrales de CV 5/20,
-`DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`, avisos), `modelo_area_pequena.py` (interfaz base
-ModeloAreaPequena: matriz de diseño, comparación de MSE, tabla de resultados — común a cualquier variante
-SAE), `fay_herriot.py` (FayHerriotClasico: REML, GLS, EBLUP, MSE de Prasad-Rao con g3 de la p. 440, AIC
-por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de diagnósticos, Cook, tabla de selección
-y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV directo vs EBLUP, avisos),
-`consolidacion.py` (unión EBLUP + sintético y clasificación de confiabilidad).
-
-### Flujo de tablas Unity Catalog (resumen end-to-end)
-
-```
-GEIH bronce → GEIH plata → GEIH oro (tesis.geih_oro.mercado_laboral)
-                                  ↓
-TerriData bronce → TerriData plata (covariables anchas) ──┐
-                                                            ↓
-                          estimacion_directa → tesis.preprocesamiento.tasa_desempleo_municipal
-                                  ↓
-                          adicion_covariables → pre_filtrado_covariables
-                                  ↓
-                          tesis.preprocesamiento.covariables_prefiltradas
-                                  ↓
-                          Análisis exploratorio.py → tesis.preprocesamiento.covariables_seleccionadas
-
-(flujo _rev) … → tesis.preprocesamiento.covariables_seleccionadas_rev
-                                  ↓
-                          fay_herriot.py → EBLUP + predicción sintética + tabla final consolidada
-                                          (tesis.modelo.fay_herriot_*, tesis.modelo.fh_*)
-```
-
-### Flujo revisado (`_rev`) — selección cualitativa de covariables
-
-En preprocesamiento y análisis coexiste con el flujo original sin tocarlo: los notebooks y módulos llevan
-sufijo `_rev` (o viven en `analisis/shared_rev/`), y escriben tablas `_rev`. Los módulos originales
-(`preprocesamiento/shared/feature_selection.py`, `config.py`) **no se modifican**; cualquier cambio de
-comportamiento va en los archivos `_rev` / `shared_rev`. El **modelo** ya no tiene versión `_rev`: el
-antiguo `fay_herriot_rev` pasó a ser `modelo/fay_herriot.py` (el FH original y sus módulos se eliminaron)
-y escribe tablas sin sufijo.
-
-```
-preprocesamiento/pre_filtrado_covariables_rev.py
+preprocesamiento/pre_filtrado_covariables.py
   → completitud + variabilidad invariante a escala (CV, proporción modal); SIN filtro por correlación
-    con la respuesta → tesis.preprocesamiento.covariables_prefiltradas_rev
-preprocesamiento/dominios_sin_encuesta_rev.py
+    con la respuesta → tesis.preprocesamiento.covariables_prefiltradas
+  → lógica en shared/feature_selection.py
+preprocesamiento/dominios_sin_encuesta.py
   → municipios objetivo de Cauca y Valle sin estimación directa, con todas las covariables prefiltradas
-    → tesis.preprocesamiento.municipios_sin_encuesta_rev
+    → tesis.preprocesamiento.municipios_sin_encuesta
         ↓
-analisis/analisis_descriptivo_rev.py
-  → catálogo de literatura (shared_rev/catalogo_literatura.py) → candidatas conceptuales
+analisis/analisis_descriptivo.py
+  → catálogo de literatura (shared/catalogo_literatura.py) → candidatas conceptuales
   → univariado / bivariado / multivariado con interpretación calculada desde los datos
-    (shared_rev/descriptivos.py: figura_* + interpretar_*)
-  → catalogo_literatura_rev, descriptivo_univariado_rev, descriptivo_bivariado_rev
+    (shared/descriptivos.py: figura_* + interpretar_*)
+  → catalogo_literatura, descriptivo_univariado, descriptivo_bivariado
         ↓
-analisis/eda_seleccion_covariables_rev.py
+analisis/eda_seleccion_covariables.py
   → 1 asociación (Pearson/Spearman + IC de Fisher + signo esperado)
   → 2 robustez (Cook 4/n + dejar-uno-fuera sobre los 23 dominios)
   → 3 redundancia (|r| ≥ 0.80, representante = menor Cook máx)
-  → 4 ficha de decisión (shared_rev/seleccion.py: ficha_decision): elegible = IC sin cero y signo
+  → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = IC sin cero y signo
       coherente con el mecanismo; seleccionadas = las P_MAXIMO (4) de mayor |r|
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible)
-  → decision_covariables_rev, trazabilidad_covariables_rev, covariables_candidatas_rev (elegibles),
-    covariables_seleccionadas_rev
+  → decision_covariables, trazabilidad_covariables, covariables_candidatas (elegibles),
+    covariables_seleccionadas
         ↓
 modelo/fay_herriot.py
   → FayHerriotClasico (shared/fay_herriot.py), MSE de Prasad-Rao con g3 = D²/(D+Â)³·avar(Â)
@@ -179,7 +129,35 @@ modelo/fay_herriot.py
     fay_herriot_prediccion_sintetica, fay_herriot_estimaciones_finales (tesis.modelo)
 ```
 
-Reglas del flujo `_rev`:
+Lógica compartida en `modelo/shared/`: `config.py` (tablas fuente/destino, umbrales de CV 5/20,
+`DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`, avisos), `modelo_area_pequena.py` (interfaz base
+ModeloAreaPequena: matriz de diseño, comparación de MSE, tabla de resultados — común a cualquier variante
+SAE), `fay_herriot.py` (FayHerriotClasico: REML, GLS, EBLUP, MSE de Prasad-Rao con g3 de la p. 440, AIC
+por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de diagnósticos, Cook, tabla de selección
+y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV directo vs EBLUP, avisos),
+`consolidacion.py` (unión EBLUP + sintético y clasificación de confiabilidad).
+
+### Flujo de tablas Unity Catalog (resumen end-to-end)
+
+```
+GEIH bronce → GEIH plata → GEIH oro (tesis.geih_oro.mercado_laboral)
+                                  ↓
+TerriData bronce → TerriData plata (covariables anchas) ──┐
+                                                            ↓
+                          estimacion_directa → tesis.preprocesamiento.tasa_desempleo_municipal
+                                  ↓
+                          adicion_covariables → tesis.preprocesamiento.tasa_desempleo_covariables
+                                  ↓
+                          pre_filtrado_covariables → tesis.preprocesamiento.covariables_prefiltradas
+                                  ↓
+                          analisis_descriptivo + eda_seleccion_covariables
+                                  → tesis.preprocesamiento.covariables_seleccionadas
+                                  ↓
+                          fay_herriot.py → EBLUP + predicción sintética + tabla final consolidada
+                                          (tesis.modelo.fay_herriot_*, tesis.modelo.fh_*)
+```
+
+Reglas del flujo de selección:
 
 - **Catálogo de literatura**: solo entran variables con referencia en el documento de revisión de
   literatura del proyecto (`compass_artifact_*.md`), resueltas a su código en `tesis.terridata.terridata_bronce`,
@@ -192,10 +170,17 @@ Reglas del flujo `_rev`:
   La comparación entre especificaciones se hace solo en `modelo/fay_herriot.py`.
 - **Distancia de Cook en el FH**: `distancia_cook(modelo)` en `modelo/shared/seleccion_modelo.py` la calcula
   sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
-- Parámetros en `preprocesamiento/shared/config_rev.py` (umbrales, tablas `_rev`, `P_MAXIMO`, `VIF_MAXIMO`)
+- Parámetros en `preprocesamiento/shared/config.py` (umbrales, tablas, `P_MAXIMO`, `VIF_MAXIMO`)
   y `modelo/shared/config.py` (tablas, `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`).
-- Las figuras del análisis `_rev` van al volumen `/Volumes/tesis/preprocesamiento/figuras_eda`
+- Los notebooks de `analisis/` importan por ruta completa desde `code/` (`preprocesamiento.shared.config`,
+  `analisis.shared.…`) porque existen varias carpetas `shared/` y la forma corta resolvería a una u otra
+  según desde dónde se ejecute.
+- Las figuras del análisis van al volumen `/Volumes/tesis/preprocesamiento/figuras_eda`
   (prefijos `desc_`, `eda_`); las del modelo no se guardan.
+- **Advertencia al cambiar la ventana de tiempo** (`anio_estimacion` / `mes_estimacion`): si cambia el
+  número de dominios, hay que revisar `P_MAXIMO = 4` a mano, porque asume 23 dominios (n/5). Los textos de
+  los notebooks dicen "23 dominios" y la exclusión "sin dato para 2018" del catálogo también es del cierre
+  2018.
 
 ## Estándares de código
 

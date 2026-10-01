@@ -1,0 +1,15 @@
+resources:
+  jobs:
+    modelo:
+      name: modelo
+      description: Modelo Fay-Herriot clásico (EBLUP, predicción sintética y tabla final en tesis.modelo).
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "2"
+      tasks:
+        - task_key: fay_herriot
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/modelo/fay_herriot.py
