@@ -12,6 +12,19 @@ from shared.config.terridata_config import (
 
 
 def verificar_conservacion_registros(df_bronce: DataFrame, n_filas_plata: int) -> bool:
+    """Verifica que plata conserve una fila por combinación única de la clave de bronce.
+
+    Args:
+        df_bronce (DataFrame): Tabla bronce en formato largo; requiere las columnas
+            `CODIGO_DEPARTAMENTO`, `CODIGO_ENTIDAD`, `ANO` y `MES`.
+        n_filas_plata (int): Número de filas de la tabla plata en formato ancho.
+
+    Returns:
+        bool: True si el conteo de combinaciones únicas de bronce iguala `n_filas_plata`.
+
+    Example:
+        >>> verificar_conservacion_registros(df_bronce, df_plata.count())
+    """
     print("=" * 60)
     print("VERIFICACIÓN 1: CONSERVACIÓN DE REGISTROS")
     print("=" * 60)
@@ -32,6 +45,18 @@ def verificar_conservacion_registros(df_bronce: DataFrame, n_filas_plata: int) -
 
 
 def verificar_duplicados(df_plata: DataFrame, n_filas: int) -> bool:
+    """Verifica que la clave (departamento, entidad, año, mes) sea única en plata.
+
+    Args:
+        df_plata (DataFrame): Tabla plata en formato ancho.
+        n_filas (int): Total de filas de `df_plata`.
+
+    Returns:
+        bool: True si no hay claves duplicadas; si las hay, muestra hasta 10 con `display`.
+
+    Example:
+        >>> verificar_duplicados(df_plata, df_plata.count())
+    """
     print("=" * 60)
     print("VERIFICACIÓN 2: DUPLICADOS EN PLATA")
     print("=" * 60)
@@ -59,6 +84,21 @@ def verificar_duplicados(df_plata: DataFrame, n_filas: int) -> bool:
 
 def verificar_integridad_muestra(df_bronce: DataFrame, df_plata: DataFrame,
                                   n_muestras: int = 10) -> bool:
+    """Compara una muestra aleatoria de valores de bronce contra su celda en plata.
+
+    Args:
+        df_bronce (DataFrame): Tabla bronce en formato largo (`DATO_NUMERICO`,
+            `DATO_CUALITATIVO`, `CODIGO_INDICADOR`, `CODIGO_ENTIDAD`, `ANO`, `MES`).
+        df_plata (DataFrame): Tabla plata en formato ancho (una columna por indicador).
+        n_muestras (int): Máximo de combinaciones a verificar (por defecto 10).
+
+    Returns:
+        bool: True si todas las muestras coinciden o si no se pudo extraer ninguna
+        (verificación omitida); False si alguna difiere.
+
+    Example:
+        >>> verificar_integridad_muestra(df_bronce, df_plata, n_muestras=20)
+    """
     print("=" * 60)
     print("VERIFICACIÓN 3: INTEGRIDAD DE MUESTRA ALEATORIA")
     print("=" * 60)
@@ -115,6 +155,18 @@ def verificar_integridad_muestra(df_bronce: DataFrame, df_plata: DataFrame,
 
 
 def verificar_calidad_casteo(clasificacion_completa: list) -> bool:
+    """Mide cuántos valores cualitativos se perderían (→ NULL) al castear indicadores numéricos.
+
+    Args:
+        clasificacion_completa (list[Row]): Filas con `CODIGO_INDICADOR`, `TIPO_DATO`,
+            `total_valores` y `count_cualitativo` por indicador.
+
+    Returns:
+        bool: True si el porcentaje de valores en riesgo es <= `UMBRAL_RIESGO_CASTEO`.
+
+    Example:
+        >>> verificar_calidad_casteo(clasificacion.collect())
+    """
     print("=" * 60)
     print("VERIFICACIÓN 4: CALIDAD DE CASTEO NUMÉRICO")
     print("=" * 60)
@@ -145,6 +197,21 @@ def verificar_calidad_casteo(clasificacion_completa: list) -> bool:
 
 
 def verificar_reclasificacion_indicadores(spark, tipo_indicador_dict: dict) -> bool:
+    """Compara la clasificación actual de tipos contra la `dim_indicadores` ya guardada.
+
+    Debe ejecutarse antes de sobrescribir `dim_indicadores`.
+
+    Args:
+        spark: SparkSession activa.
+        tipo_indicador_dict (dict[str, str]): Tipo de dato actual por código de indicador.
+
+    Returns:
+        bool: True si ningún indicador cambió de tipo o si no existe versión previa
+        (verificación omitida); False si hubo reclasificaciones.
+
+    Example:
+        >>> verificar_reclasificacion_indicadores(spark, tipo_por_indicador)
+    """
     print("=" * 60)
     print("VERIFICACIÓN 5: RECLASIFICACIÓN DE INDICADORES")
     print("=" * 60)
@@ -186,6 +253,24 @@ def verificar_reclasificacion_indicadores(spark, tipo_indicador_dict: dict) -> b
 
 def verificar_valores_no_nulos(df_largo: DataFrame, df_ancho: DataFrame,
                                 tolerancia_porcentaje: float = 1.0) -> bool:
+    """Compara el total de valores no nulos entre bronce (largo) y plata (ancho).
+
+    Es la verificación pesada: recorre todos los indicadores (ver
+    `EJECUTAR_VALIDACIONES_PESADAS` en `terridata_plata.py`).
+
+    Args:
+        df_largo (DataFrame): Tabla bronce con la columna `VALOR`.
+        df_ancho (DataFrame): Tabla plata; las columnas que no están en `COLUMNAS_ID`
+            se toman como indicadores.
+        tolerancia_porcentaje (float): Diferencia relativa máxima aceptada, en % (por
+            defecto 1.0).
+
+    Returns:
+        bool: True si la diferencia relativa es <= `tolerancia_porcentaje`.
+
+    Example:
+        >>> verificar_valores_no_nulos(df_bronce_largo, df_plata, tolerancia_porcentaje=0.5)
+    """
     print("=" * 60)
     print("VERIFICACIÓN PESADA: CONSERVACIÓN DE VALORES NO NULOS")
     print("=" * 60)

@@ -3,7 +3,7 @@
 # MAGIC %md
 # MAGIC # Adición de Covariables para Modelos SAE - Tabla de Estimaciones Enriquecidas
 # MAGIC
-# MAGIC Este notebook crea la tabla **`tesis.modelo.tasa_desempleo_covariables`** que combina las **estimaciones directas de tasa de desempleo municipal** con **covariables socioeconómicas de TerriData** para modelado de Small Area Estimation (SAE).
+# MAGIC Este notebook crea la tabla **`tesis.preprocesamiento.tasa_desempleo_covariables`** que combina las **estimaciones directas de tasa de desempleo municipal** con **covariables socioeconómicas de TerriData** para modelado de Small Area Estimation (SAE).
 # MAGIC
 # MAGIC ## Propósito
 # MAGIC
@@ -16,7 +16,7 @@
 # MAGIC
 # MAGIC | Tabla | Contenido |
 # MAGIC |-------|-----------|
-# MAGIC | `tesis.modelo.tasa_desempleo_municipal` | Estimaciones directas por municipio (23 filas, 12 cols) |
+# MAGIC | `tesis.preprocesamiento.tasa_desempleo_municipal` | Estimaciones directas por municipio (23 filas, 12 cols) |
 # MAGIC | `tesis.terridata.terridata_extendido_plata` | Indicadores TerriData — formato ancho (~1,584 indicadores) |
 # MAGIC
 # MAGIC ## Estrategia de Join: LEFT JOIN
@@ -25,7 +25,7 @@
 # MAGIC Estimaciones (23 municipios)
 # MAGIC   LEFT JOIN TerriData
 # MAGIC   ON CODIGO_MUNICIPIO = CODIGO_ENTIDAD AND PER = ANO AND MES = MES
-# MAGIC   → tesis.modelo.tasa_desempleo_covariables (23 filas × ~1,590 cols)
+# MAGIC   → tesis.preprocesamiento.tasa_desempleo_covariables (23 filas × ~1,590 cols)
 # MAGIC ```
 # MAGIC
 # MAGIC LEFT JOIN preserva todas las estimaciones aunque un municipio no tenga
@@ -63,6 +63,35 @@ print(f"  {df_estimaciones.count()} filas — {len(df_estimaciones.columns)} col
 print("\nLeyendo covariables TerriData...")
 df_terridata = spark.table(TBL_TERRIDATA)
 print(f"  {df_terridata.count()} filas — {len(df_terridata.columns)} columnas")
+
+# COMMAND ----------
+
+# DBTITLE 1,Verificar que TerriData cubra el período estimado
+# El período lo fija estimacion_directa (parámetros anio_estimacion / mes_estimacion). Si TerriData
+# no tiene ese ANO/MES, el LEFT JOIN dejaría todas las covariables en NULL sin avisar.
+periodos_estimados = [
+    (fila["PER"], fila["MES"])
+    for fila in df_estimaciones.select(
+        F.col("PER").cast("int").alias("PER"), F.col("MES").cast("int").alias("MES")
+    )
+    .distinct()
+    .collect()
+]
+periodos_terridata = {
+    (fila["ANO"], fila["MES"])
+    for fila in df_terridata.select(
+        F.col("ANO").cast("int").alias("ANO"), F.col("MES").cast("int").alias("MES")
+    )
+    .distinct()
+    .collect()
+}
+sin_cobertura = [p for p in periodos_estimados if p not in periodos_terridata]
+
+if sin_cobertura:
+    raise ValueError(
+        f"TerriData no tiene datos para el período estimado (ANO, MES) = {sin_cobertura}. "
+        f"Períodos disponibles en {TBL_TERRIDATA}: {sorted(periodos_terridata)}."
+    )
 
 # COMMAND ----------
 

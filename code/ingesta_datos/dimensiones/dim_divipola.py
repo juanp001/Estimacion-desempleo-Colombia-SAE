@@ -61,14 +61,16 @@
 # MAGIC * **Permitir agregaciones** por departamento o municipio
 # MAGIC
 # MAGIC ### Ejemplo de Join:
+# MAGIC `geih_oro` no une esta tabla directamente: usa `tesis.dim.dim_geih_divipola` (derivada de esta,
+# MAGIC ver `dim_geih_divipola.py`), que es la que trae `CODIGO_AREA_GEIH`. El join se hace dos veces:
 # MAGIC ```python
-# MAGIC # En geih_oro, se une 2 veces:
+# MAGIC # En geih_oro, con dim_geih_divipola (no con dim_divipola):
 # MAGIC # 1. Para obtener nombre del departamento
-# MAGIC .join(dim_divipola.alias("div_dep"), 
+# MAGIC .join(geih_div.alias("div_dep"),
 # MAGIC       col("CODIGO_DPTO") == col("div_dep.CODIGO_DEPARTAMENTO"))
 # MAGIC
-# MAGIC # 2. Para obtener nombre del municipio  
-# MAGIC .join(dim_divipola.alias("div_mun"), 
+# MAGIC # 2. Para obtener nombre del municipio
+# MAGIC .join(geih_div.alias("div_mun"),
 # MAGIC       col("CODIGO_AREA") == col("div_mun.CODIGO_AREA_GEIH"))
 # MAGIC ```
 # MAGIC

@@ -11,6 +11,13 @@
 # MAGIC preservando todas las personas aunque no tengan registros en otras tablas.
 # MAGIC NULLs en indicadores laborales se reemplazan con 0 via `coalesce`.
 # MAGIC
+# MAGIC ## Dimensiones y factor de expansión
+# MAGIC * Geografía: se une dos veces a `tesis.dim.dim_geih_divipola` (no a `dim_divipola`): por
+# MAGIC   `CODIGO_DPTO` (departamento) y por `CODIGO_AREA` (municipio). Fuera de las 32 áreas de esa
+# MAGIC   tabla, `MUNICIPIO` queda en NULL.
+# MAGIC * `FEX_C18` proviene de `tesis.geih_plata.dim_fex` con `coalesce(..., 0)`: si `dim_fex` no cubre
+# MAGIC   un período, el factor queda en 0.
+# MAGIC
 # MAGIC ## Ejemplo de uso
 # MAGIC ```sql
 # MAGIC SELECT PERIODO, DEPARTAMENTO,

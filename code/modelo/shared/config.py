@@ -1,7 +1,7 @@
 """Parámetros del modelo Fay-Herriot.
 
 Las especificaciones a comparar no se escriben a mano: se parte del conjunto que eligió
-`eda_seleccion_covariables_rev` (`covariables_seleccionadas_rev`) y se comparan ese conjunto
+`eda_seleccion_covariables` (`covariables_seleccionadas`) y se comparan ese conjunto
 y sus variantes dejando una covariable fuera, generadas en `shared/seleccion_modelo.py`. Así
 el modelo no puede quedar desincronizado del análisis exploratorio y la comparación responde
 a una pregunta concreta: si cada covariable aporta.
@@ -14,9 +14,9 @@ diagnósticos (ganancia de precisión y robustez), sin intervenir en la elecció
 """
 
 # ── Tablas fuente (salidas del flujo de selección de covariables) ────────────
-TBL_COVARIABLES_SELECCIONADAS = "tesis.preprocesamiento.covariables_seleccionadas_rev"
-TBL_MUNICIPIOS_SIN_ENCUESTA = "tesis.preprocesamiento.municipios_sin_encuesta_rev"
-TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables_rev"
+TBL_COVARIABLES_SELECCIONADAS = "tesis.preprocesamiento.covariables_seleccionadas"
+TBL_MUNICIPIOS_SIN_ENCUESTA = "tesis.preprocesamiento.municipios_sin_encuesta"
+TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables"
 # Nombres oficiales de departamento y municipio por código DIVIPOLA: las dos fuentes de
 # dominios escriben los nombres con distinto formato, así que la tabla final se une por
 # código y toma los nombres de aquí.

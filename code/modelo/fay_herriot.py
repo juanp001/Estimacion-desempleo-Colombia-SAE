@@ -13,7 +13,7 @@
 # MAGIC 1. **MSE del EBLUP.** Estimador de Prasad-Rao para REML del libro (p. 440), con
 # MAGIC    `g3 = D²/(D+Â)³ · avar(Â)`.
 # MAGIC 2. **De dónde salen las covariables.** El conjunto lo elige
-# MAGIC    `eda_seleccion_covariables_rev`, y aquí se compara con sus **variantes dejando una
+# MAGIC    `eda_seleccion_covariables`, y aquí se compara con sus **variantes dejando una
 # MAGIC    covariable fuera**, para responder si cada covariable aporta.
 # MAGIC 3. **Cómo se elige el ganador.** El modelo se usa para predecir municipios sin
 # MAGIC    encuesta, y para ese objetivo el libro (p. 453) desaconseja sobreparametrizar y
@@ -24,7 +24,7 @@
 # MAGIC    precisión y robustez.
 # MAGIC 4. **Avisos.** Encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y
 # MAGIC    municipios cuya predicción sintética es una extrapolación.
-# MAGIC 5. **Dominios objetivo.** Municipios de `municipios_sin_encuesta_rev`, que reciben la
+# MAGIC 5. **Dominios objetivo.** Municipios de `municipios_sin_encuesta`, que reciben la
 # MAGIC    predicción sintética del modelo ganador.
 # MAGIC
 # MAGIC Dominio: PER + MES + código DIVIPOLA del municipio. La tabla final toma los nombres
@@ -138,7 +138,7 @@ covars_eda = [c for c in df.columns if c in alias_a_codigo]
 if not covars_eda:
     raise ValueError(
         f"No se reconoció ninguna covariable en {TBL_COVARIABLES_SELECCIONADAS}. "
-        f"Volver a ejecutar eda_seleccion_covariables_rev."
+        f"Volver a ejecutar eda_seleccion_covariables."
     )
 
 nombres_covars = variantes_dejar_una_fuera(covars_eda)
@@ -517,7 +517,7 @@ if sin_dato.any():
     raise ValueError(
         f"{int(sin_dato.sum())} municipios objetivo no tienen valor para alguna covariable "
         f"del modelo ganador y no admiten predicción sintética: {municipios_sin_dato}. "
-        f"Revisar la completitud reportada por dominios_sin_encuesta_rev."
+        f"Revisar la completitud reportada por dominios_sin_encuesta."
     )
 
 df_new["DOMINIO"] = (
