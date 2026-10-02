@@ -1,0 +1,42 @@
+resources:
+  jobs:
+    preprocesamiento:
+      name: preprocesamiento
+      description: >-
+        Estimación directa por municipio, unión con covariables TerriData, pre-filtrado y
+        dominios sin encuesta. Requiere ingesta_geih e ingesta_terridata ya ejecutados.
+      max_concurrent_runs: 1
+      # Ventana de tiempo: llega como widgets a las tareas notebook que la declaran
+      # (estimacion_directa y dominios_sin_encuesta, vía resolver_periodo).
+      parameters:
+        - name: anio_estimacion
+          default: ${var.anio_estimacion}
+        - name: mes_estimacion
+          default: ${var.mes_estimacion}
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "2"
+      tasks:
+        - task_key: estimacion_directa
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/preprocesamiento/estimacion_directa.py
+        - task_key: adicion_covariables
+          depends_on:
+            - task_key: estimacion_directa
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/preprocesamiento/adicion_covariables.py
+        - task_key: pre_filtrado_covariables
+          depends_on:
+            - task_key: adicion_covariables
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/preprocesamiento/pre_filtrado_covariables.py
+        - task_key: dominios_sin_encuesta
+          depends_on:
+            - task_key: pre_filtrado_covariables
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/preprocesamiento/dominios_sin_encuesta.py

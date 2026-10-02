@@ -1,0 +1,27 @@
+resources:
+  jobs:
+    ingesta_geih:
+      name: ingesta_geih
+      description: GEIH medallón (bronce → plata → oro). Requiere que dimensiones ya se haya ejecutado.
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "2"
+      tasks:
+        - task_key: geih_bronce
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/ingesta_datos/geih/geih_bronce.py
+        - task_key: geih_plata
+          depends_on:
+            - task_key: geih_bronce
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/ingesta_datos/geih/geih_plata.py
+        - task_key: geih_oro
+          depends_on:
+            - task_key: geih_plata
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/ingesta_datos/geih/geih_oro.py

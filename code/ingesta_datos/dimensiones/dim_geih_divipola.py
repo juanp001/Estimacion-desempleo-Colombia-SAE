@@ -24,7 +24,7 @@
 # MAGIC ## ¿Qué ciudades incluye GEIH?
 # MAGIC
 # MAGIC La GEIH cubre las **32 ciudades principales** de Colombia, que incluyen:
-# MAGIC * Las 32 capitales departamentales (excepto Yopal - Casanare)
+# MAGIC * La capital de cada uno de los departamentos incluidos (Yopal - Casanare con código `85001`; Bogotá D.C. figura con su propio código `11001`, no como capital de Cundinamarca)
 # MAGIC * Ciudades con mayor población y actividad económica
 # MAGIC * Representan aproximadamente el 70% de la población urbana del país
 # MAGIC
@@ -49,7 +49,9 @@
 # MAGIC 52001 - Pasto              | 99001 - Puerto Carreño
 # MAGIC ```
 # MAGIC
-# MAGIC **Nota**: El código `25001` (Yopal - Casanare) está comentado en la lista, lo que indica que no se incluye en la versión actual de GEIH.
+# MAGIC **Nota**: Yopal (Casanare) está incluida con su código correcto `85001`. El código `25001` corresponde a Cundinamarca (no a Yopal) y aparece comentado en la lista y no se usa; no hay ninguna capital de Cundinamarca en la tabla (el departamento 25 no tiene fila).
+# MAGIC
+# MAGIC **Efecto en `geih_oro`**: como `CODIGO_AREA_GEIH` es solo el código del departamento de la ciudad, el join por `CODIGO_AREA` asigna `MUNICIPIO` únicamente a las 32 áreas de esta lista; el resto queda con `MUNICIPIO` y `DEPARTAMENTO` en NULL (p. ej. el departamento 25).
 # MAGIC
 # MAGIC ## Estructura de la Tabla
 # MAGIC
@@ -122,8 +124,8 @@ from pyspark.sql.functions import (
 # IMPORTANTE: Los códigos se mantienen como strings para preservar ceros iniciales
 # (ej: "05001" para Medellín, NO 5001)
 #
-# Nota: 25001 (Yopal - Casanare) está comentado, lo que indica que no se incluye
-# en esta versión de la encuesta.
+# Nota: Yopal (Casanare) se incluye con su código correcto, "85001". El código
+# "25001" (que corresponde a Cundinamarca, no a Yopal) está comentado y no se usa.
 
 ciudades_geih = [
     "05001",    # Medellín (Antioquia)
@@ -136,7 +138,7 @@ ciudades_geih = [
     "19001",    # Popayán (Cauca)
     "20001",    # Valledupar (Cesar)
     "23001",    # Montería (Córdoba)
-    #"25001",   # Yopal (Casanare) - Comentado: no incluido en GEIH
+    #"25001",   # Código erróneo para Yopal (es Cundinamarca); Yopal es "85001", más abajo
     "27001",    # Quibdó (Chocó)
     "41001",    # Neiva (Huila)
     "44001",    # Riohacha (La Guajira)

@@ -1,0 +1,21 @@
+resources:
+  jobs:
+    ingesta_terridata:
+      name: ingesta_terridata
+      description: TerriData (bronce → plata ancha + dim_indicadores).
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "2"
+      tasks:
+        - task_key: terridata_bronce
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/ingesta_datos/terridata/terridata_bronce.py
+        - task_key: terridata_plata
+          depends_on:
+            - task_key: terridata_bronce
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/ingesta_datos/terridata/terridata_plata.py

@@ -1,0 +1,23 @@
+resources:
+  jobs:
+    analisis:
+      name: analisis
+      description: >-
+        Análisis descriptivo y EDA de selección de covariables. Las figuras se guardan en
+        /Volumes/tesis/preprocesamiento/figuras_eda, que debe existir (el bundle no crea volúmenes).
+      max_concurrent_runs: 1
+      environments:
+        - environment_key: serverless
+          spec:
+            environment_version: "2"
+      tasks:
+        - task_key: analisis_descriptivo
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/analisis/analisis_descriptivo.py
+        - task_key: eda_seleccion_covariables
+          depends_on:
+            - task_key: analisis_descriptivo
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/analisis/eda_seleccion_covariables.py

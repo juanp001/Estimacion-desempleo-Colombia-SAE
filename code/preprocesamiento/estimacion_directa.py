@@ -10,7 +10,7 @@
 # MAGIC Calcular estimaciones de **tasa de desempleo por municipio** a partir de microdatos de la GEIH, incluyendo:
 # MAGIC * **Estimación puntual**: Tasa de desempleo (porcentaje)
 # MAGIC * **Medidas de precisión**: Error estándar, intervalos de confianza 95%, coeficiente de variación
-# MAGIC * **Inferencia estadística**: Basada en bootstrap simple (600 réplicas)
+# MAGIC * **Inferencia estadística**: Basada en bootstrap simple (2000 réplicas, semilla 42)
 # MAGIC
 # MAGIC ## ¿Qué es Estimación Directa?
 # MAGIC
@@ -71,7 +71,8 @@
 # MAGIC Ver `shared/config.py`:
 # MAGIC * `BOOTSTRAP_REPLICAS`: Número de réplicas (default 2000)
 # MAGIC * `BOOTSTRAP_SEED`: Semilla aleatoria (default 42)
-# MAGIC * `PER_ESTIMACION`, `MES_ESTIMACION`: Período a estimar
+# MAGIC * `PER_ESTIMACION`, `MES_ESTIMACION`: Período a estimar (defaults 2018 / 12). Se cambian con los
+# MAGIC   parámetros `anio_estimacion` y `mes_estimacion` del job (`resolver_periodo`)
 # MAGIC * `GRUPO_COLS`: Columnas que definen los dominios
 # MAGIC
 # MAGIC ## Interpretación del CV
@@ -88,9 +89,9 @@
 # MAGIC
 # MAGIC ```
 # MAGIC tesis.geih_oro.mercado_laboral
-# MAGIC   → filter(MUNICIPIO not null, PEA == 1, PER == 2018, MES == 12)
+# MAGIC   → filter(MUNICIPIO not null, PEA == 1, PER == anio_estimacion, MES == mes_estimacion)
 # MAGIC   → EstimacionDirecta.estimar()   [bootstrap 2000 réplicas]
-# MAGIC   → tesis.modelo.tasa_desempleo_municipal
+# MAGIC   → tesis.preprocesamiento.tasa_desempleo_municipal
 # MAGIC ```
 # MAGIC
 # MAGIC ## Referencias
@@ -106,6 +107,10 @@
 from pyspark.sql import functions as F
 from shared.config import *
 from shared.estimador_sae import EstimacionDirecta
+
+# Período a estimar: widgets anio_estimacion / mes_estimacion (parámetros del job).
+PER_ESTIMACION, MES_ESTIMACION = resolver_periodo(dbutils)
+print(f"Período a estimar: {PER_ESTIMACION}-{MES_ESTIMACION:02d}")
 
 # COMMAND ----------
 

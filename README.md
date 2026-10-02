@@ -59,11 +59,12 @@ code/
 ├── preprocesamiento/
 │   ├── estimacion_directa.py       # Estimador Hájek + bootstrap (2000 réplicas) por municipio
 │   ├── adicion_covariables.py      # Join entre estimaciones directas y covariables de TerriData plata
-│   ├── pre_filtrado_covariables.py # Filtro previo: NAs, varianza casi cero, |Pearson| ≥ umbral
+│   ├── pre_filtrado_covariables.py # Pre-filtrado: completitud y variabilidad (sin mirar la respuesta)
+│   ├── dominios_sin_encuesta.py    # Municipios objetivo de Cauca y Valle sin estimación directa
 │   └── shared/
 │       ├── config.py
 │       ├── estimador_sae.py        # Interfaz base EstimadorSAE + clase EstimacionDirecta
-│       └── feature_selection.py
+│       └── feature_selection.py    # Filtros de completitud, variabilidad y reporte de redundancia
 ├── modelo/
 │   ├── fay_herriot.py              # Orquestador: ajuste, selección y consolidación del modelo final
 │   └── shared/
@@ -74,7 +75,18 @@ code/
 │       ├── diagnosticos.py         # Gráficas de validación, CV directo vs EBLUP, avisos
 │       └── consolidacion.py        # Unión EBLUP (dominios con GEIH) + predicción sintética (sin GEIH)
 └── analisis/
-    └── Análisis exploratorio.py    # EDA en 7 etapas sobre el dataset pre-filtrado de covariables
+    ├── analisis_descriptivo.py     # Descriptivo univariado, bivariado y multivariado + catálogo de literatura
+    ├── eda_seleccion_covariables.py # Diagnóstico y selección cualitativa de covariables
+    └── shared/
+        ├── catalogo_literatura.py  # Variables con respaldo en la revisión de literatura
+        ├── descriptivos.py         # Figuras e interpretaciones calculadas desde los datos
+        ├── diagnosticos.py         # Asociación, Cook, dejar-uno-fuera, VIF
+        └── seleccion.py            # Ficha de decisión y ajuste por VIF
+databricks.yml                      # Bundle DAB: variables de período, includes y exclusiones de sync
+dab/
+├── resources/                      # Un job por etapa (dimensiones, ingesta_geih, ingesta_terridata,
+│                                   #   preprocesamiento, analisis, modelo)
+└── targets/dev.yml                 # Target `dev` (workspace)
 ```
 
 ---
@@ -101,15 +113,16 @@ estimacion_directa.py                            │
                             │
                             ▼
                   pre_filtrado_covariables.py
-                  Filtro 1: sin NAs en los 23 dominios        (~1.582 → ~530)
-                  Filtro 2: varianza casi cero (< 0.00001)    (~530 → ~220)
-                  Filtro 3: |Pearson| ≥ 0.40 con TASA_DESEMPLEO_PCT (~220 → ~84)
+                  Filtro 1: sin NAs en los 23 dominios
+                  Filtro 2: variabilidad (CV y proporción modal)
+                  (sin filtro por correlación con la respuesta)
                             │
                             ▼
                   tesis.preprocesamiento.covariables_prefiltradas
                             │
                             ▼
-                  Análisis exploratorio.py — EDA en 7 etapas (~84 → 4)
+                  analisis_descriptivo.py — catálogo de literatura + descriptivo
+                  eda_seleccion_covariables.py — selección cualitativa (→ 4)
                             │
                             ▼
                   tesis.preprocesamiento.covariables_seleccionadas
@@ -121,7 +134,7 @@ estimacion_directa.py                            │
                             │
                             ▼
         EBLUP (23 dominios con encuesta directa) + predicción sintética
-        (municipios sin cobertura GEIH, vía tesis.preprocesamiento.municipios_sin_encuesta_rev)
+        (municipios sin cobertura GEIH, vía tesis.preprocesamiento.municipios_sin_encuesta)
                             │
                             ▼
               tabla final consolidada (EBLUP + sintético)
@@ -137,7 +150,8 @@ estimacion_directa.py                            │
 - Módulos trabajados: `características generales`, `ocupados`, `no ocupados`, `fuerza de trabajo`,
   `inactivos` (solo marco antiguo).
 - `geih_oro.py` junta características generales + fuerza de trabajo + no ocupados + ocupados + factores de
-  expansión + `dim_divipola` en una tabla de mercado laboral lista para estimar la tasa de desempleo.
+  expansión + `dim_geih_divipola` (las 32 áreas GEIH; fuera de ellas `MUNICIPIO` queda en NULL) en una tabla
+  de mercado laboral lista para estimar la tasa de desempleo.
 - `dim_fex` (factores de expansión actualizados del DANE) **no** vive en `dimensiones/`: se genera dentro
   del propio pipeline GEIH (`TBL_FEX_BRONCE`/`TBL_FEX_PLATA` en `geih_config.py`, construida en
   `geih_plata.py`). Es usable para años ≤ 2018 si se quiere el factor nuevo; para los demás años los
@@ -159,7 +173,7 @@ Estima el desempleo por dominio (municipio) sobre `tesis.geih_oro.mercado_labora
 parametrizable en `shared/config.py`) porque no se cuenta con las variables del diseño muestral para un
 estimador de varianza analítico: se calcula θ̂ en la muestra original, se remuestrea con reemplazo B veces,
 y el error estándar es la desviación estándar de las B réplicas (IC 95% = percentiles 2.5%/97.5%). Se
-considera CV < 15% confiable, 15–30% aceptable, ≥30% no confiable. La lógica vive en
+considera CV < 5% confiable, 5–20% aceptable, ≥20% no confiable (`CV_CONFIABLE`/`CV_ACEPTABLE` en `shared/config.py`, los mismos umbrales del modelo). La lógica vive en
 `shared/estimador_sae.py` (clase `EstimacionDirecta`, que hereda de la interfaz base `EstimadorSAE` —
 patrón Template Method/Strategy pensado para futuros estimadores). Resultado: 23 municipios con muestra
 GEIH → `tesis.preprocesamiento.tasa_desempleo_municipal`.
@@ -171,46 +185,47 @@ directas y `tesis.terridata.terridata_extendido_plata` por `CODIGO_MUNICIPIO = C
 `PER = ANO`, `MES = MES`. El `LEFT JOIN` preserva las 23 filas aunque algún municipio no tenga covariables
 en TerriData. Resultado: `tesis.preprocesamiento.tasa_desempleo_covariables` (23 filas × ~1.590 columnas).
 
-**b) Pre-filtrado cuantitativo** (`pre_filtrado_covariables.py`, lógica en `shared/feature_selection.py`),
-tres filtros secuenciales sobre las ~1.582 covariables candidatas:
+**b) Pre-filtrado** (`pre_filtrado_covariables.py`, lógica en `shared/feature_selection.py`), dos filtros
+secuenciales sobre las ~1.582 covariables candidatas, **independientes de la variable respuesta**:
 
-| Filtro | Criterio | Efecto aproximado |
-|--------|----------|--------------------|
-| 1.1 — Datos faltantes | se conservan solo columnas con **0 NAs** en los 23 dominios | ~1.582 → ~530 |
-| 1.2 — Varianza casi cero | se eliminan columnas con varianza < `UMBRAL_VARIANZA` (0.00001) — evitan singularidad en la matriz de diseño | ~530 → ~220 |
-| 2 — Correlación con la variable objetivo | se conservan las que tienen \|Pearson\| ≥ `CORR_VALOR` (0.40) con `TASA_DESEMPLEO_PCT` (estrategia `threshold`; también soporta `top_n`) | ~220 → ~84 |
+| Filtro | Criterio |
+|--------|----------|
+| 1 — Datos faltantes | se conservan solo columnas con **0 NAs** en los 23 dominios |
+| 2 — Variabilidad | se descartan columnas con coeficiente de variación < `CV_MINIMO` (0.001) o cuyo valor modal cubre más de `PROP_MODAL_MAXIMA` (90%) de los dominios; ambos criterios son invariantes a la escala de medida y evitan singularidad en la matriz de diseño |
 
-Resultado: `tesis.preprocesamiento.covariables_prefiltradas`.
+No se filtra por correlación con la tasa de desempleo: hacerlo sobre los mismos 23 dominios que después
+ajustan el modelo sesgaría al alza las correlaciones de las supervivientes. Los grupos de covariables
+duplicadas entre sí (|r| ≥ 0.999) se reportan pero no se descartan. Resultado:
+`tesis.preprocesamiento.covariables_prefiltradas` (más `cascada_prefiltrado` y `sensibilidad_variabilidad`).
+`dominios_sin_encuesta.py` construye además `tesis.preprocesamiento.municipios_sin_encuesta` (municipios de
+Cauca y Valle sin estimación directa, con todas las covariables prefiltradas).
 
-**c) EDA y selección final — 7 etapas** (`code/analisis/Análisis exploratorio.py`), sobre las ~84
-covariables pre-filtradas y los 23 dominios:
+**c) Análisis descriptivo** (`code/analisis/analisis_descriptivo.py`): resuelve el catálogo de literatura
+(`shared/catalogo_literatura.py`, solo variables con referencia en la revisión de literatura del proyecto,
+con signo esperado) a las covariables prefiltradas y caracteriza los datos de forma univariada, bivariada y
+multivariada, con interpretación calculada desde los propios datos. No descarta ninguna covariable.
+Resultado: `catalogo_literatura`, `descriptivo_univariado` y `descriptivo_bivariado` en
+`tesis.preprocesamiento`; figuras en el volumen `figuras_eda` (prefijo `desc_`).
 
-1. **Sensibilidad al umbral de correlación**: examina la distribución de \|Pearson\| entre las
-   covariables *ya* sobrevivientes al filtro (no es posible repetir el filtro con umbrales menores porque
-   sería tautológico — todas pasan por construcción) para detectar si la señal está concentrada o
-   repartida cerca del corte de 0.40.
-2. **Filtro cualitativo por literatura**: de ~84 a 16 candidatas, exigiendo respaldo en literatura sobre
-   determinantes del desempleo en economías en desarrollo / Colombia (Galvis & Meisel 2010; Arango &
-   Flórez 2012; Lasso 2014; DANE/CEPAL 2016) y significado de negocio claro, agrupadas en dimensiones
-   conceptuales.
-3. **Descriptivos y normalidad**: estadísticos descriptivos y prueba de Shapiro-Wilk por covariable.
-4. **Relación con la variable objetivo**: scatterplots, Pearson y Spearman, con **intervalos de confianza
-   bootstrap al 95%** — necesario porque con n=23 los IC de correlación son amplios (±0.20–0.40) y porque
-   el pre-filtro ya sesgó al alza estas correlaciones (*winner's curse* / *double dipping*: el filtro y el
-   EDA usan los mismos 23 dominios), por lo que aquí las correlaciones se usan solo como triaje, no como
-   evidencia confirmatoria.
-5. **Influencia de outliers**: distancia de Cook y validación leave-one-out (LOO) por dominio.
-6. **Estructura espacial**: Moran's I sobre los residuos/relación con Y.
-7. **Ranking compuesto y selección final**: combina un score empírico (Q) con uno de literatura (L) y
-   evalúa sensibilidad a distintos pesos α → **4 covariables ganadoras**.
+**d) Selección cualitativa** (`code/analisis/eda_seleccion_covariables.py`), sobre las candidatas
+conceptuales y los 23 dominios:
 
-Resultado: `tesis.preprocesamiento.covariables_seleccionadas`. La validación confirmatoria (AIC/BIC,
-diagnósticos, validación cruzada) se deja para la etapa de modelado, no para este EDA.
+1. **Asociación**: Pearson/Spearman con la tasa de desempleo, intervalo de Fisher y signo esperado.
+2. **Robustez**: distancia de Cook (4/n) y exclusión de cada dominio, uno a uno.
+3. **Redundancia**: un representante por grupo de covariables con |r| ≥ 0.80 (el de menor Cook máximo).
+4. **Ficha de decisión** (`shared/seleccion.py`): elegible = intervalo sin cero y signo coherente con el
+   mecanismo; seleccionadas = las `P_MAXIMO` (4) de mayor |r|.
+5. **Verificación de multicolinealidad** (VIF ≤ `VIF_MAXIMO`): si falla, se sustituye por la siguiente
+   elegible.
+
+No hay AIC ni Moran en el EDA (el Fay-Herriot es clásico y la comparación entre especificaciones se hace en
+el modelo). Resultado: `tesis.preprocesamiento.covariables_seleccionadas`, junto con
+`decision_covariables`, `trazabilidad_covariables`, `covariables_candidatas` y las tablas de diagnóstico.
 
 ### 5. Modelo Fay-Herriot (`code/modelo/fay_herriot.py`)
 
-Orquestador fino sobre `tesis.preprocesamiento.covariables_seleccionadas_rev` (salida de
-`eda_seleccion_covariables_rev`); el dominio se define como `PER + MES + DEPARTAMENTO + MUNICIPIO`. Las
+Orquestador fino sobre `tesis.preprocesamiento.covariables_seleccionadas` (salida de
+`eda_seleccion_covariables`); el dominio es el municipio en el período (`PER`, `MES` y código DIVIPOLA `CODIGO_MUNICIPIO`; ver `DOMINIO_COLS` en `shared/config.py`). Las
 decisiones se apoyan en Morales et al. (2021). Pasos:
 
 1. **Ajuste de modelos**: el conjunto seleccionado y sus variantes dejando una covariable fuera
@@ -230,13 +245,41 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
    ganador (incluye reajuste sin el dominio más influyente). Se exportan `tesis.modelo.fh_diagnosticos_variantes`,
    `fh_cook`, `fh_seleccion_modelo`, `fh_coeficientes` y `tesis.modelo.fay_herriot_resultados`.
 5. **Predicción sintética** para municipios sin estimación directa (sin cobertura GEIH, leídos desde
-   `tesis.preprocesamiento.municipios_sin_encuesta_rev`), con avisos de extrapolación y de tasas fuera
+   `tesis.preprocesamiento.municipios_sin_encuesta`), con avisos de extrapolación y de tasas fuera
    de [0, 100]: ŷ = X'β̂ del modelo ganador, **sin shrinkage** (γ=0, porque no hay
    varianza de muestreo); la incertidumbre combina la varianza de β̂ propagada (x'·Cov(β̂)·x) con la
    varianza de efectos aleatorios (Â). Se exporta a `tesis.modelo.fay_herriot_prediccion_sintetica`.
 6. **Tabla final consolidada** (`shared/consolidacion.py`): une EBLUP (dominios con encuesta directa) +
    predicción sintética (dominios sin encuesta), con columna `TIPO` indicando el origen →
    `tesis.modelo.fay_herriot_estimaciones_finales`.
+
+---
+
+## Despliegue con Databricks Asset Bundles (DAB)
+
+`databricks.yml` y `dab/` definen seis jobs sobre cómputo serverless (target único `dev`). Cada job
+encadena los notebooks de su etapa:
+
+| Job | Tareas (en orden) |
+|-----|-------------------|
+| `dimensiones` | `dim_divipola` → `dim_geih_divipola` |
+| `ingesta_geih` | `geih_bronce` → `geih_plata` → `geih_oro` |
+| `ingesta_terridata` | `terridata_bronce` → `terridata_plata` |
+| `preprocesamiento` | `estimacion_directa` → `adicion_covariables` → `pre_filtrado_covariables` → `dominios_sin_encuesta` |
+| `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables` |
+| `modelo` | `fay_herriot` |
+
+Los jobs no declaran dependencias entre sí; el orden de ejecución es `dimensiones` → `ingesta_geih` e
+`ingesta_terridata` → `preprocesamiento` → `analisis` → `modelo`. El período de estimación se controla con
+las variables del bundle `anio_estimacion` (2018) y `mes_estimacion` (12), que `preprocesamiento` recibe
+como widgets. El volumen `/Volumes/tesis/preprocesamiento/figuras_eda` debe existir antes de correr
+`analisis` (el bundle no lo crea).
+
+```
+databricks bundle validate -t dev
+databricks bundle deploy -t dev
+databricks bundle run preprocesamiento -t dev --params anio_estimacion=2018,mes_estimacion=12
+```
 
 ---
 
@@ -253,7 +296,7 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
 
 ## Plataforma
 
-- **Databricks** sobre Azure (Unity Catalog)
+- **Databricks** (Unity Catalog)
 - **PySpark** para procesamiento distribuido
 - **Python** (pandas, scikit-learn, statsmodels) para análisis estadístico
 - Catálogo: `tesis` — esquemas: `geih_bronce`, `geih_plata`, `geih_oro`, `terridata`, `preprocesamiento`,
