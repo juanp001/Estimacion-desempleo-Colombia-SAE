@@ -40,6 +40,13 @@
 # MAGIC * El CV es muy alto (≥ 20%)
 # MAGIC * Se requieren estimaciones para **todos** los municipios (incluso sin muestra)
 # MAGIC
+# MAGIC ## Periodicidad: trimestre móvil
+# MAGIC
+# MAGIC Cada dominio es un municipio en un **trimestre móvil** (tres meses consecutivos, p. ej. Oct-Dic).
+# MAGIC Las observaciones de los tres meses se agrupan en un solo dominio, con `FEX_C18` sin reescalar
+# MAGIC (el Hájek es una razón, así que dividir el factor mensual entre 3 no cambia la tasa). `PER` y `MES`
+# MAGIC de la salida son el año y el mes de cierre del trimestre.
+# MAGIC
 # MAGIC ## Estimador de Hájek
 # MAGIC
 # MAGIC El **estimador de Hájek** es un estimador de **razón** que ajusta por los pesos muestrales:
@@ -49,7 +56,7 @@
 # MAGIC ```
 # MAGIC
 # MAGIC Donde:
-# MAGIC * `w_i`: Peso de expansión (FEX) de la observación i
+# MAGIC * `w_i`: Peso de expansión `FEX_C18` (factor 2018) de la observación i; solo personas de 15 años o más
 # MAGIC * `y_i`: Variable binaria (1 = desocupado, 0 = ocupado)
 # MAGIC
 # MAGIC Para muestras grandes es aproximadamente insesgado, consistente y asintóticamente normal.
@@ -71,8 +78,10 @@
 # MAGIC Ver `shared/config.py`:
 # MAGIC * `BOOTSTRAP_REPLICAS`: Número de réplicas (default 2000)
 # MAGIC * `BOOTSTRAP_SEED`: Semilla aleatoria (default 42)
-# MAGIC * `PER_ESTIMACION`, `MES_ESTIMACION`: Período a estimar (defaults 2018 / 12). Se cambian con los
-# MAGIC   parámetros `anio_estimacion` y `mes_estimacion` del job (`resolver_periodo`)
+# MAGIC * `PER_ESTIMACION`, `MES_ESTIMACION`: Año y mes de **cierre** del trimestre móvil a estimar (defaults
+# MAGIC   2018 / 12 → Oct-Dic 2018). Se cambian con los parámetros `anio_estimacion` y `mes_estimacion` del
+# MAGIC   job (`resolver_periodo`). Los trimestres pueden cruzar el año (2019 / 1 → Nov 2018 - Ene 2019),
+# MAGIC   igual que la hoja «areas trim movil» del anexo DANE (`meses_trimestre_movil`)
 # MAGIC * `GRUPO_COLS`: Columnas que definen los dominios
 # MAGIC
 # MAGIC ## Interpretación del CV
@@ -89,7 +98,8 @@
 # MAGIC
 # MAGIC ```
 # MAGIC tesis.geih_oro.mercado_laboral
-# MAGIC   → filter(MUNICIPIO not null, PEA == 1, PER == anio_estimacion, MES == mes_estimacion)
+# MAGIC   → filter(MUNICIPIO not null, PEA == 1, EDAD >= 15, meses del trimestre móvil que cierra en anio_estimacion/mes_estimacion)
+# MAGIC   → FEX := FEX_C18; PER, MES := año y mes de cierre del trimestre
 # MAGIC   → EstimacionDirecta.estimar()   [bootstrap 2000 réplicas]
 # MAGIC   → tesis.preprocesamiento.tasa_desempleo_municipal
 # MAGIC ```
@@ -115,14 +125,42 @@ print(f"Período a estimar: {PER_ESTIMACION}-{MES_ESTIMACION:02d}")
 # COMMAND ----------
 
 # DBTITLE 1,Cargar y filtrar datos GEIH
+# Peso: FEX_C18 (factor de expansión 2018). EstimacionDirecta lee la columna "FEX", por eso se
+# sobrescribe con FEX_C18. Población: personas de 15 años o más (EDAD >= EDAD_MINIMA) en la PEA.
+EDAD_MINIMA = 15
+
+# Trimestre móvil que cierra en (PER_ESTIMACION, MES_ESTIMACION): se agrupan las observaciones de
+# sus tres meses y PER/MES se reescriben con el año/mes de cierre, de modo que GRUPO_COLS arma un
+# dominio por municipio y trimestre (y el esquema de salida no cambia).
+MESES_TRIM = meses_trimestre_movil(PER_ESTIMACION, MES_ESTIMACION)
+print("Trimestre móvil:", ", ".join(f"{a}-{m:02d}" for a, m in MESES_TRIM))
+
+cond_trimestre = None
+for anio, mes in MESES_TRIM:
+    cond_mes = (F.col("PER") == anio) & (F.col("MES") == mes)
+    cond_trimestre = cond_mes if cond_trimestre is None else (cond_trimestre | cond_mes)
+
 df_desempleo = (
     spark.table(TBL_MERCADO_LABORAL)
     .filter(
         F.col("MUNICIPIO").isNotNull() &
         (F.col("PEA") == 1) &
-        (F.col("PER") == PER_ESTIMACION) &
-        (F.col("MES") == MES_ESTIMACION)
+        (F.col("EDAD") >= EDAD_MINIMA) &
+        cond_trimestre
     )
+    .withColumn("FEX", F.col("FEX_C18"))
+)
+
+print("Observaciones PEA por mes del trimestre:")
+df_desempleo.groupBy("PER", "MES").count().orderBy("PER", "MES").show()
+faltantes = set(MESES_TRIM) - {
+    (r["PER"], r["MES"]) for r in df_desempleo.select("PER", "MES").distinct().collect()
+}
+if faltantes:
+    print(f"⚠ Sin datos en GEIH para: {sorted(faltantes)}")
+
+df_desempleo = df_desempleo.withColumn("PER", F.lit(PER_ESTIMACION)).withColumn(
+    "MES", F.lit(MES_ESTIMACION)
 )
 
 print(f"Observaciones PEA: {df_desempleo.count():,}")
@@ -138,6 +176,11 @@ resultado = estimador.estimar(
     grupo_cols=GRUPO_COLS,
     agregacion_anual=False,
 )
+
+# Etiqueta del trimestre junto a PER/MES (que ya son el año y mes de cierre).
+# Se asigna a estimador._resultado para que `exportar` la incluya en la tabla destino.
+resultado.insert(2, "TRIMESTRE_MOVIL", etiqueta_trimestre_movil(PER_ESTIMACION, MES_ESTIMACION))
+estimador._resultado = resultado
 
 # COMMAND ----------
 

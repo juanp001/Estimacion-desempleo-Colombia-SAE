@@ -88,7 +88,8 @@ la transformación a ancho).
 ```
 preprocesamiento/estimacion_directa.py
   → estima el desempleo por dominio (municipio) sobre tesis.geih_oro.mercado_laboral (filtrado a
-    MUNICIPIO no nulo, PEA==1, período objetivo)
+    MUNICIPIO no nulo, PEA==1, trimestre móvil objetivo: los 3 meses que cierran en
+    anio_estimacion/mes_estimacion, agrupados en un dominio; PER/MES = mes de cierre)
   → estimador de Hájek (θ̂ = Σ(w_i·y_i)/Σw_i) con el factor de expansión 2018
   → inferencia por bootstrap simple (2000 réplicas, semilla 42) porque no se tienen las variables del
     diseño muestral; remuestrea las n filas globales, no por dominio. CV < 5% confiable, 5–20%

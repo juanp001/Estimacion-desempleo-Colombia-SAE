@@ -35,15 +35,64 @@ VOLUMEN_FIGURAS = "/Volumes/tesis/preprocesamiento/figuras_eda"
 # ── Parámetros de estimación directa ──────────────────────────────────────────
 BOOTSTRAP_REPLICAS = 2000
 BOOTSTRAP_SEED = 42
-# Período por defecto; en un job se sobrescribe con los parámetros anio_estimacion y
-# mes_estimacion (ver `resolver_periodo`).
+# Período por defecto: trimestre móvil que CIERRA en (PER_ESTIMACION, MES_ESTIMACION); 2018-12 es
+# Oct-Dic 2018. En un job se sobrescribe con los parámetros anio_estimacion y mes_estimacion
+# (ver `resolver_periodo`).
 PER_ESTIMACION = 2018
 MES_ESTIMACION = 12
+MESES_TRIMESTRE = 3
+
+
+def meses_trimestre_movil(per: int, mes: int) -> list:
+    """Lista los tres meses del trimestre móvil que termina en el mes indicado.
+
+    Sigue la convención del anexo DANE «areas trim movil»: el trimestre se identifica por su
+    mes de cierre y puede cruzar el año (Nov-Ene, Dic-Feb).
+
+    Args:
+        per (int): Año del mes de cierre.
+        mes (int): Mes de cierre, entre 1 y 12.
+
+    Returns:
+        list[tuple[int, int]]: Tres pares `(año, mes)` en orden cronológico.
+
+    Casos de uso:
+        `meses_trimestre_movil(2018, 12)` → `[(2018, 10), (2018, 11), (2018, 12)]`;
+        `meses_trimestre_movil(2019, 1)` → `[(2018, 11), (2018, 12), (2019, 1)]`.
+    """
+    meses = []
+    for desfase in range(MESES_TRIMESTRE - 1, -1, -1):
+        indice = per * 12 + (mes - 1) - desfase
+        meses.append((indice // 12, indice % 12 + 1))
+    return meses
+
+
+def etiqueta_trimestre_movil(per: int, mes: int) -> str:
+    """Arma la etiqueta legible del trimestre móvil que termina en el mes indicado.
+
+    Args:
+        per (int): Año del mes de cierre.
+        mes (int): Mes de cierre, entre 1 y 12.
+
+    Returns:
+        str: Etiqueta «Mes inicial-Mes final año(s)»; si el trimestre cruza el año incluye
+            ambos años.
+
+    Casos de uso:
+        `etiqueta_trimestre_movil(2018, 12)` → `"Oct-Dic 2018"`;
+        `etiqueta_trimestre_movil(2019, 1)` → `"Nov 2018-Ene 2019"`.
+    """
+    nombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    (anio_ini, mes_ini), *_, (anio_fin, mes_fin) = meses_trimestre_movil(per, mes)
+    if anio_ini == anio_fin:
+        return f"{nombres[mes_ini - 1]}-{nombres[mes_fin - 1]} {anio_fin}"
+    return f"{nombres[mes_ini - 1]} {anio_ini}-{nombres[mes_fin - 1]} {anio_fin}"
 
 
 def resolver_periodo(dbutils) -> tuple:
     """Resuelve el período a estimar a partir de los widgets del notebook o del job.
 
+    El período es el mes de cierre del trimestre móvil (ver `meses_trimestre_movil`).
     Declara los widgets `anio_estimacion` y `mes_estimacion` con `PER_ESTIMACION` y
     `MES_ESTIMACION` como valores por defecto y los lee. Un parámetro de job con el mismo
     nombre reemplaza el valor del widget.
@@ -93,6 +142,7 @@ GRUPO_COLS = [
 METADATA_COLS = [
     "PER",
     "MES",
+    "TRIMESTRE_MOVIL",
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
     "CODIGO_MUNICIPIO",
