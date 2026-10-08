@@ -1,20 +1,30 @@
 # Databricks notebook source
 # DBTITLE 1,Descripción del Notebook
 # MAGIC %md
-# MAGIC # Estimación Directa de Tasa de Desempleo Municipal con Bootstrap
+# MAGIC # Estimación Directa de Tasa de Desempleo por Dominio (ciudad o ciudad A.M.) con Bootstrap
 # MAGIC
-# MAGIC Este notebook implementa **estimación directa de áreas pequeñas** (municipios) usando el **estimador de Hájek** con inferencia basada en **bootstrap simple**.
+# MAGIC Este notebook implementa **estimación directa de áreas pequeñas** usando el **estimador de Hájek** con inferencia basada en **bootstrap simple**.
+# MAGIC
+# MAGIC ## Dominio de estimación
+# MAGIC
+# MAGIC El campo `AREA` de la GEIH identifica la **ciudad con su área metropolitana**, no el municipio
+# MAGIC (Metodología GEIH v9, PDF 9): los hogares de Yumbo llegan con el mismo `AREA` que los de Cali.
+# MAGIC Por eso cada dominio es una ciudad (`TIPO_DOMINIO = CIUDAD`) o una ciudad con su A.M.
+# MAGIC (`CIUDAD_AM`: Medellín, Cali, Barranquilla, Bucaramanga, Manizales, Pereira y Cúcuta), con la
+# MAGIC membresía de `tesis.dim.dim_dominio_geih`. `CODIGO_DOMINIO` es el código DIVIPOLA de la capital.
+# MAGIC Las tasas coinciden con las que publica el DANE para «Cali A.M.», «Popayán», etc.; la última
+# MAGIC celda lo verifica contra `tesis.geih_bronce.datos_municipales`.
 # MAGIC
 # MAGIC ## Propósito
 # MAGIC
-# MAGIC Calcular estimaciones de **tasa de desempleo por municipio** a partir de microdatos de la GEIH, incluyendo:
+# MAGIC Calcular estimaciones de **tasa de desempleo por dominio** a partir de microdatos de la GEIH, incluyendo:
 # MAGIC * **Estimación puntual**: Tasa de desempleo (porcentaje)
 # MAGIC * **Medidas de precisión**: Error estándar, intervalos de confianza 95%, coeficiente de variación
 # MAGIC * **Inferencia estadística**: Basada en bootstrap simple (2000 réplicas, semilla 42)
 # MAGIC
 # MAGIC ## ¿Qué es Estimación Directa?
 # MAGIC
-# MAGIC La **estimación directa** usa **solo los datos de la muestra del dominio de interés** (en este caso, el municipio) para calcular la estimación, sin "pedir prestada" información de otros dominios.
+# MAGIC La **estimación directa** usa **solo los datos de la muestra del dominio de interés** (en este caso, la ciudad o ciudad A.M.) para calcular la estimación, sin "pedir prestada" información de otros dominios.
 # MAGIC
 # MAGIC ### Ventajas:
 # MAGIC ✅ **Simple y transparente**: Usa solo datos locales
@@ -42,7 +52,7 @@
 # MAGIC
 # MAGIC ## Periodicidad: trimestre móvil
 # MAGIC
-# MAGIC Cada dominio es un municipio en un **trimestre móvil** (tres meses consecutivos, p. ej. Oct-Dic).
+# MAGIC Cada dominio es una ciudad o ciudad A.M. en un **trimestre móvil** (tres meses consecutivos, p. ej. Oct-Dic).
 # MAGIC Las observaciones de los tres meses se agrupan en un solo dominio, con `FEX_C18` sin reescalar
 # MAGIC (el Hájek es una razón, así que dividir el factor mensual entre 3 no cambia la tasa). `PER` y `MES`
 # MAGIC de la salida son el año y el mes de cierre del trimestre.
@@ -98,11 +108,18 @@
 # MAGIC
 # MAGIC ```
 # MAGIC tesis.geih_oro.mercado_laboral
-# MAGIC   → filter(MUNICIPIO not null, PEA == 1, EDAD >= 15, meses del trimestre móvil que cierra en anio_estimacion/mes_estimacion)
+# MAGIC   → filter(PEA == 1, EDAD >= 15, meses del trimestre móvil que cierra en anio_estimacion/mes_estimacion)
+# MAGIC   → INNER JOIN tesis.dim.dim_dominio_geih (fila de la capital) → CODIGO_DOMINIO, NOMBRE_DOMINIO, TIPO_DOMINIO
 # MAGIC   → FEX := FEX_C18; PER, MES := año y mes de cierre del trimestre
 # MAGIC   → EstimacionDirecta.estimar()   [bootstrap 2000 réplicas]
-# MAGIC   → tesis.preprocesamiento.tasa_desempleo_municipal
+# MAGIC   → + PEA_EXPANDIDA (Σ FEX_C18 de la PEA / 3) y N_MUNICIPIOS del dominio
+# MAGIC   → tesis.preprocesamiento.tasa_desempleo_municipal   (una fila por dominio)
 # MAGIC ```
+# MAGIC
+# MAGIC `PEA_EXPANDIDA` es la PEA promedio del trimestre que representa la muestra del dominio. Es el
+# MAGIC peso del benchmarking de nivel 1 en `modelo/fay_herriot.py`: con él, el promedio ponderado de
+# MAGIC las tasas directas de los dominios reproduce exactamente la tasa directa del conjunto (propiedad
+# MAGIC de benchmarking de los estimadores directos, Molina 2019, CEPAL, PDF 26).
 # MAGIC
 # MAGIC ## Referencias
 # MAGIC
@@ -140,31 +157,53 @@ for anio, mes in MESES_TRIM:
     cond_mes = (F.col("PER") == anio) & (F.col("MES") == mes)
     cond_trimestre = cond_mes if cond_trimestre is None else (cond_trimestre | cond_mes)
 
+# Dominio de cada registro: geih_oro trae en CODIGO_MUNICIPIO el código de la capital del AREA
+# (ciudad con su A.M.); la fila de la capital en dim_dominio_geih da el dominio. El INNER JOIN
+# descarta los registros sin AREA (resto de cabeceras y zona rural), que no forman dominio.
+df_dominios_capital = (
+    spark.table(TBL_DIM_DOMINIO)
+    .filter(F.col("ES_CAPITAL"))
+    .select("CODIGO_MUNICIPIO", "CODIGO_DOMINIO", "NOMBRE_DOMINIO", "TIPO_DOMINIO")
+)
+n_municipios_dominio = (
+    spark.table(TBL_DIM_DOMINIO).groupBy("CODIGO_DOMINIO").agg(F.count("*").alias("N_MUNICIPIOS"))
+)
+
 df_desempleo = (
     spark.table(TBL_MERCADO_LABORAL)
     .filter(
-        F.col("MUNICIPIO").isNotNull() &
         (F.col("PEA") == 1) &
         (F.col("EDAD") >= EDAD_MINIMA) &
         cond_trimestre
     )
+    .join(df_dominios_capital, on="CODIGO_MUNICIPIO", how="inner")
     .withColumn("FEX", F.col("FEX_C18"))
 )
 
 print("Observaciones PEA por mes del trimestre:")
 df_desempleo.groupBy("PER", "MES").count().orderBy("PER", "MES").show()
-faltantes = set(MESES_TRIM) - {
+meses_presentes = {
     (r["PER"], r["MES"]) for r in df_desempleo.select("PER", "MES").distinct().collect()
 }
+faltantes = set(MESES_TRIM) - meses_presentes
 if faltantes:
     print(f"⚠ Sin datos en GEIH para: {sorted(faltantes)}")
+
+# PEA promedio del trimestre que representa la muestra de cada dominio (peso del benchmarking de
+# nivel 1 en el modelo). Se divide entre los meses con datos para que sea un promedio mensual.
+df_pea_expandida = (
+    df_desempleo.groupBy("CODIGO_DOMINIO")
+    .agg((F.sum("FEX") / len(meses_presentes)).alias("PEA_EXPANDIDA"))
+    .join(n_municipios_dominio, on="CODIGO_DOMINIO", how="left")
+    .toPandas()
+)
 
 df_desempleo = df_desempleo.withColumn("PER", F.lit(PER_ESTIMACION)).withColumn(
     "MES", F.lit(MES_ESTIMACION)
 )
 
 print(f"Observaciones PEA: {df_desempleo.count():,}")
-print(f"Municipios con muestra: {df_desempleo.select('CODIGO_MUNICIPIO').distinct().count()}")
+print(f"Dominios con muestra: {df_desempleo.select('CODIGO_DOMINIO').distinct().count()}")
 
 # COMMAND ----------
 
@@ -177,15 +216,20 @@ resultado = estimador.estimar(
     agregacion_anual=False,
 )
 
-# Etiqueta del trimestre junto a PER/MES (que ya son el año y mes de cierre).
-# Se asigna a estimador._resultado para que `exportar` la incluya en la tabla destino.
+# Etiqueta del trimestre junto a PER/MES (que ya son el año y mes de cierre), y la PEA expandida y el
+# número de municipios de cada dominio. Se asigna a estimador._resultado para que `exportar` lo
+# incluya en la tabla destino.
 resultado.insert(2, "TRIMESTRE_MOVIL", etiqueta_trimestre_movil(PER_ESTIMACION, MES_ESTIMACION))
+resultado = resultado.merge(
+    df_pea_expandida, on="CODIGO_DOMINIO", how="left", validate="one_to_one"
+)
 estimador._resultado = resultado
 
 # COMMAND ----------
 
 # DBTITLE 1,Resumen de resultados
-print(f"Municipios estimados: {len(resultado)}")
+print(f"Dominios estimados: {len(resultado)}")
+print(f"  ciudades A.M.: {(resultado['TIPO_DOMINIO'] == 'CIUDAD_AM').sum()}")
 print(f"Período: {resultado['PER'].iloc[0]}-{resultado['MES'].iloc[0]:02d}\n")
 
 confiables = (resultado["CV_PORCENTAJE"] < CV_CONFIABLE).sum()
@@ -198,6 +242,56 @@ print(f"  Aceptables  ({CV_CONFIABLE}% ≤ CV < {CV_ACEPTABLE}%): {aceptables}")
 print(f"  No confiables (CV ≥ {CV_ACEPTABLE}%): {no_conf}")
 
 display(resultado)
+
+# COMMAND ----------
+
+# DBTITLE 1,Validación contra las cifras publicadas por el DANE (informativa)
+# Compara cada dominio y el agregado de los 23 con el anexo DANE «Mercado laboral según
+# proyecciones CNPV 2018» (tesis.geih_bronce.datos_municipales, cargado por datos_publicados.py).
+# Solo imprime PASS/FAIL: el anexo cubre 2016-2021 y fuera de ese rango no hay contra qué comparar.
+#
+# El agregado Σ PEA_d·TD_d / Σ PEA_d es exactamente el Hájek del conjunto de los dominios (los
+# estimadores directos cumplen la propiedad de benchmarking; Molina 2019, PDF 26). Es el valor al
+# que el modelo ajusta los EBLUP en el benchmarking de nivel 1.
+TOLERANCIA_PP = 0.01
+
+df_publicados = (
+    spark.table(TBL_DATOS_MUNICIPALES)
+    .filter((F.col("ANIO") == PER_ESTIMACION) & (F.col("MES") == MES_ESTIMACION))
+    .select("CIUDAD", "TASA_DESEMPLEO")
+    .toPandas()
+)
+
+if df_publicados.empty:
+    print(f"Sin cifras publicadas para {PER_ESTIMACION}-{MES_ESTIMACION:02d}: no se valida.")
+else:
+    comparacion = resultado[["NOMBRE_DOMINIO", "TASA_DESEMPLEO_PCT"]].merge(
+        df_publicados.rename(columns={"CIUDAD": "NOMBRE_DOMINIO", "TASA_DESEMPLEO": "TD_DANE"}),
+        on="NOMBRE_DOMINIO",
+        how="left",
+    )
+    comparacion["DIF_PP"] = comparacion["TASA_DESEMPLEO_PCT"] - comparacion["TD_DANE"]
+    ok = comparacion["DIF_PP"].abs() <= TOLERANCIA_PP
+    print(
+        f"[{'PASS' if ok.all() else 'FAIL'}] {int(ok.sum())} de {len(comparacion)} dominios "
+        f"coinciden con el DANE (tolerancia {TOLERANCIA_PP} pp)"
+    )
+    if not ok.all():
+        display(comparacion[~ok])
+
+    td_agregada = (resultado["PEA_EXPANDIDA"] * resultado["TASA_DESEMPLEO_PCT"]).sum() / resultado[
+        "PEA_EXPANDIDA"
+    ].sum()
+    total_dane = df_publicados.loc[df_publicados["CIUDAD"] == NOMBRE_TOTAL_23, "TASA_DESEMPLEO"]
+    if total_dane.empty:
+        print(f"Sin «{NOMBRE_TOTAL_23}» en {TBL_DATOS_MUNICIPALES}: no se valida el agregado.")
+    else:
+        dif = td_agregada - float(total_dane.iloc[0])
+        print(
+            f"[{'PASS' if abs(dif) <= TOLERANCIA_PP else 'FAIL'}] agregado de los dominios "
+            f"{td_agregada:.4f} vs «{NOMBRE_TOTAL_23}» {float(total_dane.iloc[0]):.4f} "
+            f"(dif. {dif:+.4f} pp)"
+        )
 
 # COMMAND ----------
 

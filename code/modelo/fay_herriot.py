@@ -24,11 +24,21 @@
 # MAGIC    precisión y robustez.
 # MAGIC 4. **Avisos.** Encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y
 # MAGIC    municipios cuya predicción sintética es una extrapolación.
-# MAGIC 5. **Dominios objetivo.** Municipios de `municipios_sin_encuesta`, que reciben la
-# MAGIC    predicción sintética del modelo ganador.
+# MAGIC 5. **Municipios objetivo.** Municipios de `municipios_sin_encuesta` (sin estimación
+# MAGIC    directa propia), que reciben la predicción sintética x_m'β̂ del modelo ganador.
+# MAGIC 6. **Benchmarking en dos niveles** (`shared/benchmarking.py`, donde está la sustentación
+# MAGIC    completa). Nivel 1: los 23 EBLUP se ajustan para que, ponderados por la PEA expandida,
+# MAGIC    reproduzcan la tasa directa del total de las 23 ciudades (la cifra oficial del DANE).
+# MAGIC    Nivel 2: los municipios de un dominio A.M. (Cali y Yumbo) se ajustan para que,
+# MAGIC    ponderados por su población de 15 a 59 años, reproduzcan el valor ya ajustado de su
+# MAGIC    dominio. Es el ajuste de razón de Fay y Herriot (1979) que usan el DANE (nota SAE 2024)
+# MAGIC    y el INE de Chile (ENUSC 2018). La celda 12 lo verifica.
 # MAGIC
-# MAGIC Dominio: PER + MES + código DIVIPOLA del municipio. La tabla final toma los nombres
-# MAGIC de departamento y municipio de `dim_divipola` por código.
+# MAGIC Dominio: PER + MES + `CODIGO_DOMINIO` (código DIVIPOLA de la capital). Cada dominio es una
+# MAGIC ciudad o una ciudad con su área metropolitana («Cali A.M.»), porque el campo `AREA` de la
+# MAGIC GEIH no separa los municipios del A.M.; sus covariables son el promedio ponderado de los
+# MAGIC municipios miembro (`adicion_covariables`). La tabla final tiene dos niveles (dominio y
+# MAGIC municipio) y toma los nombres de `dim_dominio_geih` y `dim_divipola` por código.
 
 # COMMAND ----------
 
@@ -102,6 +112,12 @@ from shared.diagnosticos import (
     marca_extrapolacion,
 )
 from shared.consolidacion import construir_tabla_final
+from shared.benchmarking import (
+    promedio_ponderado,
+    benchmark_nivel1,
+    benchmark_nivel2,
+    verificar_benchmark,
+)
 
 import warnings
 
@@ -122,12 +138,16 @@ alias_a_codigo = {alias: codigo for codigo, alias in mapa_alias.items()}
 
 df = spark.table(TBL_COVARIABLES_SELECCIONADAS).toPandas()
 
-# El dominio se identifica por código DIVIPOLA: los nombres cambian de formato entre fuentes.
+# El dominio se identifica por su código (DIVIPOLA de la capital): los nombres cambian de
+# formato entre fuentes.
 df["DOMINIO"] = (
-    df["PER"].astype(str) + "_" + df["MES"].astype(str) + "_" + df["CODIGO_MUNICIPIO"]
+    df["PER"].astype(str) + "_" + df["MES"].astype(str) + "_" + df["CODIGO_DOMINIO"]
 )
 
-print(f"Dominios (municipios): {len(df)}")
+print(
+    f"Dominios: {len(df)} ({(df['TIPO_DOMINIO'] == 'CIUDAD_AM').sum()} ciudades con área "
+    "metropolitana)"
+)
 print(f"Columnas disponibles:  {df.columns.tolist()}\n")
 
 # COMMAND ----------
@@ -159,13 +179,13 @@ for modelo in modelos:
     modelo.ajustar()
     modelo.resultados = modelo.tabla_resultados(metadata_cols=DOMINIO_COLS)
 
-municipios = df["MUNICIPIO"].values
+nombres_dominio = df["NOMBRE_DOMINIO"].values
 
 # COMMAND ----------
 
 # DBTITLE 1,4. Tablas EBLUP por dominio (por modelo)
 eblup_display_cols = [
-    "MUNICIPIO",
+    "NOMBRE_DOMINIO",
     Y_COL,
     "EBLUP",
     "CV_PORCENTAJE",
@@ -253,9 +273,9 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     umbral_cook = 4 / modelo.n
     influyentes = np.where(cook > umbral_cook)[0]
     print(
-        f"  Distancia de Cook máxima:     {cook.max():.4f} en {municipios[int(np.argmax(cook))]}  "
+        f"  Distancia de Cook máxima:     {cook.max():.4f} en {nombres_dominio[int(np.argmax(cook))]}  "
         f"(umbral 4/n = {umbral_cook:.4f}; {len(influyentes)} dominio(s) lo superan"
-        + (f": {', '.join(municipios[influyentes])})" if len(influyentes) else ")")
+        + (f": {', '.join(nombres_dominio[influyentes])})" if len(influyentes) else ")")
     )
 
     # La comparación MSE_EBLUP frente a Di es descriptiva: g1 = γ·Di < Di por construcción,
@@ -277,7 +297,7 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
 
     print("\n  Detalle por dominio (Di vs MSE_EBLUP):")
     detail_cols = [
-        "MUNICIPIO",
+        "NOMBRE_DOMINIO",
         "VARIANZA_DIRECTA",
         "MSE_EBLUP",
         "RATIO_MSE",
@@ -296,7 +316,7 @@ if len(modelos) > 1:
     print("=" * 65)
     df_diag_variantes = tabla_diagnosticos(modelos, nombres_covars)
 
-    df_cook_variantes = tabla_cook(modelos, nombres_covars, municipios)
+    df_cook_variantes = tabla_cook(modelos, nombres_covars, nombres_dominio)
     df_diag_variantes = df_diag_variantes.merge(
         df_cook_variantes[["Modelo", "Cook_max", "N_influyentes"]],
         on="Modelo",
@@ -400,7 +420,7 @@ if aviso:
 # COMMAND ----------
 
 # DBTITLE 1,Figura: CV directo vs CV EBLUP del modelo elegido
-fig = figura_cv_directo_vs_eblup(modelo_ganador, municipios)
+fig = figura_cv_directo_vs_eblup(modelo_ganador, nombres_dominio)
 display(fig)
 plt.close(fig)
 print(interpretar_cv(modelo_ganador))
@@ -425,17 +445,17 @@ print(interpretar_cv(modelo_ganador))
 # COMMAND ----------
 
 # DBTITLE 1,Figura y tabla: distancia de Cook y sensibilidad del modelo elegido
-fig = figura_cook([modelo_ganador], [modelo_ganador.covars], municipios)
+fig = figura_cook([modelo_ganador], [modelo_ganador.covars], nombres_dominio)
 display(fig)
 plt.close(fig)
 
 df_sensibilidad = sensibilidad_cook(
-    modelo_ganador, FayHerriotClasico, municipios, alfa=ALFA_SIGNIFICANCIA
+    modelo_ganador, FayHerriotClasico, nombres_dominio, alfa=ALFA_SIGNIFICANCIA
 )
 display(df_sensibilidad)
 print(
     interpretar_cook(
-        modelo_ganador, municipios, df_sensibilidad, alfa=ALFA_SIGNIFICANCIA
+        modelo_ganador, nombres_dominio, df_sensibilidad, alfa=ALFA_SIGNIFICANCIA
     )
 )
 
@@ -477,10 +497,79 @@ if resultados_ganador["FUERA_DE_RANGO"].any():
         + ", ".join(
             f"{m} ({v:.2f})"
             for m, v in resultados_ganador.loc[
-                resultados_ganador["FUERA_DE_RANGO"], ["MUNICIPIO", "EBLUP"]
+                resultados_ganador["FUERA_DE_RANGO"], ["NOMBRE_DOMINIO", "EBLUP"]
             ].values
         )
     )
+
+# COMMAND ----------
+
+# DBTITLE 1,9b. Benchmarking de nivel 1: dominios → Total 23 ciudades y A.M.
+# Sustentación completa en shared/benchmarking.py. Los EBLUP de los dominios se multiplican por
+# un factor de razón λ₁ (Fay y Herriot, 1979; DANE, nota SAE 2024, PDF 25; INE Chile, ENUSC
+# 2018, PDF 23) para que su promedio ponderado por la PEA expandida reproduzca la tasa directa
+# del conjunto de los dominios.
+#
+# Valor de referencia: Σ PEA_d·TD_d / Σ PEA_d. Por la propiedad de benchmarking del Hájek
+# (Molina, 2019, PDF 26) es exactamente la estimación directa de las 23 ciudades juntas, un
+# dominio que la GEIH publica cada trimestre (Metodología GEIH v9, PDF 10). Se contrasta con la
+# cifra oficial del DANE («Total 23 ciudades y A.M.» en datos_municipales) y la ejecución se
+# detiene si difieren más de TOLERANCIA_DANE_PP: un valor de referencia que no reproduce la cifra
+# oficial indicaría un problema en los datos, no algo que el ajuste deba absorber.
+periodos = df[["PER", "MES"]].drop_duplicates()
+if len(periodos) != 1:
+    raise ValueError(
+        f"El benchmarking se define por período y hay {len(periodos)} períodos en {TBL_COVARIABLES_SELECCIONADAS}."
+    )
+PER_MODELO, MES_MODELO = int(periodos["PER"].iloc[0]), int(periodos["MES"].iloc[0])
+
+pea_dominio = (
+    df.set_index("DOMINIO")
+    .loc[resultados_ganador["DOMINIO"], COL_PESO_NIVEL1]
+    .to_numpy(dtype=float)
+)
+referencia_n1 = promedio_ponderado(resultados_ganador[Y_COL], pea_dominio)
+
+total_dane = [
+    fila["TASA_DESEMPLEO"]
+    for fila in spark.table(TBL_DATOS_MUNICIPALES)
+    .filter(
+        f"ANIO = {PER_MODELO} AND MES = {MES_MODELO} AND CIUDAD = '{NOMBRE_TOTAL_23}'"
+    )
+    .select("TASA_DESEMPLEO")
+    .collect()
+]
+if total_dane:
+    dif_dane = referencia_n1 - float(total_dane[0])
+    print(
+        f"Valor de referencia (directa del conjunto): {referencia_n1:.4f} %  |  "
+        f"DANE «{NOMBRE_TOTAL_23}»: {float(total_dane[0]):.4f} %  (dif. {dif_dane:+.4f} pp)"
+    )
+    if abs(dif_dane) > TOLERANCIA_DANE_PP:
+        raise ValueError(
+            f"La tasa directa del conjunto de dominios ({referencia_n1:.4f}) no reproduce la "
+            f"cifra oficial del DANE ({float(total_dane[0]):.4f}). Revisar la estimación directa "
+            f"antes de ajustar."
+        )
+else:
+    print(
+        f"Sin cifra publicada para {PER_MODELO}-{MES_MODELO:02d}: se usa la estimación directa "
+        f"del conjunto ({referencia_n1:.4f} %) sin contraste con el DANE."
+    )
+
+eblup_n1, lambda_n1 = benchmark_nivel1(modelo_ganador.eblup, pea_dominio, referencia_n1)
+
+resultados_ganador["PEA_EXPANDIDA"] = pea_dominio.round(0)
+resultados_ganador["LAMBDA_N1"] = round(lambda_n1, 6)
+resultados_ganador["EBLUP_BENCHMARK"] = eblup_n1.round(4)
+# λ se trata como fijo: el RMSE se escala por λ y el CV no cambia (ver shared/benchmarking.py).
+resultados_ganador["RMSE_EBLUP_BENCHMARK"] = (modelo_ganador.rmse * lambda_n1).round(4)
+
+print(
+    f"λ₁ = {lambda_n1:.6f}  (agregado de los EBLUP antes del ajuste: "
+    f"{promedio_ponderado(modelo_ganador.eblup, pea_dominio):.4f} %)"
+)
+
 spark_df = spark.createDataFrame(resultados_ganador)
 spark_df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     TBL_FAY_HERRIOT_RESULTADOS
@@ -489,10 +578,13 @@ print(f"Tabla escrita: {TBL_FAY_HERRIOT_RESULTADOS}")
 
 # COMMAND ----------
 
-# DBTITLE 1,10. Predicción sintética para dominios sin estimación directa
-# Para municipios donde NO existe estimación directa (Y ni Di), el EBLUP no puede
-# calcularse: el predictor es el sintético ŷ_d = x_d'β̂ del modelo ganador, sin contracción.
-# Su MSE es x_d'Cov(β̂)x_d + Â (Morales et al., p. 441).
+# DBTITLE 1,10. Predicción sintética para los municipios sin estimación directa propia
+# Para municipios sin estimación directa propia (Y ni Di), el EBLUP no puede calcularse: el
+# predictor es el sintético ŷ_m = x_m'β̂ del modelo ganador, sin contracción, con las
+# covariables del municipio (no las del dominio). Su MSE es x_m'Cov(β̂)x_m + Â (Morales et al.,
+# p. 441). Usar el β̂ estimado con dominios para predecir municipios es coherente porque las
+# covariables de los dominios A.M. se agregaron con los mismos pesos que la tasa
+# (preprocesamiento/shared/agregacion_dominios.py).
 covars_ganador = modelo_ganador.covars
 beta_ganador = modelo_ganador.beta_hat
 
@@ -533,28 +625,28 @@ X_new = np.column_stack(
 )
 y_sintetico = X_new @ beta_ganador
 
-# Incertidumbre: x_d'Cov(β̂)x_d (estimar β) + Â (efecto aleatorio no observado).
+# Incertidumbre: x_m'Cov(β̂)x_m (estimar β) + Â (efecto aleatorio no observado).
 var_beta = np.einsum("ij,jk,ik->i", X_new, modelo_ganador.cov_beta, X_new)
 var_sintetico = var_beta + modelo_ganador.A_hat
 rmse_sintetico = np.sqrt(var_sintetico)
 cv_sintetico = 100 * rmse_sintetico / np.abs(y_sintetico)
 
-df_pred = df_new[["DOMINIO"] + DOMINIO_COLS].copy()
+df_pred = df_new[["DOMINIO"] + MUNICIPIO_COLS].copy()
 df_pred["PRED_SINTETICO"] = y_sintetico.round(4)
 df_pred["RMSE_SINTETICO"] = rmse_sintetico.round(4)
 df_pred["CV_SINTETICO_PCT"] = cv_sintetico.round(2)
-df_pred["TIPO"] = "SINTETICO"
-# EXTRAPOLA: x_d'Cov(β̂)x_d mayor que el máximo de la muestra de ajuste, es decir, un
+# EXTRAPOLA: x_m'Cov(β̂)x_m mayor que el máximo de la muestra de ajuste, es decir, un
 # municipio más alejado del centro de los datos que cualquiera de los que vio el modelo.
 df_pred["EXTRAPOLA"] = marca_extrapolacion(var_beta, modelo_ganador)
 df_pred["FUERA_DE_RANGO"] = marca_fuera_de_rango(y_sintetico, TASA_MINIMA, TASA_MAXIMA)
 
-print(f"\nPredicciones sintéticas para {len(df_pred)} dominios sin encuesta:")
-display(df_pred)
+print(
+    f"\nPredicciones sintéticas para {len(df_pred)} municipios sin estimación directa propia"
+)
 
 n_extrapola = int(df_pred["EXTRAPOLA"].sum())
 print(
-    f"\nMunicipios cuya predicción es una extrapolación: {n_extrapola} de {len(df_pred)}"
+    f"Municipios cuya predicción es una extrapolación: {n_extrapola} de {len(df_pred)}"
     + (
         ": " + ", ".join(df_pred.loc[df_pred["EXTRAPOLA"], "MUNICIPIO"])
         if n_extrapola
@@ -572,6 +664,70 @@ if df_pred["FUERA_DE_RANGO"].any():
         )
     )
 
+# COMMAND ----------
+
+# DBTITLE 1,10b. Benchmarking de nivel 2: municipios de un dominio A.M. → valor de su dominio
+# Sustentación completa en shared/benchmarking.py. Los municipios que forman un dominio A.M. con
+# estimación directa (Cali y Yumbo en Cali A.M.) reciben su predicción sintética y luego un
+# factor de razón λ_D por dominio, para que su promedio ponderado por la población de 15 a 59
+# años (TerriData 020090014, aproximación de la PEA municipal) reproduzca el valor ya ajustado
+# del dominio (nivel 1). Así municipio, ciudad A.M. y total quedan coherentes, como en el DANE
+# («departamentales, de ciudades principales y nacional», nota SAE 2024, PDF 25).
+#
+# Por qué Yumbo recibe estimación propia y no la tasa de Cali A.M.: el modelo anidado
+# (Morales et al., p. 462) exige estimaciones directas por municipio, que la GEIH pública no
+# permite, y asignarle la tasa del A.M. es el sintético básico, sesgado si Yumbo difiere de Cali
+# (Morales et al., p. 42).
+#
+# El peso es el mismo con el que se agregaron las covariables del dominio, de modo que el
+# agregado de los sintéticos municipales es el sintético del dominio y λ_D − 1 mide cuánto se
+# separa el dominio de su predicción sintética. Los municipios sin dominio padre no se ajustan:
+# no hay un valor de referencia trimestral confiable que los contenga (el departamento solo es
+# representativo con datos anuales, Metodología GEIH v9, PDF 9).
+pesos_n2 = (
+    spark.table(TBL_TERRIDATA)
+    .filter(f"ANO = {PER_MODELO} AND MES = {MES_MODELO}")
+    .selectExpr(
+        "CODIGO_ENTIDAD AS CODIGO_MUNICIPIO",
+        f"CAST(`{COD_PESO_POBLACION}` AS DOUBLE) AS PESO_N2",
+    )
+    .toPandas()
+)
+df_pred = df_pred.merge(
+    pesos_n2, on="CODIGO_MUNICIPIO", how="left", validate="one_to_one"
+)
+
+# Valor de referencia de cada dominio: su EBLUP ajustado en el nivel 1 (sin redondear).
+objetivos_n2 = dict(zip(resultados_ganador["CODIGO_DOMINIO"], eblup_n1))
+
+df_bm2 = benchmark_nivel2(
+    df_pred.assign(PRED_EXACTA=y_sintetico),
+    col_pred="PRED_EXACTA",
+    col_peso="PESO_N2",
+    col_padre="CODIGO_DOMINIO_PADRE",
+    objetivos=objetivos_n2,
+)
+df_pred["LAMBDA_N2"] = df_bm2["LAMBDA_N2"].round(6)
+df_pred["PRED_BENCHMARK"] = df_bm2["PRED_BENCHMARK"].round(4)
+df_pred["RMSE_BENCHMARK"] = (rmse_sintetico * df_bm2["LAMBDA_N2"]).round(4)
+df_pred["TIPO"] = np.where(df_bm2["BENCHMARK"], "SINTETICO_BENCHMARK", "SINTETICO")
+
+ajustados = df_pred[df_bm2["BENCHMARK"]]
+print(f"Municipios ajustados a su dominio A.M.: {len(ajustados)}")
+display(
+    ajustados[
+        [
+            "CODIGO_DOMINIO_PADRE",
+            "MUNICIPIO",
+            "PESO_N2",
+            "PRED_SINTETICO",
+            "LAMBDA_N2",
+            "PRED_BENCHMARK",
+            "CV_SINTETICO_PCT",
+        ]
+    ]
+)
+
 spark_df_pred = spark.createDataFrame(df_pred)
 spark_df_pred.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     TBL_FAY_HERRIOT_PREDICCION_SINTETICA
@@ -580,39 +736,194 @@ print(f"Tabla escrita: {TBL_FAY_HERRIOT_PREDICCION_SINTETICA}")
 
 # COMMAND ----------
 
-# DBTITLE 1,11. Tabla final consolidada (EBLUP + sintético)
-tabla_entrenamiento = modelo_ganador.resultados[
-    ["DOMINIO"] + DOMINIO_COLS + ["EBLUP", "CV_EBLUP_PCT"]
-].rename(columns={"EBLUP": "TASA_DESEMPLEO_PCT", "CV_EBLUP_PCT": "CV_PCT"})
-tabla_entrenamiento["TIPO"] = "EBLUP"
-
-tabla_sintetica = df_pred.rename(
-    columns={"PRED_SINTETICO": "TASA_DESEMPLEO_PCT", "CV_SINTETICO_PCT": "CV_PCT"}
-)[["DOMINIO"] + DOMINIO_COLS + ["TASA_DESEMPLEO_PCT", "CV_PCT", "TIPO"]]
-
-df_final = construir_tabla_final(
-    tabla_entrenamiento, tabla_sintetica, spark.table(TBL_DIM_DIVIPOLA).toPandas()
+# DBTITLE 1,11. Tabla final consolidada (dominios + municipios)
+# Dos niveles: los 23 dominios con el EBLUP ajustado (nivel 1) y los municipios objetivo con la
+# predicción sintética (ajustada en el nivel 2 cuando pertenecen a un dominio A.M.). La tasa sin
+# ajustar se conserva en TASA_SIN_AJUSTE_PCT para trazabilidad.
+tabla_dominios = pd.DataFrame(
+    {
+        "PER": resultados_ganador["PER"],
+        "MES": resultados_ganador["MES"],
+        "CODIGO": resultados_ganador["CODIGO_DOMINIO"],
+        "TASA_DESEMPLEO_PCT": resultados_ganador["EBLUP_BENCHMARK"],
+        "TASA_SIN_AJUSTE_PCT": resultados_ganador["EBLUP"],
+        "LAMBDA": resultados_ganador["LAMBDA_N1"],
+        "CV_PCT": resultados_ganador["CV_EBLUP_PCT"],
+        "TIPO": "EBLUP_BENCHMARK",
+    }
+)
+tabla_municipios = pd.DataFrame(
+    {
+        "PER": df_pred["PER"],
+        "MES": df_pred["MES"],
+        "CODIGO": df_pred["CODIGO_MUNICIPIO"],
+        "CODIGO_DOMINIO_PADRE": df_pred["CODIGO_DOMINIO_PADRE"],
+        "TASA_DESEMPLEO_PCT": df_pred["PRED_BENCHMARK"],
+        "TASA_SIN_AJUSTE_PCT": df_pred["PRED_SINTETICO"],
+        "LAMBDA": df_pred["LAMBDA_N2"],
+        "CV_PCT": df_pred["CV_SINTETICO_PCT"],
+        "TIPO": df_pred["TIPO"],
+    }
 )
 
-# Marcas de aviso por dominio. Los dominios con EBLUP no extrapolan (están en la muestra de
-# ajuste).
+dim_dominio = spark.table(TBL_DIM_DOMINIO).toPandas()
+df_final = construir_tabla_final(
+    tabla_dominios,
+    tabla_municipios,
+    dim_dominio,
+    spark.table(TBL_DIM_DIVIPOLA).toPandas(),
+)
+
+# Marcas de aviso. Los dominios no extrapolan (están en la muestra de ajuste). Un mismo código
+# puede ser dominio y municipio (76001), así que se une por NIVEL + CODIGO.
 marcas = pd.concat(
     [
-        resultados_ganador[["DOMINIO", "FUERA_DE_RANGO"]].assign(EXTRAPOLA=False),
-        df_pred[["DOMINIO", "FUERA_DE_RANGO", "EXTRAPOLA"]],
+        resultados_ganador[["CODIGO_DOMINIO", "FUERA_DE_RANGO"]]
+        .rename(columns={"CODIGO_DOMINIO": "CODIGO"})
+        .assign(NIVEL="DOMINIO", EXTRAPOLA=False),
+        df_pred[["CODIGO_MUNICIPIO", "FUERA_DE_RANGO", "EXTRAPOLA"]]
+        .rename(columns={"CODIGO_MUNICIPIO": "CODIGO"})
+        .assign(NIVEL="MUNICIPIO"),
     ],
     ignore_index=True,
-).drop_duplicates(subset="DOMINIO", keep="first")
-df_final = df_final.merge(marcas, on="DOMINIO", how="left")
+)
+df_final = df_final.merge(
+    marcas, on=["NIVEL", "CODIGO"], how="left", validate="one_to_one"
+)
 
 print(
-    f"\nTabla final consolidada: {len(df_final)} dominios "
-    f"({(df_final['TIPO']=='EBLUP').sum()} EBLUP + {(df_final['TIPO']=='SINTETICO').sum()} sintéticos)"
+    f"\nTabla final consolidada: {(df_final['NIVEL'] == 'DOMINIO').sum()} dominios + "
+    f"{(df_final['NIVEL'] == 'MUNICIPIO').sum()} municipios "
+    f"({(df_final['TIPO'] == 'SINTETICO_BENCHMARK').sum()} ajustados a su dominio A.M.)"
 )
-display(df_final.drop(columns=["DOMINIO"]))
+display(df_final)
 
-spark_df_final = spark.createDataFrame(df_final.drop(columns=["DOMINIO"]))
+spark_df_final = spark.createDataFrame(df_final)
 spark_df_final.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
     TBL_FAY_HERRIOT_ESTIMACIONES_FINALES
 )
 print(f"Tabla escrita: {TBL_FAY_HERRIOT_ESTIMACIONES_FINALES}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 12. Verificación del benchmarking
+# MAGIC
+# MAGIC Siguiendo la presentación del DANE (tabla de diferencias entre la estimación directa y el
+# MAGIC agregado del modelo antes del ajuste, nota SAE 2024, PDF 19, y diferencias prácticamente
+# MAGIC nulas después, PDF 25), para cada nivel se muestra el agregado ponderado antes y después
+# MAGIC del ajuste y se comprueba que:
+# MAGIC
+# MAGIC * **(a) consistencia:** después del ajuste el agregado iguala al valor de referencia;
+# MAGIC * **(b) razones conservadas:** todas las unidades de un territorio se multiplicaron por el
+# MAGIC   mismo λ, así que el orden entre dominios o municipios no cambia;
+# MAGIC * **(c) rango:** las tasas ajustadas siguen en [0, 100];
+# MAGIC * **(d) miembros completos:** las unidades son exactamente los miembros del territorio
+# MAGIC   (en el nivel 2, los municipios del A.M. según `dim_dominio_geih`).
+# MAGIC
+# MAGIC Si alguna falla, la celda se detiene. **λ** es además un diagnóstico del modelo: «si el
+# MAGIC modelo es adecuado, el factor de ajuste estará en torno a uno» (INE Chile, ENUSC 2018,
+# MAGIC PDF 23); se avisa si se aleja de 1 más de `UMBRAL_LAMBDA_AVISO`. Por último se repite la
+# MAGIC comprobación sobre la tabla final publicada (valores redondeados a 4 decimales).
+
+# COMMAND ----------
+
+# DBTITLE 1,12. Verificación del benchmarking
+# Nivel 1: los 23 dominios frente al total de las 23 ciudades.
+print("NIVEL 1 — dominios → «" + NOMBRE_TOTAL_23 + "» (pesos: PEA expandida)")
+detalle_n1 = pd.DataFrame(
+    {
+        "TERRITORIO": NOMBRE_TOTAL_23,
+        "CODIGO_DOMINIO": resultados_ganador["CODIGO_DOMINIO"].values,
+        "NOMBRE_DOMINIO": resultados_ganador["NOMBRE_DOMINIO"].values,
+        "PESO": pea_dominio,
+        "DIRECTA": resultados_ganador[Y_COL].values,
+        "EBLUP": modelo_ganador.eblup,
+        "EBLUP_BENCHMARK": eblup_n1,
+    }
+)
+verificacion_n1 = verificar_benchmark(
+    detalle_n1,
+    col_grupo="TERRITORIO",
+    col_id="CODIGO_DOMINIO",
+    col_peso="PESO",
+    col_antes="EBLUP",
+    col_despues="EBLUP_BENCHMARK",
+    objetivos={NOMBRE_TOTAL_23: referencia_n1},
+    miembros_esperados={NOMBRE_TOTAL_23: set(df["CODIGO_DOMINIO"])},
+    tasa_min=TASA_MINIMA,
+    tasa_max=TASA_MAXIMA,
+    umbral_lambda=UMBRAL_LAMBDA_AVISO,
+)
+display(verificacion_n1)
+detalle_n1["DIF_EBLUP_DIRECTA_PP"] = detalle_n1["EBLUP"] - detalle_n1["DIRECTA"]
+detalle_n1["CAMBIO_AJUSTE_PP"] = detalle_n1["EBLUP_BENCHMARK"] - detalle_n1["EBLUP"]
+display(detalle_n1.round(4))
+
+# Nivel 2: municipios de cada dominio A.M. frente al valor ajustado del dominio.
+ajustados_bm2 = df_bm2[df_bm2["BENCHMARK"]]
+if ajustados_bm2.empty:
+    print("\nNIVEL 2 — no hay municipios objetivo dentro de un dominio A.M.")
+else:
+    print("\nNIVEL 2 — municipios → su dominio A.M. (pesos: población de 15 a 59 años)")
+    miembros_n2 = {
+        padre: set(
+            dim_dominio.loc[dim_dominio["CODIGO_DOMINIO"] == padre, "CODIGO_MUNICIPIO"]
+        )
+        for padre in ajustados_bm2["CODIGO_DOMINIO_PADRE"].unique()
+    }
+    verificacion_n2 = verificar_benchmark(
+        ajustados_bm2,
+        col_grupo="CODIGO_DOMINIO_PADRE",
+        col_id="CODIGO_MUNICIPIO",
+        col_peso="PESO_N2",
+        col_antes="PRED_EXACTA",
+        col_despues="PRED_BENCHMARK",
+        objetivos={p: objetivos_n2[p] for p in miembros_n2},
+        miembros_esperados=miembros_n2,
+        tasa_min=TASA_MINIMA,
+        tasa_max=TASA_MAXIMA,
+        umbral_lambda=UMBRAL_LAMBDA_AVISO,
+    )
+    display(verificacion_n2)
+
+# Comprobación sobre la tabla final publicada (redondeada a 4 decimales): los agregados deben
+# coincidir con los valores de referencia salvo el redondeo.
+TOLERANCIA_REDONDEO = 1e-3
+dom_final = df_final[df_final["NIVEL"] == "DOMINIO"].merge(
+    detalle_n1[["CODIGO_DOMINIO", "PESO"]].rename(columns={"CODIGO_DOMINIO": "CODIGO"}),
+    on="CODIGO",
+)
+agregado_publicado = promedio_ponderado(
+    dom_final["TASA_DESEMPLEO_PCT"], dom_final["PESO"]
+)
+print(
+    f"\nTabla final, nivel 1: agregado {agregado_publicado:.4f} vs referencia "
+    f"{referencia_n1:.4f} → "
+    + (
+        "PASS"
+        if abs(agregado_publicado - referencia_n1) <= TOLERANCIA_REDONDEO
+        else "FAIL"
+    )
+)
+if abs(agregado_publicado - referencia_n1) > TOLERANCIA_REDONDEO:
+    raise ValueError("La tabla final no reproduce el total de las 23 ciudades.")
+
+mun_final = df_final[df_final["TIPO"] == "SINTETICO_BENCHMARK"].merge(
+    df_pred[["CODIGO_MUNICIPIO", "PESO_N2"]].rename(
+        columns={"CODIGO_MUNICIPIO": "CODIGO"}
+    ),
+    on="CODIGO",
+)
+for padre, sub in mun_final.groupby("CODIGO_DOMINIO_PADRE"):
+    valor_dominio = dom_final.loc[
+        dom_final["CODIGO"] == padre, "TASA_DESEMPLEO_PCT"
+    ].iloc[0]
+    agregado = promedio_ponderado(sub["TASA_DESEMPLEO_PCT"], sub["PESO_N2"])
+    ok = abs(agregado - valor_dominio) <= TOLERANCIA_REDONDEO
+    print(
+        f"Tabla final, nivel 2 ({padre}): agregado {agregado:.4f} vs dominio "
+        f"{valor_dominio:.4f} → {'PASS' if ok else 'FAIL'}"
+    )
+    if not ok:
+        raise ValueError(f"La tabla final no reproduce el valor del dominio {padre}.")

@@ -47,7 +47,11 @@
 # MAGIC
 # MAGIC ## Sobre el tamaño muestral
 # MAGIC
-# MAGIC El análisis trabaja con los 23 dominios que tienen estimación directa de la GEIH. Con
+# MAGIC El análisis trabaja con los 23 dominios que tienen estimación directa de la GEIH: 16
+# MAGIC ciudades y 7 ciudades con su área metropolitana (Medellín, Cali, Barranquilla, Bucaramanga,
+# MAGIC Manizales, Pereira y Cúcuta A.M.), porque el campo `AREA` de la GEIH no separa los municipios
+# MAGIC del A.M. En esos 7 dominios las covariables son el promedio de los municipios miembro
+# MAGIC ponderado por su población de 15 a 59 años (`adicion_covariables`). Con
 # MAGIC ese tamaño los estadísticos descriptivos son informativos pero los contrastes de
 # MAGIC hipótesis tienen poca potencia. Por eso esta etapa no ejecuta ninguna prueba formal:
 # MAGIC describe, y deja los diagnósticos que sí tienen consecuencia para la etapa de
@@ -112,7 +116,8 @@ df_pd = df_cov_spark.toPandas()
 Y = df_meta[VARIABLE_OBJETIVO].values
 SE = df_meta["SE_BOOTSTRAP_PCT"].values
 PSI = SE**2  # varianza de muestreo que el modelo toma como conocida
-entidades = df_meta["MUNICIPIO"].values
+# Etiqueta de cada dominio: la ciudad o la ciudad con su área metropolitana («Cali A.M.»).
+entidades = df_meta["NOMBRE_DOMINIO"].values
 
 df_meta["VARIANZA_MUESTREO"] = PSI
 

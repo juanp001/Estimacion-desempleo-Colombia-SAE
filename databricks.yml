@@ -25,3 +25,8 @@ sync:
     - data/**
     - code/ingesta_datos/censo_nal/**
     - code/analisis/renombrar_geih.py
+    # Archivos de trabajo sueltos en la raíz (insumos y documentos, p. ej. TerriData.txt de
+    # ~3 GB): no son código de los jobs y superan el tamaño máximo de un archivo del workspace.
+    - "*.txt"
+    - "*.xlsx"
+    - "*.pdf"

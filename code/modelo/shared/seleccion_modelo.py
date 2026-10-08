@@ -134,21 +134,21 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
 
 
 def tabla_cook(
-    modelos: list, nombres_covars: list, municipios: np.ndarray
+    modelos: list, nombres_covars: list, nombres_dominio: np.ndarray
 ) -> pd.DataFrame:
     """Resumen de influencia por especificación.
 
     Args:
         modelos (list[ModeloAreaPequena]): Modelos ajustados.
         nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
-        municipios (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
+        nombres_dominio (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
 
     Returns:
         pd.DataFrame: Una fila por modelo con la distancia de Cook máxima, el dominio que
             la produce, el umbral 4/n, el número de dominios que lo superan y su lista.
 
     Example:
-        >>> tabla_cook(modelos, nombres_covars, df["MUNICIPIO"].values)
+        >>> tabla_cook(modelos, nombres_covars, df["NOMBRE_DOMINIO"].values)
     """
     filas = []
     for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
@@ -160,11 +160,13 @@ def tabla_cook(
                 "Modelo": f"M{i}",
                 "Covariables": " + ".join(covars),
                 "Cook_max": round(float(cook.max()), 4),
-                "Dominio_Cook_max": str(municipios[int(np.argmax(cook))]),
+                "Dominio_Cook_max": str(nombres_dominio[int(np.argmax(cook))]),
                 "Umbral": round(umbral, 4),
                 "N_influyentes": int(len(influyentes)),
                 "Dominios_influyentes": (
-                    "; ".join(f"{municipios[j]} ({cook[j]:.3f})" for j in influyentes)
+                    "; ".join(
+                        f"{nombres_dominio[j]} ({cook[j]:.3f})" for j in influyentes
+                    )
                     if len(influyentes)
                     else "—"
                 ),
@@ -332,7 +334,7 @@ def elegir_ganador(
 def sensibilidad_cook(
     modelo: ModeloAreaPequena,
     clase_modelo: type,
-    municipios: np.ndarray,
+    nombres_dominio: np.ndarray,
     alfa: float = 0.05,
 ) -> pd.DataFrame:
     """Reajusta el modelo sin el dominio de mayor distancia de Cook y compara los β̂.
@@ -344,7 +346,7 @@ def sensibilidad_cook(
     Args:
         modelo (ModeloAreaPequena): Modelo ya ajustado (normalmente el ganador).
         clase_modelo (type): Clase con la que reajustar (p. ej. `FayHerriotClasico`).
-        municipios (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
+        nombres_dominio (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
         alfa (float): Nivel de significancia para marcar cambios de significancia.
 
     Returns:
@@ -354,7 +356,7 @@ def sensibilidad_cook(
             "pierde", "gana" o "no"). Incluye una fila `A_hat`.
 
     Example:
-        >>> sensibilidad_cook(ganador, FayHerriotClasico, df["MUNICIPIO"].values)
+        >>> sensibilidad_cook(ganador, FayHerriotClasico, df["NOMBRE_DOMINIO"].values)
     """
     cook = distancia_cook(modelo)
     idx = int(np.argmax(cook))
@@ -370,7 +372,7 @@ def sensibilidad_cook(
 
     return pd.DataFrame(
         {
-            "Dominio_excluido": str(municipios[idx]),
+            "Dominio_excluido": str(nombres_dominio[idx]),
             "Cook": round(float(cook[idx]), 4),
             "Parametro": parametros,
             "Valor_completo": completo.round(4),
@@ -396,20 +398,20 @@ def sensibilidad_cook(
     )
 
 
-def figura_cook(modelos: list, nombres_covars: list, municipios: np.ndarray):
+def figura_cook(modelos: list, nombres_covars: list, nombres_dominio: np.ndarray):
     """Distancia de Cook por dominio, un panel por especificación.
 
     Args:
         modelos (list[ModeloAreaPequena]): Modelos ajustados.
         nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
-        municipios (np.ndarray): Nombre de cada dominio.
+        nombres_dominio (np.ndarray): Nombre de cada dominio.
 
     Returns:
         matplotlib.figure.Figure: Figura con un panel de barras por modelo y la línea del
             umbral 4/n; las barras que lo superan se pintan en rojo.
 
     Example:
-        >>> fig = figura_cook([ganador], [ganador.covars], df["MUNICIPIO"].values)
+        >>> fig = figura_cook([ganador], [ganador.covars], df["NOMBRE_DOMINIO"].values)
     """
     import matplotlib.pyplot as plt
 
@@ -436,14 +438,14 @@ def figura_cook(modelos: list, nombres_covars: list, municipios: np.ndarray):
         ax.grid(True, axis="y", linestyle=":", alpha=0.4)
 
     axes[-1].set_xticks(np.arange(modelos[0].n))
-    axes[-1].set_xticklabels(municipios, rotation=60, ha="right", fontsize=7)
+    axes[-1].set_xticklabels(nombres_dominio, rotation=60, ha="right", fontsize=7)
     plt.tight_layout()
     return fig
 
 
 def interpretar_cook(
     modelo: ModeloAreaPequena,
-    municipios: np.ndarray,
+    nombres_dominio: np.ndarray,
     sensibilidad: pd.DataFrame,
     alfa: float = 0.05,
 ) -> str:
@@ -457,7 +459,7 @@ def interpretar_cook(
 
     Args:
         modelo (ModeloAreaPequena): Modelo ya ajustado (normalmente el ganador).
-        municipios (np.ndarray): Nombre de cada dominio.
+        nombres_dominio (np.ndarray): Nombre de cada dominio.
         sensibilidad (pd.DataFrame): Salida de `sensibilidad_cook` para ese modelo.
         alfa (float): Nivel de significancia usado en `sensibilidad_cook`.
 
@@ -465,11 +467,11 @@ def interpretar_cook(
         str: Interpretación lista para imprimir junto a la figura y la tabla de sensibilidad.
 
     Example:
-        >>> print(interpretar_cook(ganador, municipios, sensibilidad_cook(ganador, ...)))
+        >>> print(interpretar_cook(ganador, nombres_dominio, sensibilidad_cook(ganador, ...)))
     """
     cook = distancia_cook(modelo)
     umbral = 4 / modelo.n
-    influyentes = municipios[cook > umbral]
+    influyentes = nombres_dominio[cook > umbral]
     covars = sensibilidad[sensibilidad["Parametro"].isin(modelo.covars)]
     cambios_signo = covars.loc[covars["Cambia_signo"] == "sí", "Parametro"].tolist()
     perdidas = covars.loc[covars["Cambio_signif"] == "pierde", "Parametro"].tolist()

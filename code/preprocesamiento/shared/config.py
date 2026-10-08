@@ -9,6 +9,11 @@ selección de covariables.
 TBL_MERCADO_LABORAL = "tesis.geih_oro.mercado_laboral"
 TBL_TERRIDATA = "tesis.terridata.terridata_extendido_plata"
 TBL_DIM_INDICADORES = "tesis.dim.dim_indicadores"
+# Membresía municipio → dominio (ciudad o ciudad A.M.), ver dimensiones/dim_dominio_geih.py.
+TBL_DIM_DOMINIO = "tesis.dim.dim_dominio_geih"
+# Cifras oficiales del DANE por dominio (validación de la estimación directa).
+TBL_DATOS_MUNICIPALES = "tesis.geih_bronce.datos_municipales"
+NOMBRE_TOTAL_23 = "Total 23 ciudades y A.M."
 
 # ── Tablas destino ────────────────────────────────────────────────────────────
 TBL_ESTIMACION_DIRECTA = "tesis.preprocesamiento.tasa_desempleo_municipal"
@@ -128,14 +133,17 @@ def resolver_periodo(dbutils) -> tuple:
     return per, mes
 
 
-# Columnas de agrupación para estimación directa
+# Columnas de agrupación para estimación directa. El dominio es la ciudad con su área metropolitana
+# tal como la identifica el campo AREA de la GEIH (ver dim_dominio_geih); CODIGO_DOMINIO es el código
+# DIVIPOLA de la capital.
 GRUPO_COLS = [
     "PER",
     "MES",
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
-    "CODIGO_MUNICIPIO",
-    "MUNICIPIO",
+    "CODIGO_DOMINIO",
+    "NOMBRE_DOMINIO",
+    "TIPO_DOMINIO",
 ]
 
 # Columnas que NO son covariables (identificación + estimaciones)
@@ -145,19 +153,21 @@ METADATA_COLS = [
     "TRIMESTRE_MOVIL",
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
-    "CODIGO_MUNICIPIO",
-    "MUNICIPIO",
+    "CODIGO_DOMINIO",
+    "NOMBRE_DOMINIO",
+    "TIPO_DOMINIO",
+    "N_MUNICIPIOS",
+    "PEA_EXPANDIDA",
     "TASA_DESEMPLEO_PCT",
     "SE_BOOTSTRAP_PCT",
     "IC_INF_PCT",
     "IC_SUP_PCT",
     "AMPLITUD_IC",
     "CV_PORCENTAJE",
-    "DEPARTAMENTO_NORMALIZADO",
-    "ENTIDAD_NORMALIZADO",
 ]
 
-# Columnas a excluir de TerriData al hacer el join (ya existen en estimaciones)
+# Columnas a excluir de TerriData al hacer el join: las de identificación ya existen en las
+# estimaciones y las de texto normalizado no son indicadores (no se pueden agregar al dominio).
 COLUMNAS_EXCLUIR_JOIN = [
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
@@ -165,10 +175,18 @@ COLUMNAS_EXCLUIR_JOIN = [
     "ENTIDAD",
     "ANO",
     "MES",
+    "DEPARTAMENTO_NORMALIZADO",
+    "ENTIDAD_NORMALIZADO",
 ]
 
 # Variable respuesta
 VARIABLE_OBJETIVO = "TASA_DESEMPLEO_PCT"
+
+# Peso con el que se agregan las covariables municipales a un dominio de varios municipios:
+# población de 15 a 59 años de TerriData («Población entre 15 y 59 años»), aproximación de la PEA
+# municipal, que no se publica. Es el mismo peso del benchmarking de nivel 2 en el modelo (ver
+# preprocesamiento/shared/agregacion_dominios.py y modelo/shared/benchmarking.py).
+COD_PESO_POBLACION = "020090014"
 
 # Umbrales de calidad de estimación (criterios DANE/CEPAL)
 CV_CONFIABLE = 5.0  # CV < 5 %   → confiable

@@ -10,6 +10,10 @@
 # MAGIC covariable entra o sale por una razón única que se puede leer en su fila de la ficha
 # MAGIC de decisión.
 # MAGIC
+# MAGIC Los 23 dominios son ciudades o ciudades con su área metropolitana («Cali A.M.»); en los 7
+# MAGIC dominios A.M. las covariables son el promedio ponderado de sus municipios
+# MAGIC (`adicion_covariables`), de modo que respuesta y covariables describen el mismo territorio.
+# MAGIC
 # MAGIC ## Qué no se hace y por qué
 # MAGIC
 # MAGIC | Procedimiento | Decisión | Motivo |
@@ -99,7 +103,8 @@ df_meta = df_full.select(METADATA_COLS).toPandas()
 df_pd = df_cov_spark.toPandas()
 
 Y = df_meta[VARIABLE_OBJETIVO].values
-entidades = df_meta["MUNICIPIO"].values
+# Etiqueta de cada dominio: la ciudad o la ciudad con su área metropolitana («Cali A.M.»).
+entidades = df_meta["NOMBRE_DOMINIO"].values
 
 catalogo_activo, reporte_catalogo = resolver_catalogo(
     indicadores_dict, list(df_pd.columns)

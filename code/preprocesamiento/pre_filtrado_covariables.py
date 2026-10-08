@@ -100,7 +100,9 @@ n_sin_na = df_sin_na.shape[1]
 # MAGIC Con 23 dominios de estimación, una covariable con un solo dato faltante deja sin
 # MAGIC información a un dominio completo y no puede usarse en la regresión sintética del
 # MAGIC modelo Fay-Herriot. El criterio es binario —cero faltantes— y no depende de la
-# MAGIC variable respuesta.
+# MAGIC variable respuesta. Las covariables llegan ya agregadas al dominio (ciudad o ciudad A.M.,
+# MAGIC ver `adicion_covariables`): si a un municipio miembro le falta el dato, el dominio queda
+# MAGIC vacío y la covariable cae aquí.
 
 # COMMAND ----------
 
