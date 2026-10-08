@@ -59,8 +59,9 @@ Nivel 1: los 23 dominios (ciudades y ciudades A.M.) → «Total 23 ciudades y A.
       lo compara con ``datos_municipales`` y se detiene si difiere.
 Nivel 2: municipios de un dominio A.M. → valor ya ajustado (nivel 1) de su dominio
     * Unidades: la predicción sintética x_m'β̂ de cada municipio (Cali y Yumbo en Cali A.M.).
-    * Pesos: la población de 15 a 59 años del municipio (TerriData 020090014), aproximación de la
-      PEA municipal, que no se publica. Es el mismo peso con el que se agregaron las covariables del
+    * Pesos: la población de 15 años y más del municipio (suma de los grupos quinquenales de edad de
+      TerriData), aproximación de la PEA municipal, que no se publica. Es la PET de la serie GEIH con
+      proyecciones CNPV 2018 (15 años y más, DANE, actualización de la serie 2007-2021, PDF 30). Es el mismo peso con el que se agregaron las covariables del
       dominio (preprocesamiento/shared/agregacion_dominios.py). Con pesos iguales, el promedio
       ponderado de los sintéticos municipales es exactamente el sintético del dominio,
       Σ w_m x_m'β̂ / Σ w_m = x̄_D'β̂, así que λ_D = θ_D / x̄_D'β̂: λ − 1 mide cuánto se separa el
@@ -116,7 +117,7 @@ def promedio_ponderado(valores, pesos) -> float:
 
     Casos de uso:
         Agregado de los EBLUP de los dominios (pesos = PEA expandida) o de las predicciones
-        sintéticas de los municipios de un A.M. (pesos = población de 15 a 59 años).
+        sintéticas de los municipios de un A.M. (pesos = población de 15 años y más).
 
     Example:
         >>> promedio_ponderado([10.0, 20.0], [3.0, 1.0])
@@ -204,7 +205,7 @@ def benchmark_nivel2(
     Args:
         df (pd.DataFrame): Una fila por municipio objetivo.
         col_pred (str): Columna con la predicción sintética x_m'β̂.
-        col_peso (str): Columna con el peso del municipio (población de 15 a 59 años).
+        col_peso (str): Columna con el peso del municipio (población de 15 años y más).
         col_padre (str): Columna con el código del dominio padre (NULL si no tiene).
         objetivos (dict[str, float]): Valor de referencia por código de dominio padre (el
             EBLUP ajustado en el nivel 1).

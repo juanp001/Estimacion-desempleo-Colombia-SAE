@@ -24,7 +24,8 @@
 # MAGIC
 # MAGIC La tasa de un dominio con área metropolitana describe a todos sus municipios (Cali A.M. = Cali +
 # MAGIC Yumbo), así que cada indicador se agrega sobre los municipios miembro con un promedio ponderado
-# MAGIC por la población de 15 a 59 años (`COD_PESO_POBLACION`, aproximación de la PEA):
+# MAGIC por la población de 15 años y más (`EXPR_PESO_POBLACION`, PET de la GEIH CNPV 2018, aproximación
+# MAGIC de la PEA):
 # MAGIC
 # MAGIC ```
 # MAGIC x̄_D = Σ_{m∈D} w_m · x_m / Σ_{m∈D} w_m
@@ -160,12 +161,17 @@ print(f"Covariables seleccionadas de TerriData: {len(columnas_indicadores)}")
 # COMMAND ----------
 
 # DBTITLE 1,Agregar las covariables municipales al dominio
-# Un bloque por período estimado (normalmente uno). Promedio ponderado por la población de 15 a 59
-# años sobre los municipios de cada dominio; ver shared/agregacion_dominios.py.
+# Un bloque por período estimado (normalmente uno). Promedio ponderado por la población de 15 años
+# y más sobre los municipios de cada dominio; ver shared/agregacion_dominios.py.
 df_terridata_dominio = None
 for per, mes in periodos_estimados:
     df_periodo = agregar_covariables_dominio(
-        df_terridata, df_dim_dominio, columnas_indicadores, COD_PESO_POBLACION, per, mes
+        df_terridata,
+        df_dim_dominio,
+        columnas_indicadores,
+        EXPR_PESO_POBLACION,
+        per,
+        mes,
     )
     df_terridata_dominio = (
         df_periodo

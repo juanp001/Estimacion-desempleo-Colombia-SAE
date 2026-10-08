@@ -15,8 +15,11 @@ Para cada dominio D y cada indicador x se usa el promedio ponderado
 
     x̄_D = Σ_{m∈D} w_m · x_m / Σ_{m∈D} w_m,
 
-con ``w_m`` = población de 15 a 59 años del municipio (TerriData 020090014), aproximación de la PEA
-municipal, que no se publica. El peso se elige por coherencia con la respuesta: la tasa de desempleo
+con ``w_m`` = población de 15 años y más del municipio (suma de los grupos quinquenales por sexo de
+TerriData), aproximación de la PEA municipal, que no se publica. Es la población en edad de trabajar
+(PET) de la serie GEIH con proyecciones CNPV 2018, que «toma PET de 15 años y más» (DANE,
+actualización de la serie 2007-2021, PDF 30), la misma con la que se calcula la tasa directa
+(EDAD ≥ 15). El peso se elige por coherencia con la respuesta: la tasa de desempleo
 del dominio es TD_D = Σ PEA_m · TD_m / Σ PEA_m. Si el modelo lineal vale en cada municipio,
 μ_m = x_m'β + u_m, al promediar con los mismos pesos se obtiene μ_D = x̄_D'β + ū_D: el mismo β
 sirve para el dominio y para sus municipios. Esa coherencia permite (i) ajustar el modelo con los
@@ -49,7 +52,7 @@ def agregar_covariables_dominio(
     df_terridata: DataFrame,
     df_dim_dominio: DataFrame,
     columnas: list,
-    col_peso: str,
+    expr_peso: str,
     anio: int,
     mes: int,
 ) -> DataFrame:
@@ -61,7 +64,9 @@ def agregar_covariables_dominio(
         df_dim_dominio (DataFrame): ``tesis.dim.dim_dominio_geih`` (una fila por municipio
             miembro, con ``CODIGO_DOMINIO`` y ``CODIGO_MUNICIPIO``).
         columnas (list[str]): Códigos de indicador a agregar (nombres de columna de TerriData).
-        col_peso (str): Código del indicador usado como peso (población de 15 a 59 años).
+        expr_peso (str): Expresión SQL del peso sobre las columnas de TerriData (población de 15
+            años y más: suma de los grupos de edad, ``EXPR_PESO_POBLACION``). Debe dar NULL si
+            falta un componente.
         anio (int): Año (``ANO``) de TerriData que se agrega.
         mes (int): Mes (``MES``) de TerriData que se agrega.
 
@@ -76,12 +81,12 @@ def agregar_covariables_dominio(
         En ``adicion_covariables.py``, antes de unir las covariables con las estimaciones
         directas por ``CODIGO_DOMINIO``. Para un dominio de un solo municipio el resultado es el
         valor del municipio; para Cali A.M. es el promedio de Cali y Yumbo ponderado por su
-        población de 15 a 59 años.
+        población de 15 años y más.
 
     Example:
         >>> df_cov = agregar_covariables_dominio(
         ...     spark.table(TBL_TERRIDATA), spark.table(TBL_DIM_DOMINIO),
-        ...     columnas_indicadores, COD_PESO_POBLACION, 2018, 12,
+        ...     columnas_indicadores, EXPR_PESO_POBLACION, 2018, 12,
         ... )
     """
     # try_cast: algunos indicadores son texto (p. ej. la categoría municipal «Especial»); con el
@@ -91,7 +96,7 @@ def agregar_covariables_dominio(
         (F.col("ANO") == anio) & (F.col("MES") == mes)
     ).select(
         F.col("CODIGO_ENTIDAD").alias("CODIGO_MUNICIPIO"),
-        F.expr(f"try_cast(`{col_peso}` AS DOUBLE)").alias("_PESO"),
+        F.expr(expr_peso).alias("_PESO"),
         *[F.expr(f"try_cast(`{c}` AS DOUBLE)").alias(c) for c in columnas],
     )
 
@@ -107,7 +112,7 @@ def agregar_covariables_dominio(
     ]
     if sin_peso:
         raise ValueError(
-            f"Municipios miembro sin peso ({col_peso}) en TerriData para ANO={anio}, "
+            f"Municipios miembro sin peso (población de 15 años y más) en TerriData para ANO={anio}, "
             f"MES={mes}: {sorted(sin_peso)}. Sin peso no se puede agregar su dominio."
         )
 

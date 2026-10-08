@@ -30,7 +30,7 @@
 # MAGIC    completa). Nivel 1: los 23 EBLUP se ajustan para que, ponderados por la PEA expandida,
 # MAGIC    reproduzcan la tasa directa del total de las 23 ciudades (la cifra oficial del DANE).
 # MAGIC    Nivel 2: los municipios de un dominio A.M. (Cali y Yumbo) se ajustan para que,
-# MAGIC    ponderados por su población de 15 a 59 años, reproduzcan el valor ya ajustado de su
+# MAGIC    ponderados por su población de 15 años y más, reproduzcan el valor ya ajustado de su
 # MAGIC    dominio. Es el ajuste de razón de Fay y Herriot (1979) que usan el DANE (nota SAE 2024)
 # MAGIC    y el INE de Chile (ENUSC 2018). La celda 12 lo verifica.
 # MAGIC
@@ -669,8 +669,9 @@ if df_pred["FUERA_DE_RANGO"].any():
 # DBTITLE 1,10b. Benchmarking de nivel 2: municipios de un dominio A.M. → valor de su dominio
 # Sustentación completa en shared/benchmarking.py. Los municipios que forman un dominio A.M. con
 # estimación directa (Cali y Yumbo en Cali A.M.) reciben su predicción sintética y luego un
-# factor de razón λ_D por dominio, para que su promedio ponderado por la población de 15 a 59
-# años (TerriData 020090014, aproximación de la PEA municipal) reproduzca el valor ya ajustado
+# factor de razón λ_D por dominio, para que su promedio ponderado por la población de 15 años y
+# más (PET CNPV 2018, suma de los grupos de edad de TerriData; aproximación de la PEA municipal)
+# reproduzca el valor ya ajustado
 # del dominio (nivel 1). Así municipio, ciudad A.M. y total quedan coherentes, como en el DANE
 # («departamentales, de ciudades principales y nacional», nota SAE 2024, PDF 25).
 #
@@ -689,7 +690,7 @@ pesos_n2 = (
     .filter(f"ANO = {PER_MODELO} AND MES = {MES_MODELO}")
     .selectExpr(
         "CODIGO_ENTIDAD AS CODIGO_MUNICIPIO",
-        f"CAST(`{COD_PESO_POBLACION}` AS DOUBLE) AS PESO_N2",
+        f"{EXPR_PESO_POBLACION} AS PESO_N2",
     )
     .toPandas()
 )
@@ -865,7 +866,9 @@ ajustados_bm2 = df_bm2[df_bm2["BENCHMARK"]]
 if ajustados_bm2.empty:
     print("\nNIVEL 2 — no hay municipios objetivo dentro de un dominio A.M.")
 else:
-    print("\nNIVEL 2 — municipios → su dominio A.M. (pesos: población de 15 a 59 años)")
+    print(
+        "\nNIVEL 2 — municipios → su dominio A.M. (pesos: población de 15 años y más)"
+    )
     miembros_n2 = {
         padre: set(
             dim_dominio.loc[dim_dominio["CODIGO_DOMINIO"] == padre, "CODIGO_MUNICIPIO"]

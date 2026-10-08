@@ -51,7 +51,7 @@
 # MAGIC ciudades y 7 ciudades con su área metropolitana (Medellín, Cali, Barranquilla, Bucaramanga,
 # MAGIC Manizales, Pereira y Cúcuta A.M.), porque el campo `AREA` de la GEIH no separa los municipios
 # MAGIC del A.M. En esos 7 dominios las covariables son el promedio de los municipios miembro
-# MAGIC ponderado por su población de 15 a 59 años (`adicion_covariables`). Con
+# MAGIC ponderado por su población de 15 años y más (`adicion_covariables`). Con
 # MAGIC ese tamaño los estadísticos descriptivos son informativos pero los contrastes de
 # MAGIC hipótesis tienen poca potencia. Por eso esta etapa no ejecuta ninguna prueba formal:
 # MAGIC describe, y deja los diagnósticos que sí tienen consecuencia para la etapa de

@@ -73,9 +73,16 @@ MUNICIPIO_COLS = [
 # Peso del nivel 1 (dominios → total de las 23 ciudades): PEA expandida de cada dominio, que
 # calcula estimacion_directa con los factores de expansión.
 COL_PESO_NIVEL1 = "PEA_EXPANDIDA"
-# Peso del nivel 2 (municipios → su dominio A.M.): población de 15 a 59 años de TerriData,
-# aproximación de la PEA municipal; es el mismo peso con el que se agregaron las covariables.
-COD_PESO_POBLACION = "020090014"
+# Peso del nivel 2 (municipios → su dominio A.M.): población de 15 años y más (PET de la serie
+# GEIH con proyecciones CNPV 2018), aproximación de la PEA municipal; es el mismo peso con el que
+# se agregaron las covariables (preprocesamiento/shared/config.py). Suma de los grupos
+# quinquenales por sexo de 15-19 a 80 y más de TerriData (02001xxxx hombres, 02002xxxx mujeres).
+COLS_PESO_POBLACION = [
+    f"0200{sexo}0{grupo:03d}" for sexo in ("1", "2") for grupo in range(4, 18)
+]
+EXPR_PESO_POBLACION = " + ".join(
+    f"try_cast(`{c}` AS DOUBLE)" for c in COLS_PESO_POBLACION
+)
 # Aviso cuando el factor de ajuste se aleja de 1 más de esta fracción: «si el modelo es
 # adecuado, el factor de ajuste estará en torno a uno» (INE Chile, ENUSC 2018, PDF 23).
 UMBRAL_LAMBDA_AVISO = 0.20

@@ -87,7 +87,20 @@ def etiqueta_trimestre_movil(per: int, mes: int) -> str:
         `etiqueta_trimestre_movil(2018, 12)` → `"Oct-Dic 2018"`;
         `etiqueta_trimestre_movil(2019, 1)` → `"Nov 2018-Ene 2019"`.
     """
-    nombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    nombres = [
+        "Ene",
+        "Feb",
+        "Mar",
+        "Abr",
+        "May",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dic",
+    ]
     (anio_ini, mes_ini), *_, (anio_fin, mes_fin) = meses_trimestre_movil(per, mes)
     if anio_ini == anio_fin:
         return f"{nombres[mes_ini - 1]}-{nombres[mes_fin - 1]} {anio_fin}"
@@ -183,10 +196,21 @@ COLUMNAS_EXCLUIR_JOIN = [
 VARIABLE_OBJETIVO = "TASA_DESEMPLEO_PCT"
 
 # Peso con el que se agregan las covariables municipales a un dominio de varios municipios:
-# población de 15 a 59 años de TerriData («Población entre 15 y 59 años»), aproximación de la PEA
-# municipal, que no se publica. Es el mismo peso del benchmarking de nivel 2 en el modelo (ver
-# preprocesamiento/shared/agregacion_dominios.py y modelo/shared/benchmarking.py).
-COD_PESO_POBLACION = "020090014"
+# población de 15 años y más, la población en edad de trabajar (PET) de la serie GEIH con
+# proyecciones CNPV 2018 («toman PET de 15 años y más», DANE, actualización de la serie
+# 2007-2021, PDF 30), aproximación de la PEA municipal, que no se publica. Es el mismo peso del
+# benchmarking de nivel 2 en el modelo (ver preprocesamiento/shared/agregacion_dominios.py y
+# modelo/shared/benchmarking.py).
+# Se suman los grupos quinquenales por sexo de 15-19 a 80 y más de TerriData (02001xxxx hombres,
+# 02002xxxx mujeres; 0004 = 15-19 … 0017 = 80+). No se usa «población total − 0 a 14» porque la
+# población total (010010009) viene de otra fuente y no cuadra con la suma de los grupos de edad.
+COLS_PESO_POBLACION = [
+    f"0200{sexo}0{grupo:03d}" for sexo in ("1", "2") for grupo in range(4, 18)
+]
+# Expresión SQL del peso: NULL si a un municipio le falta cualquier grupo de edad.
+EXPR_PESO_POBLACION = " + ".join(
+    f"try_cast(`{c}` AS DOUBLE)" for c in COLS_PESO_POBLACION
+)
 
 # Umbrales de calidad de estimación (criterios DANE/CEPAL)
 CV_CONFIABLE = 5.0  # CV < 5 %   → confiable

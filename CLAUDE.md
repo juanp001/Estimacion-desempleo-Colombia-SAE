@@ -122,7 +122,9 @@ preprocesamiento/estimacion_directa.py
         ↓
 preprocesamiento/adicion_covariables.py
   → agrega TerriData al dominio (shared/agregacion_dominios.py): x̄_D = Σ w_m x_m / Σ w_m sobre los
-    municipios miembro, w = población de 15 a 59 años (COD_PESO_POBLACION = 020090014, proxy de la PEA);
+    municipios miembro, w = población de 15 años y más (PET de la serie CNPV 2018, proxy de la PEA:
+    suma de los 28 grupos quinquenales por sexo 15-19…80+, EXPR_PESO_POBLACION; no el total 010010009,
+    que es de otra fuente);
     NULL si a un miembro le falta el dato; error si a un miembro le falta el peso. Sustento: Morales
     p. 425 (x_d = valores agregados del área) y coherencia lineal con la tasa ponderada por PEA
   → LEFT JOIN por CODIGO_DOMINIO, PER = ANO, MES y valida que TerriData cubra el período; excluye las
@@ -182,7 +184,7 @@ modelo/fay_herriot.py
       9b nivel 1: los 23 EBLUP × λ₁ para que Σ PEA_EXPANDIDA·EBLUP/Σ PEA reproduzca la directa del
          conjunto (= «Total 23 ciudades y A.M.» del DANE; se detiene si difiere > 0.01 pp)
       10b nivel 2: los municipios de un dominio A.M. (Cali y Yumbo) × λ_D para que, ponderados por la
-         población de 15 a 59 años, reproduzcan el EBLUP ajustado de su dominio. Los otros 81
+         población de 15 años y más, reproduzcan el EBLUP ajustado de su dominio. Los otros 81
          municipios quedan con el sintético puro (el departamento solo es representativo anualmente)
       12 verificación: tablas antes/después y pruebas (consistencia < 1e-8, razones conservadas, rango,
          miembros completos; aviso si |λ−1| > 0.20) + comprobación sobre la tabla final redondeada
