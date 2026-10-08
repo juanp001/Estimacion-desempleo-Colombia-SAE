@@ -2,12 +2,18 @@ resources:
   jobs:
     ingesta_geih:
       name: ingesta_geih
-      description: GEIH medallón (bronce → plata → oro). Requiere que dimensiones ya se haya ejecutado.
+      description: GEIH medallón (bronce → plata → oro) y datos publicados DANE. Requiere que dimensiones ya se haya ejecutado.
       max_concurrent_runs: 1
       environments:
         - environment_key: serverless
           spec:
             environment_version: "2"
+        # openpyxl no viene en el entorno serverless; lo necesita pandas.read_excel
+        - environment_key: serverless_excel
+          spec:
+            environment_version: "2"
+            dependencies:
+              - openpyxl
       tasks:
         - task_key: geih_bronce
           environment_key: serverless
@@ -25,3 +31,7 @@ resources:
           environment_key: serverless
           notebook_task:
             notebook_path: ../../code/ingesta_datos/geih/geih_oro.py
+        - task_key: datos_publicados
+          environment_key: serverless_excel
+          notebook_task:
+            notebook_path: ../../code/ingesta_datos/geih/datos_publicados.py

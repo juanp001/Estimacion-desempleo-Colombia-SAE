@@ -7,6 +7,21 @@ SCHEMA_ORO    = "geih_oro"
 # Base path for raw CSV volumes
 VOLUME_BASE = f"/Volumes/{CATALOG}/{SCHEMA_BRONCE}"
 
+# Datos publicados por el DANE (anexo mercado laboral según proyecciones CNPV 2018)
+RUTA_DATOS_PUBLICADOS = (
+    f"{VOLUME_BASE}/datos_publicados/"
+    "anexo-mercado-laboral-segun-proyecciones-CNPV2018.xlsx"
+)
+URL_FUENTE_DATOS_PUBLICADOS = (
+    "https://www.dane.gov.co/files/investigaciones/boletines/ech/"
+    "nuevo-enfoque-conceptual-metodologico-2018/"
+    "anexo-mercado-laboral-segun-proyecciones-CNPV2018.xlsx"
+)
+TBL_DATOS_NACIONALES = f"{CATALOG}.{SCHEMA_BRONCE}.datos_nacionales"
+TBL_DATOS_MUNICIPALES = f"{CATALOG}.{SCHEMA_BRONCE}.datos_municipales"
+ANIO_INICIO_PUBLICADOS = 2016
+ANIO_FIN_PUBLICADOS = 2021
+
 # Destination table names — plata
 TBL_CG_PLATA  = f"{CATALOG}.{SCHEMA_PLATA}.caracteristicas_generales_consolidado"
 TBL_FT_PLATA  = f"{CATALOG}.{SCHEMA_PLATA}.fuerza_trabajo_consolidado"
