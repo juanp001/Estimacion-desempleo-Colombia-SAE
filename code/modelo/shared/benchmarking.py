@@ -61,11 +61,14 @@ Nivel 2: municipios de un dominio A.M. → valor ya ajustado (nivel 1) de su dom
     * Unidades: la predicción sintética x_m'β̂ de cada municipio (Cali y Yumbo en Cali A.M.).
     * Pesos: la población de 15 años y más del municipio (suma de los grupos quinquenales de edad de
       TerriData), aproximación de la PEA municipal, que no se publica. Es la PET de la serie GEIH con
-      proyecciones CNPV 2018 (15 años y más, DANE, actualización de la serie 2007-2021, PDF 30). Es el mismo peso con el que se agregaron las covariables del
-      dominio (preprocesamiento/shared/agregacion_dominios.py). Con pesos iguales, el promedio
-      ponderado de los sintéticos municipales es exactamente el sintético del dominio,
-      Σ w_m x_m'β̂ / Σ w_m = x̄_D'β̂, así que λ_D = θ_D / x̄_D'β̂: λ − 1 mide cuánto se separa el
-      dominio de su predicción sintética (su efecto aleatorio más el error de muestreo).
+      proyecciones CNPV 2018 (15 años y más, DANE, actualización de la serie 2007-2021, PDF 30), el
+      denominador de la tasa de desempleo. Las covariables del dominio, en cambio, se agregaron
+      con el denominador de cada indicador (preprocesamiento/shared/reglas_agregacion.py), así
+      que el promedio ponderado de los sintéticos municipales no es exactamente el sintético del
+      dominio: Σ w_m x_m'β̂ / Σ w_m = x̄_D'β̂ + (Σ w_m x_m / Σ w_m − x̄_D)'β̂. λ_D − 1 combina
+      cuánto se separa el dominio de su predicción sintética (su efecto aleatorio más el error de
+      muestreo) y esa brecha de agregación, que el notebook imprime. La consistencia del ajuste
+      no depende de ella: λ_D se calcula sobre el promedio ponderado de los sintéticos.
     * Valor de referencia: el EBLUP ajustado del dominio (nivel 1), que es la cifra que se publica
       para Cali A.M. Así municipio, ciudad A.M. y total quedan coherentes entre sí.
 

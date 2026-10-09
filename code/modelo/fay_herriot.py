@@ -582,9 +582,10 @@ print(f"Tabla escrita: {TBL_FAY_HERRIOT_RESULTADOS}")
 # Para municipios sin estimación directa propia (Y ni Di), el EBLUP no puede calcularse: el
 # predictor es el sintético ŷ_m = x_m'β̂ del modelo ganador, sin contracción, con las
 # covariables del municipio (no las del dominio). Su MSE es x_m'Cov(β̂)x_m + Â (Morales et al.,
-# p. 441). Usar el β̂ estimado con dominios para predecir municipios es coherente porque las
-# covariables de los dominios A.M. se agregaron con los mismos pesos que la tasa
-# (preprocesamiento/shared/agregacion_dominios.py).
+# p. 441). Usar el β̂ estimado con dominios para predecir municipios supone que el modelo de
+# enlace vale también para los municipios; por eso las covariables de los dominios A.M. se
+# agregaron con el denominador de cada indicador: x_D y x_m son el mismo indicador sobre
+# territorios distintos (preprocesamiento/shared/reglas_agregacion.py).
 covars_ganador = modelo_ganador.covars
 beta_ganador = modelo_ganador.beta_hat
 
@@ -680,11 +681,13 @@ if df_pred["FUERA_DE_RANGO"].any():
 # permite, y asignarle la tasa del A.M. es el sintético básico, sesgado si Yumbo difiere de Cali
 # (Morales et al., p. 42).
 #
-# El peso es el mismo con el que se agregaron las covariables del dominio, de modo que el
-# agregado de los sintéticos municipales es el sintético del dominio y λ_D − 1 mide cuánto se
-# separa el dominio de su predicción sintética. Los municipios sin dominio padre no se ajustan:
-# no hay un valor de referencia trimestral confiable que los contenga (el departamento solo es
-# representativo con datos anuales, Metodología GEIH v9, PDF 9).
+# El peso es el denominador de la tasa (PEA ≈ PET). Las covariables del dominio se agregaron con
+# el denominador de cada indicador, así que el agregado de los sintéticos municipales,
+# Σ w_m x_m'β̂ / Σ w_m, no es exactamente el sintético del dominio x̄_D'β̂: λ_D − 1 combina la
+# separación del dominio respecto de su predicción sintética y esa brecha de agregación, que se
+# imprime abajo; la consistencia del ajuste sigue siendo exacta. Los municipios sin dominio padre
+# no se ajustan: no hay un valor de referencia trimestral confiable que los contenga (el
+# departamento solo es representativo con datos anuales, Metodología GEIH v9, PDF 9).
 pesos_n2 = (
     spark.table(TBL_TERRIDATA)
     .filter(f"ANO = {PER_MODELO} AND MES = {MES_MODELO}")
@@ -728,6 +731,23 @@ display(
         ]
     ]
 )
+
+# Brecha de agregación de cada dominio A.M.: sintético del dominio (x̄_D'β̂, con las covariables
+# agregadas por su denominador) frente al promedio ponderado por la PET de los sintéticos de sus
+# municipios, que es la base del λ_D. Solo se imprime.
+sintetico_dominio = dict(
+    zip(resultados_ganador["CODIGO_DOMINIO"], resultados_ganador["PRED_SINTETICO"])
+)
+pred_exacta = pd.Series(y_sintetico, index=df_pred.index)
+for padre, grupo in df_pred[df_bm2["BENCHMARK"]].groupby("CODIGO_DOMINIO_PADRE"):
+    agregado = float(
+        (pred_exacta[grupo.index] * grupo["PESO_N2"]).sum() / grupo["PESO_N2"].sum()
+    )
+    sint_d = float(sintetico_dominio[padre])
+    print(
+        f"Dominio {padre}: x̄_D'β̂ = {sint_d:.4f} | Σw·x_m'β̂/Σw = {agregado:.4f} "
+        f"| brecha = {agregado - sint_d:+.4f} pp | EBLUP ajustado = {objetivos_n2[padre]:.4f}"
+    )
 
 spark_df_pred = spark.createDataFrame(df_pred)
 spark_df_pred.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(

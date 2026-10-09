@@ -11,6 +11,8 @@ TBL_TERRIDATA = "tesis.terridata.terridata_extendido_plata"
 TBL_DIM_INDICADORES = "tesis.dim.dim_indicadores"
 # Membresía municipio → dominio (ciudad o ciudad A.M.), ver dimensiones/dim_dominio_geih.py.
 TBL_DIM_DOMINIO = "tesis.dim.dim_dominio_geih"
+# Capitales GEIH con su código AREA (CODIGO_AREA_GEIH), ver dimensiones/dim_geih_divipola.py.
+TBL_DIM_GEIH_DIVIPOLA = "tesis.dim.dim_geih_divipola"
 # Cifras oficiales del DANE por dominio (validación de la estimación directa).
 TBL_DATOS_MUNICIPALES = "tesis.geih_bronce.datos_municipales"
 NOMBRE_TOTAL_23 = "Total 23 ciudades y A.M."
@@ -18,6 +20,10 @@ NOMBRE_TOTAL_23 = "Total 23 ciudades y A.M."
 # ── Tablas destino ────────────────────────────────────────────────────────────
 TBL_ESTIMACION_DIRECTA = "tesis.preprocesamiento.tasa_desempleo_municipal"
 TBL_COVARIABLES = "tesis.preprocesamiento.tasa_desempleo_covariables"
+# Regla con la que se agregó cada covariable del catálogo a los dominios A.M. (trazabilidad).
+TBL_REGLAS_AGREGACION = "tesis.preprocesamiento.reglas_agregacion_covariables"
+# Auditoría de la correspondencia geográfica tasa–covariables de cada dominio (G7-B1).
+TBL_AUDITORIA_DOMINIOS = "tesis.preprocesamiento.auditoria_dominios"
 TBL_PREFILTRADAS = "tesis.preprocesamiento.covariables_prefiltradas"
 TBL_CASCADA = "tesis.preprocesamiento.cascada_prefiltrado"
 TBL_SENSIBILIDAD = "tesis.preprocesamiento.sensibilidad_variabilidad"
@@ -195,12 +201,12 @@ COLUMNAS_EXCLUIR_JOIN = [
 # Variable respuesta
 VARIABLE_OBJETIVO = "TASA_DESEMPLEO_PCT"
 
-# Peso con el que se agregan las covariables municipales a un dominio de varios municipios:
-# población de 15 años y más, la población en edad de trabajar (PET) de la serie GEIH con
+# Población de 15 años y más: la población en edad de trabajar (PET) de la serie GEIH con
 # proyecciones CNPV 2018 («toman PET de 15 años y más», DANE, actualización de la serie
-# 2007-2021, PDF 30), aproximación de la PEA municipal, que no se publica. Es el mismo peso del
-# benchmarking de nivel 2 en el modelo (ver preprocesamiento/shared/agregacion_dominios.py y
-# modelo/shared/benchmarking.py).
+# 2007-2021, PDF 30), aproximación de la PEA municipal, que no se publica. Es el peso del
+# benchmarking de nivel 2 en el modelo (modelo/shared/benchmarking.py) y el peso por defecto
+# (peso «PET») de los indicadores fuera del catálogo al agregarlos a un dominio de varios
+# municipios; los del catálogo usan su propio denominador (shared/reglas_agregacion.py).
 # Se suman los grupos quinquenales por sexo de 15-19 a 80 y más de TerriData (02001xxxx hombres,
 # 02002xxxx mujeres; 0004 = 15-19 … 0017 = 80+). No se usa «población total − 0 a 14» porque la
 # población total (010010009) viene de otra fuente y no cuadra con la suma de los grupos de edad.

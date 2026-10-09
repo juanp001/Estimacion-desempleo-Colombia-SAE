@@ -121,12 +121,20 @@ preprocesamiento/estimacion_directa.py
     → tesis.preprocesamiento.tasa_desempleo_municipal
         ↓
 preprocesamiento/adicion_covariables.py
-  → agrega TerriData al dominio (shared/agregacion_dominios.py): x̄_D = Σ w_m x_m / Σ w_m sobre los
-    municipios miembro, w = población de 15 años y más (PET de la serie CNPV 2018, proxy de la PEA:
-    suma de los 28 grupos quinquenales por sexo 15-19…80+, EXPR_PESO_POBLACION; no el total 010010009,
-    que es de otra fuente);
-    NULL si a un miembro le falta el dato; error si a un miembro le falta el peso. Sustento: Morales
-    p. 425 (x_d = valores agregados del área) y coherencia lineal con la tasa ponderada por PEA
+  → agrega TerriData al dominio (shared/agregacion_dominios.py): x̄_D = Σ z_m x_m / Σ z_m sobre los
+    municipios miembro, con z = **denominador propio de cada indicador** (shared/reglas_agregacion.py,
+    G7-B1): valor agregado para % VA por sector, superficie implícita (pob/densidad) para la densidad,
+    población total 010010009 para per cápita, IPM, % urbana, % jóvenes, homicidios, banda ancha
+    (exactas), acueducto (proxy) e IDF/IICA (convención: índices); población 10-14 / 15-19 para
+    coberturas netas, tránsito y Saber 11 (proxy). Fuera del catálogo: PET (15+, EXPR_PESO_POBLACION).
+    Toda variable del catálogo debe tener regla (si no, error). NULL si a un miembro le falta el dato;
+    error si a un miembro le falta un peso usado. Sustento: Morales p. 425 (x_d = valor del área) y
+    p. 21 (razón de totales ΣY/ΣZ); ENUSC 2018 PDF 26 nota 6. Imprime la sensibilidad frente a la
+    regla PET en los 7 A.M. y guarda tesis.preprocesamiento.reglas_agregacion_covariables
+  → auditoría G7-B1 (shared/auditoria_dominios.py) → tesis.preprocesamiento.auditoria_dominios: una fila
+    por dominio con AREA GEIH, nombre DANE (error si no está en el anexo), geografía de la tasa
+    (cabeceras) y de las covariables (municipio completo), integrantes + DIVIPOLA, regla de x_d y
+    TD directa vs. DANE
   → LEFT JOIN por CODIGO_DOMINIO, PER = ANO, MES y valida que TerriData cubra el período; excluye las
     columnas *_NORMALIZADO → tesis.preprocesamiento.tasa_desempleo_covariables
         ↓
@@ -184,7 +192,8 @@ modelo/fay_herriot.py
       9b nivel 1: los 23 EBLUP × λ₁ para que Σ PEA_EXPANDIDA·EBLUP/Σ PEA reproduzca la directa del
          conjunto (= «Total 23 ciudades y A.M.» del DANE; se detiene si difiere > 0.01 pp)
       10b nivel 2: los municipios de un dominio A.M. (Cali y Yumbo) × λ_D para que, ponderados por la
-         población de 15 años y más, reproduzcan el EBLUP ajustado de su dominio. Los otros 81
+         población de 15 años y más, reproduzcan el EBLUP ajustado de su dominio (imprime la brecha
+         de agregación x̄_D'β̂ vs Σw·x_m'β̂/Σw, porque las covariables no usan la PET). Los otros 81
          municipios quedan con el sintético puro (el departamento solo es representativo anualmente)
       12 verificación: tablas antes/después y pruebas (consistencia < 1e-8, razones conservadas, rango,
          miembros completos; aviso si |λ−1| > 0.20) + comprobación sobre la tabla final redondeada

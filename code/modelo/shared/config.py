@@ -74,9 +74,10 @@ MUNICIPIO_COLS = [
 # calcula estimacion_directa con los factores de expansión.
 COL_PESO_NIVEL1 = "PEA_EXPANDIDA"
 # Peso del nivel 2 (municipios → su dominio A.M.): población de 15 años y más (PET de la serie
-# GEIH con proyecciones CNPV 2018), aproximación de la PEA municipal; es el mismo peso con el que
-# se agregaron las covariables (preprocesamiento/shared/config.py). Suma de los grupos
-# quinquenales por sexo de 15-19 a 80 y más de TerriData (02001xxxx hombres, 02002xxxx mujeres).
+# GEIH con proyecciones CNPV 2018), aproximación de la PEA municipal, que es el denominador de la
+# tasa de desempleo. Las covariables de los dominios A.M. se agregan con el denominador de cada
+# indicador (preprocesamiento/shared/reglas_agregacion.py). Suma de los grupos quinquenales por
+# sexo de 15-19 a 80 y más de TerriData (02001xxxx hombres, 02002xxxx mujeres).
 COLS_PESO_POBLACION = [
     f"0200{sexo}0{grupo:03d}" for sexo in ("1", "2") for grupo in range(4, 18)
 ]
