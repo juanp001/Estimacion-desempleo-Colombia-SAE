@@ -3,7 +3,7 @@
 EC1…ECk **no son los modelos finales del objetivo 1**: son especificaciones candidatas del
 modelo base Fay-Herriot clásico. La especificación elegida es el *benchmark seleccionado*, y
 la comparación del objetivo 1 se hace después entre ese benchmark y las especificaciones
-espaciales.
+espaciales (`fay_herriot_espacial.py`).
 
 1. **Especificaciones candidatas dejar-una-fuera** del conjunto elegido por el análisis
    exploratorio (EC1 = conjunto completo; EC2…ECk quitan una covariable cada una): responden a

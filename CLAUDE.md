@@ -230,7 +230,7 @@ modelo/fay_herriot.py
     fh_seleccion_modelo; `AICc` en fh_coeficientes) y NO decide; `redaccion_seleccion` imprime el texto
     «seleccionado entre varias especificaciones con soporte similar, mediante la regla de parsimonia».
     La comparación del
-    objetivo 1 es después: benchmark vs. especificaciones espaciales.
+    objetivo 1 es después: benchmark vs. especificaciones espaciales (fay_herriot_espacial.py).
     En el código se conservan los nombres internos `modelo_ganador` / `elegir_ganador`
   → avisos (shared/diagnosticos.py): Â ≈ 0 (γ máx < 0.01), tasas fuera de [0,100]
     (FUERA_DE_RANGO) y extrapolación sintética (EXTRAPOLA = ESTADO_EXTRAPOLACION ≠ DENTRO_DEL_RANGO)
@@ -330,6 +330,31 @@ figuras e interpretación; doctests con 1 y 2 covariables), `consolidacion.py` (
 niveles —dominio y municipio—, clasificación de confiabilidad y, B21, `etiqueta_calidad`,
 `resumen_calidad`, `interpretar_calidad`; doctests).
 
+### Componente espacial del Fay-Herriot — `modelo/fay_herriot_espacial.py`
+
+```
+modelo/fay_herriot_espacial.py   (corre después de fay_herriot.py: lee tesis.modelo.fh_coeficientes)
+  → mismas covariables que el ganador clásico; SEBLUP con efectos SAR u = ρWu + v (Morales et al.,
+    §18.2, pp. 490-494); W por DISTANCIA entre centroides (kNN k=3/5 o distancia inversa 1/2), nunca por
+    contigüidad: los 23 dominios son ciudades dispersas y los objetivos no son contiguos a ellas
+  → ρ se estima solo con los 23 dominios; W (estructura "completa") cubre dominios + objetivos
+    (Saei-Chambers; Benedetti 2024, pp. 146-149); estructura "muestra" = W solo entre dominios
+  → diagnósticos: I de Moran de los residuos del clásico, LRT de ρ=0, ΔAIC, perfil de verosimilitud de ρ,
+    validación dejar-un-dominio-fuera; MSE por bootstrap paramétrico (500 réplicas, p. 494)
+  → criterio: espacial preferido solo si ΔAIC > 2 y p(LRT) < 0.05; un ρ̂ en la cota (0.99) no es referencia
+  → tesis.modelo.fhe_* (moran, vecindad, comparacion_modelos, perfil_rho, validacion_cruzada[_metricas],
+    coeficientes, prediccion_objetivo) y figuras fhe_*.png en el volumen figuras_eda
+```
+
+Lógica en `modelo/shared/`: `matriz_proximidad.py` (Haversine, kNN, distancia inversa, estandarización por
+filas, `moran_i`), `fay_herriot_espacial.py` (`FayHerriotEspacial`, hija de `ModeloAreaPequena`;
+`validacion_dejar_uno_fuera`), `figuras_espacial.py`; parámetros en `config.py` (`ESCENARIOS_W`,
+`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018: **sin evidencia de
+dependencia espacial** (Moran p ≥ 0.49, perfil de ρ plano, el clásico predice igual o mejor), por lo que el
+modelo recomendado sigue siendo el clásico; detalle, tablas y limitaciones en `docs/fay_herriot_espacial.md`.
+Ojo: en `municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; el notebook espacial
+la excluye de los objetivos (quedan 82).
+
 ### Flujo de tablas Unity Catalog (resumen end-to-end)
 
 ```
@@ -400,7 +425,7 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
 | `ingesta_terridata` | `terridata_bronce` → `terridata_plata` |
 | `preprocesamiento` | `estimacion_directa` → `adicion_covariables` → `pre_filtrado_covariables` → `dominios_sin_encuesta` |
 | `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables`; `sensibilidad_ventana_temporal` (independiente) |
-| `modelo` | `fay_herriot`; `sensibilidad_varianza` (independiente) |
+| `modelo` | `fay_herriot` → `fay_herriot_espacial`; `sensibilidad_varianza` (independiente) |
 
 - Entre jobs no hay dependencias en el YAML; el orden real es `dimensiones` → `ingesta_geih` /
   `ingesta_terridata` → `preprocesamiento` → `analisis` → `modelo`.

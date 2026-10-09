@@ -13,8 +13,8 @@
 # MAGIC
 # MAGIC **EC1…EC5 no son los modelos finales del objetivo 1.** Son *especificaciones
 # MAGIC candidatas del modelo base Fay-Herriot clásico*; de ellas sale el benchmark
-# MAGIC seleccionado. La comparación del objetivo 1 se hace después, entre ese
-# MAGIC benchmark y las especificaciones espaciales.
+# MAGIC seleccionado. La comparación del objetivo 1 se hace después, en
+# MAGIC `fay_herriot_espacial`, entre ese benchmark y las especificaciones espaciales.
 # MAGIC
 # MAGIC 1. **MSE del EBLUP.** Estimador de Prasad-Rao para REML del libro (p. 440), con
 # MAGIC    `g3 = D²/(D+Â)³ · avar(Â)`.

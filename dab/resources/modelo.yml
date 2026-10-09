@@ -3,8 +3,8 @@ resources:
     modelo:
       name: modelo
       description: >-
-        Modelo Fay-Herriot clásico (EBLUP, predicción sintética y tabla final en tesis.modelo) y
-        sensibilidad a la varianza de muestreo ψ_d con GVF (G7-B3, independiente).
+        Modelo Fay-Herriot clásico (EBLUP, predicción sintética y tabla final en tesis.modelo), su
+        variante espacial SEBLUP y sensibilidad a la varianza de muestreo ψ_d con GVF (G7-B3, independiente).
       max_concurrent_runs: 1
       environments:
         - environment_key: serverless
@@ -19,3 +19,9 @@ resources:
           environment_key: serverless
           notebook_task:
             notebook_path: ../../code/modelo/sensibilidad_varianza.py
+        - task_key: fay_herriot_espacial
+          depends_on:
+            - task_key: fay_herriot
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/modelo/fay_herriot_espacial.py

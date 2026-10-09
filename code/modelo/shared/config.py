@@ -7,7 +7,7 @@ dejan una covariable fuera, generadas en `shared/seleccion_modelo.py`. Así el m
 quedar desincronizado del análisis exploratorio y la comparación responde a una pregunta
 concreta: si cada covariable aporta. EC1…ECk no son los modelos finales del objetivo 1: la
 comparación del objetivo 1 es entre el benchmark seleccionado y las especificaciones
-espaciales.
+espaciales (`fay_herriot_espacial.py`).
 
 El benchmark se elige siguiendo a Morales et al. (2021, p. 453): como el modelo se usa para
 predecir fuera de muestra, solo compiten las especificaciones con todas sus covariables
@@ -137,3 +137,34 @@ UMBRAL_GAMMA_SIN_PESO = 0.01
 # Rango admisible de una tasa en porcentaje.
 TASA_MINIMA = 0.0
 TASA_MAXIMA = 100.0
+
+# ── Fay-Herriot espacial (fay_herriot_espacial.py) ───────────────────────────
+# Tablas destino. Se escriben con el prefijo `fhe_` para no pisar las del modelo clásico.
+TBL_FHE_MORAN = "tesis.modelo.fhe_moran"
+TBL_FHE_VECINDAD = "tesis.modelo.fhe_vecindad"
+TBL_FHE_COMPARACION = "tesis.modelo.fhe_comparacion_modelos"
+TBL_FHE_PERFIL_RHO = "tesis.modelo.fhe_perfil_rho"
+TBL_FHE_VALIDACION = "tesis.modelo.fhe_validacion_cruzada"
+TBL_FHE_COEFICIENTES = "tesis.modelo.fhe_coeficientes"
+TBL_FHE_PREDICCION_OBJETIVO = "tesis.modelo.fhe_prediccion_objetivo"
+
+# Escenarios de la matriz de proximidad W: (nombre, tipo, parámetro). `knn` = k vecinos más
+# cercanos (parámetro k); `inversa` = peso 1/d^potencia (parámetro potencia). Se comparan varios
+# porque con 23 dominios dispersos la elección de W puede cambiar la conclusión.
+ESCENARIOS_W = [
+    ("knn3", "knn", 3),
+    ("knn5", "knn", 5),
+    ("inversa1", "inversa", 1.0),
+    ("inversa2", "inversa", 2.0),
+]
+
+# Cota del optimizador para |ρ| (< 1 para que I − ρW sea invertible).
+RHO_LIMITE = 0.99
+# Permutaciones del I de Moran.
+N_PERMUTACIONES_MORAN = 9999
+# Réplicas del bootstrap paramétrico del MSE espacial (Morales et al., §18.2.3).
+BOOTSTRAP_ESPACIAL_REPLICAS = 500
+SEMILLA_ESPACIAL = 42
+# Criterio para preferir el modelo espacial al clásico: ΔAIC (clásico − espacial) mayor que
+# DELTA_AIC_EQUIVALENTE (2) y prueba de razón de verosimilitudes de ρ = 0 con p < ALFA_LRT.
+ALFA_LRT = 0.05
