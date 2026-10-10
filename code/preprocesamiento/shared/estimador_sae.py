@@ -59,7 +59,7 @@ class EstimadorSAE(ABC):
             ValueError: Si alguna columna requerida no existe en el DataFrame.
 
         Example:
-            >>> estimador.validar_columnas(df, ["FEX", "DESOCUPADO", "MUNICIPIO"])
+            >>> estimador.validar_columnas(df, ["FEX", "DESOCUPADO", "CODIGO_DOMINIO"])
         """
         faltantes = set(columnas_requeridas) - set(dataframe.columns)
         if faltantes:
@@ -143,7 +143,7 @@ class EstimacionDirecta(EstimadorSAE):
 
     Example:
         >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)
-        >>> resultado = est.estimar(df, grupo_cols=["PER", "MES", "MUNICIPIO"])
+        >>> resultado = est.estimar(df, grupo_cols=["PER", "MES", "CODIGO_DOMINIO"])
         >>> est.exportar(
         ...     "tesis.preprocesamiento.tasa_desempleo_municipal",
         ...     tabla_origen="tesis.geih_oro.mercado_laboral",
@@ -174,7 +174,7 @@ class EstimacionDirecta(EstimadorSAE):
             ValueError: Si faltan columnas requeridas en el dataframe.
 
         Example:
-            >>> resultado = est.estimar(df, ["PER", "MES", "MUNICIPIO"])
+            >>> resultado = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"])
         """
         grupo_cols_final = self._ajustar_grupo_cols(grupo_cols, agregacion_anual)
         self.validar_columnas(dataframe, list(set(grupo_cols_final + ["FEX", "DESOCUPADO"])))

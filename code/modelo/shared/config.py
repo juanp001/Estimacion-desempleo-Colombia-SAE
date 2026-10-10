@@ -21,6 +21,14 @@ TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables"
 # dominios escriben los nombres con distinto formato, así que la tabla final se une por
 # código y toma los nombres de aquí.
 TBL_DIM_DIVIPOLA = "tesis.dim.dim_divipola"
+# Dominios GEIH (ciudad o ciudad A.M.) y sus municipios miembro: nombres de los dominios y
+# membresía que verifica el benchmarking de nivel 2.
+TBL_DIM_DOMINIO = "tesis.dim.dim_dominio_geih"
+# Indicadores municipales de TerriData: de aquí sale el peso del benchmarking de nivel 2.
+TBL_TERRIDATA = "tesis.terridata.terridata_extendido_plata"
+# Cifras oficiales publicadas por el DANE: valor de control del benchmarking de nivel 1.
+TBL_DATOS_MUNICIPALES = "tesis.geih_bronce.datos_municipales"
+NOMBRE_TOTAL_23 = "Total 23 ciudades y A.M."
 
 # ── Tablas destino ───────────────────────────────────────────────────────────
 TBL_FAY_HERRIOT_RESULTADOS = "tesis.modelo.fay_herriot_resultados"
@@ -35,16 +43,53 @@ TBL_FH_COEFICIENTES = "tesis.modelo.fh_coeficientes"
 Y_COL = "TASA_DESEMPLEO_PCT"
 SE_COL = "SE_BOOTSTRAP_PCT"
 
-# Columnas que identifican un dominio. La clave es PER + MES + CODIGO_MUNICIPIO (DIVIPOLA);
-# los nombres acompañan para lectura, pero no se usan para unir.
+# Columnas que identifican un dominio de estimación (ciudad o ciudad A.M.). La clave es
+# PER + MES + CODIGO_DOMINIO (código DIVIPOLA de la capital); los nombres acompañan para
+# lectura, pero no se usan para unir.
 DOMINIO_COLS = [
+    "PER",
+    "MES",
+    "CODIGO_DEPARTAMENTO",
+    "CODIGO_DOMINIO",
+    "DEPARTAMENTO",
+    "NOMBRE_DOMINIO",
+    "TIPO_DOMINIO",
+]
+
+# Columnas que identifican un municipio objetivo (predicción sintética). CODIGO_DOMINIO_PADRE es
+# el dominio con estimación directa que lo contiene (NULL si no hay ninguno): define el grupo del
+# benchmarking de nivel 2.
+MUNICIPIO_COLS = [
     "PER",
     "MES",
     "CODIGO_DEPARTAMENTO",
     "CODIGO_MUNICIPIO",
     "DEPARTAMENTO",
     "MUNICIPIO",
+    "CODIGO_DOMINIO_PADRE",
 ]
+
+# ── Benchmarking (ver shared/benchmarking.py) ───────────────────────────────
+# Peso del nivel 1 (dominios → total de las 23 ciudades): PEA expandida de cada dominio, que
+# calcula estimacion_directa con los factores de expansión.
+COL_PESO_NIVEL1 = "PEA_EXPANDIDA"
+# Peso del nivel 2 (municipios → su dominio A.M.): población de 15 años y más (PET de la serie
+# GEIH con proyecciones CNPV 2018), aproximación de la PEA municipal, que es el denominador de la
+# tasa de desempleo. Las covariables de los dominios A.M. se agregan con el denominador de cada
+# indicador (preprocesamiento/shared/reglas_agregacion.py). Suma de los grupos quinquenales por
+# sexo de 15-19 a 80 y más de TerriData (02001xxxx hombres, 02002xxxx mujeres).
+COLS_PESO_POBLACION = [
+    f"0200{sexo}0{grupo:03d}" for sexo in ("1", "2") for grupo in range(4, 18)
+]
+EXPR_PESO_POBLACION = " + ".join(
+    f"try_cast(`{c}` AS DOUBLE)" for c in COLS_PESO_POBLACION
+)
+# Aviso cuando el factor de ajuste se aleja de 1 más de esta fracción: «si el modelo es
+# adecuado, el factor de ajuste estará en torno a uno» (INE Chile, ENUSC 2018, PDF 23).
+UMBRAL_LAMBDA_AVISO = 0.20
+# Tolerancia (puntos porcentuales) entre el valor de control del nivel 1 calculado con la
+# muestra y la cifra publicada por el DANE.
+TOLERANCIA_DANE_PP = 0.01
 
 # ── Umbrales de confiabilidad del CV ─────────────────────────────────────────
 CV_CONFIABLE = 5.0  # CV < 5 %   → confiable

@@ -1,4 +1,4 @@
-"""Consolidación de las estimaciones EBLUP (con encuesta) y sintéticas (sin encuesta)."""
+"""Consolidación de las estimaciones por dominio (EBLUP) y por municipio (sintéticas)."""
 
 import pandas as pd
 
@@ -26,95 +26,120 @@ def clasificar_confiabilidad(cv: float) -> str:
     return "No confiable"
 
 
+# Columnas comunes de las dos tablas de entrada.
+COLUMNAS_ESQUEMA = [
+    "PER",
+    "MES",
+    "CODIGO",
+    "TASA_DESEMPLEO_PCT",
+    "TASA_SIN_AJUSTE_PCT",
+    "LAMBDA",
+    "CV_PCT",
+    "TIPO",
+]
+
+
 def construir_tabla_final(
-    tabla_entrenamiento: pd.DataFrame,
-    tabla_sintetica: pd.DataFrame,
+    tabla_dominios: pd.DataFrame,
+    tabla_municipios: pd.DataFrame,
+    dim_dominio: pd.DataFrame,
     dim_divipola: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Consolida estimaciones EBLUP (con encuesta) y sintéticas (sin encuesta).
+    """Une las estimaciones de los dominios y de los municipios objetivo en una sola tabla.
 
-    Los dominios se identifican por código DIVIPOLA (columna DOMINIO =
-    PER_MES_CODIGO_MUNICIPIO), no por nombre: las dos fuentes escriben los
-    nombres con distinto formato («CAUCA» frente a «Cauca»). Los nombres de
-    departamento y municipio de la tabla final se toman de `dim_divipola` por
-    CODIGO_MUNICIPIO, de modo que todos quedan con la nomenclatura oficial.
+    Hay dos niveles, que se distinguen en la columna NIVEL:
 
-    Si un dominio aparece en ambas tablas, se conserva únicamente su fila EBLUP
-    —más eficiente al usar la encuesta directa— y se descarta la sintética.
+    * ``DOMINIO``: los 23 dominios con estimación directa (ciudad o ciudad A.M.), con el EBLUP
+      ajustado al total de las 23 ciudades (benchmarking de nivel 1). ``CODIGO`` es el código
+      del dominio (DIVIPOLA de la capital) y ``NOMBRE`` el nombre publicado («Cali A.M.»).
+    * ``MUNICIPIO``: los municipios objetivo sin estimación directa propia, con la predicción
+      sintética; los que pertenecen a un dominio A.M. (Cali y Yumbo) llevan además el ajuste
+      al valor de su dominio (nivel 2) y ``CODIGO_DOMINIO_PADRE``.
+
+    Un mismo código puede aparecer en los dos niveles (76001 es Cali A.M. y el municipio de
+    Cali): la clave de una fila es NIVEL + CODIGO + PER + MES. Los nombres se toman por código
+    de ``dim_dominio`` (dominios) y ``dim_divipola`` (municipios y departamentos), porque las
+    fuentes escriben los nombres con distinto formato.
 
     Args:
-        tabla_entrenamiento (pd.DataFrame): Debe contener DOMINIO, PER, MES,
-            CODIGO_DEPARTAMENTO, CODIGO_MUNICIPIO, TASA_DESEMPLEO_PCT, CV_PCT y
-            TIPO="EBLUP".
-        tabla_sintetica (pd.DataFrame): Mismo esquema, con TIPO="SINTETICO".
-        dim_divipola (pd.DataFrame): Nomenclatura DIVIPOLA con CODIGO_MUNICIPIO,
-            DEPARTAMENTO y MUNICIPIO (una fila por municipio).
+        tabla_dominios (pd.DataFrame): Columnas de ``COLUMNAS_ESQUEMA`` (CODIGO = código del
+            dominio).
+        tabla_municipios (pd.DataFrame): Columnas de ``COLUMNAS_ESQUEMA`` más
+            ``CODIGO_DOMINIO_PADRE`` (CODIGO = código del municipio).
+        dim_dominio (pd.DataFrame): ``dim_dominio_geih`` con CODIGO_DOMINIO y NOMBRE_DOMINIO.
+        dim_divipola (pd.DataFrame): Nomenclatura DIVIPOLA con CODIGO_MUNICIPIO, MUNICIPIO y
+            DEPARTAMENTO (una fila por municipio).
 
     Returns:
-        pd.DataFrame: Tabla consolidada, ordenada por PER, MES y
-            CODIGO_MUNICIPIO, con DEPARTAMENTO y MUNICIPIO oficiales y una
-            columna adicional CONFIABILIDAD (ver `clasificar_confiabilidad`).
+        pd.DataFrame: Una fila por dominio y por municipio objetivo, ordenada por NIVEL y
+            CODIGO, con NIVEL, PER, MES, DEPARTAMENTO, CODIGO, NOMBRE, CODIGO_DOMINIO_PADRE,
+            TIPO, TASA_DESEMPLEO_PCT, TASA_SIN_AJUSTE_PCT, LAMBDA, CV_PCT y CONFIABILIDAD.
 
     Raises:
-        ValueError: Si falta alguna columna del esquema esperado en las tablas
-            de entrada, o si algún CODIGO_MUNICIPIO no existe en `dim_divipola`.
+        ValueError: Si falta alguna columna del esquema o algún código no tiene nombre.
 
     Example:
         >>> df_final = construir_tabla_final(
-        ...     tabla_entrenamiento, tabla_sintetica, spark.table(TBL_DIM_DIVIPOLA).toPandas()
+        ...     tabla_dominios, tabla_municipios,
+        ...     spark.table(TBL_DIM_DOMINIO).toPandas(), spark.table(TBL_DIM_DIVIPOLA).toPandas(),
         ... )
     """
-    columnas_esquema = [
-        "DOMINIO",
-        "PER",
-        "MES",
-        "CODIGO_DEPARTAMENTO",
-        "CODIGO_MUNICIPIO",
-        "TASA_DESEMPLEO_PCT",
-        "CV_PCT",
-        "TIPO",
-    ]
-    for nombre, tabla in [
-        ("tabla_entrenamiento", tabla_entrenamiento),
-        ("tabla_sintetica", tabla_sintetica),
+    for nombre, tabla, extra in [
+        ("tabla_dominios", tabla_dominios, []),
+        ("tabla_municipios", tabla_municipios, ["CODIGO_DOMINIO_PADRE"]),
     ]:
-        faltantes = set(columnas_esquema) - set(tabla.columns)
+        faltantes = set(COLUMNAS_ESQUEMA + extra) - set(tabla.columns)
         if faltantes:
             raise ValueError(f"Columnas faltantes en {nombre}: {sorted(faltantes)}")
 
-    dominios_entrenamiento = set(tabla_entrenamiento["DOMINIO"])
-    tabla_sintetica_filtrada = tabla_sintetica[
-        ~tabla_sintetica["DOMINIO"].isin(dominios_entrenamiento)
-    ]
-
-    n_excluidos = len(tabla_sintetica) - len(tabla_sintetica_filtrada)
-    if n_excluidos > 0:
-        print(
-            f"{n_excluidos} dominio(s) sin encuesta coinciden con el conjunto de "
-            f"entrenamiento; se usa su EBLUP en lugar de la predicción sintética."
-        )
-
-    tabla_final = pd.concat(
-        [
-            tabla_entrenamiento[columnas_esquema],
-            tabla_sintetica_filtrada[columnas_esquema],
-        ],
-        ignore_index=True,
+    nombres_mun = dim_divipola[
+        ["CODIGO_MUNICIPIO", "MUNICIPIO", "DEPARTAMENTO"]
+    ].rename(columns={"CODIGO_MUNICIPIO": "CODIGO"})
+    nombres_dom = (
+        dim_dominio[["CODIGO_DOMINIO", "NOMBRE_DOMINIO"]]
+        .drop_duplicates()
+        .rename(columns={"CODIGO_DOMINIO": "CODIGO", "NOMBRE_DOMINIO": "NOMBRE"})
+        .merge(nombres_mun[["CODIGO", "DEPARTAMENTO"]], on="CODIGO", how="left")
     )
-    nombres = dim_divipola[["CODIGO_MUNICIPIO", "DEPARTAMENTO", "MUNICIPIO"]]
-    tabla_final = tabla_final.merge(
-        nombres, on="CODIGO_MUNICIPIO", how="left", validate="many_to_one"
+
+    dominios = tabla_dominios[COLUMNAS_ESQUEMA].merge(
+        nombres_dom, on="CODIGO", how="left", validate="many_to_one"
     )
-    sin_nombre = tabla_final.loc[tabla_final["MUNICIPIO"].isna(), "CODIGO_MUNICIPIO"]
+    dominios["NIVEL"] = "DOMINIO"
+    dominios["CODIGO_DOMINIO_PADRE"] = None
+
+    municipios = (
+        tabla_municipios[COLUMNAS_ESQUEMA + ["CODIGO_DOMINIO_PADRE"]]
+        .merge(nombres_mun, on="CODIGO", how="left", validate="many_to_one")
+        .rename(columns={"MUNICIPIO": "NOMBRE"})
+    )
+    municipios["NIVEL"] = "MUNICIPIO"
+
+    tabla_final = pd.concat([dominios, municipios], ignore_index=True)
+    sin_nombre = tabla_final.loc[tabla_final["NOMBRE"].isna(), ["NIVEL", "CODIGO"]]
     if len(sin_nombre):
         raise ValueError(
-            f"Códigos sin correspondencia en dim_divipola: {sorted(sin_nombre)}"
+            f"Códigos sin nombre en las dimensiones: {sin_nombre.values.tolist()}"
         )
 
     tabla_final["CONFIABILIDAD"] = tabla_final["CV_PCT"].apply(clasificar_confiabilidad)
-    orden = columnas_esquema[:5] + ["DEPARTAMENTO", "MUNICIPIO"] + columnas_esquema[5:]
+    orden = [
+        "NIVEL",
+        "PER",
+        "MES",
+        "DEPARTAMENTO",
+        "CODIGO",
+        "NOMBRE",
+        "CODIGO_DOMINIO_PADRE",
+        "TIPO",
+        "TASA_DESEMPLEO_PCT",
+        "TASA_SIN_AJUSTE_PCT",
+        "LAMBDA",
+        "CV_PCT",
+        "CONFIABILIDAD",
+    ]
     return (
-        tabla_final[orden + ["CONFIABILIDAD"]]
-        .sort_values(["PER", "MES", "CODIGO_MUNICIPIO"])
+        tabla_final[orden]
+        .sort_values(["NIVEL", "PER", "MES", "CODIGO"])
         .reset_index(drop=True)
     )

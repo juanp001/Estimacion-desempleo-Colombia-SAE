@@ -123,8 +123,8 @@ class ModeloAreaPequena(ABC):
             dominio_col (str): Columna identificadora del dominio en
                 `self.df`.
             metadata_cols (list[str] | None): Columnas de identificación a
-                conservar (departamento, municipio, periodo). Si es None,
-                usa `["PER", "MES", "DEPARTAMENTO", "MUNICIPIO"]`.
+                conservar (departamento, dominio, periodo). Si es None,
+                usa `["PER", "MES", "DEPARTAMENTO", "NOMBRE_DOMINIO"]`.
 
         Returns:
             pd.DataFrame: Una fila por dominio con la estimación directa,
@@ -139,7 +139,12 @@ class ModeloAreaPequena(ABC):
         if not hasattr(self, "eblup"):
             raise RuntimeError("Llama a ajustar() antes de tabla_resultados().")
 
-        metadata_cols = metadata_cols or ["PER", "MES", "DEPARTAMENTO", "MUNICIPIO"]
+        metadata_cols = metadata_cols or [
+            "PER",
+            "MES",
+            "DEPARTAMENTO",
+            "NOMBRE_DOMINIO",
+        ]
         columnas_base = [
             dominio_col,
             *metadata_cols,

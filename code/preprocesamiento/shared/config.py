@@ -9,10 +9,21 @@ selección de covariables.
 TBL_MERCADO_LABORAL = "tesis.geih_oro.mercado_laboral"
 TBL_TERRIDATA = "tesis.terridata.terridata_extendido_plata"
 TBL_DIM_INDICADORES = "tesis.dim.dim_indicadores"
+# Membresía municipio → dominio (ciudad o ciudad A.M.), ver dimensiones/dim_dominio_geih.py.
+TBL_DIM_DOMINIO = "tesis.dim.dim_dominio_geih"
+# Capitales GEIH con su código AREA (CODIGO_AREA_GEIH), ver dimensiones/dim_geih_divipola.py.
+TBL_DIM_GEIH_DIVIPOLA = "tesis.dim.dim_geih_divipola"
+# Cifras oficiales del DANE por dominio (validación de la estimación directa).
+TBL_DATOS_MUNICIPALES = "tesis.geih_bronce.datos_municipales"
+NOMBRE_TOTAL_23 = "Total 23 ciudades y A.M."
 
 # ── Tablas destino ────────────────────────────────────────────────────────────
 TBL_ESTIMACION_DIRECTA = "tesis.preprocesamiento.tasa_desempleo_municipal"
 TBL_COVARIABLES = "tesis.preprocesamiento.tasa_desempleo_covariables"
+# Regla con la que se agregó cada covariable del catálogo a los dominios A.M. (trazabilidad).
+TBL_REGLAS_AGREGACION = "tesis.preprocesamiento.reglas_agregacion_covariables"
+# Auditoría de la correspondencia geográfica tasa–covariables de cada dominio (G7-B1).
+TBL_AUDITORIA_DOMINIOS = "tesis.preprocesamiento.auditoria_dominios"
 TBL_PREFILTRADAS = "tesis.preprocesamiento.covariables_prefiltradas"
 TBL_CASCADA = "tesis.preprocesamiento.cascada_prefiltrado"
 TBL_SENSIBILIDAD = "tesis.preprocesamiento.sensibilidad_variabilidad"
@@ -82,7 +93,20 @@ def etiqueta_trimestre_movil(per: int, mes: int) -> str:
         `etiqueta_trimestre_movil(2018, 12)` → `"Oct-Dic 2018"`;
         `etiqueta_trimestre_movil(2019, 1)` → `"Nov 2018-Ene 2019"`.
     """
-    nombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    nombres = [
+        "Ene",
+        "Feb",
+        "Mar",
+        "Abr",
+        "May",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dic",
+    ]
     (anio_ini, mes_ini), *_, (anio_fin, mes_fin) = meses_trimestre_movil(per, mes)
     if anio_ini == anio_fin:
         return f"{nombres[mes_ini - 1]}-{nombres[mes_fin - 1]} {anio_fin}"
@@ -128,14 +152,17 @@ def resolver_periodo(dbutils) -> tuple:
     return per, mes
 
 
-# Columnas de agrupación para estimación directa
+# Columnas de agrupación para estimación directa. El dominio es la ciudad con su área metropolitana
+# tal como la identifica el campo AREA de la GEIH (ver dim_dominio_geih); CODIGO_DOMINIO es el código
+# DIVIPOLA de la capital.
 GRUPO_COLS = [
     "PER",
     "MES",
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
-    "CODIGO_MUNICIPIO",
-    "MUNICIPIO",
+    "CODIGO_DOMINIO",
+    "NOMBRE_DOMINIO",
+    "TIPO_DOMINIO",
 ]
 
 # Columnas que NO son covariables (identificación + estimaciones)
@@ -145,19 +172,21 @@ METADATA_COLS = [
     "TRIMESTRE_MOVIL",
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
-    "CODIGO_MUNICIPIO",
-    "MUNICIPIO",
+    "CODIGO_DOMINIO",
+    "NOMBRE_DOMINIO",
+    "TIPO_DOMINIO",
+    "N_MUNICIPIOS",
+    "PEA_EXPANDIDA",
     "TASA_DESEMPLEO_PCT",
     "SE_BOOTSTRAP_PCT",
     "IC_INF_PCT",
     "IC_SUP_PCT",
     "AMPLITUD_IC",
     "CV_PORCENTAJE",
-    "DEPARTAMENTO_NORMALIZADO",
-    "ENTIDAD_NORMALIZADO",
 ]
 
-# Columnas a excluir de TerriData al hacer el join (ya existen en estimaciones)
+# Columnas a excluir de TerriData al hacer el join: las de identificación ya existen en las
+# estimaciones y las de texto normalizado no son indicadores (no se pueden agregar al dominio).
 COLUMNAS_EXCLUIR_JOIN = [
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
@@ -165,10 +194,29 @@ COLUMNAS_EXCLUIR_JOIN = [
     "ENTIDAD",
     "ANO",
     "MES",
+    "DEPARTAMENTO_NORMALIZADO",
+    "ENTIDAD_NORMALIZADO",
 ]
 
 # Variable respuesta
 VARIABLE_OBJETIVO = "TASA_DESEMPLEO_PCT"
+
+# Población de 15 años y más: la población en edad de trabajar (PET) de la serie GEIH con
+# proyecciones CNPV 2018 («toman PET de 15 años y más», DANE, actualización de la serie
+# 2007-2021, PDF 30), aproximación de la PEA municipal, que no se publica. Es el peso del
+# benchmarking de nivel 2 en el modelo (modelo/shared/benchmarking.py) y el peso por defecto
+# (peso «PET») de los indicadores fuera del catálogo al agregarlos a un dominio de varios
+# municipios; los del catálogo usan su propio denominador (shared/reglas_agregacion.py).
+# Se suman los grupos quinquenales por sexo de 15-19 a 80 y más de TerriData (02001xxxx hombres,
+# 02002xxxx mujeres; 0004 = 15-19 … 0017 = 80+). No se usa «población total − 0 a 14» porque la
+# población total (010010009) viene de otra fuente y no cuadra con la suma de los grupos de edad.
+COLS_PESO_POBLACION = [
+    f"0200{sexo}0{grupo:03d}" for sexo in ("1", "2") for grupo in range(4, 18)
+]
+# Expresión SQL del peso: NULL si a un municipio le falta cualquier grupo de edad.
+EXPR_PESO_POBLACION = " + ".join(
+    f"try_cast(`{c}` AS DOUBLE)" for c in COLS_PESO_POBLACION
+)
 
 # Umbrales de calidad de estimación (criterios DANE/CEPAL)
 CV_CONFIABLE = 5.0  # CV < 5 %   → confiable

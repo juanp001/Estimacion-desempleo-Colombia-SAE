@@ -22,7 +22,7 @@ from shared.modelo_area_pequena import ModeloAreaPequena
 
 
 def _annotate(ax, xs: np.ndarray, ys: np.ndarray, labels: np.ndarray) -> None:
-    """Anota cada punto de un scatter con su etiqueta de municipio.
+    """Anota cada punto de un scatter con su etiqueta de dominio.
 
     Args:
         ax (matplotlib.axes.Axes): Ejes donde dibujar.
@@ -45,7 +45,7 @@ def _annotate(ax, xs: np.ndarray, ys: np.ndarray, labels: np.ndarray) -> None:
 
 
 def _graficar_efecto_suavizador(
-    ax, Y: np.ndarray, resid_fh: np.ndarray, municipios: np.ndarray
+    ax, Y: np.ndarray, resid_fh: np.ndarray, nombres_dominio: np.ndarray
 ) -> None:
     """Dibuja el residuo del EBLUP (Yd − EBLUP) contra la estimación directa.
 
@@ -53,7 +53,7 @@ def _graficar_efecto_suavizador(
         ax (matplotlib.axes.Axes): Ejes donde dibujar.
         Y (np.ndarray): Estimación directa por dominio, shape (n,).
         resid_fh (np.ndarray): Yd − EBLUP por dominio, shape (n,).
-        municipios (np.ndarray): Nombre de cada dominio, para anotar los puntos.
+        nombres_dominio (np.ndarray): Nombre de cada dominio, para anotar los puntos.
 
     Returns:
         None
@@ -61,7 +61,7 @@ def _graficar_efecto_suavizador(
     ax.axhline(0, color="red", linestyle="--", linewidth=1.2, label="Referencia 0")
     colores = ["tomato" if r > 0 else "steelblue" for r in resid_fh]
     ax.scatter(Y, resid_fh, c=colores, edgecolors="white", s=70, alpha=0.85, zorder=3)
-    _annotate(ax, Y, resid_fh, municipios)
+    _annotate(ax, Y, resid_fh, nombres_dominio)
     ax.set_xlabel("Estimación directa Yd  (%)", fontsize=10)
     ax.set_ylabel("Residuo FH  (Yd − EBLUP)", fontsize=10)
     leyenda = [
@@ -189,9 +189,12 @@ def graficar_validacion(modelo: ModeloAreaPequena) -> list:
     Example:
         >>> figs = graficar_validacion(modelo)
     """
-    municipios = modelo.resultados["MUNICIPIO"].values
+    nombres_dominio = modelo.resultados["NOMBRE_DOMINIO"].values
     paneles = [
-        (_graficar_efecto_suavizador, (modelo.Y, modelo.Y - modelo.eblup, municipios)),
+        (
+            _graficar_efecto_suavizador,
+            (modelo.Y, modelo.Y - modelo.eblup, nombres_dominio),
+        ),
         (_graficar_histograma_residuos, (modelo.residuals,)),
     ]
     figuras = []
@@ -203,13 +206,13 @@ def graficar_validacion(modelo: ModeloAreaPequena) -> list:
     return figuras
 
 
-def figura_cv_directo_vs_eblup(modelo: ModeloAreaPequena, municipios: np.ndarray):
+def figura_cv_directo_vs_eblup(modelo: ModeloAreaPequena, nombres_dominio: np.ndarray):
     """CV de la estimación directa frente al CV del EBLUP, dominios ordenados por D_d.
 
     Args:
         modelo (ModeloAreaPequena): Modelo ya ajustado, con `resultados` (contiene
             `CV_PORCENTAJE` y `CV_EBLUP_PCT`).
-        municipios (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
+        nombres_dominio (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
 
     Returns:
         matplotlib.figure.Figure: Puntos del CV directo y del CV EBLUP por dominio, unidos
@@ -217,7 +220,7 @@ def figura_cv_directo_vs_eblup(modelo: ModeloAreaPequena, municipios: np.ndarray
             umbrales de confiabilidad.
 
     Example:
-        >>> fig = figura_cv_directo_vs_eblup(ganador, df["MUNICIPIO"].values)
+        >>> fig = figura_cv_directo_vs_eblup(ganador, df["NOMBRE_DOMINIO"].values)
     """
     orden = np.argsort(modelo.Di)
     cv_dir = modelo.resultados["CV_PORCENTAJE"].values[orden]
@@ -233,7 +236,7 @@ def figura_cv_directo_vs_eblup(modelo: ModeloAreaPequena, municipios: np.ndarray
     ax.text(x[-1] + 0.4, CV_CONFIABLE, f"{CV_CONFIABLE}%", va="center", fontsize=8)
     ax.text(x[-1] + 0.4, CV_ACEPTABLE, f"{CV_ACEPTABLE}%", va="center", fontsize=8)
     ax.set_xticks(x)
-    ax.set_xticklabels(municipios[orden], rotation=60, ha="right", fontsize=7)
+    ax.set_xticklabels(nombres_dominio[orden], rotation=60, ha="right", fontsize=7)
     ax.set_xlabel("Dominios, de menor a mayor varianza directa Dd", fontsize=10)
     ax.set_ylabel("Coeficiente de variación (%)", fontsize=10)
     ax.legend(fontsize=9, loc="upper left")

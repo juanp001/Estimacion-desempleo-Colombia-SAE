@@ -10,7 +10,9 @@
 # MAGIC ## Tablas
 # MAGIC * `datos_nacionales`: total nacional, serie **mensual** 2016-2021 (pestaña `Tnal mensual`)
 # MAGIC * `datos_municipales`: 23 ciudades y áreas metropolitanas, serie **trimestre móvil** 2016-2021
-# MAGIC   (pestaña `areas trim movil`, filas 55-927; cada ciudad es un bloque de 38 filas)
+# MAGIC   (pestaña `areas trim movil`, filas 55-1010; cada ciudad es un bloque de 38 filas). Incluye
+# MAGIC   también los bloques agregados «Total 10 ciudades» y «Total 23 ciudades y A.M.» (este último
+# MAGIC   es el valor oficial al que se ajusta el benchmarking de nivel 1 en `modelo/fay_herriot.py`)
 # MAGIC
 # MAGIC ## Transformaciones aplicadas
 # MAGIC 1. Layout horizontal del Excel (12 columnas por año) convertido a formato largo
@@ -77,7 +79,9 @@ OFFSETS_CIUDAD = {
 }
 OFFSET_ETIQUETAS_CIUDAD = 4
 FILA_INICIO_CIUDADES = 55
-FILA_FIN_CIUDADES = 927
+# Hasta la fila 1010 para incluir los bloques «Total 10 ciudades» (fila 930) y «Total 23 ciudades y
+# A.M.» (fila 968), que tienen la misma estructura que el bloque de una ciudad.
+FILA_FIN_CIUDADES = 1010
 
 # Texto con que empieza la etiqueta de cada indicador en la columna A (validación del layout)
 ETIQUETAS_ESPERADAS = {
@@ -304,8 +308,9 @@ def cargar_nacional(ruta: str) -> list:
 def cargar_municipal(ruta: str) -> list:
     """Extrae la serie de trimestre móvil de cada ciudad de la pestaña ``areas trim movil``.
 
-    Detecta cada ciudad en las filas 55-927: es un título (columna A) cuya fila siguiente dice
-    «Serie trimestre móvil». Los totales (10 / 23 ciudades) quedan fuera del rango.
+    Detecta cada ciudad en las filas 55-1010: es un título (columna A) cuya fila siguiente dice
+    «Serie trimestre móvil». El rango incluye los bloques agregados «Total 10 ciudades» y «Total 23
+    ciudades y A.M.», que quedan como dos valores más de ``CIUDAD``.
 
     Args:
         ruta (str): Ruta del archivo ``.xlsx``.
@@ -449,7 +454,8 @@ DESCRIPCION_TABLAS = {
     ),
     TBL_DATOS_MUNICIPALES: (
         "Cifras oficiales publicadas por el DANE del mercado laboral de las 23 ciudades y áreas "
-        f"metropolitanas, serie de trimestre móvil {ANIO_INICIO_PUBLICADOS}-{ANIO_FIN_PUBLICADOS} "
+        "metropolitanas y de los agregados Total 10 ciudades y Total 23 ciudades y A.M., serie de "
+        f"trimestre móvil {ANIO_INICIO_PUBLICADOS}-{ANIO_FIN_PUBLICADOS} "
         f"(pestaña '{HOJA_MUNICIPAL}' del anexo Mercado laboral según proyecciones CNPV 2018). "
         "ANIO y MES son el mes de cierre del trimestre. Tasas en %, poblaciones en personas. "
         f"Fuente: {URL_FUENTE_DATOS_PUBLICADOS}"
