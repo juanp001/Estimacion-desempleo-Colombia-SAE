@@ -49,9 +49,13 @@ geih_oro.py      → tesis.geih_oro.mercado_laboral
 
 `dim_fex` (factores de expansión actualizados del DANE) **no** vive en `dimensiones/`: se genera dentro de
 este mismo pipeline (`TBL_FEX_BRONCE`/`TBL_FEX_PLATA` en `geih_config.py`, construida en `geih_plata.py` a
-partir de `geih_bronce`). Usable para años ≤ 2018 si se quiere el factor nuevo; para los demás años los
-archivos ya traen el factor de expansión de 2018. Ojo: `geih_oro` toma `FEX_C18` solo de `dim_fex` con
-`coalesce(..., 0)`, así que si `dim_fex` no cubre un período el factor queda en 0.
+partir de `geih_bronce`); hoy solo cubre 2018. **Factor de expansión en oro (G7-B6,
+`shared/transformations/factor_expansion.py`)**: las tablas plata llevan `MARCO` (`NUEVO`/`ANTIGUO`, desde
+`campos_nucleo`). En el marco nuevo `FEX_C18` = `FEX` del archivo (ya calibrado con el CNPV 2018); en el
+marco antiguo sale solo de `dim_fex`, nunca de `FEX_C_2011` (censo 2005, PET 10+: mezclarlo produce el salto
+de serie, `series_geih2005` PDF 19/77). Ya no hay `coalesce(..., 0)`: si alguna persona queda con `FEX_C18`
+nulo o ≤ 0, `geih_oro` falla antes de escribir. Con la regla anterior 2018 tenía 0 registros afectados (el
+período analítico no cambió) y 2025 los 135.810 (todo 2025 con peso 0).
 
 Lógica compartida en `geih/shared/`: `config/geih_config.py` (nombres de tablas, constantes),
 `transformations/campos_nucleo.py` (columnas núcleo comunes a marco antiguo/nuevo), `utils/spark_utils.py`
@@ -99,7 +103,21 @@ la transformación a ancho).
   diccionario código → nombre descriptivo de cada columna/indicador de `terridata_extendido_plata`.
 - `ingesta_datos/geih/datos_publicados.py` (tarea del job `ingesta_geih`): cifras oficiales del anexo DANE
   «Mercado laboral según proyecciones CNPV 2018» → `tesis.geih_bronce.datos_nacionales` y `datos_municipales`
-  (23 ciudades y A.M. más «Total 10 ciudades» y «Total 23 ciudades y A.M.», trimestre móvil 2016-2021).
+  (23 ciudades y A.M. más «Total 10 ciudades» y «Total 23 ciudades y A.M.», trimestre móvil 2016-2021) y
+  `datos_anuales` (hoja «Anuales»: total nacional, cabeceras, rural, «Total 13 ciudades y áreas
+  metropolitanas» y «Total 10 ciudades», serie anual 2016-2021; el anexo **no** trae la TD anual por ciudad).
+- **Lectura de CSV por nombre de columna** (`shared/utils/spark_utils.leer_csv`): cada archivo se lee
+  por separado y se une con `unionByName(allowMissingColumns=True)`. Leer el glob de una vez asignaba las
+  columnas por posición, y los archivos Ene-Mar 2018 (marco antiguo) traen otro orden (`AREA` al final, sin
+  `MES`): `FT`/`INI` quedaban corridos, la unión con inactivos fallaba y toda la PET quedaba como PEA (TD
+  3-8 pp más baja). Corregido (G7-B5).
+- **Reconciliación G7-B5** (al final de `geih_oro.py`, lógica en `shared/transformations/reconciliacion.py`,
+  solo PASS/FAIL): `tesis.geih_oro.llaves_sin_pareja` (% de llaves de cada módulo sin pareja en
+  características generales; inactivos frente a fuerza de trabajo; personas sin FEX) y
+  `tesis.geih_oro.reconciliacion_fuerza_trabajo` (por PER/MES/dominio: PET, PEA, PEI, OC, DS y quién rompe
+  PEA = OC + DS, PET = PEA + PEI u OC y DS a la vez). 2018: 0 violaciones en los 12 meses y 0 llaves sin
+  pareja o duplicadas en todos los módulos. `CG_SIN_FEX` solo revisa el marco antiguo (el único que depende
+de `dim_fex`).
 
 ### Preprocesamiento → selección de covariables — `code/preprocesamiento/` y `code/analisis/`
 
@@ -209,7 +227,18 @@ modelo/fay_herriot.py
 Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LITERATURA`,
 `CATALOGO_EXCLUIDAS`, `resolver_catalogo`), `descriptivos.py` (figuras e interpretaciones),
 `diagnosticos.py` (IC de Fisher, Cook por covariable, estabilidad dejar-uno-fuera, VIF, figura de robustez),
-`seleccion.py` (`filtrar_por_robustez`, `resolver_redundancia`, `ficha_decision`, `ajustar_por_vif`).
+`seleccion.py` (`filtrar_por_robustez`, `resolver_redundancia`, `ficha_decision`, `ajustar_por_vif`),
+`ventana_temporal.py` (sensibilidad G7-B2).
+
+`analisis/sensibilidad_ventana_temporal.py` (G7-B2, fuera de la cadena: no alimenta al modelo) compara la
+tasa directa de los 23 dominios con tres ventanas que cierran en `anio_estimacion/mes_estimacion`
+(`VENTANAS_TEMPORALES`: MES = 1, TRIMESTRE = 3, ANIO = 12; `meses_ventana` en `preprocesamiento/shared/config.py`).
+Reutiliza `EstimacionDirecta`, pero define la PEA como `OCUPADO + DESOCUPADO` (defensa ante la bandera rota de Ene-Mar
+2018, ya corregida; hoy ambas definiciones coinciden) y comprueba que la ventana TRIMESTRE reproduce `tasa_desempleo_municipal`. La TD anual oficial por
+ciudad se reconstruye como Σ DS / Σ PEA de los 4 trimestres que no se pisan (MES 3/6/9/12 de
+`datos_municipales`); la fórmula reproduce el Total 13 y el Total 10 de `datos_anuales` (≈ 1e-5 pp). Salidas:
+`sensibilidad_ventana_temporal` (ventana × dominio, con N_PERSONAS_15MAS/N_PEA/N_DESOCUPADOS y TD_DANE),
+`resumen_ventana_temporal`, `validacion_anual_totales` y la figura `ventana_sensibilidad`.
 
 Lógica compartida en `modelo/shared/`: `config.py` (tablas fuente/destino, umbrales de CV 5/20,
 `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`, `UMBRAL_GAMMA_SIN_PESO`, límites de tasa, avisos),
@@ -289,7 +318,7 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
 | `ingesta_geih` | `geih_bronce` → `geih_plata` → `geih_oro`; `datos_publicados` (independiente) |
 | `ingesta_terridata` | `terridata_bronce` → `terridata_plata` |
 | `preprocesamiento` | `estimacion_directa` → `adicion_covariables` → `pre_filtrado_covariables` → `dominios_sin_encuesta` |
-| `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables` |
+| `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables`; `sensibilidad_ventana_temporal` (independiente) |
 | `modelo` | `fay_herriot` |
 
 - Entre jobs no hay dependencias en el YAML; el orden real es `dimensiones` → `ingesta_geih` /

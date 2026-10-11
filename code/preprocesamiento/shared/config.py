@@ -8,6 +8,8 @@ selección de covariables.
 # ── Tablas fuente ─────────────────────────────────────────────────────────────
 TBL_MERCADO_LABORAL = "tesis.geih_oro.mercado_laboral"
 TBL_TERRIDATA = "tesis.terridata.terridata_extendido_plata"
+# Formato largo (una fila por indicador, entidad y período); da el mes de corte de cada indicador.
+TBL_TERRIDATA_BRONCE = "tesis.terridata.terridata_bronce"
 TBL_DIM_INDICADORES = "tesis.dim.dim_indicadores"
 # Membresía municipio → dominio (ciudad o ciudad A.M.), ver dimensiones/dim_dominio_geih.py.
 TBL_DIM_DOMINIO = "tesis.dim.dim_dominio_geih"
@@ -16,6 +18,28 @@ TBL_DIM_GEIH_DIVIPOLA = "tesis.dim.dim_geih_divipola"
 # Cifras oficiales del DANE por dominio (validación de la estimación directa).
 TBL_DATOS_MUNICIPALES = "tesis.geih_bronce.datos_municipales"
 NOMBRE_TOTAL_23 = "Total 23 ciudades y A.M."
+# Cifras anuales oficiales de los agregados (Total 13 y Total 10 ciudades, entre otros); el anexo no
+# publica la serie anual por ciudad (ver analisis/sensibilidad_ventana_temporal.py).
+TBL_DATOS_ANUALES = "tesis.geih_bronce.datos_anuales"
+NOMBRE_TOTAL_13_ANUAL = "Total 13 ciudades y áreas metropolitanas"
+NOMBRE_TOTAL_10 = "Total 10 ciudades"
+# Las 13 grandes ciudades con sus A.M. (GEIH v9, PDF 9), con los nombres del anexo DANE: su suma
+# reconstruye el «Total 13 ciudades y áreas metropolitanas».
+CIUDADES_13_AM = [
+    "Bogotá",
+    "Medellín A.M.",
+    "Cali A.M.",
+    "Barranquilla A.M.",
+    "Bucaramanga A.M.",
+    "Manizales A.M.",
+    "Pasto",
+    "Pereira A.M.",
+    "Cúcuta A.M.",
+    "Ibagué",
+    "Montería",
+    "Cartagena",
+    "Villavicencio",
+]
 
 # ── Tablas destino ────────────────────────────────────────────────────────────
 TBL_ESTIMACION_DIRECTA = "tesis.preprocesamiento.tasa_desempleo_municipal"
@@ -39,6 +63,10 @@ TBL_VERIFICACION = "tesis.preprocesamiento.verificacion_seleccion"
 TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables"
 TBL_CANDIDATAS = "tesis.preprocesamiento.covariables_candidatas"
 TBL_SELECCIONADAS = "tesis.preprocesamiento.covariables_seleccionadas"
+# Sensibilidad de la estimación directa a la ventana temporal (G7-B2).
+TBL_SENSIBILIDAD_VENTANA = "tesis.preprocesamiento.sensibilidad_ventana_temporal"
+TBL_RESUMEN_VENTANA = "tesis.preprocesamiento.resumen_ventana_temporal"
+TBL_VALIDACION_ANUAL = "tesis.preprocesamiento.validacion_anual_totales"
 
 # ── Volumen para las figuras destinadas al documento ──────────────────────────
 VOLUMEN_FIGURAS = "/Volumes/tesis/preprocesamiento/figuras_eda"
@@ -52,6 +80,40 @@ BOOTSTRAP_SEED = 42
 PER_ESTIMACION = 2018
 MES_ESTIMACION = 12
 MESES_TRIMESTRE = 3
+# Ventanas de la sensibilidad G7-B2 (analisis/sensibilidad_ventana_temporal.py): número de meses
+# que cierran en (PER_ESTIMACION, MES_ESTIMACION). Con cierre en diciembre, ANIO es el año calendario.
+VENTANAS_TEMPORALES = {"MES": 1, "TRIMESTRE": 3, "ANIO": 12}
+
+
+def meses_ventana(per: int, mes: int, n_meses: int) -> list:
+    """Lista los meses de la ventana de `n_meses` que termina en el mes indicado.
+
+    La ventana se identifica por su mes de cierre y puede cruzar el año, igual que los trimestres
+    móviles del anexo DANE.
+
+    Args:
+        per (int): Año del mes de cierre.
+        mes (int): Mes de cierre, entre 1 y 12.
+        n_meses (int): Número de meses de la ventana (1 = mes, 3 = trimestre, 12 = año).
+
+    Returns:
+        list[tuple[int, int]]: `n_meses` pares `(año, mes)` en orden cronológico.
+
+    Casos de uso:
+        Ventanas de la sensibilidad temporal (`VENTANAS_TEMPORALES`).
+
+        >>> meses_ventana(2018, 12, 1)
+        [(2018, 12)]
+        >>> meses_ventana(2019, 1, 3)
+        [(2018, 11), (2018, 12), (2019, 1)]
+        >>> meses_ventana(2018, 12, 12)[0], len(meses_ventana(2018, 12, 12))
+        ((2018, 1), 12)
+    """
+    meses = []
+    for desfase in range(n_meses - 1, -1, -1):
+        indice = per * 12 + (mes - 1) - desfase
+        meses.append((indice // 12, indice % 12 + 1))
+    return meses
 
 
 def meses_trimestre_movil(per: int, mes: int) -> list:
@@ -71,11 +133,7 @@ def meses_trimestre_movil(per: int, mes: int) -> list:
         `meses_trimestre_movil(2018, 12)` → `[(2018, 10), (2018, 11), (2018, 12)]`;
         `meses_trimestre_movil(2019, 1)` → `[(2018, 11), (2018, 12), (2019, 1)]`.
     """
-    meses = []
-    for desfase in range(MESES_TRIMESTRE - 1, -1, -1):
-        indice = per * 12 + (mes - 1) - desfase
-        meses.append((indice // 12, indice % 12 + 1))
-    return meses
+    return meses_ventana(per, mes, MESES_TRIMESTRE)
 
 
 def etiqueta_trimestre_movil(per: int, mes: int) -> str:
