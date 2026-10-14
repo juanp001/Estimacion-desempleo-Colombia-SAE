@@ -1,3 +1,6 @@
+import glob
+from functools import reduce
+
 from pyspark.sql import DataFrame, SparkSession
 
 
@@ -8,28 +11,42 @@ def leer_csv(spark: SparkSession, path: str) -> DataFrame:
     se agrega automáticamente desde los metadatos del archivo para permitir extraer
     año y mes en la capa plata.
 
+    Cada archivo se lee por separado y se une **por nombre de columna**. Leer el glob
+    de una vez no sirve: Spark toma el encabezado de un solo archivo y asigna las
+    columnas de los demás por posición. En la GEIH 2018 los archivos de enero a marzo
+    traen otro orden (``AREA`` al final, sin ``MES``), así que la lectura por
+    posición corría los valores (p. ej. ``FT`` quedaba con el código de departamento
+    e ``INI`` con el mes).
+
     Args:
         spark (SparkSession): Sesión de Spark activa.
         path (str): Ruta glob hacia los archivos CSV
             (ej. ``/Volumes/tesis/geih_bronce/ocupados/marco_nuevo/*.csv``).
 
     Returns:
-        DataFrame: DataFrame con todas las columnas del CSV más ``archivo_origen``.
+        DataFrame: DataFrame con la unión de las columnas de todos los archivos (las
+        que falten en un archivo quedan en NULL) más ``archivo_origen``.
 
     Raises:
-        AnalysisException: Si la ruta no existe o el clúster no tiene acceso al volumen.
+        FileNotFoundError: Si el glob no encuentra ningún archivo.
+        AnalysisException: Si el clúster no tiene acceso al volumen.
 
     Example:
         >>> df = leer_csv(spark, "/Volumes/tesis/geih_bronce/ocupados/marco_nuevo/*.csv")
     """
-    return (
-        spark.read
-        .option("header", "true")
+    archivos = sorted(glob.glob(path))
+    if not archivos:
+        raise FileNotFoundError(f"No hay archivos en {path}")
+
+    partes = [
+        spark.read.option("header", "true")
         .option("delimiter", ";")
-        .csv(path)
+        .csv(archivo)
         .select("*", "_metadata.file_name")
         .withColumnRenamed("file_name", "archivo_origen")
-    )
+        for archivo in archivos
+    ]
+    return reduce(lambda a, b: a.unionByName(b, allowMissingColumns=True), partes)
 
 
 def escribir_tabla(df: DataFrame, table_name: str, mode: str = "overwrite") -> None:

@@ -111,6 +111,7 @@ if CODE_DIR not in sys.path:
 from preprocesamiento.shared.config import *
 from preprocesamiento.shared.agregacion_dominios import agregar_covariables_dominio
 from preprocesamiento.shared.auditoria_dominios import tabla_auditoria_dominios
+from preprocesamiento.shared.ventana import td_dane_ventana
 from preprocesamiento.shared.reglas_agregacion import (
     PESOS_AGREGACION,
     REGLAS_AGREGACION,
@@ -365,19 +366,20 @@ df_miembros = (
     )
     .toPandas()
 )
-df_publicados = (
-    spark.table(TBL_DATOS_MUNICIPALES)
-    .join(
-        df_estimaciones.select(
-            F.col("PER").cast("int").alias("ANIO"),
-            F.col("MES").cast("int").alias("MES"),
-        ).distinct(),
-        on=["ANIO", "MES"],
-        how="inner",
+# Cifra oficial de la misma ventana que la estimación directa (N_MESES_VENTANA viaja en la tabla):
+# año = TD reconstruida con los 4 trimestres que no se pisan; trimestre = TD publicada
+# (shared/ventana.py).
+ventanas = df_estimaciones.select("PER", "MES", "N_MESES_VENTANA").distinct().collect()
+if len(ventanas) != 1:
+    raise ValueError(
+        f"La auditoría se define por período y hay {len(ventanas)} ventanas en {TBL_ESTIMACION_DIRECTA}."
     )
-    .select("CIUDAD", "TASA_DESEMPLEO")
-    .toPandas()
-)
+df_publicados = td_dane_ventana(
+    spark.table(TBL_DATOS_MUNICIPALES).toPandas(),
+    int(ventanas[0]["PER"]),
+    int(ventanas[0]["MES"]),
+    int(ventanas[0]["N_MESES_VENTANA"]),
+).rename(columns={"TD_DANE": "TASA_DESEMPLEO"})
 df_auditoria = tabla_auditoria_dominios(
     df_miembros,
     df_estimaciones.toPandas(),

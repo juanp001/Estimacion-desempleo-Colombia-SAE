@@ -48,15 +48,19 @@ Los dos niveles del proyecto (en cascada, como el DANE: municipio → ciudad →
 ---------------------------------------------------------------------------------
 Nivel 1: los 23 dominios (ciudades y ciudades A.M.) → «Total 23 ciudades y A.M.»
     * Unidades: el EBLUP de cada dominio.
-    * Pesos: la PEA expandida del dominio (Σ de factores de expansión de la PEA, promedio del
-      trimestre; ``PEA_EXPANDIDA`` de estimacion_directa). La tasa de desempleo de un conjunto de
+    * Pesos: la PEA expandida del dominio (Σ de factores de expansión de la PEA, promedio mensual
+      de la ventana; ``PEA_EXPANDIDA`` de estimacion_directa). La tasa de desempleo de un conjunto de
       dominios es el promedio de sus tasas ponderado por la PEA.
     * Valor de referencia: la estimación directa del conjunto, Σ PEA_d·TD_d / Σ PEA_d. Por la
       propiedad de benchmarking del Hájek (Molina, 2019, PDF 26) es exactamente la estimación
-      directa de las 23 ciudades juntas, un dominio que la GEIH publica cada trimestre (Metodología
-      GEIH v9, PDF 10) y que coincide con la cifra oficial del DANE (anexo «Mercado laboral según
-      proyecciones CNPV 2018», Total 23 ciudades y A.M.: 10.3251 % en Oct-Dic 2018). El notebook
-      lo compara con ``datos_municipales`` y se detiene si difiere.
+      directa de las 23 ciudades juntas en la ventana de las directas (por defecto el año
+      calendario, G7-B2), un dominio que la GEIH publica (Metodología GEIH v9, PDF 10). Debe
+      coincidir con la cifra oficial del DANE del «Total 23 ciudades y A.M.» (anexo «Mercado
+      laboral según proyecciones CNPV 2018»): la publicada si la ventana es un trimestre móvil
+      (10.3251 % en Oct-Dic 2018) o, si es el año, la reconstruida como Σ desempleados / Σ PEA de
+      los cuatro trimestres que no se pisan, porque el anexo no publica la serie anual de las 23
+      ciudades (``preprocesamiento/shared/ventana.td_dane_ventana``). El notebook la compara y se
+      detiene si difiere.
 Nivel 2: municipios de un dominio A.M. → valor ya ajustado (nivel 1) de su dominio
     * Unidades: la predicción sintética x_m'β̂ de cada municipio (Cali y Yumbo en Cali A.M.).
     * Pesos: la población de 15 años y más del municipio (suma de los grupos quinquenales de edad de
@@ -78,10 +82,11 @@ Los municipios objetivo que no pertenecen a un dominio con estimación directa (
 quedan con la predicción sintética pura. El ajuste exige un valor de referencia confiable que
 contenga a las unidades: la ENUSC ajusta a regiones «cuyos tamaños muestrales se establecieron
 para garantizar» la calidad de la estimación directa (PDF 22), y el DANE a estimaciones directas
-oficiales (PDF 8). El único territorio de la GEIH que los contiene es el departamento, que solo es
-representativo con datos anuales (Metodología GEIH v9, PDF 9), mientras que el proyecto estima
-trimestres; además el proyecto decidió no usar los registros sin ``AREA`` (resto de cabeceras y
-zona rural). Las 16 ciudades de un solo municipio tampoco tienen nivel 2: ajustarlas a su propia
+oficiales (PDF 8). El único territorio de la GEIH que los contiene es el departamento, que es
+representativo con datos anuales (Metodología GEIH v9, PDF 9) y, por tanto, con la ventana anual
+del proyecto; pero su estimación directa exige los registros sin ``AREA`` (resto de cabeceras y
+zona rural), que el proyecto decidió no usar, así que no hay un valor de referencia construible.
+Un tercer nivel departamental queda como extensión posible si se incorporan esos registros. Las 16 ciudades de un solo municipio tampoco tienen nivel 2: ajustarlas a su propia
 estimación directa devolvería la directa y anularía la ganancia del Fay-Herriot.
 
 Incertidumbre

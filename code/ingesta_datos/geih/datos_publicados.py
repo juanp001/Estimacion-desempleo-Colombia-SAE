@@ -4,7 +4,7 @@
 # MAGIC # Datos publicados DANE - Capa Bronce
 # MAGIC
 # MAGIC Carga las cifras **oficiales publicadas** del anexo «Mercado laboral según proyecciones CNPV 2018»
-# MAGIC (DANE) desde el volumen de Unity Catalog hacia dos tablas en `tesis.geih_bronce`, para poder
+# MAGIC (DANE) desde el volumen de Unity Catalog hacia tres tablas en `tesis.geih_bronce`, para poder
 # MAGIC contrastarlas con las estimaciones propias.
 # MAGIC
 # MAGIC ## Tablas
@@ -13,11 +13,17 @@
 # MAGIC   (pestaña `areas trim movil`, filas 55-1010; cada ciudad es un bloque de 38 filas). Incluye
 # MAGIC   también los bloques agregados «Total 10 ciudades» y «Total 23 ciudades y A.M.» (este último
 # MAGIC   es el valor oficial al que se ajusta el benchmarking de nivel 1 en `modelo/fay_herriot.py`)
+# MAGIC * `datos_anuales`: agregados con serie **anual** 2016-2021 (pestaña `Anuales`): total nacional,
+# MAGIC   cabeceras, centros poblados y rural disperso, «Total 13 ciudades y áreas metropolitanas» y
+# MAGIC   «Total 10 ciudades». El anexo no publica la serie anual por ciudad; estos totales sirven para
+# MAGIC   comprobar la fórmula con la que `analisis/sensibilidad_ventana_temporal.py` reconstruye la TD
+# MAGIC   anual de cada ciudad a partir de sus cuatro trimestres
 # MAGIC
 # MAGIC ## Transformaciones aplicadas
 # MAGIC 1. Layout horizontal del Excel (12 columnas por año) convertido a formato largo
 # MAGIC 2. Municipal: `ANIO`/`MES` corresponden al **mes de cierre** del trimestre móvil
-# MAGIC    (``Dic 16 - Feb 17`` → 2017, 2), igual que `estimacion_directa.py`
+# MAGIC    (``Dic 16 - Feb 17`` → 2017, 2), igual que `estimacion_directa.py`; anual: un registro por
+# MAGIC    agregado y año
 # MAGIC 3. Población total, PEA, empleados y desempleados vienen en miles: se convierten a personas
 # MAGIC 4. Las tasas (desempleo, empleo) se conservan en %
 # MAGIC
@@ -41,6 +47,7 @@ from shared.config.geih_config import (
     ANIO_FIN_PUBLICADOS,
     ANIO_INICIO_PUBLICADOS,
     RUTA_DATOS_PUBLICADOS,
+    TBL_DATOS_ANUALES,
     TBL_DATOS_MUNICIPALES,
     TBL_DATOS_NACIONALES,
     URL_FUENTE_DATOS_PUBLICADOS,
@@ -52,6 +59,7 @@ from shared.utils.spark_utils import escribir_tabla
 # DBTITLE 1,Constantes del Excel
 HOJA_NACIONAL = "Tnal mensual"
 HOJA_MUNICIPAL = "areas trim movil"
+HOJA_ANUAL = "Anuales"
 
 # Bloque de cada año: 12 columnas; el año 2001 empieza en la columna B (índice 1)
 ANIO_BASE_EXCEL = 2001
@@ -82,6 +90,18 @@ FILA_INICIO_CIUDADES = 55
 # Hasta la fila 1010 para incluir los bloques «Total 10 ciudades» (fila 930) y «Total 23 ciudades y
 # A.M.» (fila 968), que tienen la misma estructura que el bloque de una ciudad.
 FILA_FIN_CIUDADES = 1010
+
+# Pestaña anual: cada agregado es un bloque cuyo título (columna A) va seguido de «Serie anual»; los
+# años están en la fila título + 3 y cada año ocupa una sola columna (2001 en la columna B).
+OFFSETS_ANUAL = {
+    "TASA_EMPLEO": 6,
+    "TASA_DESEMPLEO": 7,
+    "POBLACION_TOTAL": 19,
+    "PEA": 21,
+    "EMPLEADOS": 22,
+    "DESEMPLEADOS": 23,
+}
+OFFSET_ANIOS_ANUAL = 3
 
 # Texto con que empieza la etiqueta de cada indicador en la columna A (validación del layout)
 ETIQUETAS_ESPERADAS = {
@@ -115,6 +135,19 @@ SCHEMA_MUNICIPAL = StructType(
         StructField("MES", LongType()),
         StructField("TRIMESTRE_MOVIL", StringType()),
         StructField("CIUDAD", StringType()),
+        StructField("TASA_DESEMPLEO", DoubleType()),
+        StructField("TASA_EMPLEO", DoubleType()),
+        StructField("POBLACION_TOTAL", LongType()),
+        StructField("PEA", LongType()),
+        StructField("EMPLEADOS", LongType()),
+        StructField("DESEMPLEADOS", LongType()),
+    ]
+)
+
+SCHEMA_ANUAL = StructType(
+    [
+        StructField("ANIO", LongType()),
+        StructField("CONJUNTO", StringType()),
         StructField("TASA_DESEMPLEO", DoubleType()),
         StructField("TASA_EMPLEO", DoubleType()),
         StructField("POBLACION_TOTAL", LongType()),
@@ -350,11 +383,93 @@ def cargar_municipal(ruta: str) -> list:
     return registros
 
 
+def anio_columna(valor):
+    """Interpreta el encabezado de año de la pestaña anual (``2018.0``, ``2001`` o ``'2020*'``).
+
+    Args:
+        valor (object): Valor crudo de la celda de encabezado.
+
+    Returns:
+        int | None: Año como entero, o ``None`` si la celda no contiene un año.
+
+    Example:
+        >>> anio_columna("2020*")
+        2020
+        >>> anio_columna(2018.0)
+        2018
+    """
+    if valor is None:
+        return None
+    digitos = re.sub(r"\D", "", str(valor).split(".")[0])
+    return int(digitos) if len(digitos) == 4 else None
+
+
+def cargar_anual(ruta: str) -> list:
+    """Extrae la serie anual de cada agregado de la pestaña ``Anuales``.
+
+    Detecta cada agregado como un título (columna A) cuya fila siguiente dice «Serie anual». La
+    columna de cada año se busca en el encabezado de años del bloque, para no depender de que las
+    columnas sigan en el mismo orden.
+
+    Args:
+        ruta (str): Ruta del archivo ``.xlsx``.
+
+    Returns:
+        list[dict]: Un registro por agregado y año entre ``ANIO_INICIO_PUBLICADOS`` y
+            ``ANIO_FIN_PUBLICADOS``, con ``ANIO``, ``CONJUNTO`` y los seis indicadores.
+
+    Raises:
+        ValueError: Si no se detecta ningún agregado, si falta un año en el encabezado o si las
+            filas no corresponden a los indicadores esperados.
+
+    Casos de uso:
+        Validar la reconstrucción de la TD anual: el «Total 13 ciudades y áreas metropolitanas»
+        de 2018 publicado aquí debe coincidir con el que se arma sumando los cuatro trimestres de
+        las 13 ciudades de ``datos_municipales``.
+
+    Example:
+        >>> registros = cargar_anual(RUTA_DATOS_PUBLICADOS)
+    """
+    hoja = leer_hoja(ruta, HOJA_ANUAL)
+    registros = []
+    conjuntos = []
+    for fila in range(1, hoja.shape[0] + 1):
+        titulo = valor_celda(hoja, fila, 0)
+        siguiente = valor_celda(hoja, fila + 1, 0)
+        if titulo is None or not str(siguiente).startswith("Serie anual"):
+            continue
+        filas = {ind: fila + off for ind, off in OFFSETS_ANUAL.items()}
+        for indicador, fila_ind in filas.items():
+            validar_etiqueta(hoja, fila_ind, indicador)
+        fila_anios = fila + OFFSET_ANIOS_ANUAL
+        columnas = {
+            anio_columna(valor_celda(hoja, fila_anios, c)): c
+            for c in range(1, hoja.shape[1])
+        }
+        conjunto = str(titulo).strip()
+        conjuntos.append(conjunto)
+        for anio in range(ANIO_INICIO_PUBLICADOS, ANIO_FIN_PUBLICADOS + 1):
+            if anio not in columnas:
+                raise ValueError(
+                    f"{conjunto}: no se encontró el año {anio} en la fila {fila_anios}"
+                )
+            valores = {
+                ind: convertir_valor(ind, valor_celda(hoja, fila_ind, columnas[anio]))
+                for ind, fila_ind in filas.items()
+            }
+            registros.append({"ANIO": anio, "CONJUNTO": conjunto, **valores})
+    if not conjuntos:
+        raise ValueError("No se detectó ningún agregado en la pestaña anual")
+    print(f"Agregados anuales detectados ({len(conjuntos)}): {conjuntos}")
+    return registros
+
+
 # COMMAND ----------
 
 # DBTITLE 1,Extracción desde el Excel
 registros_nacional = cargar_nacional(RUTA_DATOS_PUBLICADOS)
 registros_municipal = cargar_municipal(RUTA_DATOS_PUBLICADOS)
+registros_anual = cargar_anual(RUTA_DATOS_PUBLICADOS)
 
 df_nacional = spark.createDataFrame(
     [tuple(r[f.name] for f in SCHEMA_NACIONAL.fields) for r in registros_nacional],
@@ -363,6 +478,10 @@ df_nacional = spark.createDataFrame(
 df_municipal = spark.createDataFrame(
     [tuple(r[f.name] for f in SCHEMA_MUNICIPAL.fields) for r in registros_municipal],
     schema=SCHEMA_MUNICIPAL,
+)
+df_anual = spark.createDataFrame(
+    [tuple(r[f.name] for f in SCHEMA_ANUAL.fields) for r in registros_anual],
+    schema=SCHEMA_ANUAL,
 )
 
 # COMMAND ----------
@@ -428,6 +547,13 @@ validar(df_nacional, ["ANIO", "MES"], n_meses, "datos_nacionales")
 validar(
     df_municipal, ["CIUDAD", "ANIO", "MES"], n_ciudades * n_meses, "datos_municipales"
 )
+n_conjuntos = df_anual.select("CONJUNTO").distinct().count()
+validar(
+    df_anual,
+    ["CONJUNTO", "ANIO"],
+    n_conjuntos * (ANIO_FIN_PUBLICADOS - ANIO_INICIO_PUBLICADOS + 1),
+    "datos_anuales",
+)
 
 # COMMAND ----------
 
@@ -437,6 +563,7 @@ DESCRIPCION_COLUMNAS = {
     "MES": "Mes calendario 1-12 (en la serie de trimestre móvil, mes de cierre)",
     "TRIMESTRE_MOVIL": "Etiqueta del trimestre móvil tal como la publica el DANE",
     "CIUDAD": "Ciudad o área metropolitana tal como la publica el DANE",
+    "CONJUNTO": "Agregado geográfico tal como lo publica el DANE (p. ej. Total 13 ciudades)",
     "TASA_DESEMPLEO": "Tasa de desempleo (TD), en %",
     "TASA_EMPLEO": "Tasa de ocupación (TO), en %",
     "POBLACION_TOTAL": "Población total, en personas (el anexo la publica en miles)",
@@ -459,6 +586,14 @@ DESCRIPCION_TABLAS = {
         f"(pestaña '{HOJA_MUNICIPAL}' del anexo Mercado laboral según proyecciones CNPV 2018). "
         "ANIO y MES son el mes de cierre del trimestre. Tasas en %, poblaciones en personas. "
         f"Fuente: {URL_FUENTE_DATOS_PUBLICADOS}"
+    ),
+    TBL_DATOS_ANUALES: (
+        "Cifras oficiales publicadas por el DANE del mercado laboral de los agregados (total "
+        "nacional, cabeceras, centros poblados y rural disperso, Total 13 ciudades y áreas "
+        "metropolitanas, Total 10 ciudades), serie anual "
+        f"{ANIO_INICIO_PUBLICADOS}-{ANIO_FIN_PUBLICADOS} (pestaña '{HOJA_ANUAL}' del anexo "
+        "Mercado laboral según proyecciones CNPV 2018). Tasas en %, poblaciones en personas "
+        f"(promedio del año). Fuente: {URL_FUENTE_DATOS_PUBLICADOS}"
     ),
 }
 
@@ -483,6 +618,7 @@ def describir_tabla(tabla: str, df) -> None:
 for tabla, df in [
     (TBL_DATOS_NACIONALES, df_nacional),
     (TBL_DATOS_MUNICIPALES, df_municipal),
+    (TBL_DATOS_ANUALES, df_anual),
 ]:
     escribir_tabla(df, tabla)
     describir_tabla(tabla, df)

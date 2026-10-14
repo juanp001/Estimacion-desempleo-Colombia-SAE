@@ -21,3 +21,7 @@ resources:
           environment_key: serverless
           notebook_task:
             notebook_path: ../../code/analisis/eda_seleccion_covariables.py
+        - task_key: sensibilidad_ventana_temporal
+          environment_key: serverless
+          notebook_task:
+            notebook_path: ../../code/analisis/sensibilidad_ventana_temporal.py

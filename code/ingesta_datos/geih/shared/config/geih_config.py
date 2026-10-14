@@ -19,6 +19,7 @@ URL_FUENTE_DATOS_PUBLICADOS = (
 )
 TBL_DATOS_NACIONALES = f"{CATALOG}.{SCHEMA_BRONCE}.datos_nacionales"
 TBL_DATOS_MUNICIPALES = f"{CATALOG}.{SCHEMA_BRONCE}.datos_municipales"
+TBL_DATOS_ANUALES = f"{CATALOG}.{SCHEMA_BRONCE}.datos_anuales"
 ANIO_INICIO_PUBLICADOS = 2016
 ANIO_FIN_PUBLICADOS = 2021
 
@@ -31,11 +32,16 @@ TBL_FEX_PLATA = f"{CATALOG}.{SCHEMA_PLATA}.dim_fex"
 
 # Destination table names — oro
 TBL_MERCADO_LABORAL = f"{CATALOG}.{SCHEMA_ORO}.mercado_laboral"
+# Reconciliación de la fuerza de trabajo (G7-B5)
+TBL_RECONCILIACION_FT = f"{CATALOG}.{SCHEMA_ORO}.reconciliacion_fuerza_trabajo"
+TBL_LLAVES_SIN_PAREJA = f"{CATALOG}.{SCHEMA_ORO}.llaves_sin_pareja"
 
 # Dimension tables
 # Nota: pese al nombre, apunta a dim_geih_divipola (32 áreas GEIH con CODIGO_AREA_GEIH),
 # no a la dim_divipola completa.
 TBL_DIM_DIVIPOLA =f"{CATALOG}.dim.dim_geih_divipola"
+# Dominio de estimación (ciudad o ciudad A.M.) de cada municipio
+TBL_DIM_DOMINIO = f"{CATALOG}.dim.dim_dominio_geih"
 
 # Source table names — bronce (marco nuevo)
 TBL_CG_BRONCE  = f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales"
