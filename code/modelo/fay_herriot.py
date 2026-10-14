@@ -112,6 +112,10 @@ from shared.diagnosticos import (
     marca_extrapolacion,
 )
 from shared.consolidacion import construir_tabla_final
+
+# Cifra oficial del DANE de la ventana de la estimación directa (año reconstruido o trimestre
+# publicado). Se importa por ruta completa porque `shared` aquí es modelo/shared.
+from preprocesamiento.shared.ventana import td_dane_ventana
 from shared.benchmarking import (
     promedio_ponderado,
     benchmark_nivel1,
@@ -511,17 +515,24 @@ if resultados_ganador["FUERA_DE_RANGO"].any():
 # del conjunto de los dominios.
 #
 # Valor de referencia: Σ PEA_d·TD_d / Σ PEA_d. Por la propiedad de benchmarking del Hájek
-# (Molina, 2019, PDF 26) es exactamente la estimación directa de las 23 ciudades juntas, un
-# dominio que la GEIH publica cada trimestre (Metodología GEIH v9, PDF 10). Se contrasta con la
-# cifra oficial del DANE («Total 23 ciudades y A.M.» en datos_municipales) y la ejecución se
+# (Molina, 2019, PDF 26) es exactamente la estimación directa de las 23 ciudades juntas en la
+# misma ventana que las directas (por defecto el año calendario, G7-B2). Se contrasta con la cifra
+# oficial del DANE del «Total 23 ciudades y A.M.» en esa ventana: la publicada si es un trimestre
+# móvil, o la reconstruida con los 4 trimestres que no se pisan si es el año, porque el anexo no
+# publica la serie anual de las 23 ciudades (preprocesamiento/shared/ventana.py). La ejecución se
 # detiene si difieren más de TOLERANCIA_DANE_PP: un valor de referencia que no reproduce la cifra
 # oficial indicaría un problema en los datos, no algo que el ajuste deba absorber.
-periodos = df[["PER", "MES"]].drop_duplicates()
+periodos = df[["PER", "MES", "PERIODO", "N_MESES_VENTANA"]].drop_duplicates()
 if len(periodos) != 1:
     raise ValueError(
         f"El benchmarking se define por período y hay {len(periodos)} períodos en {TBL_COVARIABLES_SELECCIONADAS}."
     )
 PER_MODELO, MES_MODELO = int(periodos["PER"].iloc[0]), int(periodos["MES"].iloc[0])
+N_MESES_MODELO = int(periodos["N_MESES_VENTANA"].iloc[0])
+PERIODO_MODELO = periodos["PERIODO"].iloc[0]
+print(
+    f"Ventana de las estimaciones directas: {PERIODO_MODELO} ({N_MESES_MODELO} meses)"
+)
 
 pea_dominio = (
     df.set_index("DOMINIO")
@@ -530,20 +541,21 @@ pea_dominio = (
 )
 referencia_n1 = promedio_ponderado(resultados_ganador[Y_COL], pea_dominio)
 
-total_dane = [
-    fila["TASA_DESEMPLEO"]
-    for fila in spark.table(TBL_DATOS_MUNICIPALES)
-    .filter(
-        f"ANIO = {PER_MODELO} AND MES = {MES_MODELO} AND CIUDAD = '{NOMBRE_TOTAL_23}'"
-    )
-    .select("TASA_DESEMPLEO")
-    .collect()
-]
+cifras_dane = td_dane_ventana(
+    spark.table(TBL_DATOS_MUNICIPALES).toPandas(),
+    PER_MODELO,
+    MES_MODELO,
+    N_MESES_MODELO,
+)
+total_dane = cifras_dane.loc[
+    cifras_dane["CIUDAD"] == NOMBRE_TOTAL_23, "TD_DANE"
+].tolist()
 if total_dane:
     dif_dane = referencia_n1 - float(total_dane[0])
     print(
         f"Valor de referencia (directa del conjunto): {referencia_n1:.4f} %  |  "
-        f"DANE «{NOMBRE_TOTAL_23}»: {float(total_dane[0]):.4f} %  (dif. {dif_dane:+.4f} pp)"
+        f"DANE «{NOMBRE_TOTAL_23}» {PERIODO_MODELO}: {float(total_dane[0]):.4f} %  "
+        f"(dif. {dif_dane:+.4f} pp)"
     )
     if abs(dif_dane) > TOLERANCIA_DANE_PP:
         raise ValueError(
@@ -553,7 +565,7 @@ if total_dane:
         )
 else:
     print(
-        f"Sin cifra publicada para {PER_MODELO}-{MES_MODELO:02d}: se usa la estimación directa "
+        f"Sin cifra oficial para {PERIODO_MODELO}: se usa la estimación directa "
         f"del conjunto ({referencia_n1:.4f} %) sin contraste con el DANE."
     )
 
@@ -686,8 +698,9 @@ if df_pred["FUERA_DE_RANGO"].any():
 # Σ w_m x_m'β̂ / Σ w_m, no es exactamente el sintético del dominio x̄_D'β̂: λ_D − 1 combina la
 # separación del dominio respecto de su predicción sintética y esa brecha de agregación, que se
 # imprime abajo; la consistencia del ajuste sigue siendo exacta. Los municipios sin dominio padre
-# no se ajustan: no hay un valor de referencia trimestral confiable que los contenga (el
-# departamento solo es representativo con datos anuales, Metodología GEIH v9, PDF 9).
+# no se ajustan: el único territorio de la GEIH que los contiene es el departamento, que con la
+# ventana anual sí es representativo (Metodología GEIH v9, PDF 9), pero su estimación directa
+# exige los registros sin AREA (resto de cabeceras y zona rural), que el proyecto decidió no usar.
 pesos_n2 = (
     spark.table(TBL_TERRIDATA)
     .filter(f"ANO = {PER_MODELO} AND MES = {MES_MODELO}")

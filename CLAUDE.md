@@ -124,12 +124,17 @@ de `dim_fex`).
 ```
 preprocesamiento/estimacion_directa.py
   → estima el desempleo por dominio (ciudad o ciudad A.M., INNER JOIN con dim_dominio_geih por el código
-    de la capital) sobre tesis.geih_oro.mercado_laboral (PEA==1, EDAD ≥ 15, trimestre móvil objetivo: los
-    3 meses que cierran en anio_estimacion/mes_estimacion, agrupados en un dominio; PER/MES = mes de
-    cierre). Clave: CODIGO_DOMINIO + NOMBRE_DOMINIO + TIPO_DOMINIO; agrega PEA_EXPANDIDA (Σ FEX de la PEA
-    / meses, peso del benchmarking de nivel 1) y N_MUNICIPIOS
-  → valida (solo imprime PASS/FAIL) cada dominio y el agregado Σ PEA·TD/Σ PEA contra
-    tesis.geih_bronce.datos_municipales (Oct-Dic 2018: 23/23 y 10.3251 = «Total 23 ciudades y A.M.»)
+    de la capital) sobre tesis.geih_oro.mercado_laboral (PEA==1, EDAD ≥ 15, **ventana de n_meses_ventana
+    meses** que cierra en anio_estimacion/mes_estimacion, agrupados en un dominio; PER/MES = mes de
+    cierre). Ventana por defecto (G7-B2): **año calendario** (12 meses, exige cierre en diciembre;
+    `resolver_ventana`); el trimestre móvil (3) queda como opción. Clave: CODIGO_DOMINIO + NOMBRE_DOMINIO
+    + TIPO_DOMINIO; agrega PERIODO («Ene-Dic 2018») y N_MESES_VENTANA (viajan en METADATA_COLS hasta el
+    modelo, que de ahí sabe contra qué cifra validar), N_PEA y N_DESOCUPADOS (muestra), PEA_EXPANDIDA
+    (Σ FEX de la PEA / meses, peso del benchmarking de nivel 1) y N_MUNICIPIOS
+  → valida (solo imprime PASS/FAIL) cada dominio y el agregado Σ PEA·TD/Σ PEA contra la cifra DANE de la
+    misma ventana (shared/ventana.py, `td_dane_ventana`): año = Σ DS / Σ PEA de los 4 trimestres que no
+    se pisan de tesis.geih_bronce.datos_municipales (el anexo no publica la TD anual por ciudad);
+    trimestre = la publicada (Oct-Dic 2018: 23/23 y 10.3251 = «Total 23 ciudades y A.M.»)
   → estimador de Hájek (θ̂ = Σ(w_i·y_i)/Σw_i) con el factor de expansión 2018
   → inferencia por bootstrap simple (2000 réplicas, semilla 42) porque no se tienen las variables del
     diseño muestral; remuestrea las n filas globales, no por dominio. CV < 5% confiable, 5–20%
@@ -150,9 +155,9 @@ preprocesamiento/adicion_covariables.py
     p. 21 (razón de totales ΣY/ΣZ); ENUSC 2018 PDF 26 nota 6. Imprime la sensibilidad frente a la
     regla PET en los 7 A.M. y guarda tesis.preprocesamiento.reglas_agregacion_covariables
   → auditoría G7-B1 (shared/auditoria_dominios.py) → tesis.preprocesamiento.auditoria_dominios: una fila
-    por dominio con AREA GEIH, nombre DANE (error si no está en el anexo), geografía de la tasa
-    (cabeceras) y de las covariables (municipio completo), integrantes + DIVIPOLA, regla de x_d y
-    TD directa vs. DANE
+    por dominio con PERIODO/N_MESES_VENTANA, AREA GEIH, nombre DANE (error si no está en el anexo),
+    geografía de la tasa (cabeceras) y de las covariables (municipio completo), integrantes + DIVIPOLA,
+    regla de x_d y TD directa vs. DANE de la misma ventana (`td_dane_ventana`)
   → LEFT JOIN por CODIGO_DOMINIO, PER = ANO, MES y valida que TerriData cubra el período; excluye las
     columnas *_NORMALIZADO → tesis.preprocesamiento.tasa_desempleo_covariables
         ↓
@@ -208,11 +213,13 @@ modelo/fay_herriot.py
     sustentación completa: DANE nota SAE 2024 PDF 8/19/25, ENUSC 2018 PDF 22-23, Chile pobreza 2016,
     Casen 2024, Molina 2019 PDF 26/78, Benedetti 2024 p. 159, Morales p. 42/425/462):
       9b nivel 1: los 23 EBLUP × λ₁ para que Σ PEA_EXPANDIDA·EBLUP/Σ PEA reproduzca la directa del
-         conjunto (= «Total 23 ciudades y A.M.» del DANE; se detiene si difiere > 0.01 pp)
+         conjunto (= «Total 23 ciudades y A.M.» del DANE en la ventana N_MESES_VENTANA de la tabla:
+         reconstruido con los 4 trimestres si es el año; se detiene si difiere > 0.01 pp)
       10b nivel 2: los municipios de un dominio A.M. (Cali y Yumbo) × λ_D para que, ponderados por la
          población de 15 años y más, reproduzcan el EBLUP ajustado de su dominio (imprime la brecha
          de agregación x̄_D'β̂ vs Σw·x_m'β̂/Σw, porque las covariables no usan la PET). Los otros 81
-         municipios quedan con el sintético puro (el departamento solo es representativo anualmente)
+         municipios quedan con el sintético puro (el departamento es representativo en el año, pero su
+         directa exige los registros sin AREA, que el proyecto no usa; nivel 3 = extensión posible)
       12 verificación: tablas antes/después y pruebas (consistencia < 1e-8, razones conservadas, rango,
          miembros completos; aviso si |λ−1| > 0.20) + comprobación sobre la tabla final redondeada
     λ fijo: RMSE × λ, CV sin cambio
@@ -228,13 +235,17 @@ Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LI
 `CATALOGO_EXCLUIDAS`, `resolver_catalogo`), `descriptivos.py` (figuras e interpretaciones),
 `diagnosticos.py` (IC de Fisher, Cook por covariable, estabilidad dejar-uno-fuera, VIF, figura de robustez),
 `seleccion.py` (`filtrar_por_robustez`, `resolver_redundancia`, `ficha_decision`, `ajustar_por_vif`),
-`ventana_temporal.py` (sensibilidad G7-B2).
+`ventana_temporal.py` (sensibilidad G7-B2; re-exporta `etiqueta_ventana`, `cierres_trimestrales` y
+`td_dane_ventana`, que viven en `preprocesamiento/shared/ventana.py` porque los usan la estimación directa,
+la auditoría y el modelo).
 
 `analisis/sensibilidad_ventana_temporal.py` (G7-B2, fuera de la cadena: no alimenta al modelo) compara la
 tasa directa de los 23 dominios con tres ventanas que cierran en `anio_estimacion/mes_estimacion`
 (`VENTANAS_TEMPORALES`: MES = 1, TRIMESTRE = 3, ANIO = 12; `meses_ventana` en `preprocesamiento/shared/config.py`).
+Es la evidencia de la decisión G7-B2 (año como ventana del modelo: 23/23 confiables, SE ≈ la mitad del trimestral).
 Reutiliza `EstimacionDirecta`, pero define la PEA como `OCUPADO + DESOCUPADO` (defensa ante la bandera rota de Ene-Mar
-2018, ya corregida; hoy ambas definiciones coinciden) y comprueba que la ventana TRIMESTRE reproduce `tasa_desempleo_municipal`. La TD anual oficial por
+2018, ya corregida; hoy ambas definiciones coinciden) y comprueba que la ventana con el `N_MESES_VENTANA` de
+`tasa_desempleo_municipal` (la del modelo) la reproduce. La TD anual oficial por
 ciudad se reconstruye como Σ DS / Σ PEA de los 4 trimestres que no se pisan (MES 3/6/9/12 de
 `datos_municipales`); la fórmula reproduce el Total 13 y el Total 10 de `datos_anuales` (≈ 1e-5 pp). Salidas:
 `sensibilidad_ventana_temporal` (ventana × dominio, con N_PERSONAS_15MAS/N_PEA/N_DESOCUPADOS y TD_DANE),
@@ -297,14 +308,15 @@ Reglas del flujo de selección:
 - **Importaciones**: los notebooks de `analisis/` (y `pre_filtrado_covariables.py`, `dominios_sin_encuesta.py`,
   `adicion_covariables.py`) importan por ruta completa desde `code/` (`preprocesamiento.shared.config`,
   `analisis.shared.…`) porque existen varias carpetas `shared/` y la forma corta resolvería a una u otra según
-  desde dónde se ejecute. `estimacion_directa.py` todavía usa la forma corta (`from shared.config import *`);
-  es una inconsistencia conocida, no la repliques en código nuevo.
+  desde dónde se ejecute. `estimacion_directa.py` también (antes usaba la forma corta). `modelo/fay_herriot.py`
+  usa la forma corta para `modelo/shared` y la completa para `preprocesamiento.shared.ventana`.
 - Las figuras del análisis van al volumen `/Volumes/tesis/preprocesamiento/figuras_eda`
   (prefijos `desc_`, `eda_`); las del modelo no se guardan.
-- **Advertencia al cambiar la ventana de tiempo** (`anio_estimacion` / `mes_estimacion`): si cambia el
-  número de dominios, hay que revisar `P_MAXIMO = 4` a mano, porque asume 23 dominios (n/5). Los textos de
-  los notebooks dicen "23 dominios" y la exclusión "sin dato para 2018" del catálogo también es del cierre
-  2018.
+- **Advertencia al cambiar la ventana de tiempo** (`anio_estimacion` / `mes_estimacion` / `n_meses_ventana`):
+  si cambia el número de dominios, hay que revisar `P_MAXIMO = 4` a mano, porque asume 23 dominios (n/5). Los
+  textos de los notebooks dicen "23 dominios" y la exclusión "sin dato para 2018" del catálogo también es del
+  cierre 2018. La ventana anual (12) exige `mes_estimacion = 12`; con el trimestre (3) y otro cierre, la unión
+  con TerriData por (ANO, MES) puede quedar vacía porque los indicadores tienen corte a diciembre.
 
 ## Despliegue con DAB
 
@@ -323,10 +335,12 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
 
 - Entre jobs no hay dependencias en el YAML; el orden real es `dimensiones` → `ingesta_geih` /
   `ingesta_terridata` → `preprocesamiento` → `analisis` → `modelo`.
-- El período llega como variables del bundle `anio_estimacion` (default "2018") y `mes_estimacion` (default
-  "12"); solo `preprocesamiento` los declara como parámetros y los lee `resolver_periodo`
-  (`preprocesamiento/shared/config.py`) en `estimacion_directa` y `dominios_sin_encuesta`. Ejemplo:
-  `databricks bundle run preprocesamiento -t dev --params anio_estimacion=2024,mes_estimacion=6`.
+- El período llega como variables del bundle `anio_estimacion` (default "2018"), `mes_estimacion` (default
+  "12") y `n_meses_ventana` (default "12" = año; "3" = trimestre móvil); solo `preprocesamiento` los declara
+  como parámetros. `resolver_periodo` (`preprocesamiento/shared/config.py`) lee los dos primeros en
+  `estimacion_directa` y `dominios_sin_encuesta`; `resolver_ventana` lee la ventana solo en
+  `estimacion_directa`, y de ahí viaja en la columna `N_MESES_VENTANA`. Ejemplo (trimestre Abr-Jun 2024):
+  `databricks bundle run preprocesamiento -t dev --params anio_estimacion=2024,mes_estimacion=6,n_meses_ventana=3`.
 - El bundle no crea volúmenes: `/Volumes/tesis/preprocesamiento/figuras_eda` debe existir antes de `analisis`.
 - `sync.exclude` omite `data/`, `code/ingesta_datos/censo_nal/`, `code/analisis/renombrar_geih.py` y los
   `*.txt`, `*.xlsx`, `*.pdf` (archivos de trabajo de la raíz; `TerriData.txt` de ~3 GB rompía el despliegue).

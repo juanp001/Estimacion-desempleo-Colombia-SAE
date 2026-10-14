@@ -7,12 +7,15 @@ resources:
         dominios sin encuesta. Requiere ingesta_geih e ingesta_terridata ya ejecutados.
       max_concurrent_runs: 1
       # Ventana de tiempo: llega como widgets a las tareas notebook que la declaran
-      # (estimacion_directa y dominios_sin_encuesta, vía resolver_periodo).
+      # (estimacion_directa y dominios_sin_encuesta, vía resolver_periodo; n_meses_ventana solo la
+      # lee estimacion_directa, vía resolver_ventana, y viaja en la tabla de estimaciones).
       parameters:
         - name: anio_estimacion
           default: ${var.anio_estimacion}
         - name: mes_estimacion
           default: ${var.mes_estimacion}
+        - name: n_meses_ventana
+          default: ${var.n_meses_ventana}
       environments:
         - environment_key: serverless
           spec:

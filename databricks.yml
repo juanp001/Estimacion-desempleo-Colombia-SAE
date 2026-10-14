@@ -11,13 +11,17 @@ include:
 
 variables:
   # Ventana de tiempo de la estimación (la leen estimacion_directa y dominios_sin_encuesta).
-  # Se cambia aquí o al ejecutar:
-  #   databricks bundle run preprocesamiento -t dev --params anio_estimacion=2024,mes_estimacion=6
+  # Por defecto el año calendario 2018 (12 meses con cierre en diciembre, G7-B2). Se cambia aquí
+  # o al ejecutar, p. ej. el trimestre móvil Abr-Jun 2024:
+  #   databricks bundle run preprocesamiento -t dev --params anio_estimacion=2024,mes_estimacion=6,n_meses_ventana=3
   anio_estimacion:
     description: Año (PER) del período a estimar
     default: "2018"
   mes_estimacion:
-    description: Mes (1-12) del período a estimar
+    description: Mes (1-12) de cierre del período a estimar
+    default: "12"
+  n_meses_ventana:
+    description: Meses de la ventana (12 = año, exige cierre en diciembre; 3 = trimestre móvil)
     default: "12"
 
 sync:

@@ -74,12 +74,17 @@ VOLUMEN_FIGURAS = "/Volumes/tesis/preprocesamiento/figuras_eda"
 # ── Parámetros de estimación directa ──────────────────────────────────────────
 BOOTSTRAP_REPLICAS = 2000
 BOOTSTRAP_SEED = 42
-# Período por defecto: trimestre móvil que CIERRA en (PER_ESTIMACION, MES_ESTIMACION); 2018-12 es
-# Oct-Dic 2018. En un job se sobrescribe con los parámetros anio_estimacion y mes_estimacion
-# (ver `resolver_periodo`).
+# Período por defecto: ventana de N_MESES_VENTANA meses que CIERRA en (PER_ESTIMACION,
+# MES_ESTIMACION); con 2018-12 y 12 meses es el año calendario 2018 (G7-B2). En un job se sobrescriben
+# con los parámetros anio_estimacion, mes_estimacion y n_meses_ventana (ver `resolver_periodo` y
+# `resolver_ventana`).
 PER_ESTIMACION = 2018
 MES_ESTIMACION = 12
 MESES_TRIMESTRE = 3
+# Ventana de la estimación directa (G7-B2): 12 = año calendario (por defecto; exige cierre en
+# diciembre para coincidir con el corte anual de TerriData) o 3 = trimestre móvil (opcional).
+N_MESES_VENTANA = 12
+VENTANAS_PERMITIDAS = (MESES_TRIMESTRE, 12)
 # Ventanas de la sensibilidad G7-B2 (analisis/sensibilidad_ventana_temporal.py): número de meses
 # que cierran en (PER_ESTIMACION, MES_ESTIMACION). Con cierre en diciembre, ANIO es el año calendario.
 VENTANAS_TEMPORALES = {"MES": 1, "TRIMESTRE": 3, "ANIO": 12}
@@ -116,65 +121,11 @@ def meses_ventana(per: int, mes: int, n_meses: int) -> list:
     return meses
 
 
-def meses_trimestre_movil(per: int, mes: int) -> list:
-    """Lista los tres meses del trimestre móvil que termina en el mes indicado.
-
-    Sigue la convención del anexo DANE «areas trim movil»: el trimestre se identifica por su
-    mes de cierre y puede cruzar el año (Nov-Ene, Dic-Feb).
-
-    Args:
-        per (int): Año del mes de cierre.
-        mes (int): Mes de cierre, entre 1 y 12.
-
-    Returns:
-        list[tuple[int, int]]: Tres pares `(año, mes)` en orden cronológico.
-
-    Casos de uso:
-        `meses_trimestre_movil(2018, 12)` → `[(2018, 10), (2018, 11), (2018, 12)]`;
-        `meses_trimestre_movil(2019, 1)` → `[(2018, 11), (2018, 12), (2019, 1)]`.
-    """
-    return meses_ventana(per, mes, MESES_TRIMESTRE)
-
-
-def etiqueta_trimestre_movil(per: int, mes: int) -> str:
-    """Arma la etiqueta legible del trimestre móvil que termina en el mes indicado.
-
-    Args:
-        per (int): Año del mes de cierre.
-        mes (int): Mes de cierre, entre 1 y 12.
-
-    Returns:
-        str: Etiqueta «Mes inicial-Mes final año(s)»; si el trimestre cruza el año incluye
-            ambos años.
-
-    Casos de uso:
-        `etiqueta_trimestre_movil(2018, 12)` → `"Oct-Dic 2018"`;
-        `etiqueta_trimestre_movil(2019, 1)` → `"Nov 2018-Ene 2019"`.
-    """
-    nombres = [
-        "Ene",
-        "Feb",
-        "Mar",
-        "Abr",
-        "May",
-        "Jun",
-        "Jul",
-        "Ago",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dic",
-    ]
-    (anio_ini, mes_ini), *_, (anio_fin, mes_fin) = meses_trimestre_movil(per, mes)
-    if anio_ini == anio_fin:
-        return f"{nombres[mes_ini - 1]}-{nombres[mes_fin - 1]} {anio_fin}"
-    return f"{nombres[mes_ini - 1]} {anio_ini}-{nombres[mes_fin - 1]} {anio_fin}"
-
-
 def resolver_periodo(dbutils) -> tuple:
     """Resuelve el período a estimar a partir de los widgets del notebook o del job.
 
-    El período es el mes de cierre del trimestre móvil (ver `meses_trimestre_movil`).
+    El período es el mes de cierre de la ventana de estimación (ver `meses_ventana` y
+    `resolver_ventana`).
     Declara los widgets `anio_estimacion` y `mes_estimacion` con `PER_ESTIMACION` y
     `MES_ESTIMACION` como valores por defecto y los lee. Un parámetro de job con el mismo
     nombre reemplaza el valor del widget.
@@ -210,6 +161,80 @@ def resolver_periodo(dbutils) -> tuple:
     return per, mes
 
 
+def resolver_ventana(dbutils, mes: int) -> int:
+    """Resuelve el número de meses de la ventana de estimación (widget o parámetro de job).
+
+    Declara el widget `n_meses_ventana` con `N_MESES_VENTANA` por defecto y lo lee. Solo se admiten
+    las ventanas de `VENTANAS_PERMITIDAS`: el año (12, por defecto) y el trimestre móvil (3). El
+    año exige cierre en diciembre: 12 meses con otro cierre no son un año calendario y no se
+    alinean con los indicadores de TerriData, que son anuales con corte a diciembre.
+
+    Args:
+        dbutils: Objeto `dbutils` del notebook.
+        mes (int): Mes de cierre ya resuelto con `resolver_periodo`.
+
+    Returns:
+        int: Número de meses de la ventana (12 o 3).
+
+    Raises:
+        ValueError: Si el valor no es entero, no está en `VENTANAS_PERMITIDAS` o es 12 con un
+            mes de cierre distinto de diciembre.
+
+    Casos de uso:
+        En `estimacion_directa.py`: `N_MESES = resolver_ventana(dbutils, MES_ESTIMACION)`. Sin
+        parámetros devuelve 12 (año 2018 con el período por defecto); con
+        `--params n_meses_ventana=3` estima el trimestre móvil.
+    """
+    dbutils.widgets.text(
+        "n_meses_ventana", str(N_MESES_VENTANA), "Meses de la ventana (12 o 3)"
+    )
+    return validar_ventana(dbutils.widgets.get("n_meses_ventana").strip(), mes)
+
+
+def validar_ventana(valor, mes: int) -> int:
+    """Valida el número de meses de la ventana frente al mes de cierre.
+
+    Args:
+        valor (str | int): Número de meses recibido (texto del widget o entero).
+        mes (int): Mes de cierre, entre 1 y 12.
+
+    Returns:
+        int: El número de meses como entero.
+
+    Raises:
+        ValueError: Si no es entero, no está en `VENTANAS_PERMITIDAS` o es 12 con un mes de
+            cierre distinto de diciembre.
+
+    Casos de uso:
+        Lógica de `resolver_ventana`, separada para probarla sin `dbutils`.
+
+        >>> validar_ventana("12", 12), validar_ventana(3, 6)
+        (12, 3)
+        >>> validar_ventana("12", 6)
+        Traceback (most recent call last):
+        ...
+        ValueError: La ventana anual exige cierre en diciembre (mes_estimacion=12); se recibió mes_estimacion=6.
+        >>> validar_ventana("1", 12)
+        Traceback (most recent call last):
+        ...
+        ValueError: n_meses_ventana debe ser uno de (3, 12); se recibió '1'.
+    """
+    try:
+        n_meses = int(valor)
+    except ValueError:
+        n_meses = None
+    if n_meses not in VENTANAS_PERMITIDAS:
+        raise ValueError(
+            f"n_meses_ventana debe ser uno de {VENTANAS_PERMITIDAS}; se recibió {str(valor)!r}."
+        )
+    if n_meses == 12 and mes != 12:
+        raise ValueError(
+            "La ventana anual exige cierre en diciembre (mes_estimacion=12); se recibió "
+            f"mes_estimacion={mes}."
+        )
+    return n_meses
+
+
 # Columnas de agrupación para estimación directa. El dominio es la ciudad con su área metropolitana
 # tal como la identifica el campo AREA de la GEIH (ver dim_dominio_geih); CODIGO_DOMINIO es el código
 # DIVIPOLA de la capital.
@@ -223,17 +248,20 @@ GRUPO_COLS = [
     "TIPO_DOMINIO",
 ]
 
-# Columnas que NO son covariables (identificación + estimaciones)
+# Columnas que NO son covariables (identificación, ventana, conteos muestrales y estimaciones)
 METADATA_COLS = [
     "PER",
     "MES",
-    "TRIMESTRE_MOVIL",
+    "PERIODO",
+    "N_MESES_VENTANA",
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
     "CODIGO_DOMINIO",
     "NOMBRE_DOMINIO",
     "TIPO_DOMINIO",
     "N_MUNICIPIOS",
+    "N_PEA",
+    "N_DESOCUPADOS",
     "PEA_EXPANDIDA",
     "TASA_DESEMPLEO_PCT",
     "SE_BOOTSTRAP_PCT",

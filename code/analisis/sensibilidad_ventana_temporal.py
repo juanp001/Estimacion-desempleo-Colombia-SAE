@@ -6,13 +6,15 @@
 # MAGIC El comentario G7-B2 pide justificar con evidencia el período de la tasa directa. Este notebook
 # MAGIC calcula la tasa de desempleo de los 23 dominios (ciudades y ciudades A.M.) con tres ventanas que
 # MAGIC cierran en el mismo mes (por defecto diciembre de 2018) y las compara. **No cambia el
-# MAGIC pipeline**: la tasa que usa el modelo sigue saliendo de `preprocesamiento/estimacion_directa.py`.
+# MAGIC pipeline**: la tasa que usa el modelo sale de `preprocesamiento/estimacion_directa.py`, que desde
+# MAGIC esta sensibilidad usa el **año** como ventana por defecto (`n_meses_ventana = 12`; el trimestre
+# MAGIC queda como opción con `n_meses_ventana = 3`).
 # MAGIC
 # MAGIC | Ventana | Meses | Período (cierre 2018-12) | Validación contra el DANE |
 # MAGIC |---|---|---|---|
 # MAGIC | `MES` | 1 | Dic 2018 | No hay cifra mensual por ciudad |
-# MAGIC | `TRIMESTRE` | 3 | Oct-Dic 2018 (la ventana actual) | Tasa publicada por ciudad (`datos_municipales`) |
-# MAGIC | `ANIO` | 12 | Ene-Dic 2018 | Reconstruida con los 4 trimestres (ver abajo) |
+# MAGIC | `TRIMESTRE` | 3 | Oct-Dic 2018 (ventana opcional) | Tasa publicada por ciudad (`datos_municipales`) |
+# MAGIC | `ANIO` | 12 | Ene-Dic 2018 (ventana del modelo) | Reconstruida con los 4 trimestres (ver abajo) |
 # MAGIC
 # MAGIC Por dominio y ventana se reporta la muestra (personas de 15+, PEA y desocupados muestrales), la
 # MAGIC tasa (Hájek con `FEX_C18`), su error estándar bootstrap, el IC 95 %, el CV y la diferencia con
@@ -214,9 +216,9 @@ display(detalle)
 # COMMAND ----------
 
 # DBTITLE 1,Validaciones (solo informativas)
-# 1. La ventana TRIMESTRE debe reproducir la tasa que hoy usa el modelo: confirma que este notebook
-#    estima lo mismo que estimacion_directa.py (la PEA por ocupados + desocupados coincide con la
-#    bandera en Oct-Dic).
+# 1. La ventana que usa el modelo (N_MESES_VENTANA de la estimación directa; por defecto ANIO)
+#    debe reproducir su tasa: confirma que este notebook estima lo mismo que estimacion_directa.py
+#    (la PEA por ocupados + desocupados coincide con la bandera PEA desde la corrección G7-B5).
 actual = spark.table(TBL_ESTIMACION_DIRECTA).toPandas()
 actual = actual[(actual["PER"] == PER_ESTIMACION) & (actual["MES"] == MES_ESTIMACION)]
 if actual.empty:
@@ -224,20 +226,25 @@ if actual.empty:
         f"{TBL_ESTIMACION_DIRECTA} no tiene el período {PER_ESTIMACION}-{MES_ESTIMACION:02d}: no se compara."
     )
 else:
-    trimestre = detalle[detalle["VENTANA"] == "TRIMESTRE"].merge(
+    n_meses_modelo = int(actual["N_MESES_VENTANA"].iloc[0])
+    del_modelo = detalle[detalle["N_MESES_VENTANA"] == n_meses_modelo]
+    ventana_modelo = (
+        del_modelo["VENTANA"].iloc[0] if len(del_modelo) else str(n_meses_modelo)
+    )
+    comparada = del_modelo.merge(
         actual[["CODIGO_DOMINIO", "TASA_DESEMPLEO_PCT"]],
         on="CODIGO_DOMINIO",
         suffixes=("", "_ACTUAL"),
     )
     dif_max = (
-        (trimestre["TASA_DESEMPLEO_PCT"] - trimestre["TASA_DESEMPLEO_PCT_ACTUAL"])
+        (comparada["TASA_DESEMPLEO_PCT"] - comparada["TASA_DESEMPLEO_PCT_ACTUAL"])
         .abs()
         .max()
     )
     print(
-        f"[{'PASS' if dif_max < 1e-8 and len(trimestre) == len(actual) else 'FAIL'}] la ventana "
-        f"TRIMESTRE reproduce {TBL_ESTIMACION_DIRECTA} ({len(trimestre)} de {len(actual)} dominios; "
-        f"dif. máx. {dif_max:.2e} pp)"
+        f"[{'PASS' if dif_max < 1e-8 and len(comparada) == len(actual) else 'FAIL'}] la ventana "
+        f"{ventana_modelo} (la del modelo) reproduce {TBL_ESTIMACION_DIRECTA} ({len(comparada)} de "
+        f"{len(actual)} dominios; dif. máx. {dif_max:.2e} pp)"
     )
 
 # 2. Cada dominio y el agregado de los 23 contra el DANE, por ventana.

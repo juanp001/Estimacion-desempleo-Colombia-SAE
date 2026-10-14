@@ -50,12 +50,22 @@
 # MAGIC * El CV es muy alto (≥ 20%)
 # MAGIC * Se requieren estimaciones para **todos** los municipios (incluso sin muestra)
 # MAGIC
-# MAGIC ## Periodicidad: trimestre móvil
+# MAGIC ## Periodicidad: año calendario (trimestre móvil opcional)
 # MAGIC
-# MAGIC Cada dominio es una ciudad o ciudad A.M. en un **trimestre móvil** (tres meses consecutivos, p. ej. Oct-Dic).
-# MAGIC Las observaciones de los tres meses se agrupan en un solo dominio, con `FEX_C18` sin reescalar
-# MAGIC (el Hájek es una razón, así que dividir el factor mensual entre 3 no cambia la tasa). `PER` y `MES`
-# MAGIC de la salida son el año y el mes de cierre del trimestre.
+# MAGIC Cada dominio es una ciudad o ciudad A.M. en una **ventana de meses consecutivos** que cierra en
+# MAGIC `anio_estimacion/mes_estimacion`. Por defecto es el **año calendario** (12 meses con cierre en
+# MAGIC diciembre: Ene-Dic 2018); con `n_meses_ventana = 3` es el trimestre móvil (Oct-Dic 2018).
+# MAGIC Las observaciones de todos los meses se agrupan en un solo dominio, con `FEX_C18` sin reescalar
+# MAGIC (el Hájek es una razón, así que dividir el factor mensual entre el número de meses no cambia la
+# MAGIC tasa). `PER` y `MES` de la salida son el año y el mes de cierre; `PERIODO` («Ene-Dic 2018») y
+# MAGIC `N_MESES_VENTANA` identifican la ventana y viajan con los datos hasta el modelo.
+# MAGIC
+# MAGIC **Por qué el año (G7-B2).** La sensibilidad `analisis/sensibilidad_ventana_temporal.py` compara
+# MAGIC diciembre, Oct-Dic y el año 2018: con el año los 23 dominios son confiables (CV < 5 %) y el error
+# MAGIC estándar es cerca de la mitad del trimestral; la GEIH publica resultados anuales por ciudad con su
+# MAGIC A.M. (Metodología GEIH v9, PDF 9) y los segmentos no se repiten en tres años (PDF 12), así que juntar
+# MAGIC meses suma muestra nueva; y los indicadores de TerriData son anuales con corte a diciembre, de modo
+# MAGIC que tasa y covariables describen el mismo período. La ventana anual exige cierre en diciembre.
 # MAGIC
 # MAGIC ## Estimador de Hájek
 # MAGIC
@@ -88,10 +98,12 @@
 # MAGIC Ver `shared/config.py`:
 # MAGIC * `BOOTSTRAP_REPLICAS`: Número de réplicas (default 2000)
 # MAGIC * `BOOTSTRAP_SEED`: Semilla aleatoria (default 42)
-# MAGIC * `PER_ESTIMACION`, `MES_ESTIMACION`: Año y mes de **cierre** del trimestre móvil a estimar (defaults
-# MAGIC   2018 / 12 → Oct-Dic 2018). Se cambian con los parámetros `anio_estimacion` y `mes_estimacion` del
-# MAGIC   job (`resolver_periodo`). Los trimestres pueden cruzar el año (2019 / 1 → Nov 2018 - Ene 2019),
-# MAGIC   igual que la hoja «areas trim movil» del anexo DANE (`meses_trimestre_movil`)
+# MAGIC * `PER_ESTIMACION`, `MES_ESTIMACION`: Año y mes de **cierre** de la ventana (defaults 2018 / 12).
+# MAGIC   Se cambian con los parámetros `anio_estimacion` y `mes_estimacion` del job (`resolver_periodo`)
+# MAGIC * `N_MESES_VENTANA`: meses de la ventana, 12 (año, por defecto) o 3 (trimestre móvil). Se cambia con
+# MAGIC   el parámetro `n_meses_ventana` (`resolver_ventana`); el año exige `mes_estimacion = 12`. Los
+# MAGIC   trimestres pueden cruzar el año (2019 / 1 → Nov 2018 - Ene 2019), igual que la hoja «areas trim
+# MAGIC   movil» del anexo DANE (`meses_ventana`)
 # MAGIC * `GRUPO_COLS`: Columnas que definen los dominios
 # MAGIC
 # MAGIC ## Interpretación del CV
@@ -108,15 +120,17 @@
 # MAGIC
 # MAGIC ```
 # MAGIC tesis.geih_oro.mercado_laboral
-# MAGIC   → filter(PEA == 1, EDAD >= 15, meses del trimestre móvil que cierra en anio_estimacion/mes_estimacion)
+# MAGIC   → filter(PEA == 1, EDAD >= 15, meses de la ventana que cierra en anio_estimacion/mes_estimacion)
 # MAGIC   → INNER JOIN tesis.dim.dim_dominio_geih (fila de la capital) → CODIGO_DOMINIO, NOMBRE_DOMINIO, TIPO_DOMINIO
-# MAGIC   → FEX := FEX_C18; PER, MES := año y mes de cierre del trimestre
+# MAGIC   → FEX := FEX_C18; PER, MES := año y mes de cierre de la ventana
 # MAGIC   → EstimacionDirecta.estimar()   [bootstrap 2000 réplicas]
-# MAGIC   → + PEA_EXPANDIDA (Σ FEX_C18 de la PEA / 3) y N_MUNICIPIOS del dominio
+# MAGIC   → + PERIODO, N_MESES_VENTANA, N_PEA, N_DESOCUPADOS (muestra), PEA_EXPANDIDA
+# MAGIC     (Σ FEX_C18 de la PEA / meses) y N_MUNICIPIOS del dominio
+# MAGIC   → validación contra el DANE (año: TD reconstruida con los 4 trimestres; trimestre: publicada)
 # MAGIC   → tesis.preprocesamiento.tasa_desempleo_municipal   (una fila por dominio)
 # MAGIC ```
 # MAGIC
-# MAGIC `PEA_EXPANDIDA` es la PEA promedio del trimestre que representa la muestra del dominio. Es el
+# MAGIC `PEA_EXPANDIDA` es la PEA promedio mensual de la ventana que representa la muestra del dominio. Es el
 # MAGIC peso del benchmarking de nivel 1 en `modelo/fay_herriot.py`: con él, el promedio ponderado de
 # MAGIC las tasas directas de los dominios reproduce exactamente la tasa directa del conjunto (propiedad
 # MAGIC de benchmarking de los estimadores directos, Molina 2019, CEPAL, PDF 26).
@@ -129,15 +143,53 @@
 
 # COMMAND ----------
 
-# DBTITLE 1,Importar librerías y módulos compartidos
-%pip install tqdm
-from pyspark.sql import functions as F
-from shared.config import *
-from shared.estimador_sae import EstimacionDirecta
+# DBTITLE 1,Instalar dependencias
+# MAGIC %pip install tqdm
 
-# Período a estimar: widgets anio_estimacion / mes_estimacion (parámetros del job).
+# COMMAND ----------
+
+# DBTITLE 1,Importar librerías y módulos compartidos
+import os
+import sys
+
+from pyspark.sql import functions as F
+
+
+def _directorio_codigo() -> str:
+    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job.
+
+    Returns:
+        str: Ruta del directorio `code/` del repositorio.
+    """
+    try:
+        contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+        return "/Workspace" + os.path.dirname(
+            os.path.dirname(contexto.notebookPath().get())
+        )
+    except Exception:
+        return os.path.dirname(os.getcwd())
+
+
+CODE_DIR = _directorio_codigo()
+if CODE_DIR not in sys.path:
+    sys.path.insert(0, CODE_DIR)
+
+from preprocesamiento.shared.config import *
+from preprocesamiento.shared.estimador_sae import EstimacionDirecta
+from preprocesamiento.shared.ventana import (
+    TOLERANCIA_PP,
+    etiqueta_ventana,
+    td_dane_ventana,
+)
+
+# Período a estimar: widgets anio_estimacion / mes_estimacion / n_meses_ventana (parámetros del job).
 PER_ESTIMACION, MES_ESTIMACION = resolver_periodo(dbutils)
-print(f"Período a estimar: {PER_ESTIMACION}-{MES_ESTIMACION:02d}")
+N_MESES = resolver_ventana(dbutils, MES_ESTIMACION)
+PERIODO = etiqueta_ventana(PER_ESTIMACION, MES_ESTIMACION, N_MESES)
+print(
+    f"Período a estimar: {PERIODO} ({N_MESES} meses con cierre en "
+    f"{PER_ESTIMACION}-{MES_ESTIMACION:02d})"
+)
 
 # COMMAND ----------
 
@@ -146,16 +198,16 @@ print(f"Período a estimar: {PER_ESTIMACION}-{MES_ESTIMACION:02d}")
 # sobrescribe con FEX_C18. Población: personas de 15 años o más (EDAD >= EDAD_MINIMA) en la PEA.
 EDAD_MINIMA = 15
 
-# Trimestre móvil que cierra en (PER_ESTIMACION, MES_ESTIMACION): se agrupan las observaciones de
-# sus tres meses y PER/MES se reescriben con el año/mes de cierre, de modo que GRUPO_COLS arma un
-# dominio por municipio y trimestre (y el esquema de salida no cambia).
-MESES_TRIM = meses_trimestre_movil(PER_ESTIMACION, MES_ESTIMACION)
-print("Trimestre móvil:", ", ".join(f"{a}-{m:02d}" for a, m in MESES_TRIM))
+# Ventana que cierra en (PER_ESTIMACION, MES_ESTIMACION): se agrupan las observaciones de sus meses y
+# PER/MES se reescriben con el año/mes de cierre, de modo que GRUPO_COLS arma un dominio por ciudad
+# (o ciudad A.M.) y ventana (y el esquema de salida no cambia).
+MESES = meses_ventana(PER_ESTIMACION, MES_ESTIMACION, N_MESES)
+print("Meses de la ventana:", ", ".join(f"{a}-{m:02d}" for a, m in MESES))
 
-cond_trimestre = None
-for anio, mes in MESES_TRIM:
+cond_ventana = None
+for anio, mes in MESES:
     cond_mes = (F.col("PER") == anio) & (F.col("MES") == mes)
-    cond_trimestre = cond_mes if cond_trimestre is None else (cond_trimestre | cond_mes)
+    cond_ventana = cond_mes if cond_ventana is None else (cond_ventana | cond_mes)
 
 # Dominio de cada registro: geih_oro trae en CODIGO_MUNICIPIO el código de la capital del AREA
 # (ciudad con su A.M.); la fila de la capital en dim_dominio_geih da el dominio. El INNER JOIN
@@ -166,34 +218,37 @@ df_dominios_capital = (
     .select("CODIGO_MUNICIPIO", "CODIGO_DOMINIO", "NOMBRE_DOMINIO", "TIPO_DOMINIO")
 )
 n_municipios_dominio = (
-    spark.table(TBL_DIM_DOMINIO).groupBy("CODIGO_DOMINIO").agg(F.count("*").alias("N_MUNICIPIOS"))
+    spark.table(TBL_DIM_DOMINIO)
+    .groupBy("CODIGO_DOMINIO")
+    .agg(F.count("*").alias("N_MUNICIPIOS"))
 )
 
 df_desempleo = (
     spark.table(TBL_MERCADO_LABORAL)
-    .filter(
-        (F.col("PEA") == 1) &
-        (F.col("EDAD") >= EDAD_MINIMA) &
-        cond_trimestre
-    )
+    .filter((F.col("PEA") == 1) & (F.col("EDAD") >= EDAD_MINIMA) & cond_ventana)
     .join(df_dominios_capital, on="CODIGO_MUNICIPIO", how="inner")
     .withColumn("FEX", F.col("FEX_C18"))
 )
 
-print("Observaciones PEA por mes del trimestre:")
-df_desempleo.groupBy("PER", "MES").count().orderBy("PER", "MES").show()
+print("Observaciones PEA por mes de la ventana:")
+df_desempleo.groupBy("PER", "MES").count().orderBy("PER", "MES").show(N_MESES)
 meses_presentes = {
     (r["PER"], r["MES"]) for r in df_desempleo.select("PER", "MES").distinct().collect()
 }
-faltantes = set(MESES_TRIM) - meses_presentes
+faltantes = set(MESES) - meses_presentes
 if faltantes:
     print(f"⚠ Sin datos en GEIH para: {sorted(faltantes)}")
 
-# PEA promedio del trimestre que representa la muestra de cada dominio (peso del benchmarking de
-# nivel 1 en el modelo). Se divide entre los meses con datos para que sea un promedio mensual.
+# Por dominio: PEA promedio mensual de la ventana que representa la muestra (peso del benchmarking
+# de nivel 1 en el modelo; se divide entre los meses con datos) y conteos muestrales de la PEA y
+# de los desocupados (G7-B2: tamaño de muestra que respalda cada tasa).
 df_pea_expandida = (
     df_desempleo.groupBy("CODIGO_DOMINIO")
-    .agg((F.sum("FEX") / len(meses_presentes)).alias("PEA_EXPANDIDA"))
+    .agg(
+        F.count("*").alias("N_PEA"),
+        F.sum("DESOCUPADO").cast("long").alias("N_DESOCUPADOS"),
+        (F.sum("FEX") / len(meses_presentes)).alias("PEA_EXPANDIDA"),
+    )
     .join(n_municipios_dominio, on="CODIGO_DOMINIO", how="left")
     .toPandas()
 )
@@ -203,12 +258,16 @@ df_desempleo = df_desempleo.withColumn("PER", F.lit(PER_ESTIMACION)).withColumn(
 )
 
 print(f"Observaciones PEA: {df_desempleo.count():,}")
-print(f"Dominios con muestra: {df_desempleo.select('CODIGO_DOMINIO').distinct().count()}")
+print(
+    f"Dominios con muestra: {df_desempleo.select('CODIGO_DOMINIO').distinct().count()}"
+)
 
 # COMMAND ----------
 
 # DBTITLE 1,Ejecutar estimación directa con bootstrap
-estimador = EstimacionDirecta(spark, num_replicas=BOOTSTRAP_REPLICAS, seed=BOOTSTRAP_SEED)
+estimador = EstimacionDirecta(
+    spark, num_replicas=BOOTSTRAP_REPLICAS, seed=BOOTSTRAP_SEED
+)
 
 resultado = estimador.estimar(
     dataframe=df_desempleo,
@@ -216,10 +275,12 @@ resultado = estimador.estimar(
     agregacion_anual=False,
 )
 
-# Etiqueta del trimestre junto a PER/MES (que ya son el año y mes de cierre), y la PEA expandida y el
-# número de municipios de cada dominio. Se asigna a estimador._resultado para que `exportar` lo
-# incluya en la tabla destino.
-resultado.insert(2, "TRIMESTRE_MOVIL", etiqueta_trimestre_movil(PER_ESTIMACION, MES_ESTIMACION))
+# Etiqueta y longitud de la ventana junto a PER/MES (que ya son el año y mes de cierre): viajan en
+# los datos para que la auditoría, la sensibilidad y el modelo sepan contra qué cifra del DANE
+# validar. Se agregan la PEA expandida, los conteos muestrales y el número de municipios de cada
+# dominio. Se asigna a estimador._resultado para que `exportar` lo incluya en la tabla destino.
+resultado.insert(2, "PERIODO", PERIODO)
+resultado.insert(3, "N_MESES_VENTANA", N_MESES)
 resultado = resultado.merge(
     df_pea_expandida, on="CODIGO_DOMINIO", how="left", validate="one_to_one"
 )
@@ -230,11 +291,20 @@ estimador._resultado = resultado
 # DBTITLE 1,Resumen de resultados
 print(f"Dominios estimados: {len(resultado)}")
 print(f"  ciudades A.M.: {(resultado['TIPO_DOMINIO'] == 'CIUDAD_AM').sum()}")
-print(f"Período: {resultado['PER'].iloc[0]}-{resultado['MES'].iloc[0]:02d}\n")
+print(
+    f"Período: {PERIODO} (cierre {resultado['PER'].iloc[0]}-{resultado['MES'].iloc[0]:02d})"
+)
+print(
+    f"Muestra: PEA mínima {resultado['N_PEA'].min():,}, desocupados mínimo "
+    f"{resultado['N_DESOCUPADOS'].min():,}\n"
+)
 
 confiables = (resultado["CV_PORCENTAJE"] < CV_CONFIABLE).sum()
-aceptables = ((resultado["CV_PORCENTAJE"] >= CV_CONFIABLE) & (resultado["CV_PORCENTAJE"] < CV_ACEPTABLE)).sum()
-no_conf    = (resultado["CV_PORCENTAJE"] >= CV_ACEPTABLE).sum()
+aceptables = (
+    (resultado["CV_PORCENTAJE"] >= CV_CONFIABLE)
+    & (resultado["CV_PORCENTAJE"] < CV_ACEPTABLE)
+).sum()
+no_conf = (resultado["CV_PORCENTAJE"] >= CV_ACEPTABLE).sum()
 
 print(f"Calidad de estimaciones (CV):")
 print(f"  Confiables  (CV < {CV_CONFIABLE}%): {confiables}")
@@ -245,28 +315,29 @@ display(resultado)
 
 # COMMAND ----------
 
-# DBTITLE 1,Validación contra las cifras publicadas por el DANE (informativa)
+# DBTITLE 1,Validación contra las cifras oficiales del DANE (informativa)
 # Compara cada dominio y el agregado de los 23 con el anexo DANE «Mercado laboral según
 # proyecciones CNPV 2018» (tesis.geih_bronce.datos_municipales, cargado por datos_publicados.py).
-# Solo imprime PASS/FAIL: el anexo cubre 2016-2021 y fuera de ese rango no hay contra qué comparar.
+# Trimestre: la tasa publicada del trimestre móvil. Año: el anexo no publica la TD anual por
+# ciudad, así que se reconstruye como Σ desempleados / Σ PEA de los 4 trimestres que no se pisan
+# (shared/ventana.py; la fórmula reproduce los totales anuales de 13 y 10 ciudades). Solo imprime
+# PASS/FAIL: el anexo cubre 2016-2021 y fuera de ese rango no hay contra qué comparar.
 #
 # El agregado Σ PEA_d·TD_d / Σ PEA_d es exactamente el Hájek del conjunto de los dominios (los
 # estimadores directos cumplen la propiedad de benchmarking; Molina 2019, PDF 26). Es el valor al
 # que el modelo ajusta los EBLUP en el benchmarking de nivel 1.
-TOLERANCIA_PP = 0.01
-
-df_publicados = (
-    spark.table(TBL_DATOS_MUNICIPALES)
-    .filter((F.col("ANIO") == PER_ESTIMACION) & (F.col("MES") == MES_ESTIMACION))
-    .select("CIUDAD", "TASA_DESEMPLEO")
-    .toPandas()
+df_publicados = td_dane_ventana(
+    spark.table(TBL_DATOS_MUNICIPALES).toPandas(),
+    PER_ESTIMACION,
+    MES_ESTIMACION,
+    N_MESES,
 )
 
 if df_publicados.empty:
-    print(f"Sin cifras publicadas para {PER_ESTIMACION}-{MES_ESTIMACION:02d}: no se valida.")
+    print(f"Sin cifras oficiales para {PERIODO}: no se valida.")
 else:
     comparacion = resultado[["NOMBRE_DOMINIO", "TASA_DESEMPLEO_PCT"]].merge(
-        df_publicados.rename(columns={"CIUDAD": "NOMBRE_DOMINIO", "TASA_DESEMPLEO": "TD_DANE"}),
+        df_publicados.rename(columns={"CIUDAD": "NOMBRE_DOMINIO"}),
         on="NOMBRE_DOMINIO",
         how="left",
     )
@@ -274,17 +345,19 @@ else:
     ok = comparacion["DIF_PP"].abs() <= TOLERANCIA_PP
     print(
         f"[{'PASS' if ok.all() else 'FAIL'}] {int(ok.sum())} de {len(comparacion)} dominios "
-        f"coinciden con el DANE (tolerancia {TOLERANCIA_PP} pp)"
+        f"coinciden con el DANE en {PERIODO} (tolerancia {TOLERANCIA_PP} pp)"
     )
     if not ok.all():
         display(comparacion[~ok])
 
-    td_agregada = (resultado["PEA_EXPANDIDA"] * resultado["TASA_DESEMPLEO_PCT"]).sum() / resultado[
-        "PEA_EXPANDIDA"
-    ].sum()
-    total_dane = df_publicados.loc[df_publicados["CIUDAD"] == NOMBRE_TOTAL_23, "TASA_DESEMPLEO"]
+    td_agregada = (
+        resultado["PEA_EXPANDIDA"] * resultado["TASA_DESEMPLEO_PCT"]
+    ).sum() / resultado["PEA_EXPANDIDA"].sum()
+    total_dane = df_publicados.loc[
+        df_publicados["CIUDAD"] == NOMBRE_TOTAL_23, "TD_DANE"
+    ]
     if total_dane.empty:
-        print(f"Sin «{NOMBRE_TOTAL_23}» en {TBL_DATOS_MUNICIPALES}: no se valida el agregado.")
+        print(f"Sin «{NOMBRE_TOTAL_23}» para {PERIODO}: no se valida el agregado.")
     else:
         dif = td_agregada - float(total_dane.iloc[0])
         print(

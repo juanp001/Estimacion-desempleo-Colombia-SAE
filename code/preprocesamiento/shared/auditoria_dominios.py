@@ -68,9 +68,10 @@ def tabla_auditoria_dominios(
             ``ES_CAPITAL`` y ``CODIGO_AREA_GEIH`` (``AREA`` de la capital; NULL en los demás
             miembros). Sale de ``dim_dominio_geih`` unida a ``dim_geih_divipola``.
         df_estimaciones (pd.DataFrame): Estimación directa por dominio con ``PER``, ``MES``,
-            ``TRIMESTRE_MOVIL``, ``CODIGO_DOMINIO`` y ``TASA_DESEMPLEO_PCT``.
-        df_publicados (pd.DataFrame): Cifras DANE del período con ``CIUDAD`` y
-            ``TASA_DESEMPLEO`` (puede estar vacío si el anexo no cubre el período).
+            ``PERIODO``, ``N_MESES_VENTANA``, ``CODIGO_DOMINIO`` y ``TASA_DESEMPLEO_PCT``.
+        df_publicados (pd.DataFrame): Cifras DANE de la misma ventana con ``CIUDAD`` y
+            ``TASA_DESEMPLEO`` (``td_dane_ventana``: publicada si es trimestre, reconstruida con
+            los 4 trimestres si es el año; puede estar vacío si el anexo no cubre el período).
         pesos_catalogo (dict): Código de indicador del catálogo → nombre del peso.
 
     Returns:
@@ -92,7 +93,8 @@ def tabla_auditoria_dominios(
     ...     "ES_CAPITAL": [True, False, True],
     ...     "CODIGO_AREA_GEIH": ["76", None, "19"]})
     >>> est = pd.DataFrame({"PER": [2018, 2018], "MES": [12, 12],
-    ...     "TRIMESTRE_MOVIL": ["Oct-Dic 2018"] * 2, "CODIGO_DOMINIO": ["76001", "19001"],
+    ...     "PERIODO": ["Ene-Dic 2018"] * 2, "N_MESES_VENTANA": [12, 12],
+    ...     "CODIGO_DOMINIO": ["76001", "19001"],
     ...     "TASA_DESEMPLEO_PCT": [10.0, 12.0]})
     >>> pub = pd.DataFrame({"CIUDAD": ["Cali A.M."], "TASA_DESEMPLEO": [10.004]})
     >>> t = tabla_auditoria_dominios(miembros, est, pub, {"x": "SUPERFICIE"})
@@ -142,7 +144,14 @@ def tabla_auditoria_dominios(
 
     publicados = dict(zip(df_publicados["CIUDAD"], df_publicados["TASA_DESEMPLEO"]))
     tabla = df_estimaciones[
-        ["PER", "MES", "TRIMESTRE_MOVIL", "CODIGO_DOMINIO", "TASA_DESEMPLEO_PCT"]
+        [
+            "PER",
+            "MES",
+            "PERIODO",
+            "N_MESES_VENTANA",
+            "CODIGO_DOMINIO",
+            "TASA_DESEMPLEO_PCT",
+        ]
     ].merge(pd.DataFrame(filas), on="CODIGO_DOMINIO", how="inner")
     tabla["EN_ANEXO_DANE"] = tabla["NOMBRE_DOMINIO"].isin(publicados.keys())
     tabla["TD_DANE_PCT"] = tabla["NOMBRE_DOMINIO"].map(publicados).astype(float)
@@ -150,7 +159,8 @@ def tabla_auditoria_dominios(
     columnas = [
         "PER",
         "MES",
-        "TRIMESTRE_MOVIL",
+        "PERIODO",
+        "N_MESES_VENTANA",
         "CODIGO_AREA_GEIH",
         "NOMBRE_DOMINIO",
         "EN_ANEXO_DANE",
