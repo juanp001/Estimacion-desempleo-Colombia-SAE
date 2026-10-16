@@ -20,6 +20,9 @@
 # MAGIC   Un factor faltante ya no se imputa con 0 ni con `FEX_C_2011` (censo 2005): si alguna persona queda
 # MAGIC   sin factor el notebook se detiene **antes** de escribir la tabla.
 # MAGIC
+# MAGIC * `ID_VIVIENDA` (G7-B3) = `PERIODO` + `DIRECTORIO`: identifica la vivienda, que es el conglomerado
+# MAGIC   que remuestrea el bootstrap de la estimación directa.
+# MAGIC
 # MAGIC ## Reconciliación (G7-B5)
 # MAGIC Después de escribir la tabla se verifican, solo con PASS/FAIL (no detienen el notebook):
 # MAGIC * `llaves_sin_pareja`: % de llaves de cada módulo sin pareja en características generales
@@ -39,7 +42,7 @@
 # COMMAND ----------
 
 # DBTITLE 1,Importación de librerías
-from pyspark.sql.functions import col, coalesce, lit
+from pyspark.sql.functions import col, coalesce, concat_ws, lit
 
 from shared.config.geih_config import (
     TBL_CG_PLATA, TBL_FT_PLATA, TBL_NO_PLATA, TBL_OC_PLATA, TBL_FEX_PLATA,
@@ -86,6 +89,9 @@ df = (
         cg.PERIODO,
         cg.PER,
         cg.MES,
+        # Vivienda (G7-B3): conglomerado del bootstrap de la estimación directa. DIRECTORIO se
+        # antepone con el período para que la llave no se repita entre meses de una ventana.
+        concat_ws("_", cg.PERIODO, cg.DIRECTORIO).alias("ID_VIVIENDA"),
         cg.CODIGO_DPTO.alias("CODIGO_DEPARTAMENTO"),
         col("div_dep.DEPARTAMENTO"),
         col("div_mun.CODIGO_MUNICIPIO"),

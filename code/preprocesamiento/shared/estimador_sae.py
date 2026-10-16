@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 
-import numpy as np
 import pandas as pd
 from pyspark.sql import functions as F
-from tqdm import tqdm
+
+from preprocesamiento.shared.bootstrap import varianza_por_dominio
 
 
 class EstimadorSAE(ABC):
@@ -102,7 +102,9 @@ class EstimadorSAE(ABC):
         resultado_spark = self.spark.createDataFrame(self._resultado)
 
         if tabla_origen:
-            tablas = [tabla_origen] if isinstance(tabla_origen, str) else list(tabla_origen)
+            tablas = (
+                [tabla_origen] if isinstance(tabla_origen, str) else list(tabla_origen)
+            )
             print(f"Preservando lineage desde {len(tablas)} tabla(s)...")
             df_marker = (
                 self.spark.table(tablas[0])
@@ -111,15 +113,17 @@ class EstimadorSAE(ABC):
             )
             for t in tablas[1:]:
                 df_marker = df_marker.union(
-                    self.spark.table(t).limit(1).select(F.lit(1).alias("_lineage_marker"))
+                    self.spark.table(t)
+                    .limit(1)
+                    .select(F.lit(1).alias("_lineage_marker"))
                 )
-            resultado_spark = (
-                resultado_spark
-                .crossJoin(df_marker.limit(1))
-                .drop("_lineage_marker")
+            resultado_spark = resultado_spark.crossJoin(df_marker.limit(1)).drop(
+                "_lineage_marker"
             )
 
-        resultado_spark.write.mode(modo).option("overwriteSchema", "true").saveAsTable(tabla_destino)
+        resultado_spark.write.mode(modo).option("overwriteSchema", "true").saveAsTable(
+            tabla_destino
+        )
         print(f"✔ Exportación completada → {tabla_destino}")
 
     @property
@@ -130,16 +134,20 @@ class EstimadorSAE(ABC):
 
 # COMMAND ----------
 
-class EstimacionDirecta(EstimadorSAE):
-    """Estimador directo con bootstrap simple usando el estimador de Hájek.
 
-    Calcula la tasa de desempleo por dominio como θ̂ = Σ(w·y)/Σ(w) e infiere
-    SE e IC mediante bootstrap naive (remuestreo de individuos con reemplazo).
+class EstimacionDirecta(EstimadorSAE):
+    """Estimador directo de Hájek con varianza bootstrap por conglomerados dentro del dominio.
+
+    Calcula la tasa de desempleo por dominio como θ̂ = Σ(w·y)/Σ(w). La varianza sale de un
+    bootstrap que remuestrea **viviendas** (todas sus personas) con reemplazo **dentro de cada
+    dominio**, con el número de viviendas de la muestra fijo (G7-B3; Morales et al., 2021, p. 61).
+    Como control se calcula también la varianza por linealización de Taylor con las mismas
+    unidades (ver `shared/bootstrap.py`).
 
     Warning:
-        Ignora el diseño muestral complejo (estratificación, conglomeración),
-        por lo que subestima los errores estándar. Usar solo como baseline SAE
-        o para exploración; no publicar como resultado oficial.
+        Los microdatos no traen el estrato interno ni el segmento de la GEIH, así que la
+        varianza es una aproximación a la del diseño: no se sabe si esta es mayor o menor, ni
+        por cuánto. No publicar como error de muestreo oficial.
 
     Example:
         >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)
@@ -155,36 +163,62 @@ class EstimacionDirecta(EstimadorSAE):
         dataframe,
         grupo_cols: list,
         agregacion_anual: bool = False,
+        col_conglomerado: str | None = "ID_VIVIENDA",
     ) -> pd.DataFrame:
-        """Calcula estimación directa con bootstrap simple.
+        """Calcula la estimación directa y su varianza bootstrap por dominio.
 
         Args:
-            dataframe: DataFrame de Spark con columnas FEX, DESOCUPADO
-                y las listadas en grupo_cols.
-            grupo_cols (list[str]): Columnas que definen los dominios.
+            dataframe: DataFrame de Spark con columnas FEX, DESOCUPADO, las listadas en
+                grupo_cols y, si se usa, col_conglomerado.
+            grupo_cols (list[str]): Columnas que definen los dominios (estratos del remuestreo).
             agregacion_anual (bool): Si True, elimina "MES" de grupo_cols
                 para producir estimaciones anuales (más muestra → menor CV).
+            col_conglomerado (str | None): Conglomerado que se remuestrea. Por defecto la
+                vivienda (`ID_VIVIENDA` de `tesis.geih_oro.mercado_laboral`); con `None` se
+                remuestrean personas (solo para comparar, en la sensibilidad del modelo).
 
         Returns:
             pd.DataFrame: Columnas de agrupación más TASA_DESEMPLEO_PCT,
-                SE_BOOTSTRAP_PCT, IC_INF_PCT, IC_SUP_PCT, AMPLITUD_IC
-                y CV_PORCENTAJE.
+                SE_BOOTSTRAP_PCT, IC_INF_PCT, IC_SUP_PCT, AMPLITUD_IC, CV_PORCENTAJE,
+                SE_TAYLOR_PCT y, si hay conglomerado, N_VIVIENDAS.
 
         Raises:
             ValueError: Si faltan columnas requeridas en el dataframe.
 
         Example:
             >>> resultado = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"])
+            >>> por_personas = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"], col_conglomerado=None)
         """
         grupo_cols_final = self._ajustar_grupo_cols(grupo_cols, agregacion_anual)
-        self.validar_columnas(dataframe, list(set(grupo_cols_final + ["FEX", "DESOCUPADO"])))
+        columnas = list(
+            dict.fromkeys(
+                grupo_cols_final
+                + ["FEX", "DESOCUPADO"]
+                + ([col_conglomerado] if col_conglomerado else [])
+            )
+        )
+        self.validar_columnas(dataframe, columnas)
 
         print("Convirtiendo a Pandas...")
-        df_pd = dataframe.select(*set(grupo_cols_final + ["FEX", "DESOCUPADO"])).toPandas()
+        df_pd = dataframe.select(*columnas).toPandas()
         n_dominios = df_pd[grupo_cols_final].drop_duplicates().shape[0]
-        print(f"Datos: {len(df_pd):,} filas — {n_dominios} dominios")
+        unidad = f"conglomerado {col_conglomerado}" if col_conglomerado else "personas"
+        print(
+            f"Datos: {len(df_pd):,} filas — {n_dominios} dominios — remuestreo por {unidad}"
+        )
 
-        resultado_bootstrap = self._bootstrap_hajek(df_pd, grupo_cols_final)
+        resultado = varianza_por_dominio(
+            df_pd, grupo_cols_final, col_conglomerado, self.num_replicas, self.seed
+        )
+        resultado["TASA_DESEMPLEO_PCT"] = resultado["TASA_DESEMPLEO"] * 100
+        resultado["SE_BOOTSTRAP_PCT"] = resultado["SE_BOOTSTRAP"] * 100
+        resultado["IC_INF_PCT"] = resultado["IC_INF_2.5"] * 100
+        resultado["IC_SUP_PCT"] = resultado["IC_SUP_97.5"] * 100
+        resultado["AMPLITUD_IC"] = resultado["IC_SUP_PCT"] - resultado["IC_INF_PCT"]
+        resultado["CV_PORCENTAJE"] = (
+            resultado["SE_BOOTSTRAP"] / resultado["TASA_DESEMPLEO"] * 100
+        )
+        resultado["SE_TAYLOR_PCT"] = resultado["SE_TAYLOR"] * 100
 
         columnas_resultado = grupo_cols_final + [
             "TASA_DESEMPLEO_PCT",
@@ -193,14 +227,26 @@ class EstimacionDirecta(EstimadorSAE):
             "IC_SUP_PCT",
             "AMPLITUD_IC",
             "CV_PORCENTAJE",
+            "SE_TAYLOR_PCT",
         ]
+        if col_conglomerado:
+            resultado["N_VIVIENDAS"] = resultado["N_CONGLOMERADOS"]
+            columnas_resultado.append("N_VIVIENDAS")
+
         self._resultado = (
-            resultado_bootstrap[columnas_resultado]
+            resultado[columnas_resultado]
             .sort_values(grupo_cols_final)
             .reset_index(drop=True)
         )
 
-        print("\n⚠ Bootstrap naive — diseño muestral ignorado. Solo usar como baseline SAE.")
+        print(
+            f"\n✔ Bootstrap: {self.num_replicas:,} réplicas por dominio — "
+            f"{len(self._resultado)} dominios estimados"
+        )
+        print(
+            "Aproximación a la varianza del diseño: no reproduce el estrato interno ni el "
+            "segmento de la GEIH (G7-B3)."
+        )
         return self._resultado
 
     # ------------------------------------------------------------------
@@ -221,69 +267,3 @@ class EstimacionDirecta(EstimadorSAE):
             print("Agregación anual: removiendo MES de la agrupación.")
             return [c for c in grupo_cols if c != "MES"]
         return grupo_cols.copy()
-
-    def _calcular_hajek_pandas(self, df: pd.DataFrame, grupo_cols: list) -> pd.DataFrame:
-        """Calcula el estimador de Hájek por grupo: θ̂ = Σ(w·y) / Σ(w).
-
-        Args:
-            df (pd.DataFrame): Datos con columnas grupo_cols, FEX y DESOCUPADO.
-            grupo_cols (list[str]): Columnas de agrupación.
-
-        Returns:
-            pd.DataFrame: grupo_cols + TASA_DESEMPLEO (proporción 0–1).
-        """
-        return (
-            df.groupby(grupo_cols)
-            .apply(
-                lambda g: pd.Series({
-                    "TASA_DESEMPLEO": (g["DESOCUPADO"] * g["FEX"]).sum() / g["FEX"].sum()
-                })
-            )
-            .reset_index()
-        )
-
-    def _bootstrap_hajek(self, df: pd.DataFrame, grupo_cols: list) -> pd.DataFrame:
-        """Genera B réplicas bootstrap y calcula SE, IC y CV por dominio.
-
-        Args:
-            df (pd.DataFrame): Datos con columnas grupo_cols, FEX y DESOCUPADO.
-            grupo_cols (list[str]): Columnas de agrupación.
-
-        Returns:
-            pd.DataFrame: Estimador original más SE_BOOTSTRAP, IC_INF_PCT,
-                IC_SUP_PCT, AMPLITUD_IC, CV_PORCENTAJE y versiones _PCT.
-        """
-        n = len(df)
-        np.random.seed(self.seed)
-
-        estimador_original = self._calcular_hajek_pandas(df, grupo_cols)
-
-        replicas = []
-        for _ in tqdm(range(self.num_replicas), desc="Bootstrap"):
-            idx = np.random.choice(n, size=n, replace=True)
-            replicas.append(self._calcular_hajek_pandas(df.iloc[idx], grupo_cols))
-
-        df_replicas = pd.concat(replicas, ignore_index=True)
-
-        stats = (
-            df_replicas.groupby(grupo_cols)["TASA_DESEMPLEO"]
-            .agg([
-                ("MEDIA_BOOTSTRAP", "mean"),
-                ("VAR_BOOTSTRAP",   "var"),
-                ("SE_BOOTSTRAP",    "std"),
-                ("IC_INF_2.5",  lambda x: np.percentile(x, 2.5)),
-                ("IC_SUP_97.5", lambda x: np.percentile(x, 97.5)),
-            ])
-            .reset_index()
-        )
-
-        resultado = estimador_original.merge(stats, on=grupo_cols, how="left")
-        resultado["TASA_DESEMPLEO_PCT"] = resultado["TASA_DESEMPLEO"] * 100
-        resultado["SE_BOOTSTRAP_PCT"]   = resultado["SE_BOOTSTRAP"]   * 100
-        resultado["IC_INF_PCT"]         = resultado["IC_INF_2.5"]     * 100
-        resultado["IC_SUP_PCT"]         = resultado["IC_SUP_97.5"]    * 100
-        resultado["AMPLITUD_IC"]        = (resultado["IC_SUP_97.5"] - resultado["IC_INF_2.5"]) * 100
-        resultado["CV_PORCENTAJE"]      = (resultado["SE_BOOTSTRAP"] / resultado["TASA_DESEMPLEO"]) * 100
-
-        print(f"\n✔ Bootstrap: {self.num_replicas:,} réplicas — {len(resultado)} dominios estimados")
-        return resultado

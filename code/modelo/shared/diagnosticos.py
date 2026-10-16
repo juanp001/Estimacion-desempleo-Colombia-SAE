@@ -1,9 +1,9 @@
 """Diagnósticos del modelo Fay-Herriot.
 
-- **Validación sin GVF.** Las varianzas de muestreo D_d son las varianzas bootstrap de la
-  estimación directa, tratadas como conocidas (Morales et al., 2021, p. 427, primera
-  alternativa); no se suavizan con una función de varianza generalizada, así que no hay
-  figuras de GVF.
+- **Validación sin GVF.** Las varianzas de muestreo D_d son las varianzas bootstrap por
+  viviendas de la estimación directa, tratadas como conocidas (Morales et al., 2021, p. 427,
+  primera alternativa); no se suavizan con una función de varianza generalizada. La GVF se
+  ajusta y evalúa solo como escenario de sensibilidad (`shared/sensibilidad_varianza.py`).
 - **Ganancia de precisión.** CV directo frente a CV del EBLUP por dominio, ordenados por D_d,
   como en las figuras de RMSE directo vs EBLUP del libro (Fig. 17.2, Tabla 19.5).
 - **Avisos**: encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y extrapolación

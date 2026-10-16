@@ -8,7 +8,10 @@ GEIH no tiene cobertura muestral directa.
 
 Todo el código corre sobre Databricks (notebooks `.py` con `# Databricks notebook source` / `# COMMAND ----------`)
 y persiste en tablas Unity Catalog bajo el catálogo `tesis`. Esquemas: `geih_bronce`, `geih_plata`, `geih_oro`,
-`terridata`, `dim`, `preprocesamiento`, `modelo` (y `censo_nal`, que ningún código fuera de `censo_nal/` usa).
+`terridata`, `dim`, `preprocesamiento`, `modelo` (y `censo_nal`, que ningún código fuera de `censo_nal/` usa;
+`censo_nal/censo_bronce.py` lee cada volumen `/Volumes/tesis/censo_nal/<módulo>` como **Parquet**
+—`fallecidos`, `viviendas`, `hogares`, `personas`, `marco_georreferenciacion`—, lista sus archivos y los carga
+a `tesis.censo_nal.<módulo>` con la columna `archivo_origen`).
 Los jobs se despliegan con un bundle DAB (ver «Despliegue con DAB»).
 
 ### Patrón de carpetas: orquestador + `shared/`
@@ -44,7 +47,8 @@ geih_plata.py    → tesis.geih_plata.*_consolidado + dim_fex
 geih_oro.py      → tesis.geih_oro.mercado_laboral
   → LEFT JOIN desde características generales hacia fuerza de trabajo + no ocupados + ocupados +
     factores de expansión (dim_fex) + tesis.dim.dim_geih_divipola → tabla de mercado laboral lista para
-    estimar la tasa de desempleo
+    estimar la tasa de desempleo; incluye ID_VIVIENDA = PERIODO + DIRECTORIO (G7-B3, conglomerado del
+    bootstrap; en 2018 cada DIRECTORIO aparece en un solo mes)
 ```
 
 `dim_fex` (factores de expansión actualizados del DANE) **no** vive en `dimensiones/`: se genera dentro de
@@ -136,8 +140,14 @@ preprocesamiento/estimacion_directa.py
     se pisan de tesis.geih_bronce.datos_municipales (el anexo no publica la TD anual por ciudad);
     trimestre = la publicada (Oct-Dic 2018: 23/23 y 10.3251 = «Total 23 ciudades y A.M.»)
   → estimador de Hájek (θ̂ = Σ(w_i·y_i)/Σw_i) con el factor de expansión 2018
-  → inferencia por bootstrap simple (2000 réplicas, semilla 42) porque no se tienen las variables del
-    diseño muestral; remuestrea las n filas globales, no por dominio. CV < 5% confiable, 5–20%
+  → inferencia por bootstrap **por viviendas dentro de cada dominio** (G7-B3, shared/bootstrap.py; 2000
+    réplicas, semilla 42, `np.random.default_rng`): remuestrea con reemplazo las viviendas
+    (`ID_VIVIENDA` = PERIODO + DIRECTORIO, de geih_oro) del dominio con n fijo y todas sus personas
+    (Morales p. 61; GEIH v9 PDF 11: el dominio es de inclusión forzosa y actúa como estrato). Control:
+    SE_TAYLOR_PCT (linealización de la razón con las mismas unidades, PDF 15). No reproduce el estrato
+    interno ni el segmento (no vienen en los microdatos): **no se afirma que subestime ni que
+    sobrestime** la varianza del diseño. `col_conglomerado=None` remuestrea personas (solo para comparar).
+    Salida extra: N_VIVIENDAS y SE_TAYLOR_PCT (en METADATA_COLS). CV < 5% confiable, 5–20%
     aceptable, ≥20% no confiable (mismos umbrales que el modelo)
   → lógica en shared/estimador_sae.py (clase EstimacionDirecta, que hereda de la interfaz base
     EstimadorSAE — patrón Template Method/Strategy para futuros estimadores), parámetros en shared/config.py
@@ -205,8 +215,8 @@ modelo/fay_herriot.py
     robustez (Cook + reajuste sin el dominio más influyente) del ganador
   → avisos (shared/diagnosticos.py): Â ≈ 0 (γ máx < 0.01), tasas fuera de [0,100]
     (FUERA_DE_RANGO) y extrapolación sintética (EXTRAPOLA: x'Cov(β̂)x > máximo de la muestra)
-  → D_i = varianza bootstrap tratada como conocida (p. 427), sin GVF ni figuras GVF; sin validación
-    cruzada
+  → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF; sin
+    validación cruzada. La GVF y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py
   → figuras solo en pantalla (sin título y sin guardarse en volúmenes)
   → clave de dominio PER_MES_CODIGO_DOMINIO; etiquetas = NOMBRE_DOMINIO («Cali A.M.»)
   → benchmarking en dos niveles, ajuste de razón de Fay-Herriot (1979) (shared/benchmarking.py, con la
@@ -229,6 +239,22 @@ modelo/fay_herriot.py
     (tesis.modelo; NIVEL = DOMINIO [23] o MUNICIPIO [83], TIPO = EBLUP_BENCHMARK / SINTETICO /
     SINTETICO_BENCHMARK, TASA_SIN_AJUSTE_PCT para trazabilidad); la sensibilidad de Cook se muestra pero
     no se persiste
+modelo/sensibilidad_varianza.py   (G7-B3, fuera de la cadena: no alimenta al modelo)
+  → ψ_d alternativas con los mismos microdatos (preparar_datos_ventana + EstimacionDirecta): bootstrap
+    por personas y Taylor; comprueba que el bootstrap por viviendas recalculado reproduce la tabla
+  → GVF A log ψ = b0 + b1·y + b2·n (Morales p. 427/454-455) y GVF B log ψ = b0 + b1·log(p(1−p)) +
+    b2·log n (deff: Téllez 2020 p. 15, Chile 2016 PDF 4), retransformadas con Δ = Σψ/Σexp(x'α̂)
+    (ENUSC 2018 PDF 15-16); R², residuos y figura observada vs predicha. GVF = solo escenario
+  → escenarios: base, personas, Taylor, GVF A/B y ψ × k (k ∈ {1/3, 1/2, 2/3, 3/2, 2, 3}, simétrica en
+    log). En cada uno reajusta las variantes y elige ganador con la misma regla; compara con la
+    especificación de referencia (ganador base): Â/ψ̄ (Benedetti 2024 p. 143), γ, β̂ y p, EBLUP, CV y
+    confiabilidad, λ₁ y predicción sintética de los 83 municipios
+  → sensibilidad_varianza_directa, gvf_ajuste, sensibilidad_varianza_fh, sensibilidad_varianza_coeficientes,
+    sensibilidad_varianza_dominios, sensibilidad_varianza_municipios (tesis.modelo)
+  → 2018: ψ_viviendas/ψ_personas mediana 1.08 (1.00–1.17); bootstrap/Taylor 0.94–1.05; GVF R² 0.97 (A) y
+    0.976 (B, pendientes ≈ +1 y −1 = forma binomial, deff implícito ≈ 1.2). En los 11 escenarios el
+    ganador (IICA_CONFLICTO) y su significancia no cambian, Â/ψ̄ ≥ 15, γ ≥ 0.88, EBLUP cambia ≤ 0.19 pp y
+    la predicción sintética ≤ 0.11 pp; solo con ψ × 3 pasan 4 dominios de confiable a aceptable
 ```
 
 Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LITERATURA`,
@@ -257,7 +283,8 @@ Lógica compartida en `modelo/shared/`: `config.py` (tablas fuente/destino, umbr
 resultados — común a cualquier variante SAE), `fay_herriot.py` (FayHerriotClasico: REML, GLS, EBLUP, MSE de
 Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de
 diagnósticos, Cook, tabla de selección y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV
-directo vs EBLUP, avisos), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
+directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `escenarios_psi`,
+`ajustar_escenarios`, figuras e interpretación), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
 `verificar_benchmark`; funciones puras numpy/pandas con doctests), `consolidacion.py` (tabla final de dos
 niveles —dominio y municipio— y clasificación de confiabilidad).
 
@@ -331,7 +358,7 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
 | `ingesta_terridata` | `terridata_bronce` → `terridata_plata` |
 | `preprocesamiento` | `estimacion_directa` → `adicion_covariables` → `pre_filtrado_covariables` → `dominios_sin_encuesta` |
 | `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables`; `sensibilidad_ventana_temporal` (independiente) |
-| `modelo` | `fay_herriot` |
+| `modelo` | `fay_herriot`; `sensibilidad_varianza` (independiente) |
 
 - Entre jobs no hay dependencias en el YAML; el orden real es `dimensiones` → `ingesta_geih` /
   `ingesta_terridata` → `preprocesamiento` → `analisis` → `modelo`.
@@ -353,14 +380,3 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
 - **Siempre** usar docstrings en funciones, clases y métodos. El docstring debe especificar: tipo de dato
   de entrada, tipo de dato de salida, explicación de los argumentos y casos de uso.
 - Formatear el código con **black**.
-
-## Archivos a ignorar siempre
-
-- `code/ingesta_datos/censo_nal/`
-- `code/analisis/Análisis exploratorio 2.py`
-- `code/analisis/analisis_exploratorio.md`
-- `code/analisis/explicacion_diferencia_fay_herriot.txt`
-- `code/analisis/Metodologia Selecicon covariables Ver 2.0.py`
-- `code/analisis/renombrar_geih.py`
-
-(En el repo actual solo existen `censo_nal/` y `renombrar_geih.py`; los demás ya no están versionados.)

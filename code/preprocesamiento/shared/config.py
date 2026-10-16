@@ -269,6 +269,9 @@ METADATA_COLS = [
     "IC_SUP_PCT",
     "AMPLITUD_IC",
     "CV_PORCENTAJE",
+    # G7-B3: control analítico de la varianza y número de viviendas (conglomerados del bootstrap)
+    "SE_TAYLOR_PCT",
+    "N_VIVIENDAS",
 ]
 
 # Columnas a excluir de TerriData al hacer el join: las de identificación ya existen en las

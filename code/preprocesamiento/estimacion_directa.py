@@ -3,7 +3,7 @@
 # MAGIC %md
 # MAGIC # Estimación Directa de Tasa de Desempleo por Dominio (ciudad o ciudad A.M.) con Bootstrap
 # MAGIC
-# MAGIC Este notebook implementa **estimación directa de áreas pequeñas** usando el **estimador de Hájek** con inferencia basada en **bootstrap simple**.
+# MAGIC Este notebook implementa **estimación directa de áreas pequeñas** usando el **estimador de Hájek** con inferencia basada en un **bootstrap por viviendas dentro de cada dominio**.
 # MAGIC
 # MAGIC ## Dominio de estimación
 # MAGIC
@@ -20,7 +20,8 @@
 # MAGIC Calcular estimaciones de **tasa de desempleo por dominio** a partir de microdatos de la GEIH, incluyendo:
 # MAGIC * **Estimación puntual**: Tasa de desempleo (porcentaje)
 # MAGIC * **Medidas de precisión**: Error estándar, intervalos de confianza 95%, coeficiente de variación
-# MAGIC * **Inferencia estadística**: Basada en bootstrap simple (2000 réplicas, semilla 42)
+# MAGIC * **Inferencia estadística**: bootstrap por viviendas dentro del dominio (2000 réplicas, semilla 42)
+# MAGIC   y, como control, linealización de Taylor con las mismas unidades
 # MAGIC
 # MAGIC ## ¿Qué es Estimación Directa?
 # MAGIC
@@ -82,13 +83,29 @@
 # MAGIC Para muestras grandes es aproximadamente insesgado, consistente y asintóticamente normal.
 # MAGIC Para muestras pequeñas (áreas pequeñas) puede tener alta variabilidad.
 # MAGIC
-# MAGIC ## Bootstrap Simple (Naive Bootstrap)
+# MAGIC ## Bootstrap por viviendas dentro del dominio (G7-B3)
 # MAGIC
-# MAGIC **Procedimiento**:
+# MAGIC **Procedimiento** (`shared/bootstrap.py`):
 # MAGIC 1. Calcular θ̂ en la muestra original
-# MAGIC 2. Crear B réplicas: remuestrear n obs. **con reemplazo** y calcular θ̂_b
+# MAGIC 2. Crear B réplicas: en cada dominio, remuestrear **con reemplazo** tantas viviendas
+# MAGIC    (`ID_VIVIENDA`) como tiene la muestra del dominio, con todas sus personas, y calcular θ̂_b
 # MAGIC 3. SE = desv. estándar de {θ̂_1, ..., θ̂_B}
 # MAGIC 4. IC 95% = [percentil 2.5%, percentil 97.5%]
+# MAGIC
+# MAGIC **Por qué así.** La GEIH encuesta conglomerados completos (todas las viviendas, hogares y
+# MAGIC personas del segmento; metodología v9, PDF 11), así que las personas de una vivienda no son
+# MAGIC independientes y se remuestrean juntas (Morales et al., 2021, p. 61). Las A.M. y capitales son
+# MAGIC de inclusión forzosa con estimaciones separadas (PDF 11): cada dominio actúa como estrato y su
+# MAGIC tamaño de muestra queda fijo en cada réplica.
+# MAGIC
+# MAGIC **Control.** `SE_TAYLOR_PCT` es la varianza por linealización de Taylor de la razón con las
+# MAGIC mismas unidades (conglomerados últimos, PDF 15). Con miles de viviendas por dominio ambas
+# MAGIC deben coincidir.
+# MAGIC
+# MAGIC **Limitación.** Los microdatos no traen el estrato interno ni el segmento (~10 viviendas
+# MAGIC contiguas) de la GEIH, que son las unidades de la varianza oficial (PDF 14-15). La varianza es
+# MAGIC una aproximación: no se sabe si la del diseño es mayor o menor, ni por cuánto. El notebook
+# MAGIC `modelo/sensibilidad_varianza.py` muestra cómo responde el modelo si se equivoca.
 # MAGIC
 # MAGIC **Número de réplicas**: B = 2000 (ver `shared/config.py`).
 # MAGIC Literatura recomienda B ≥ 500 para SE y B ≥ 1000 para IC.
@@ -123,8 +140,8 @@
 # MAGIC   → filter(PEA == 1, EDAD >= 15, meses de la ventana que cierra en anio_estimacion/mes_estimacion)
 # MAGIC   → INNER JOIN tesis.dim.dim_dominio_geih (fila de la capital) → CODIGO_DOMINIO, NOMBRE_DOMINIO, TIPO_DOMINIO
 # MAGIC   → FEX := FEX_C18; PER, MES := año y mes de cierre de la ventana
-# MAGIC   → EstimacionDirecta.estimar()   [bootstrap 2000 réplicas]
-# MAGIC   → + PERIODO, N_MESES_VENTANA, N_PEA, N_DESOCUPADOS (muestra), PEA_EXPANDIDA
+# MAGIC   → EstimacionDirecta.estimar()   [bootstrap por viviendas, 2000 réplicas + Taylor]
+# MAGIC   → + PERIODO, N_MESES_VENTANA, N_PEA, N_DESOCUPADOS, N_VIVIENDAS (muestra), PEA_EXPANDIDA
 # MAGIC     (Σ FEX_C18 de la PEA / meses) y N_MUNICIPIOS del dominio
 # MAGIC   → validación contra el DANE (año: TD reconstruida con los 4 trimestres; trimestre: publicada)
 # MAGIC   → tesis.preprocesamiento.tasa_desempleo_municipal   (una fila por dominio)
@@ -139,12 +156,9 @@
 # MAGIC
 # MAGIC * Hájek, J. (1971). "Comment on 'An essay on the logical foundations of survey sampling'".
 # MAGIC * Efron, B. & Tibshirani, R. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.
+# MAGIC * Morales, D. et al. (2021). *A Course on Small Area Estimation and Mixed Models*. Springer (p. 61).
+# MAGIC * DANE (2016). Metodología General GEIH v9 (PDF 11-15: diseño y estimación de la varianza).
 # MAGIC * DANE (2020). "Guía de calidad de estimaciones para encuestas de hogares".
-
-# COMMAND ----------
-
-# DBTITLE 1,Instalar dependencias
-# MAGIC %pip install tqdm
 
 # COMMAND ----------
 
@@ -312,6 +326,22 @@ print(f"  Aceptables  ({CV_CONFIABLE}% ≤ CV < {CV_ACEPTABLE}%): {aceptables}")
 print(f"  No confiables (CV ≥ {CV_ACEPTABLE}%): {no_conf}")
 
 display(resultado)
+
+# COMMAND ----------
+
+# DBTITLE 1,Control: bootstrap por viviendas vs. linealización de Taylor
+# Las dos estiman la varianza de la misma razón con las mismas unidades (vivienda dentro del
+# dominio): con miles de viviendas por dominio deben coincidir salvo el error Monte Carlo del
+# bootstrap (≈ √(2/B) ≈ 3 % en la varianza con B = 2000). Solo informa.
+razon_se = resultado["SE_BOOTSTRAP_PCT"] / resultado["SE_TAYLOR_PCT"]
+print(
+    f"SE bootstrap / SE Taylor: mediana {razon_se.median():.3f}, "
+    f"mín {razon_se.min():.3f}, máx {razon_se.max():.3f}"
+)
+print(
+    f"Viviendas por dominio: mín {resultado['N_VIVIENDAS'].min():,}, "
+    f"máx {resultado['N_VIVIENDAS'].max():,}"
+)
 
 # COMMAND ----------
 

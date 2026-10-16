@@ -38,6 +38,13 @@ TBL_FH_DIAGNOSTICOS_VARIANTES = "tesis.modelo.fh_diagnosticos_variantes"
 TBL_FH_COOK = "tesis.modelo.fh_cook"
 TBL_FH_SELECCION_MODELO = "tesis.modelo.fh_seleccion_modelo"
 TBL_FH_COEFICIENTES = "tesis.modelo.fh_coeficientes"
+# Sensibilidad a la varianza de muestreo ψ_d y GVF (G7-B3, modelo/sensibilidad_varianza.py).
+TBL_SENS_VARIANZA_DIRECTA = "tesis.modelo.sensibilidad_varianza_directa"
+TBL_GVF_AJUSTE = "tesis.modelo.gvf_ajuste"
+TBL_SENS_VARIANZA_FH = "tesis.modelo.sensibilidad_varianza_fh"
+TBL_SENS_VARIANZA_COEFICIENTES = "tesis.modelo.sensibilidad_varianza_coeficientes"
+TBL_SENS_VARIANZA_DOMINIOS = "tesis.modelo.sensibilidad_varianza_dominios"
+TBL_SENS_VARIANZA_MUNICIPIOS = "tesis.modelo.sensibilidad_varianza_municipios"
 
 # ── Variable objetivo y varianza directa ─────────────────────────────────────
 Y_COL = "TASA_DESEMPLEO_PCT"

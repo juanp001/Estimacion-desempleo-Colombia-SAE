@@ -50,12 +50,15 @@
 # MAGIC como **conocidas**. El libro (Morales et al., 2021, p. 427) da dos maneras de
 # MAGIC fijarlas: (a) tomar la varianza estimada con los microdatos de la encuesta y tratarla
 # MAGIC como constante conocida, o (b) suavizarla con una función de varianza generalizada
-# MAGIC (GVF). Aquí se usa la alternativa (a): σ²_d es la varianza **bootstrap** de la
-# MAGIC estimación directa (`estimacion_directa`), sin suavizar.
+# MAGIC (GVF). Aquí se usa la alternativa (a): σ²_d es la varianza **bootstrap por viviendas
+# MAGIC dentro de cada dominio** de la estimación directa (`estimacion_directa`, G7-B3), sin
+# MAGIC suavizar: se remuestrean viviendas completas, con el dominio como estrato (p. 61).
 # MAGIC
-# MAGIC Limitación: el bootstrap simple no incorpora el diseño muestral de la GEIH (estratos,
-# MAGIC conglomerados), cuyas variables no están disponibles. Si subestima σ²_d, el peso γ_d de
-# MAGIC la estimación directa en el EBLUP queda algo sobrestimado.
+# MAGIC Limitación: los microdatos no traen el estrato interno ni el segmento de la GEIH, así que
+# MAGIC σ²_d es una aproximación a la varianza del diseño. No se sabe si esta es mayor o menor,
+# MAGIC ni por cuánto. `modelo/sensibilidad_varianza.py` reajusta el modelo con otras σ²_d
+# MAGIC (bootstrap por personas, Taylor, dos GVF y σ²_d multiplicada por factores de 1/3 a 3) y
+# MAGIC muestra cuánto cambian el ganador, los coeficientes, los EBLUP y las predicciones.
 
 # COMMAND ----------
 
