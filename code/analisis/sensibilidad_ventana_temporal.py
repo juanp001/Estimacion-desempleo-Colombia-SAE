@@ -54,8 +54,9 @@
 # MAGIC
 # MAGIC ## Limitación
 # MAGIC
-# MAGIC El error estándar es el del bootstrap simple de `EstimacionDirecta`, que no reproduce estratos ni
-# MAGIC conglomerados (G7-B3). Sirve para comparar ventanas entre sí, no como varianza de diseño.
+# MAGIC El error estándar es el del bootstrap por viviendas dentro del dominio de `EstimacionDirecta`
+# MAGIC (G7-B3), que no reproduce el estrato interno ni el segmento de la GEIH. Sirve para comparar
+# MAGIC ventanas entre sí, no como varianza de diseño.
 # MAGIC
 # MAGIC ## Salidas
 # MAGIC
@@ -67,10 +68,6 @@
 # COMMAND ----------
 
 # DBTITLE 1,Setup: rutas, imports y período
-# MAGIC %pip install tqdm
-
-# COMMAND ----------
-
 import os
 import sys
 
@@ -172,8 +169,8 @@ else:
 # COMMAND ----------
 
 # DBTITLE 1,Estimación directa en cada ventana
-# Misma estimación que estimacion_directa.py (Hájek con FEX_C18, bootstrap simple con la misma
-# semilla y número de réplicas) sobre los meses de cada ventana.
+# Misma estimación que estimacion_directa.py (Hájek con FEX_C18, bootstrap por viviendas dentro
+# del dominio con la misma semilla y número de réplicas) sobre los meses de cada ventana.
 estimador = EstimacionDirecta(
     spark, num_replicas=BOOTSTRAP_REPLICAS, seed=BOOTSTRAP_SEED
 )

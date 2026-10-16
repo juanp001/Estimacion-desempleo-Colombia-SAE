@@ -192,7 +192,7 @@ print(f"Tabla escrita: {TBL_CATALOGO}")
 # DBTITLE 1,Descriptivos de la variable respuesta y de su precisión
 etiquetas_respuesta = {
     VARIABLE_OBJETIVO: "Tasa de desempleo (%)",
-    "SE_BOOTSTRAP_PCT": "Error estándar bootstrap (p.p.)",
+    "SE_BOOTSTRAP_PCT": "Error estándar bootstrap por viviendas (p.p.)",
     "VARIANZA_MUESTREO": "Varianza de muestreo (p.p.²)",
     "CV_PORCENTAJE": "Coeficiente de variación de la estimación directa (%)",
 }
