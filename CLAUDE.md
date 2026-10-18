@@ -249,6 +249,14 @@ modelo/fay_herriot.py
     (tesis.modelo; NIVEL = DOMINIO [23] o MUNICIPIO [83], TIPO = EBLUP_BENCHMARK / SINTETICO /
     SINTETICO_BENCHMARK, TASA_SIN_AJUSTE_PCT para trazabilidad); la sensibilidad de Cook se muestra pero
     no se persiste
+  → calidad reportada B21 (celda 11a, shared/consolidacion.py): CONFIABILIDAD sigue siendo solo por CV;
+    BASE_CV = EBLUP (dominios) / CONDICIONAL_AL_MODELO (municipios) y CALIDAD_REPORTADA = la que se cita:
+    en municipios agrega siempre «condicional al modelo» (el MSE x'Cov(β̂)x + Â supone el modelo
+    correcto, Morales p. 3/441; Molina 2019 PDF 37/41) y «extrapolado (fuera del rango | combinación
+    atípica)» si ESTADO_EXTRAPOLACION ≠ DENTRO_DEL_RANGO; ningún municipio queda «Aceptable» a secas.
+    Se recalcula con el modelo ganador (sin cifras fijas); un estado nuevo sin texto en
+    SUFIJO_EXTRAPOLACION hace fallar la tabla. resumen_calidad / interpretar_calidad muestran que el CV
+    no distingue a los extrapolados (CV = RMSE / tasa: ambos suben). Las tasas y CV no cambian
 modelo/sensibilidad_varianza.py   (G7-B3, fuera de la cadena: no alimenta al modelo)
   → ψ_d alternativas con los mismos microdatos (preparar_datos_ventana + EstimacionDirecta): bootstrap
     por personas y Taylor; comprueba que el bootstrap por viviendas recalculado reproduce la tabla
@@ -298,7 +306,8 @@ directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `es
 `verificar_benchmark`; funciones puras numpy/pandas con doctests), `extrapolacion.py` (B20:
 `rangos_covariables`, `estado_extrapolacion`, `prediccion_acotada`, `sensibilidad_quitar_dominio`,
 figuras e interpretación; doctests con 1 y 2 covariables), `consolidacion.py` (tabla final de dos
-niveles —dominio y municipio— y clasificación de confiabilidad).
+niveles —dominio y municipio—, clasificación de confiabilidad y, B21, `etiqueta_calidad`,
+`resumen_calidad`, `interpretar_calidad`; doctests).
 
 ### Flujo de tablas Unity Catalog (resumen end-to-end)
 

@@ -27,7 +27,9 @@
 # MAGIC    documenta la extrapolación: rango de cada covariable en dominios y municipios, qué
 # MAGIC    covariable saca a cada municipio del rango, cuántos puntos de su predicción vienen de
 # MAGIC    fuera y cuánto cambia la predicción con las covariables acotadas al rango o al quitar
-# MAGIC    un dominio. La tasa publicada no cambia (`shared/extrapolacion.py`).
+# MAGIC    un dominio. La tasa publicada no cambia (`shared/extrapolacion.py`). La celda 11a
+# MAGIC    (B21) lleva ese estado a la tabla final: `CALIDAD_REPORTADA` dice que el CV de un
+# MAGIC    municipio es condicional al modelo y, si extrapola, lo marca como extrapolado.
 # MAGIC 5. **Municipios objetivo.** Municipios de `municipios_sin_encuesta` (sin estimación
 # MAGIC    directa propia), que reciben la predicción sintética x_m'β̂ del modelo ganador.
 # MAGIC 6. **Benchmarking en dos niveles** (`shared/benchmarking.py`, donde está la sustentación
@@ -126,7 +128,11 @@ from shared.extrapolacion import (
     figura_sensibilidad,
     interpretar_extrapolacion,
 )
-from shared.consolidacion import construir_tabla_final
+from shared.consolidacion import (
+    construir_tabla_final,
+    resumen_calidad,
+    interpretar_calidad,
+)
 
 # Cifra oficial del DANE de la ventana de la estimación directa (año reconstruido o trimestre
 # publicado). Se importa por ruta completa porque `shared` aquí es modelo/shared.
@@ -906,9 +912,14 @@ tabla_municipios = pd.DataFrame(
         "LAMBDA": df_pred["LAMBDA_N2"],
         "CV_PCT": df_pred["CV_SINTETICO_PCT"],
         "TIPO": df_pred["TIPO"],
+        # Estado de extrapolación (B20): entra a la etiqueta CALIDAD_REPORTADA (B21).
+        "ESTADO_EXTRAPOLACION": df_pred["ESTADO_EXTRAPOLACION"],
     }
 )
 
+# CONFIABILIDAD (solo por el CV), BASE_CV y CALIDAD_REPORTADA (B21, shared/consolidacion.py):
+# la etiqueta que se cita es CALIDAD_REPORTADA; en los municipios dice «condicional al modelo»
+# y, si extrapolan, «extrapolado».
 dim_dominio = spark.table(TBL_DIM_DOMINIO).toPandas()
 df_final = construir_tabla_final(
     tabla_dominios,
@@ -919,7 +930,6 @@ df_final = construir_tabla_final(
 
 # Marcas de aviso. Los dominios no extrapolan (están en la muestra de ajuste y definen el rango).
 # Un mismo código puede ser dominio y municipio (76001), así que se une por NIVEL + CODIGO.
-# ESTADO_EXTRAPOLACION y APORTE_EXTRAPOLADO_PP (B20) son la entrada de la etiqueta de B21.
 marcas = pd.concat(
     [
         resultados_ganador[["CODIGO_DOMINIO", "FUERA_DE_RANGO"]]
@@ -927,7 +937,6 @@ marcas = pd.concat(
         .assign(
             NIVEL="DOMINIO",
             EXTRAPOLA=False,
-            ESTADO_EXTRAPOLACION=ESTADO_DENTRO,
             APORTE_EXTRAPOLADO_PP=0.0,
         ),
         df_pred[
@@ -935,7 +944,6 @@ marcas = pd.concat(
                 "CODIGO_MUNICIPIO",
                 "FUERA_DE_RANGO",
                 "EXTRAPOLA",
-                "ESTADO_EXTRAPOLACION",
                 "APORTE_EXTRAPOLADO_PP",
             ]
         ]
@@ -960,6 +968,47 @@ spark_df_final.write.mode("overwrite").option("overwriteSchema", "true").saveAsT
     TBL_FAY_HERRIOT_ESTIMACIONES_FINALES
 )
 print(f"Tabla escrita: {TBL_FAY_HERRIOT_ESTIMACIONES_FINALES}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 11a. Calidad reportada de los municipios (B21)
+# MAGIC
+# MAGIC **Qué significa el CV de cada nivel.** En un dominio, el CV es el del EBLUP, que combina
+# MAGIC la estimación directa de la encuesta con el modelo. En un municipio, el CV es el del
+# MAGIC sintético x_m'β̂, y su MSE x_m'Cov(β̂)x_m + Â se deriva **suponiendo que el modelo es
+# MAGIC correcto también en ese municipio** (Morales et al., p. 3 y p. 441). Ese CV no incluye la
+# MAGIC incertidumbre por la selección del modelo, por una mala especificación ni por aplicar la
+# MAGIC recta fuera de los datos con que se estimó: el sintético es sesgado si el modelo no se
+# MAGIC cumple, aunque su varianza sea pequeña (Molina, 2019, PDF 37 y 41; Benedetti et al., 2024,
+# MAGIC p. 144).
+# MAGIC
+# MAGIC **Cómo se reporta.** La tabla final conserva `CONFIABILIDAD` (solo por el CV) y agrega
+# MAGIC `BASE_CV` y `CALIDAD_REPORTADA`, que es la que debe citarse:
+# MAGIC
+# MAGIC * dominio → la categoría por CV («Confiable»);
+# MAGIC * municipio dentro del rango → «… · condicional al modelo»;
+# MAGIC * municipio extrapolado (celda 10a) → «… · condicional al modelo · extrapolado».
+# MAGIC
+# MAGIC Así «Aceptable» en un municipio nunca se lee como una validación empírica. La etiqueta sale
+# MAGIC del modelo ganador y de los umbrales de `config.py`: si cambian las covariables, el estado
+# MAGIC de extrapolación y la etiqueta se recalculan solos. La tasa publicada no cambia.
+
+# COMMAND ----------
+
+# DBTITLE 1,11a. Calidad reportada de los municipios (B21)
+# Resumen por estado de extrapolación y categoría por CV: muestra si el CV distingue o no a los
+# municipios extrapolados (CV = RMSE / tasa predicha).
+display(resumen_calidad(df_pred))
+
+print("Etiquetas publicadas en la tabla final (CALIDAD_REPORTADA):")
+display(
+    df_final.groupby(["NIVEL", "BASE_CV", "CALIDAD_REPORTADA"])
+    .size()
+    .rename("N")
+    .reset_index()
+)
+print(interpretar_calidad(df_pred))
 
 # COMMAND ----------
 
