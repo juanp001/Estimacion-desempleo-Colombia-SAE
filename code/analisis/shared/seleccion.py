@@ -10,9 +10,10 @@ hay pesos, puntajes compuestos ni criterios de información.
                                    enlace completo, todos los pares con |r| ≥ umbral; el
                                    representante es el primer integrante elegible por
                                    orden de Cook, con retroceso)
-      → ficha de decisión         (intervalo de la correlación y signo esperado; entre las
-                                   elegibles, las de mayor asociación hasta la cota de
-                                   parsimonia)
+      → ficha de decisión         (intervalo de la pendiente del Fay-Herriot univariado,
+                                   que incorpora ψ_d; signo esperado como diagnóstico;
+                                   entre las elegibles, las de mayor asociación hasta la
+                                   cota de parsimonia)
       → verificación              (multicolinealidad del conjunto elegido)
 
 Por qué no se usa el AIC ni un ranking compuesto
@@ -37,6 +38,15 @@ from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import squareform
 
 from analisis.shared.diagnosticos import vif_conjunto
+
+# Columnas del Fay-Herriot univariado que la elegibilidad y la ficha arrastran (G7-B8).
+COLUMNAS_FH = [
+    "r_ponderada",
+    "Beta_FH",
+    "IC_FH_inf",
+    "IC_FH_sup",
+    "IC_FH_contiene_cero",
+]
 
 
 def filtrar_por_robustez(
@@ -130,6 +140,7 @@ def evaluar_elegibilidad(
     ic: pd.DataFrame,
     signo_esperado: dict,
     exigir_signo: bool = False,
+    fh: pd.DataFrame = None,
 ) -> pd.DataFrame:
     """Aplica a cada candidata las reglas de elegibilidad de la ficha de decisión.
 
@@ -137,7 +148,11 @@ def evaluar_elegibilidad(
     separadas para que la resolución de redundancia pueda consultarlas al elegir
     representante (G7-B11) sin duplicar la lógica:
 
-    * el intervalo de Fisher de la correlación contiene el cero → no elegible.
+    * el intervalo de la pendiente del **Fay-Herriot univariado** contiene el cero → no
+      elegible (G7-B8). El modelo incorpora la varianza de muestreo ψ_d de cada dominio,
+      que la correlación ignora. El intervalo de Fisher de la correlación se conserva en
+      la salida como descripción. Sin `fh` se aplica la regla anterior (Fisher), que solo
+      sirve para reproducir resultados previos.
 
     El signo esperado del catálogo es un **diagnóstico de coherencia sustantiva, no un
     filtro** (G7-B12): la columna `Signo_coherente` lo registra, pero no cambia la
@@ -153,18 +168,22 @@ def evaluar_elegibilidad(
         ic (pd.DataFrame): Salida de `diagnosticos.tabla_ic_correlacion()`.
         signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
         exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible.
+        fh (pd.DataFrame | None): Salida de `diagnosticos.fh_univariado()`.
 
     Returns:
         pd.DataFrame: Una fila por candidata con `Codigo`, `Medida`, `r_interpretable`,
             `Signo_esperado`, `Signo_observado`, `Signo_coherente` (`"sí"`, `"no"` o `"—"`
-            si el catálogo no fija dirección), `IC_inf`, `IC_sup`, `IC_contiene_cero`,
+            si el catálogo no fija dirección), `IC_inf`, `IC_sup`, `IC_contiene_cero`
+            (Fisher), las columnas del Fay-Herriot univariado si se entrega `fh`
+            (`r_ponderada`, `Beta_FH`, `IC_FH_inf`, `IC_FH_sup`, `IC_FH_contiene_cero`),
             `Elegible` (`"sí"`/`"no"`) y `Motivo` (vacío si es elegible).
 
     Example:
-        >>> evaluar_elegibilidad(CANDIDATAS, bivariado, df_ic, SIGNO)
+        >>> evaluar_elegibilidad(CANDIDATAS, bivariado, df_ic, SIGNO, fh=df_fh)
     """
     biv = bivariado.set_index("Codigo")
     ic_idx = ic.set_index("Codigo")
+    fh_idx = fh.set_index("Codigo") if fh is not None else None
 
     filas = []
     for codigo in candidatas:
@@ -176,36 +195,47 @@ def evaluar_elegibilidad(
         )
         esperado = signo_esperado.get(codigo, "±")
         observado = "+" if r > 0 else "-"
-        contiene_cero = ic_idx.loc[codigo, "IC_contiene_cero"] == "sí"
         coherente = (
             "—" if esperado == "±" else ("sí" if observado == esperado else "no")
         )
-
-        if contiene_cero:
-            motivo = (
+        if fh_idx is not None:
+            f = fh_idx.loc[codigo]
+            contiene_cero = f["IC_FH_contiene_cero"] == "sí"
+            texto_ic = (
+                f"el intervalo de la pendiente del Fay-Herriot univariado "
+                f"[{f['IC_FH_inf']:.3g}, {f['IC_FH_sup']:.3g}] contiene el cero"
+            )
+        else:
+            contiene_cero = ic_idx.loc[codigo, "IC_contiene_cero"] == "sí"
+            texto_ic = (
                 f"el intervalo de la correlación [{ic_idx.loc[codigo, 'IC_inf']:.2f}, "
                 f"{ic_idx.loc[codigo, 'IC_sup']:.2f}] contiene el cero"
             )
+
+        if contiene_cero:
+            motivo = texto_ic
         elif exigir_signo and coherente == "no":
             motivo = f"signo observado ({observado}) contrario al esperado por el mecanismo ({esperado})"
         else:
             motivo = ""
 
-        filas.append(
-            {
-                "Codigo": codigo,
-                "Medida": medida,
-                "r_interpretable": round(r, 3),
-                "Signo_esperado": esperado,
-                "Signo_observado": observado,
-                "Signo_coherente": coherente,
-                "IC_inf": float(ic_idx.loc[codigo, "IC_inf"]),
-                "IC_sup": float(ic_idx.loc[codigo, "IC_sup"]),
-                "IC_contiene_cero": "sí" if contiene_cero else "no",
-                "Elegible": "no" if motivo else "sí",
-                "Motivo": motivo,
-            }
-        )
+        fila = {
+            "Codigo": codigo,
+            "Medida": medida,
+            "r_interpretable": round(r, 3),
+            "Signo_esperado": esperado,
+            "Signo_observado": observado,
+            "Signo_coherente": coherente,
+            "IC_inf": float(ic_idx.loc[codigo, "IC_inf"]),
+            "IC_sup": float(ic_idx.loc[codigo, "IC_sup"]),
+            "IC_contiene_cero": ic_idx.loc[codigo, "IC_contiene_cero"],
+        }
+        if fh_idx is not None:
+            for columna in COLUMNAS_FH:
+                fila[columna] = fh_idx.loc[codigo, columna]
+        fila["Elegible"] = "no" if motivo else "sí"
+        fila["Motivo"] = motivo
+        filas.append(fila)
     return pd.DataFrame(filas)
 
 
@@ -328,6 +358,7 @@ def ficha_decision(
     dimension: dict = None,
     p_maximo: int = 4,
     exigir_signo: bool = False,
+    fh: pd.DataFrame = None,
 ) -> tuple:
     """Construye la ficha de decisión de cada candidata y elige el conjunto final.
 
@@ -338,8 +369,10 @@ def ficha_decision(
     2. No es representante de su grupo de redundancia → ``descartada``. Con retroceso
        (G7-B11) el representante ya es el primer integrante elegible del grupo, de modo
        que este paso no elimina una dimensión que tenía una covariable elegible.
-    3. El intervalo de Fisher de la correlación contiene el cero → ``no elegible``: la
-       evidencia no determina siquiera el signo de la asociación.
+    3. El intervalo de la pendiente del Fay-Herriot univariado, que pesa cada dominio por
+       ``1/(Â + ψ_d)``, contiene el cero → ``no elegible``: la evidencia no determina
+       siquiera el signo de la asociación (G7-B8). El intervalo de Fisher de la correlación
+       queda en la ficha como descripción; sin `fh` decide él, como antes.
     4. El signo esperado del catálogo es un **diagnóstico, no un filtro** (G7-B12): la
        columna `Signo_coherente` lo registra y, si una covariable elegible tiene signo
        contrario al esperado, su motivo lo advierte para que se interprete en el documento.
@@ -362,6 +395,7 @@ def ficha_decision(
         p_maximo (int): Número máximo de covariables seleccionadas.
         exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible
             (escenario de sensibilidad de G7-B12).
+        fh (pd.DataFrame | None): Salida de `diagnosticos.fh_univariado()` (G7-B8).
 
     Returns:
         tuple[list, pd.DataFrame]: (seleccionadas, ficha). `seleccionadas` conserva el orden
@@ -381,8 +415,9 @@ def ficha_decision(
     red = redundancia.set_index("Codigo")
     # Mismas reglas que usa resolver_redundancia() para el retroceso (G7-B11).
     eleg = evaluar_elegibilidad(
-        candidatas, bivariado, ic, signo_esperado, exigir_signo=exigir_signo
+        candidatas, bivariado, ic, signo_esperado, exigir_signo=exigir_signo, fh=fh
     ).set_index("Codigo")
+    columnas_fh = [c for c in COLUMNAS_FH if c in eleg.columns]
 
     filas = []
     for codigo in candidatas:
@@ -412,6 +447,7 @@ def ficha_decision(
                 "IC_inf": e["IC_inf"],
                 "IC_sup": e["IC_sup"],
                 "IC_contiene_cero": e["IC_contiene_cero"],
+                **{c: e[c] for c in columnas_fh},
                 "Robustez": rob.loc[codigo, "Decision"],
                 "Redundancia": (
                     "representante"

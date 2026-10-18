@@ -23,19 +23,22 @@
 # MAGIC | Índice de Moran (sobre la respuesta y sobre los residuos) | **No se hace** | El modelo Fay-Herriot clásico supone efectos independientes por dominio y el proyecto no ajusta variantes espaciales, de modo que el contraste no cambia ninguna decisión. |
 # MAGIC | Búsqueda exhaustiva de especificaciones por AIC | **No se hace** | Con 23 dominios produciría docenas de especificaciones equivalentes y reutilizaría los datos que ajustan el modelo; la elección entre ellas volvería a ser una regla añadida. La comparación entre especificaciones se hace en el notebook del modelo (significancia de los coeficientes y AIC). |
 # MAGIC | Ranking compuesto C y Q, nivel de respaldo L | **No se usan** | Pesos y topes arbitrarios; el nivel L complicaría el análisis sin decidir nada. |
-# MAGIC | Influencia y estabilidad | **Se hace** | Distancia de Cook y exclusión de dominios como dos evidencias de un único criterio de robustez. |
+# MAGIC | Modelo Fay-Herriot univariado por covariable | **Se hace** | La respuesta tiene error de muestreo de varianza ψ_d distinta en cada dominio; el modelo la incorpora y la correlación no (G7-B8). Su intervalo para la pendiente decide la elegibilidad; Pearson, Spearman y Fisher quedan como descripción. |
+# MAGIC | Influencia y estabilidad | **Se hace** | Distancia de Cook y exclusión de dominios, sobre el mismo Fay-Herriot univariado, como dos evidencias de un único criterio de robustez. |
 # MAGIC | Redundancia | **Se hace** | Un representante por grupo de covariables equivalentes. |
-# MAGIC | Ficha de decisión | **Se hace** | Reúne por covariable la evidencia descriptiva (signo esperado y observado, intervalo de la correlación) y los diagnósticos, y aplica reglas explícitas. |
+# MAGIC | Ficha de decisión | **Se hace** | Reúne por covariable la evidencia descriptiva (signo esperado y observado, intervalo de la correlación), el Fay-Herriot univariado y los diagnósticos, y aplica reglas explícitas. |
 # MAGIC
 # MAGIC ## Procedimiento de selección
 # MAGIC
 # MAGIC ```
 # MAGIC candidatas conceptualmente elegibles (catálogo de literatura)
-# MAGIC   → 1. asociación:   correlación con la respuesta, su intervalo y el signo esperado
-# MAGIC   → 2. robustez:     se descarta lo que depende de un solo dominio
+# MAGIC   → 1. asociación:   correlación con la respuesta y su intervalo (descripción), Fay-Herriot
+# MAGIC                       univariado con ψ_d (decisión) y signo esperado
+# MAGIC   → 2. robustez:     se descarta lo que depende de un solo dominio (en el Fay-Herriot univariado)
 # MAGIC   → 3. redundancia:  un representante por grupo de covariables equivalentes (el primer
 # MAGIC                       integrante elegible por orden de Cook: retroceso)
-# MAGIC   → 4. decisión:     elegibles = intervalo sin cero (el signo esperado es diagnóstico);
+# MAGIC   → 4. decisión:     elegibles = pendiente del FH univariado con intervalo sin cero (el signo
+# MAGIC                       esperado es diagnóstico);
 # MAGIC                       seleccionadas = las de mayor asociación hasta la cota de parsimonia
 # MAGIC   → 5. verificación: multicolinealidad del conjunto elegido
 # MAGIC ```
@@ -105,6 +108,9 @@ df_meta = df_full.select(METADATA_COLS).toPandas()
 df_pd = df_cov_spark.toPandas()
 
 Y = df_meta[VARIABLE_OBJETIVO].values
+# Varianza de muestreo de la estimación directa de cada dominio, ψ_d = SE² (G7-B8): la misma
+# que usa el modelo Fay-Herriot.
+PSI = df_meta["SE_BOOTSTRAP_PCT"].astype(float).values ** 2
 # Etiqueta de cada dominio: la ciudad o la ciudad con su área metropolitana («Cali A.M.»).
 entidades = df_meta["NOMBRE_DOMINIO"].values
 
@@ -124,9 +130,19 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # MAGIC Se retoma la tabla bivariada del análisis descriptivo (Pearson, Spearman y cuál de los
 # MAGIC dos es interpretable para cada covariable) y se le añade el **intervalo de confianza de
 # MAGIC Fisher** del coeficiente de Pearson. Con 23 dominios el error estándar de una
-# MAGIC correlación es grande, y un valor puntual comunica más certeza de la que hay: un
-# MAGIC intervalo que contiene el cero indica que la evidencia no determina siquiera el signo
-# MAGIC de la asociación.
+# MAGIC correlación es grande, y un valor puntual comunica más certeza de la que hay.
+# MAGIC
+# MAGIC **La decisión se toma con el modelo, no con la correlación (G7-B8).** La respuesta es
+# MAGIC una estimación directa con error de muestreo, θ̂_d = θ_d + e_d con Var(e_d) = ψ_d, y ψ_d
+# MAGIC cambia de un dominio a otro. Pearson y Spearman dan el mismo peso a todos. Por eso se
+# MAGIC ajusta, para cada covariable, el **Fay-Herriot univariado**
+# MAGIC θ̂_d = β0 + β1·x_d + u_d + e_d, con Var(u_d) = A estimada por REML: la misma estructura
+# MAGIC del modelo final, que pesa cada dominio por 1/(Â + ψ_d). Si el intervalo al 95 % de β1
+# MAGIC contiene el cero, la evidencia no determina siquiera el signo de la asociación y la
+# MAGIC covariable no es elegible. La correlación y su intervalo de Fisher se conservan como
+# MAGIC descripción. La columna `r_ponderada` expresa la pendiente del modelo en escala de
+# MAGIC correlación y `Razon_pesos` (peso máximo / peso mínimo) muestra cuánto se aparta el
+# MAGIC ajuste de uno con pesos iguales.
 # MAGIC
 # MAGIC No se reportan p-valores. Se evalúan varias covariables sin corrección por
 # MAGIC multiplicidad y su interpretación nominal no sería válida; el intervalo comunica la
@@ -145,9 +161,14 @@ bivariado = desc.tabla_bivariada(df_cand, CANDIDATAS, Y, alias=ALIAS)
 df_ic = diag.tabla_ic_correlacion(
     df_cand, CANDIDATAS, Y, alias=ALIAS, alfa=ALFA_IC_CORRELACION
 )
+# Fay-Herriot univariado por covariable, con ψ_d (G7-B8): decide la elegibilidad.
+df_fh = diag.fh_univariado(
+    df_cand, CANDIDATAS, Y, PSI, alias=ALIAS, alfa=ALFA_IC_CORRELACION
+)
 
 df_asociacion = (
     df_ic.merge(bivariado.drop(columns=["Alias", "Pearson_r"]), on="Codigo")
+    .merge(df_fh.drop(columns=["Alias"]), on="Codigo")
     .assign(
         Dimension=lambda t: [DIMENSION[c] for c in t["Codigo"]],
         Signo_esperado=lambda t: [SIGNO[c] for c in t["Codigo"]],
@@ -157,8 +178,16 @@ df_asociacion = (
 display(spark.createDataFrame(df_asociacion))
 
 n_con_cero = int((df_ic["IC_contiene_cero"] == "sí").sum())
+n_con_cero_fh = int((df_fh["IC_FH_contiene_cero"] == "sí").sum())
 print(
-    f"{n_con_cero} de {len(CANDIDATAS)} covariables tienen un intervalo que contiene el cero."
+    f"Intervalo que contiene el cero: {n_con_cero_fh} de {len(CANDIDATAS)} en el Fay-Herriot "
+    f"univariado (decide) y {n_con_cero} con Fisher (descriptivo)."
+)
+print(
+    f"Razón entre el mayor y el menor peso 1/(Â + ψ_d): de {df_fh['Razon_pesos'].min():.3f} "
+    f"a {df_fh['Razon_pesos'].max():.3f} según la covariable "
+    f"(ψ_d entre {PSI.min():.3f} y {PSI.max():.3f}; Â entre {df_fh['A_hat_FH'].min():.2f} "
+    f"y {df_fh['A_hat_FH'].max():.2f})."
 )
 
 # COMMAND ----------
@@ -167,11 +196,13 @@ print(
 # MAGIC # 2. Robustez: ¿la asociación depende de un solo dominio?
 # MAGIC
 # MAGIC Con 23 observaciones un único territorio puede determinar la pendiente de una
-# MAGIC regresión. Se combinan dos evidencias que deben cumplirse **a la vez** para descartar:
+# MAGIC regresión. Se combinan dos evidencias que deben cumplirse **a la vez** para descartar,
+# MAGIC ambas sobre el **Fay-Herriot univariado** de la sección 1 (G7-B8):
 # MAGIC
-# MAGIC * la distancia de Cook señala que un dominio domina la regresión (umbral 4/n);
-# MAGIC * al excluir ese dominio, la correlación cambia más de `UMBRAL_DELTA_LOO` o invierte
-# MAGIC   su signo.
+# MAGIC * la distancia de Cook señala que un dominio domina el ajuste (umbral 4/n). Es la
+# MAGIC   misma fórmula que usa el notebook del modelo (`distancia_cook`), con Â fijo;
+# MAGIC * al excluir un dominio y reajustar el modelo, reestimando Â, la correlación ponderada
+# MAGIC   cambia más de `UMBRAL_DELTA_LOO` o la pendiente invierte su signo.
 # MAGIC
 # MAGIC Exigir ambas evita descartar una covariable por tener un valor extremo que, siendo
 # MAGIC grande, no altera la relación. La exclusión recorre los 23 dominios.
@@ -183,25 +214,25 @@ print(
 
 # COMMAND ----------
 
-# DBTITLE 1,Influencia por dominio (distancia de Cook)
-df_influencia = diag.influencia_por_covariable(
-    df_cand, CANDIDATAS, Y, entidades, alias=ALIAS
-)
+# DBTITLE 1,Influencia por dominio (distancia de Cook en el Fay-Herriot univariado)
+df_influencia = diag.influencia_fh(df_cand, CANDIDATAS, Y, PSI, entidades, alias=ALIAS)
 display(spark.createDataFrame(df_influencia))
 
 # COMMAND ----------
 
-# DBTITLE 1,Estabilidad de la asociación al excluir cada dominio
-df_estabilidad = diag.estabilidad_loo(df_cand, CANDIDATAS, Y, entidades, alias=ALIAS)
+# DBTITLE 1,Estabilidad de la asociación al excluir cada dominio (Fay-Herriot univariado)
+df_estabilidad = diag.estabilidad_fh(
+    df_cand, CANDIDATAS, Y, PSI, entidades, alias=ALIAS
+)
 display(spark.createDataFrame(df_estabilidad))
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC **Cómo leer la figura.** Cada punto es una covariable. El eje horizontal es la
-# MAGIC distancia de Cook máxima entre los 23 dominios (cuánto domina un solo territorio la
-# MAGIC regresión simple de la tasa sobre esa covariable) y el vertical es cuánto cambia la
-# MAGIC correlación al excluir el dominio que más la altera. Las líneas grises son los dos
+# MAGIC distancia de Cook máxima entre los 23 dominios (cuánto domina un solo territorio el
+# MAGIC Fay-Herriot univariado de la tasa sobre esa covariable) y el vertical es cuánto cambia
+# MAGIC la correlación ponderada al excluir el dominio que más la altera. Las líneas grises son los dos
 # MAGIC umbrales. Solo las covariables del cuadrante superior derecho, en rojo, se descartan:
 # MAGIC en ellas un dominio domina la regresión *y* su exclusión cambia la asociación. Una
 # MAGIC covariable a la derecha pero abajo tiene un dominio extremo que no altera la relación;
@@ -246,8 +277,8 @@ display(spark.createDataFrame(df_robustez))
 # MAGIC
 # MAGIC **Representante con retroceso (G7-B11).** Los integrantes se ordenan por la asociación
 # MAGIC menos dependiente de un dominio individual (menor distancia de Cook máxima) y entra el
-# MAGIC **primero que cumple las reglas de elegibilidad** de la ficha de decisión (intervalo sin
-# MAGIC cero y signo coherente). Si el de menor Cook no es elegible se pasa al siguiente, en
+# MAGIC **primero que cumple las reglas de elegibilidad** de la ficha de decisión (intervalo de
+# MAGIC la pendiente del Fay-Herriot univariado sin cero). Si el de menor Cook no es elegible se pasa al siguiente, en
 # MAGIC lugar de dejarlo como representante y perder después toda la dimensión. Si ninguno es
 # MAGIC elegible, queda el de menor Cook y la ficha lo declara no elegible.
 # MAGIC
@@ -261,8 +292,10 @@ display(spark.createDataFrame(df_robustez))
 
 # DBTITLE 1,Resolución de redundancia sobre las covariables robustas
 cook_por_codigo = df_influencia.set_index("Codigo")["Cook_max"].to_dict()
-# Reglas de elegibilidad de la ficha (intervalo y signo), para el retroceso (G7-B11).
-df_elegibilidad = sel.evaluar_elegibilidad(CANDIDATAS, bivariado, df_ic, SIGNO)
+# Reglas de elegibilidad de la ficha (intervalo del FH univariado), para el retroceso (G7-B11).
+df_elegibilidad = sel.evaluar_elegibilidad(
+    CANDIDATAS, bivariado, df_ic, SIGNO, fh=df_fh
+)
 
 robustas, df_redundancia = sel.resolver_redundancia(
     df_cand,
@@ -280,14 +313,14 @@ display(spark.createDataFrame(df_redundancia))
 # MAGIC # 4. Ficha de decisión
 # MAGIC
 # MAGIC Una fila por candidata con toda la evidencia reunida: signo esperado y observado,
-# MAGIC coeficiente interpretable, intervalo de la correlación, resultado de robustez y de
-# MAGIC redundancia. Sobre ella se aplican, en orden, reglas explícitas:
+# MAGIC coeficiente interpretable, intervalo de la correlación, pendiente del Fay-Herriot
+# MAGIC univariado con su intervalo, resultado de robustez y de redundancia. Sobre ella se aplican, en orden, reglas explícitas:
 # MAGIC
 # MAGIC 1. descartada por robustez → fuera;
 # MAGIC 2. redundante con otra (no representante de su grupo) → fuera; con el retroceso del
 # MAGIC    paso 3 el representante ya es el primer integrante elegible del grupo;
-# MAGIC 3. intervalo de la correlación que contiene el cero → **no elegible**: la evidencia
-# MAGIC    no determina el signo de la asociación;
+# MAGIC 3. intervalo de la pendiente del Fay-Herriot univariado que contiene el cero → **no
+# MAGIC    elegible**: la evidencia no determina el signo de la asociación (G7-B8);
 # MAGIC 4. signo observado contrario al mecanismo del catálogo → **se conserva** y su motivo
 # MAGIC    lo advierte: el signo es un diagnóstico que se interpreta en el documento, no un
 # MAGIC    filtro (G7-B12);
@@ -312,6 +345,7 @@ SELECCIONADAS, df_ficha = sel.ficha_decision(
     alias=ALIAS,
     dimension=DIMENSION,
     p_maximo=P_MAXIMO,
+    fh=df_fh,
 )
 display(spark.createDataFrame(df_ficha))
 
@@ -384,7 +418,7 @@ df_verificacion = df_vif.assign(
 
 # DBTITLE 1,Sensibilidad: selección sin las covariables de signo inesperado
 df_elegibilidad_signo = sel.evaluar_elegibilidad(
-    CANDIDATAS, bivariado, df_ic, SIGNO, exigir_signo=True
+    CANDIDATAS, bivariado, df_ic, SIGNO, exigir_signo=True, fh=df_fh
 )
 _, df_redundancia_signo = sel.resolver_redundancia(
     df_cand,
@@ -405,6 +439,7 @@ seleccionadas_signo, df_ficha_signo = sel.ficha_decision(
     dimension=DIMENSION,
     p_maximo=P_MAXIMO,
     exigir_signo=True,
+    fh=df_fh,
 )
 seleccionadas_signo, _, _ = sel.ajustar_por_vif(
     df_cand,
@@ -470,6 +505,7 @@ for _, entrada in reporte_catalogo.iterrows():
         "Prefiltrado": entrada["Estado"],
         "Pearson_r": None,
         "IC_contiene_cero": None,
+        "IC_FH_contiene_cero": None,
         "Signo_observado": None,
         "Cook_max": None,
         "Delta_LOO_max": None,
@@ -488,6 +524,7 @@ for _, entrada in reporte_catalogo.iterrows():
 
     fila["Pearson_r"] = float(ficha_idx.loc[codigo, "r_interpretable"])
     fila["IC_contiene_cero"] = ficha_idx.loc[codigo, "IC_contiene_cero"]
+    fila["IC_FH_contiene_cero"] = ficha_idx.loc[codigo, "IC_FH_contiene_cero"]
     fila["Signo_observado"] = ficha_idx.loc[codigo, "Signo_observado"]
     fila["Cook_max"] = float(influencia_idx.loc[codigo, "Cook_max"])
     fila["Delta_LOO_max"] = float(estabilidad_idx.loc[codigo, "Delta_max_abs"])
@@ -507,8 +544,10 @@ display(spark.createDataFrame(df_trazabilidad))
 # COMMAND ----------
 
 # DBTITLE 1,Escritura de las tablas de diagnóstico y trazabilidad
-df_diagnosticos = df_ic.merge(df_influencia.drop(columns=["Alias"]), on="Codigo").merge(
-    df_estabilidad.drop(columns=["Alias"]), on="Codigo"
+df_diagnosticos = (
+    df_ic.merge(df_fh.drop(columns=["Alias"]), on="Codigo")
+    .merge(df_influencia.drop(columns=["Alias"]), on="Codigo")
+    .merge(df_estabilidad.drop(columns=["Alias"]), on="Codigo")
 )
 
 for tabla, destino in [

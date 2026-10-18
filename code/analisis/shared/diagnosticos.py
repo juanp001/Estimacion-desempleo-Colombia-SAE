@@ -5,10 +5,25 @@ este módulo produce evidencia destinada a una decisión concreta:
 
 * `ic_fisher_pearson()` acota la incertidumbre de la correlación con la respuesta; un
   intervalo que contiene el cero indica que la evidencia no determina siquiera el signo.
-* `influencia_por_covariable()` y `estabilidad_loo()` determinan si la asociación entre una
-  covariable y la respuesta depende de un único dominio.
+  Desde G7-B8 es **descriptivo**: no decide.
+* `fh_univariado()` ajusta, por covariable, el modelo Fay-Herriot univariado con la varianza
+  de muestreo ψ_d de cada dominio (G7-B8). Su intervalo para la pendiente decide la
+  elegibilidad.
+* `influencia_fh()` y `estabilidad_fh()` determinan, sobre ese mismo modelo, si la
+  asociación depende de un único dominio. `influencia_por_covariable()` y
+  `estabilidad_loo()` son sus versiones por mínimos cuadrados ordinarios, sin ψ_d, que se
+  conservan como referencia.
 * `vif_conjunto()` verifica que el conjunto finalmente elegido no presente
   multicolinealidad.
+
+Por qué el Fay-Herriot univariado (G7-B8)
+-----------------------------------------
+La respuesta es una estimación directa con error heterocedástico, ``θ̂_d = θ_d + e_d`` con
+``Var(e_d) = ψ_d``. Pearson, Spearman y la regresión por mínimos cuadrados ordinarios dan el
+mismo peso a todos los dominios. El modelo univariado ``θ̂_d = β0 + β1·x_d + u_d + e_d``,
+con ``Var(u_d) = A`` estimada por REML, pesa cada dominio por ``1/(A + ψ_d)``, que es la
+estructura del modelo que después se ajusta. Así la decisión se alinea con el modelo y las
+correlaciones quedan como descripción.
 
 Todos son diagnósticos de estadística básica, elegidos porque su lectura es directa y se
 sostiene con 23 dominios. No se calcula el índice de Moran: el modelo Fay-Herriot clásico
@@ -20,6 +35,7 @@ se contrasta la normalidad de las covariables, que el modelo no supone.
 import numpy as np
 import pandas as pd
 from scipy import stats
+from scipy.optimize import minimize_scalar
 from statsmodels.regression.linear_model import OLS
 from statsmodels.stats.outliers_influence import OLSInfluence, variance_inflation_factor
 from statsmodels.tools import add_constant
@@ -221,6 +237,259 @@ def estabilidad_loo(
             }
         )
 
+    return pd.DataFrame(filas)
+
+
+def _ajuste_fh(x: np.ndarray, y: np.ndarray, psi: np.ndarray) -> tuple:
+    """Fay-Herriot univariado: A por REML y (β0, β1) por mínimos cuadrados generalizados.
+
+    Es la misma formulación de `modelo/shared/fay_herriot.FayHerriotClasico` (log-verosimilitud
+    REML optimizada en escala logarítmica en ``[1e-6, 10·Var(y)]``, β̂ = (X'V⁻¹X)⁻¹X'V⁻¹y con
+    ``V = diag(A + ψ_d)``), reescrita aquí para que el análisis no dependa del paquete del
+    modelo. Con los datos del proyecto ambas coinciden: β̂ hasta 1e-11 y Â hasta 5e-5,
+    la tolerancia del optimizador acotado.
+
+    Args:
+        x (np.ndarray): Covariable, shape (n,).
+        y (np.ndarray): Estimación directa, shape (n,).
+        psi (np.ndarray): Varianza de muestreo de cada dominio, shape (n,).
+
+    Returns:
+        tuple: (A, beta, cov_beta). `beta` tiene shape (2,) y `cov_beta` shape (2, 2).
+    """
+    X = np.column_stack([np.ones_like(x), x])
+
+    def menos_reml(log_a):
+        vi = 1.0 / (psi + np.exp(log_a))
+        xtvi = X.T * vi
+        q = xtvi @ X
+        py = vi * y - xtvi.T @ np.linalg.solve(q, xtvi @ y)
+        return 0.5 * (np.sum(np.log(1.0 / vi)) + np.linalg.slogdet(q)[1] + y @ py)
+
+    res = minimize_scalar(
+        menos_reml, bounds=(np.log(1e-6), np.log(np.var(y) * 10)), method="bounded"
+    )
+    a = float(np.exp(res.x))
+    xtvi = X.T / (psi + a)
+    cov_beta = np.linalg.inv(xtvi @ X)
+    return a, cov_beta @ (xtvi @ y), cov_beta
+
+
+def correlacion_ponderada(x: np.ndarray, y: np.ndarray, pesos: np.ndarray) -> float:
+    """Coeficiente de Pearson con pesos por dominio.
+
+    Con pesos ``1/(Â + ψ_d)`` es la pendiente del Fay-Herriot univariado expresada en
+    desviaciones estándar ponderadas: tiene la escala de una correlación (entre −1 y 1) y el
+    mismo signo que β̂1.
+
+    Args:
+        x (np.ndarray): Covariable.
+        y (np.ndarray): Respuesta.
+        pesos (np.ndarray): Peso de cada dominio (no necesitan sumar uno).
+
+    Returns:
+        float: Correlación ponderada.
+
+    Example:
+        >>> correlacion_ponderada(x, Y, 1 / (A_hat + psi))
+    """
+    w = pesos / pesos.sum()
+    dx, dy = x - w @ x, y - w @ y
+    return float((w @ (dx * dy)) / np.sqrt((w @ dx**2) * (w @ dy**2)))
+
+
+def fh_univariado(
+    df: pd.DataFrame,
+    columnas: list,
+    y: np.ndarray,
+    psi: np.ndarray,
+    alias: dict = None,
+    alfa: float = 0.05,
+) -> pd.DataFrame:
+    """Modelo Fay-Herriot univariado por covariable, con la varianza de muestreo ψ_d (G7-B8).
+
+    Ajusta ``θ̂_d = β0 + β1·x_d + u_d + e_d`` con ``Var(u_d) = A`` (REML) y
+    ``Var(e_d) = ψ_d``, y reporta la pendiente con su intervalo de Wald al ``1 - alfa``, el
+    mismo que usa el notebook del modelo para los coeficientes. A diferencia de la
+    correlación, el modelo pesa cada dominio por ``1/(Â + ψ_d)``: un dominio con estimación
+    directa menos precisa pesa menos.
+
+    `Razon_pesos` (peso máximo / peso mínimo) muestra cuánto se aparta el ajuste de uno con
+    pesos iguales: cuando ``Â`` es mucho mayor que ψ_d, los pesos casi no varían y el modelo
+    reproduce la regresión ordinaria.
+
+    Args:
+        df (pd.DataFrame): Datos con una fila por dominio.
+        columnas (list[str]): Covariables a evaluar.
+        y (np.ndarray): Estimación directa de la respuesta.
+        psi (np.ndarray): Varianza de muestreo de cada dominio (SE²).
+        alias (dict | None): Mapa columna → alias legible.
+        alfa (float): Nivel de significancia del intervalo.
+
+    Returns:
+        pd.DataFrame: Una fila por covariable con `A_hat_FH`, `Razon_pesos`, `r_ponderada`,
+            `Beta_FH`, `SE_FH`, `IC_FH_inf`, `IC_FH_sup` y `IC_FH_contiene_cero`
+            (`"sí"`/`"no"`), ordenada por |r_ponderada| descendente.
+
+    Example:
+        >>> fh_univariado(df_cand, codigos, Y, SE**2, alias)
+    """
+    alias = alias or {}
+    y = np.asarray(y, dtype=float)
+    psi = np.asarray(psi, dtype=float)
+    z = stats.norm.ppf(1 - alfa / 2)
+    filas = []
+    for col in columnas:
+        x = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=float)
+        a, beta, cov_beta = _ajuste_fh(x, y, psi)
+        pesos = 1.0 / (a + psi)
+        se = float(np.sqrt(cov_beta[1, 1]))
+        inferior, superior = beta[1] - z * se, beta[1] + z * se
+        filas.append(
+            {
+                "Alias": alias.get(col, col),
+                "Codigo": col,
+                "A_hat_FH": round(a, 4),
+                "Razon_pesos": round(float(pesos.max() / pesos.min()), 4),
+                "r_ponderada": round(correlacion_ponderada(x, y, pesos), 3),
+                "Beta_FH": float(beta[1]),
+                "SE_FH": se,
+                "IC_FH_inf": float(inferior),
+                "IC_FH_sup": float(superior),
+                "IC_FH_contiene_cero": "sí" if inferior <= 0 <= superior else "no",
+            }
+        )
+    return pd.DataFrame(filas).sort_values("r_ponderada", key=abs, ascending=False)
+
+
+def influencia_fh(
+    df: pd.DataFrame,
+    columnas: list,
+    y: np.ndarray,
+    psi: np.ndarray,
+    etiquetas_dominio: np.ndarray,
+    alias: dict = None,
+) -> pd.DataFrame:
+    """Distancia de Cook de cada dominio en el Fay-Herriot univariado de cada covariable (G7-B8).
+
+    Usa la misma fórmula que `modelo/shared/seleccion_modelo.distancia_cook` para el modelo
+    ajustado: ``D_d = r_d²·h_dd / (p·(1 - h_dd)²)``, con el residuo estandarizado
+    ``r_d = (θ̂_d - x_d'β̂)/√(Â + ψ_d)`` y el apalancamiento ``h_dd = x_d'Cov(β̂)x_d/(Â + ψ_d)``,
+    manteniendo ``Â`` fijo. Umbral convencional ``D > 4/n``.
+
+    Igual que la versión por mínimos cuadrados ordinarios, superar el umbral **no justifica
+    eliminar el dominio**: la consecuencia recae sobre la covariable.
+
+    Args:
+        df (pd.DataFrame): Datos con una fila por dominio.
+        columnas (list[str]): Covariables a evaluar.
+        y (np.ndarray): Estimación directa de la respuesta.
+        psi (np.ndarray): Varianza de muestreo de cada dominio (SE²).
+        etiquetas_dominio (np.ndarray): Nombre de cada dominio.
+        alias (dict | None): Mapa columna → alias legible.
+
+    Returns:
+        pd.DataFrame: Mismo formato que `influencia_por_covariable()`: `Cook_max`, `Umbral`,
+            `N_influyentes` y `Dominios_influyentes`.
+
+    Example:
+        >>> influencia_fh(df_cand, codigos, Y, PSI, entidades, alias)
+    """
+    alias = alias or {}
+    y = np.asarray(y, dtype=float)
+    psi = np.asarray(psi, dtype=float)
+    umbral = 4 / len(y)
+    filas = []
+    for col in columnas:
+        x = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=float)
+        a, beta, cov_beta = _ajuste_fh(x, y, psi)
+        X = np.column_stack([np.ones_like(x), x])
+        varianza = a + psi
+        residuo = (y - X @ beta) / np.sqrt(varianza)
+        apalancamiento = np.einsum("ij,jk,ik->i", X, cov_beta, X) / varianza
+        cook = residuo**2 * apalancamiento / (2 * (1 - apalancamiento) ** 2)
+        influyentes = [
+            f"{etiquetas_dominio[i]} ({cook[i]:.3f})"
+            for i in np.where(cook > umbral)[0]
+        ]
+        filas.append(
+            {
+                "Alias": alias.get(col, col),
+                "Codigo": col,
+                "Cook_max": round(float(cook.max()), 4),
+                "Umbral": round(umbral, 4),
+                "N_influyentes": len(influyentes),
+                "Dominios_influyentes": "; ".join(influyentes) if influyentes else "—",
+            }
+        )
+    return pd.DataFrame(filas)
+
+
+def estabilidad_fh(
+    df: pd.DataFrame,
+    columnas: list,
+    y: np.ndarray,
+    psi: np.ndarray,
+    etiquetas_dominio: np.ndarray,
+    alias: dict = None,
+) -> pd.DataFrame:
+    """Cambio en la correlación ponderada al excluir cada dominio y reajustar el FH (G7-B8).
+
+    Por cada dominio se vuelve a ajustar el Fay-Herriot univariado sin él, **reestimando Â**,
+    y se mide el cambio en la correlación ponderada (la pendiente en escala de correlación),
+    de modo que el umbral `UMBRAL_DELTA_LOO` conserva su lectura. Se registra además si la
+    exclusión invierte el signo de β̂1. Recorre los 23 dominios.
+
+    Args:
+        df (pd.DataFrame): Datos con una fila por dominio.
+        columnas (list[str]): Covariables a evaluar.
+        y (np.ndarray): Estimación directa de la respuesta.
+        psi (np.ndarray): Varianza de muestreo de cada dominio (SE²).
+        etiquetas_dominio (np.ndarray): Nombre de cada dominio.
+        alias (dict | None): Mapa columna → alias legible.
+
+    Returns:
+        pd.DataFrame: Mismo formato que `estabilidad_loo()`: `r_completo` (correlación
+            ponderada), `Delta_max`, `Delta_max_abs`, `Dominio_critico` e `Invierte_signo`.
+
+    Example:
+        >>> estabilidad_fh(df_cand, codigos, Y, PSI, entidades, alias)
+    """
+    alias = alias or {}
+    y = np.asarray(y, dtype=float)
+    psi = np.asarray(psi, dtype=float)
+    n = len(y)
+    filas = []
+    for col in columnas:
+        x = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=float)
+        a, beta, _ = _ajuste_fh(x, y, psi)
+        r_completo = correlacion_ponderada(x, y, 1.0 / (a + psi))
+
+        deltas = np.empty(n)
+        signos_invertidos = []
+        for i in range(n):
+            m = np.arange(n) != i
+            a_i, beta_i, _ = _ajuste_fh(x[m], y[m], psi[m])
+            deltas[i] = (
+                correlacion_ponderada(x[m], y[m], 1.0 / (a_i + psi[m])) - r_completo
+            )
+            if np.sign(beta_i[1]) != np.sign(beta[1]):
+                signos_invertidos.append(etiquetas_dominio[i])
+
+        idx_max = int(np.argmax(np.abs(deltas)))
+        filas.append(
+            {
+                "Alias": alias.get(col, col),
+                "Codigo": col,
+                "r_completo": round(r_completo, 3),
+                "Delta_max": round(float(deltas[idx_max]), 3),
+                "Delta_max_abs": round(float(np.abs(deltas).max()), 3),
+                "Dominio_critico": etiquetas_dominio[idx_max],
+                "Invierte_signo": (
+                    ", ".join(signos_invertidos) if signos_invertidos else "—"
+                ),
+            }
+        )
     return pd.DataFrame(filas)
 
 
