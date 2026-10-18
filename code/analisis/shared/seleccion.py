@@ -6,7 +6,8 @@ hay pesos, puntajes compuestos ni criterios de información.
 
     candidatas conceptualmente elegibles (catálogo de literatura)
       → filtro de robustez        (se descarta lo que depende de un solo dominio)
-      → resolución de redundancia (un representante por grupo de covariables equivalentes)
+      → resolución de redundancia (un representante por grupo de covariables equivalentes:
+                                   enlace completo, todos los pares con |r| ≥ umbral)
       → ficha de decisión         (intervalo de la correlación y signo esperado; entre las
                                    elegibles, las de mayor asociación hasta la cota de
                                    parsimonia)
@@ -30,6 +31,8 @@ una covariable fuera.
 
 import numpy as np
 import pandas as pd
+from scipy.cluster.hierarchy import fcluster, linkage
+from scipy.spatial.distance import squareform
 
 from analisis.shared.diagnosticos import vif_conjunto
 
@@ -128,8 +131,12 @@ def resolver_redundancia(
 ) -> tuple:
     """Conserva una sola covariable por grupo de covariables mutuamente redundantes.
 
-    Agrupa las candidatas por componentes conexas del grafo de correlaciones de magnitud
-    mayor o igual que `umbral` y elige un representante por grupo. El desempate es
+    Agrupa las candidatas por enlace completo sobre la distancia ``1 - |r|``, cortando el
+    dendrograma en ``1 - umbral``: dentro de cada grupo **todos** los pares tienen
+    correlación de magnitud mayor o igual que `umbral` (G7-B10). Las componentes conexas
+    del grafo de correlaciones, usadas antes, equivalen al enlace simple y unen por
+    encadenamiento covariables que no son redundantes entre sí: la correlación alta no es
+    transitiva. Luego elige un representante por grupo. El desempate es
     determinista: la asociación menos dependiente de un dominio individual (menor distancia
     de Cook máxima) y, a igualdad, el orden alfabético del código. No usa la magnitud de la
     correlación con la respuesta, de modo que resolver la redundancia no reintroduce
@@ -150,7 +157,7 @@ def resolver_redundancia(
         >>> representantes, reporte = resolver_redundancia(df, codigos, cook, alias)
     """
     alias = alias or {}
-    grupos = _componentes_conexas(df[columnas], umbral)
+    grupos = _grupos_enlace_completo(df[columnas], umbral)
 
     representantes, filas = [], []
     for n_grupo, grupo in enumerate(grupos, 1):
@@ -409,41 +416,48 @@ def ajustar_por_vif(
     return conjunto, tabla_vif, sustituciones
 
 
-def _componentes_conexas(df: pd.DataFrame, umbral: float) -> list:
-    """Componentes conexas del grafo de correlaciones de magnitud alta.
+def _grupos_enlace_completo(df: pd.DataFrame, umbral: float) -> list:
+    """Grupos de covariables en los que todos los pares alcanzan el umbral de correlación.
+
+    Agrupamiento jerárquico aglomerativo con enlace completo sobre la disimilitud
+    ``1 - |r|``. El enlace completo mide la distancia entre dos grupos como la mayor
+    disimilitud entre sus miembros (James et al., 2021, Tabla 12.3, p. 524), de modo que al
+    cortar el dendrograma en ``1 - umbral`` cada grupo cumple ``|r| >= umbral`` en todos sus
+    pares. El enlace simple, equivalente a las componentes conexas que se usaban antes,
+    produce grupos encadenados que crecen uniendo una covariable a la vez (misma página).
 
     Nota:
-        Duplica la lógica de `preprocesamiento.shared.feature_selection.agrupar_por_correlacion`;
-        un cambio en una debe replicarse en la otra.
+        `preprocesamiento.shared.feature_selection.agrupar_por_correlacion` sigue usando
+        componentes conexas, pero solo para reportar duplicados con ``|r| >= 0.999`` en el
+        pre-filtrado, sin descartar covariables; con ese umbral el encadenamiento no
+        cambia los grupos.
 
     Args:
         df (pd.DataFrame): Covariables numéricas.
-        umbral (float): Magnitud mínima de correlación para unir dos covariables.
+        umbral (float): Magnitud mínima de correlación que deben cumplir todos los pares
+            de un grupo.
 
     Returns:
         list[list[str]]: Grupos de códigos, en orden determinista.
+
+    Example:
+        >>> # IDF–ING_TRIB_PC 0.81, ING_TRIB_PC–VA_PC 0.93, IDF–VA_PC 0.73
+        >>> _grupos_enlace_completo(df_fiscal, 0.80)
+        [['ING_TRIB_PC', 'VA_PC'], ['IDF']]
     """
     cols = list(df.columns)
-    corr = df.corr().abs()
-    padre = {c: c for c in cols}
+    if len(cols) < 2:
+        return [cols] if cols else []
 
-    def raiz(c):
-        """Raíz del grupo de `c` (str → str) en la estructura union-find, con compresión de camino."""
-        while padre[c] != c:
-            padre[c] = padre[padre[c]]
-            c = padre[c]
-        return c
-
-    for i, a in enumerate(cols):
-        for b in cols[i + 1 :]:
-            if corr.loc[a, b] >= umbral:
-                ra, rb = raiz(a), raiz(b)
-                if ra != rb:
-                    padre[rb] = ra
+    disimilitud = 1 - df.corr().abs().to_numpy()
+    np.fill_diagonal(disimilitud, 0.0)
+    arbol = linkage(squareform(disimilitud, checks=False), method="complete")
+    # La tolerancia deja dentro del grupo un par con |r| exactamente igual al umbral.
+    etiquetas = fcluster(arbol, t=1 - umbral + 1e-12, criterion="distance")
 
     grupos = {}
-    for c in cols:
-        grupos.setdefault(raiz(c), []).append(c)
+    for c, etiqueta in zip(cols, etiquetas):
+        grupos.setdefault(etiqueta, []).append(c)
 
     return [
         sorted(g)

@@ -212,7 +212,7 @@ conceptuales y los 23 dominios:
 
 1. **Asociación**: Pearson/Spearman con la tasa de desempleo, intervalo de Fisher y signo esperado.
 2. **Robustez**: distancia de Cook (4/n) y exclusión de cada dominio, uno a uno.
-3. **Redundancia**: un representante por grupo de covariables con |r| ≥ 0.80 (el de menor Cook máximo).
+3. **Redundancia**: grupos por enlace completo, en los que todos los pares tienen |r| ≥ 0.80 (G7-B10); un representante por grupo (el de menor Cook máximo).
 4. **Ficha de decisión** (`shared/seleccion.py`): elegible = intervalo sin cero y signo coherente con el
    mecanismo; seleccionadas = las `P_MAXIMO` (4) de mayor |r|.
 5. **Verificación de multicolinealidad** (VIF ≤ `VIF_MAXIMO`): si falla, se sustituye por la siguiente

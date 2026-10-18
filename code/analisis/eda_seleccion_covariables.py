@@ -234,10 +234,14 @@ display(spark.createDataFrame(df_robustez))
 # MAGIC %md
 # MAGIC # 3. Redundancia: un representante por grupo de covariables equivalentes
 # MAGIC
-# MAGIC Los bloques identificados en el análisis multivariado se resuelven aquí. Dentro de
-# MAGIC cada grupo de covariables con correlación de magnitud mayor o igual que
-# MAGIC `UMBRAL_REDUNDANCIA` entra una sola, elegida por un desempate determinista: la
-# MAGIC asociación menos dependiente de un dominio individual (menor distancia de Cook máxima).
+# MAGIC Los bloques identificados en el análisis multivariado se resuelven aquí. Los grupos se
+# MAGIC forman por **enlace completo** sobre la distancia 1 − |r|, de modo que dentro de un grupo
+# MAGIC **todos** los pares tienen correlación de magnitud mayor o igual que
+# MAGIC `UMBRAL_REDUNDANCIA`. No se usan componentes conexas: la correlación alta no es
+# MAGIC transitiva, y dos covariables con |r| < 0,80 terminarían juntas solo por estar
+# MAGIC correlacionadas con una tercera (G7-B10). Dentro de cada grupo entra una sola, elegida
+# MAGIC por un desempate determinista: la asociación menos dependiente de un dominio individual
+# MAGIC (menor distancia de Cook máxima).
 # MAGIC
 # MAGIC El criterio no usa la magnitud de la correlación con la respuesta, de modo que resolver
 # MAGIC la redundancia no reintroduce selección sobre la variable dependiente. Cubrir
