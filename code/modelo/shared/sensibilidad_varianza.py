@@ -319,7 +319,7 @@ def ajustar_escenarios(
             "ij,jk,ik->i", X_municipios, ref.cov_beta, X_municipios
         )
         cv_mun = 100 * np.sqrt(var_beta_mun + ref.A_hat) / np.abs(pred_mun)
-        extrapola = marca_extrapolacion(var_beta_mun, ref)
+        extrapola = marca_extrapolacion(X_municipios, ref)
         confiab = [clasificar_confiabilidad(c) for c in ref.cv]
 
         if base is None:

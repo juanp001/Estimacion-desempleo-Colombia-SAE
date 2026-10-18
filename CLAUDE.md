@@ -214,7 +214,17 @@ modelo/fay_herriot.py
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
     robustez (Cook + reajuste sin el dominio más influyente) del ganador
   → avisos (shared/diagnosticos.py): Â ≈ 0 (γ máx < 0.01), tasas fuera de [0,100]
-    (FUERA_DE_RANGO) y extrapolación sintética (EXTRAPOLA: x'Cov(β̂)x > máximo de la muestra)
+    (FUERA_DE_RANGO) y extrapolación sintética (EXTRAPOLA = ESTADO_EXTRAPOLACION ≠ DENTRO_DEL_RANGO)
+  → extrapolación B20 (celda 10a, shared/extrapolacion.py, cualquier número de covariables; la tasa
+    publicada NO cambia): ESTADO_EXTRAPOLACION = FUERA_DEL_RANGO (alguna covariable fuera del
+    [mín, máx] de los 23 dominios) / COMBINACION_ATIPICA (todas dentro pero x'Cov(β̂)x > máximo de la
+    muestra, Morales p. 441; solo con p ≥ 2) / DENTRO_DEL_RANGO; COVARIABLES_FUERA,
+    COVARIABLE_PRINCIPAL (mayor |β̂_j(x_j − x̃_j)|), RAZON_H, PRED_ACOTADA (x̃'β̂ con x recortado al
+    rango) y APORTE_EXTRAPOLADO_PP (x'β̂ − x̃'β̂). Sensibilidad: acotada + reajuste quitando cada
+    dominio (mín/máx/amplitud y dominio más influyente). Sustento: Benedetti 2024 p. 144, Morales
+    p. 441/453, Molina 2019 PDF 40-41. Tablas fh_rangos_covariables y fh_sensibilidad_extrapolacion;
+    ESTADO_EXTRAPOLACION y APORTE_EXTRAPOLADO_PP también en prediccion_sintetica y la tabla final
+    (entrada de B21)
   → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF; sin
     validación cruzada. La GVF y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py
   → figuras solo en pantalla (sin título y sin guardarse en volúmenes)
@@ -285,7 +295,9 @@ Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (variantes de
 diagnósticos, Cook, tabla de selección y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV
 directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `escenarios_psi`,
 `ajustar_escenarios`, figuras e interpretación), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
-`verificar_benchmark`; funciones puras numpy/pandas con doctests), `consolidacion.py` (tabla final de dos
+`verificar_benchmark`; funciones puras numpy/pandas con doctests), `extrapolacion.py` (B20:
+`rangos_covariables`, `estado_extrapolacion`, `prediccion_acotada`, `sensibilidad_quitar_dominio`,
+figuras e interpretación; doctests con 1 y 2 covariables), `consolidacion.py` (tabla final de dos
 niveles —dominio y municipio— y clasificación de confiabilidad).
 
 ### Flujo de tablas Unity Catalog (resumen end-to-end)

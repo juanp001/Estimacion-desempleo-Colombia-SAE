@@ -38,6 +38,10 @@ TBL_FH_DIAGNOSTICOS_VARIANTES = "tesis.modelo.fh_diagnosticos_variantes"
 TBL_FH_COOK = "tesis.modelo.fh_cook"
 TBL_FH_SELECCION_MODELO = "tesis.modelo.fh_seleccion_modelo"
 TBL_FH_COEFICIENTES = "tesis.modelo.fh_coeficientes"
+# Extrapolación de la predicción sintética (B20, shared/extrapolacion.py): rango de cada
+# covariable en dominios y municipios, y sensibilidad por municipio (acotada y quitar un dominio).
+TBL_FH_RANGOS_COVARIABLES = "tesis.modelo.fh_rangos_covariables"
+TBL_FH_SENSIBILIDAD_EXTRAPOLACION = "tesis.modelo.fh_sensibilidad_extrapolacion"
 # Sensibilidad a la varianza de muestreo ψ_d y GVF (G7-B3, modelo/sensibilidad_varianza.py).
 TBL_SENS_VARIANZA_DIRECTA = "tesis.modelo.sensibilidad_varianza_directa"
 TBL_GVF_AJUSTE = "tesis.modelo.gvf_ajuste"
