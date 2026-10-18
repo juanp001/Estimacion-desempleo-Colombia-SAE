@@ -18,6 +18,7 @@ from matplotlib.lines import Line2D
 from scipy import stats
 
 from shared.config import CV_ACEPTABLE, CV_CONFIABLE
+from shared.extrapolacion import ESTADO_DENTRO, estado_extrapolacion
 from shared.modelo_area_pequena import ModeloAreaPequena
 
 
@@ -328,26 +329,25 @@ def marca_fuera_de_rango(
     return (valores < minimo) | (valores > maximo)
 
 
-def marca_extrapolacion(
-    var_beta_nuevos: np.ndarray, modelo: ModeloAreaPequena
-) -> np.ndarray:
-    """Marca los dominios nuevos cuyas covariables quedan fuera de la nube de la muestra.
+def marca_extrapolacion(X_nuevos: np.ndarray, modelo: ModeloAreaPequena) -> np.ndarray:
+    """Marca los municipios cuya predicción sintética es una extrapolación (B20).
 
-    Compara ``x_d'Cov(β̂)x_d`` de cada dominio sin encuesta (el término de la varianza del
-    predictor sintético, Morales et al., p. 441) con el máximo de esa misma cantidad entre
-    los dominios usados para ajustar el modelo. Si lo supera, la predicción es una
-    extrapolación: el modelo no vio ningún dominio tan alejado del centro de los datos.
+    Usa el criterio de `shared/extrapolacion.estado_extrapolacion`: extrapola si alguna
+    covariable queda fuera del rango [mín, máx] de los dominios de ajuste o si, con todas
+    dentro, ``x_m'Cov(β̂)x_m`` (el término de la varianza del predictor sintético, Morales et
+    al., p. 441) supera el máximo de esa cantidad en los dominios.
 
     Args:
-        var_beta_nuevos (np.ndarray): ``x_d'Cov(β̂)x_d`` de cada dominio sin encuesta,
-            shape (m,).
+        X_nuevos (np.ndarray): Matriz de diseño de los municipios (m, p), con intercepto.
         modelo (ModeloAreaPequena): Modelo ajustado con el que se predijo.
 
     Returns:
-        np.ndarray: Arreglo booleano shape (m,), True si el dominio extrapola.
+        np.ndarray: Arreglo booleano shape (m,), True si el municipio extrapola.
 
     Example:
-        >>> marca_extrapolacion(var_beta, ganador)
+        >>> marca_extrapolacion(X_new, ganador)
     """
-    var_beta_muestra = np.einsum("ij,jk,ik->i", modelo.X, modelo.cov_beta, modelo.X)
-    return np.asarray(var_beta_nuevos) > var_beta_muestra.max()
+    estado = estado_extrapolacion(
+        modelo.X, X_nuevos, modelo.cov_beta, modelo.beta_hat, list(modelo.covars)
+    )
+    return (estado["ESTADO_EXTRAPOLACION"] != ESTADO_DENTRO).to_numpy()

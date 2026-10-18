@@ -307,7 +307,20 @@ EXPR_PESO_POBLACION = " + ".join(
     f"try_cast(`{c}` AS DOUBLE)" for c in COLS_PESO_POBLACION
 )
 
-# Umbrales de calidad de estimación (criterios DANE/CEPAL)
+# ── Umbrales de calidad del CV (G7-B7) ───────────────────────────────────────
+# Regla única del proyecto: confiable si CV < 5 %, aceptable si 5 % ≤ CV < 20 %, no confiable si
+# CV ≥ 20 %. La usan la estimación directa, el EBLUP y la predicción sintética (y deben coincidir
+# con CV_CONFIABLE / CV_ACEPTABLE de modelo/shared/config.py).
+# - 5 %: es la precisión con la que el DANE dimensionó la muestra de la GEIH: error estándar
+#   relativo de la tasa de desempleo no mayor al 5 % para una tasa del 10 %, con el deff de cada
+#   dominio (DANE, Metodología GEIH v9, 2016, PDF 12; meta de precisión en PDF 15 y 18). CV < 5 %
+#   se lee como «alcanza la precisión de diseño de la GEIH».
+# - 20 %: no hay un límite universal, pero varios institutos nacionales de estadística declaran
+#   «no publicable» un dato con CV > 20 % (Molina, 2019, CEPAL, PDF 16-17).
+# Para una tasa del 10 %, un CV del 5 % da un IC95 de ≈ [9,0; 11,0] y uno del 20 % ≈ [6,1; 13,9].
+# No se usa 15 %/30 %: 15 % no tiene respaldo en la bibliografía del proyecto, y el 30 % aparece
+# solo como ejemplo para proporciones pequeñas (ENUSC 2018, PDF 21) o como filtro de entrada con
+# el CV logarítmico, que es otra medida (DANE, nota SAE 2024, PDF 11 y 22: CVLOG ≤ 30).
 CV_CONFIABLE = 5.0  # CV < 5 %   → confiable
 CV_ACEPTABLE = 20.0  # CV < 20 %  → aceptable; >= 20 % → no confiable
 

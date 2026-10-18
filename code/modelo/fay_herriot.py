@@ -23,7 +23,13 @@
 # MAGIC    de Cook se muestran después como diagnósticos del modelo elegido: ganancia de
 # MAGIC    precisión y robustez.
 # MAGIC 4. **Avisos.** Encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y
-# MAGIC    municipios cuya predicción sintética es una extrapolación.
+# MAGIC    municipios cuya predicción sintética es una extrapolación. La celda 10a (B20)
+# MAGIC    documenta la extrapolación: rango de cada covariable en dominios y municipios, qué
+# MAGIC    covariable saca a cada municipio del rango, cuántos puntos de su predicción vienen de
+# MAGIC    fuera y cuánto cambia la predicción con las covariables acotadas al rango o al quitar
+# MAGIC    un dominio. La tasa publicada no cambia (`shared/extrapolacion.py`). La celda 11a
+# MAGIC    (B21) lleva ese estado a la tabla final: `CALIDAD_REPORTADA` dice que el CV de un
+# MAGIC    municipio es condicional al modelo y, si extrapola, lo marca como extrapolado.
 # MAGIC 5. **Municipios objetivo.** Municipios de `municipios_sin_encuesta` (sin estimación
 # MAGIC    directa propia), que reciben la predicción sintética x_m'β̂ del modelo ganador.
 # MAGIC 6. **Benchmarking en dos niveles** (`shared/benchmarking.py`, donde está la sustentación
@@ -112,9 +118,21 @@ from shared.diagnosticos import (
     interpretar_cv,
     aviso_encuesta_sin_peso,
     marca_fuera_de_rango,
-    marca_extrapolacion,
 )
-from shared.consolidacion import construir_tabla_final
+from shared.extrapolacion import (
+    ESTADO_DENTRO,
+    estado_extrapolacion,
+    rangos_covariables,
+    sensibilidad_quitar_dominio,
+    figura_rangos,
+    figura_sensibilidad,
+    interpretar_extrapolacion,
+)
+from shared.consolidacion import (
+    construir_tabla_final,
+    resumen_calidad,
+    interpretar_calidad,
+)
 
 # Cifra oficial del DANE de la ventana de la estimación directa (año reconstruido o trimestre
 # publicado). Se importa por ruta completa porque `shared` aquí es modelo/shared.
@@ -651,9 +669,21 @@ df_pred = df_new[["DOMINIO"] + MUNICIPIO_COLS].copy()
 df_pred["PRED_SINTETICO"] = y_sintetico.round(4)
 df_pred["RMSE_SINTETICO"] = rmse_sintetico.round(4)
 df_pred["CV_SINTETICO_PCT"] = cv_sintetico.round(2)
-# EXTRAPOLA: x_m'Cov(β̂)x_m mayor que el máximo de la muestra de ajuste, es decir, un
-# municipio más alejado del centro de los datos que cualquiera de los que vio el modelo.
-df_pred["EXTRAPOLA"] = marca_extrapolacion(var_beta, modelo_ganador)
+# Extrapolación (B20, shared/extrapolacion.py), con cualquier número de covariables:
+# FUERA_DEL_RANGO si alguna covariable del municipio sale del [mín, máx] de los dominios;
+# COMBINACION_ATIPICA si todas están dentro pero x_m'Cov(β̂)x_m supera el máximo de la muestra
+# (Morales et al., p. 441). Se agregan la covariable responsable, la predicción con las
+# covariables acotadas al rango y la parte de la predicción que viene de fuera (pp).
+estado_ext = estado_extrapolacion(
+    modelo_ganador.X,
+    X_new,
+    modelo_ganador.cov_beta,
+    beta_ganador,
+    covars_ganador,
+)
+for col in estado_ext.columns:
+    df_pred[col] = estado_ext[col].to_numpy()
+df_pred["EXTRAPOLA"] = df_pred["ESTADO_EXTRAPOLACION"] != ESTADO_DENTRO
 df_pred["FUERA_DE_RANGO"] = marca_fuera_de_rango(y_sintetico, TASA_MINIMA, TASA_MAXIMA)
 
 print(
@@ -679,6 +709,88 @@ if df_pred["FUERA_DE_RANGO"].any():
             ].values
         )
     )
+
+# COMMAND ----------
+
+# DBTITLE 1,10a. Extrapolación: rangos, responsables y sensibilidad (B20)
+# β̂ se estimó solo con los dominios con encuesta y se aplica a municipios cuyas covariables
+# pueden quedar fuera del rango que tomaron esos dominios (Benedetti et al., 2024, p. 144: en un
+# área fuera de muestra el estimador es solo X_r β̂). Allí la predicción supone que la recta
+# sigue valiendo donde el modelo no vio datos; el libro advierte que al predecir fuera de muestra
+# se pueden obtener predicciones absurdas (Morales et al., p. 453) y el CV del sintético no mide
+# ese riesgo (Molina, 2019, PDF 40-41). Esta celda lo documenta sin cambiar la tasa publicada:
+#   1. rango de cada covariable en los dominios frente a los municipios;
+#   2. estado de cada municipio, covariable responsable y parte de la predicción que viene de
+#      fuera del rango (calculados en la celda 10);
+#   3. sensibilidad: la predicción con las covariables acotadas al rango y el mín–máx al
+#      reajustar el modelo quitando un dominio cada vez (como la sensibilidad de Cook de la
+#      celda 8, pero para todos los dominios).
+rangos = rangos_covariables(
+    modelo_ganador.X, X_new, covars_ganador, df["NOMBRE_DOMINIO"].values
+)
+display(rangos)
+
+fig = figura_rangos(modelo_ganador.X, X_new, covars_ganador)
+if fig is not None:
+    plt.show()
+
+sens_mun, sens_dom = sensibilidad_quitar_dominio(
+    modelo_ganador, FayHerriotClasico, X_new, df["NOMBRE_DOMINIO"].values
+)
+df_sens = pd.concat(
+    [
+        df_pred[
+            [
+                "PER",
+                "MES",
+                "CODIGO_DEPARTAMENTO",
+                "DEPARTAMENTO",
+                "CODIGO_MUNICIPIO",
+                "MUNICIPIO",
+                "ESTADO_EXTRAPOLACION",
+                "COVARIABLES_FUERA",
+                "COVARIABLE_PRINCIPAL",
+                "RAZON_H",
+                "PRED_SINTETICO",
+                "CV_SINTETICO_PCT",
+                "PRED_ACOTADA",
+                "APORTE_EXTRAPOLADO_PP",
+            ]
+        ].reset_index(drop=True),
+        sens_mun.drop(columns="PRED_BASE"),
+    ],
+    axis=1,
+)
+
+print(
+    "Sensibilidad al quitar cada dominio (de mayor a menor cambio medio de las predicciones):"
+)
+display(sens_dom)
+print("Municipios que extrapolan, de mayor a menor aporte de fuera del rango:")
+display(
+    df_sens[df_sens["ESTADO_EXTRAPOLACION"] != ESTADO_DENTRO].sort_values(
+        "APORTE_EXTRAPOLADO_PP", key=np.abs, ascending=False
+    )
+)
+
+max_directa = float(df[Y_COL].max())
+fig = figura_sensibilidad(df_sens, max_directa)
+if fig is not None:
+    plt.show()
+
+print(interpretar_extrapolacion(rangos, df_sens, sens_dom, max_directa))
+
+spark.createDataFrame(
+    rangos.assign(PER=int(df["PER"].iloc[0]), MES=int(df["MES"].iloc[0]))
+).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
+    TBL_FH_RANGOS_COVARIABLES
+)
+spark.createDataFrame(df_sens).write.mode("overwrite").option(
+    "overwriteSchema", "true"
+).saveAsTable(TBL_FH_SENSIBILIDAD_EXTRAPOLACION)
+print(
+    f"Tablas escritas: {TBL_FH_RANGOS_COVARIABLES}, {TBL_FH_SENSIBILIDAD_EXTRAPOLACION}"
+)
 
 # COMMAND ----------
 
@@ -800,9 +912,14 @@ tabla_municipios = pd.DataFrame(
         "LAMBDA": df_pred["LAMBDA_N2"],
         "CV_PCT": df_pred["CV_SINTETICO_PCT"],
         "TIPO": df_pred["TIPO"],
+        # Estado de extrapolación (B20): entra a la etiqueta CALIDAD_REPORTADA (B21).
+        "ESTADO_EXTRAPOLACION": df_pred["ESTADO_EXTRAPOLACION"],
     }
 )
 
+# CONFIABILIDAD (solo por el CV), BASE_CV y CALIDAD_REPORTADA (B21, shared/consolidacion.py):
+# la etiqueta que se cita es CALIDAD_REPORTADA; en los municipios dice «condicional al modelo»
+# y, si extrapolan, «extrapolado».
 dim_dominio = spark.table(TBL_DIM_DOMINIO).toPandas()
 df_final = construir_tabla_final(
     tabla_dominios,
@@ -811,14 +928,25 @@ df_final = construir_tabla_final(
     spark.table(TBL_DIM_DIVIPOLA).toPandas(),
 )
 
-# Marcas de aviso. Los dominios no extrapolan (están en la muestra de ajuste). Un mismo código
-# puede ser dominio y municipio (76001), así que se une por NIVEL + CODIGO.
+# Marcas de aviso. Los dominios no extrapolan (están en la muestra de ajuste y definen el rango).
+# Un mismo código puede ser dominio y municipio (76001), así que se une por NIVEL + CODIGO.
 marcas = pd.concat(
     [
         resultados_ganador[["CODIGO_DOMINIO", "FUERA_DE_RANGO"]]
         .rename(columns={"CODIGO_DOMINIO": "CODIGO"})
-        .assign(NIVEL="DOMINIO", EXTRAPOLA=False),
-        df_pred[["CODIGO_MUNICIPIO", "FUERA_DE_RANGO", "EXTRAPOLA"]]
+        .assign(
+            NIVEL="DOMINIO",
+            EXTRAPOLA=False,
+            APORTE_EXTRAPOLADO_PP=0.0,
+        ),
+        df_pred[
+            [
+                "CODIGO_MUNICIPIO",
+                "FUERA_DE_RANGO",
+                "EXTRAPOLA",
+                "APORTE_EXTRAPOLADO_PP",
+            ]
+        ]
         .rename(columns={"CODIGO_MUNICIPIO": "CODIGO"})
         .assign(NIVEL="MUNICIPIO"),
     ],
@@ -840,6 +968,47 @@ spark_df_final.write.mode("overwrite").option("overwriteSchema", "true").saveAsT
     TBL_FAY_HERRIOT_ESTIMACIONES_FINALES
 )
 print(f"Tabla escrita: {TBL_FAY_HERRIOT_ESTIMACIONES_FINALES}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 11a. Calidad reportada de los municipios (B21)
+# MAGIC
+# MAGIC **Qué significa el CV de cada nivel.** En un dominio, el CV es el del EBLUP, que combina
+# MAGIC la estimación directa de la encuesta con el modelo. En un municipio, el CV es el del
+# MAGIC sintético x_m'β̂, y su MSE x_m'Cov(β̂)x_m + Â se deriva **suponiendo que el modelo es
+# MAGIC correcto también en ese municipio** (Morales et al., p. 3 y p. 441). Ese CV no incluye la
+# MAGIC incertidumbre por la selección del modelo, por una mala especificación ni por aplicar la
+# MAGIC recta fuera de los datos con que se estimó: el sintético es sesgado si el modelo no se
+# MAGIC cumple, aunque su varianza sea pequeña (Molina, 2019, PDF 37 y 41; Benedetti et al., 2024,
+# MAGIC p. 144).
+# MAGIC
+# MAGIC **Cómo se reporta.** La tabla final conserva `CONFIABILIDAD` (solo por el CV) y agrega
+# MAGIC `BASE_CV` y `CALIDAD_REPORTADA`, que es la que debe citarse:
+# MAGIC
+# MAGIC * dominio → la categoría por CV («Confiable»);
+# MAGIC * municipio dentro del rango → «… · condicional al modelo»;
+# MAGIC * municipio extrapolado (celda 10a) → «… · condicional al modelo · extrapolado».
+# MAGIC
+# MAGIC Así «Aceptable» en un municipio nunca se lee como una validación empírica. La etiqueta sale
+# MAGIC del modelo ganador y de los umbrales de `config.py`: si cambian las covariables, el estado
+# MAGIC de extrapolación y la etiqueta se recalculan solos. La tasa publicada no cambia.
+
+# COMMAND ----------
+
+# DBTITLE 1,11a. Calidad reportada de los municipios (B21)
+# Resumen por estado de extrapolación y categoría por CV: muestra si el CV distingue o no a los
+# municipios extrapolados (CV = RMSE / tasa predicha).
+display(resumen_calidad(df_pred))
+
+print("Etiquetas publicadas en la tabla final (CALIDAD_REPORTADA):")
+display(
+    df_final.groupby(["NIVEL", "BASE_CV", "CALIDAD_REPORTADA"])
+    .size()
+    .rename("N")
+    .reset_index()
+)
+print(interpretar_calidad(df_pred))
 
 # COMMAND ----------
 
