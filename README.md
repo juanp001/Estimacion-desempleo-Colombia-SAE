@@ -212,16 +212,18 @@ conceptuales y los 23 dominios:
 
 1. **Asociación**: Pearson/Spearman con la tasa de desempleo e intervalo de Fisher, como descripción;
    la decisión usa el **Fay-Herriot univariado** de cada covariable, que incorpora la varianza de
-   muestreo ψ_d de cada dominio (G7-B8); signo esperado.
+   muestreo ψ_d de cada dominio (G7-B8). Su correlación ponderada es la única medida que ordena y fija el
+   signo (G7-B13); signo esperado; forma funcional (curvatura y escala logarítmica) como diagnóstico, sin
+   transformar covariables.
 2. **Robustez**: sobre el mismo modelo univariado, distancia de Cook (4/n) y exclusión de cada dominio,
    uno a uno.
 3. **Redundancia**: grupos por enlace completo, en los que todos los pares tienen |r| ≥ 0.80 (G7-B10); un representante por grupo: el primer integrante elegible (intervalo del Fay-Herriot univariado sin cero) en orden de menor Cook máximo, con retroceso (G7-B11).
 4. **Ficha de decisión** (`shared/seleccion.py`): elegible = intervalo de la pendiente del Fay-Herriot
    univariado sin cero; el signo esperado es un
    diagnóstico, no un filtro (G7-B12), y se reporta la selección con y sin las covariables de signo
-   inesperado; seleccionadas = las `P_MAXIMO` (4) de mayor |r|.
+   inesperado; seleccionadas = las `P_MAXIMO` (4) de mayor |r ponderada|.
 5. **Verificación de multicolinealidad** (VIF ≤ `VIF_MAXIMO`): si falla, se sustituye por la siguiente
-   elegible.
+   elegible. Residuos parciales del conjunto elegido (G7-B13).
 
 No hay AIC ni Moran en el EDA (el Fay-Herriot es clásico y la comparación entre especificaciones se hace en
 el modelo). Resultado: `tesis.preprocesamiento.covariables_seleccionadas`, junto con

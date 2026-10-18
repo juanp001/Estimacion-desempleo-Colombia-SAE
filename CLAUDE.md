@@ -194,15 +194,18 @@ analisis/analisis_descriptivo.py   (lee covariables_prefiltradas + tesis.dim.dim
 analisis/eda_seleccion_covariables.py
   → 1 asociación (Pearson/Spearman + IC de Fisher como descripción + signo esperado; decide el
     Fay-Herriot univariado con ψ_d = SE² por covariable, diag.fh_univariado, REML + GLS, G7-B8: IC de
-    Wald de β1; r_interpretable sigue ordenando y fijando el signo)
+    Wald de β1; G7-B13: la misma medida, r ponderada del FH, ordena y fija el signo, y Spearman es solo
+    descripción; forma funcional como diagnóstico, diag.forma_funcional: curvatura x² y log vs x por AIC
+    ML, sin transformar; la ficha advierte «revisar»)
   → 2 robustez (sobre el FH univariado, G7-B8: Cook 4/n con la fórmula de distancia_cook, Â fijo, y
     dejar-uno-fuera reajustando Â sobre la correlación ponderada por 1/(Â+ψ_d)): se descarta solo si
     Cook > 4/n y el cambio dejar-uno-fuera supera UMBRAL_DELTA_LOO (0.10) o invierte el signo
   → 3 redundancia (enlace completo: todos los pares del grupo con |r| ≥ 0.80, G7-B10; representante = primer integrante elegible (IC del FH sin cero) por menor Cook máx, con retroceso, G7-B11)
   → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = IC de β1 del FH sin cero; el signo
       esperado es diagnóstico, no filtro (columna Signo_coherente, G7-B12); seleccionadas = las
-      P_MAXIMO (4) de mayor |r|
-  → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible) y sensibilidad al signo
+      P_MAXIMO (4) de mayor |r ponderada|
+  → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
+      conjunto (diag.figura_residuos_parciales, G7-B13) y sensibilidad al signo
       (selección repetida exigiendo el signo → sensibilidad_signo_covariables)
   → diagnosticos_covariables, robustez_covariables, redundancia_covariables, decision_covariables,
     verificacion_seleccion, trazabilidad_covariables, covariables_candidatas (elegibles),
@@ -263,7 +266,8 @@ modelo/sensibilidad_varianza.py   (G7-B3, fuera de la cadena: no alimenta al mod
 
 Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LITERATURA`,
 `CATALOGO_EXCLUIDAS`, `resolver_catalogo`), `descriptivos.py` (figuras e interpretaciones),
-`diagnosticos.py` (IC de Fisher, FH univariado con ψ_d y su Cook y dejar-uno-fuera (G7-B8), versiones OLS
+`diagnosticos.py` (IC de Fisher, FH univariado con ψ_d y su Cook y dejar-uno-fuera (G7-B8), forma funcional y
+residuos parciales (G7-B13), versiones OLS
 de referencia, VIF, figura de robustez),
 `seleccion.py` (`filtrar_por_robustez`, `resolver_redundancia`, `ficha_decision`, `ajustar_por_vif`),
 `ventana_temporal.py` (sensibilidad G7-B2; re-exporta `etiqueta_ventana`, `cierres_trimestrales` y

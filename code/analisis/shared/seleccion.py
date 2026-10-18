@@ -47,6 +47,10 @@ COLUMNAS_FH = [
     "IC_FH_sup",
     "IC_FH_contiene_cero",
 ]
+# Nombre de la medida única de asociación cuando decide el Fay-Herriot univariado (G7-B13).
+MEDIDA_FH = "r ponderada (FH)"
+# Columnas del diagnóstico de forma funcional que la ficha arrastra (G7-B13).
+COLUMNAS_FORMA = ["p_curvatura", "dAIC_log", "Forma_funcional"]
 
 
 def filtrar_por_robustez(
@@ -154,6 +158,11 @@ def evaluar_elegibilidad(
       la salida como descripción. Sin `fh` se aplica la regla anterior (Fisher), que solo
       sirve para reproducir resultados previos.
 
+    Con `fh`, la medida de asociación (`Medida`, `r_interpretable`) es la **correlación
+    ponderada del mismo modelo** (G7-B13): la pendiente de β1 en escala de correlación. Así
+    el intervalo que decide, el orden de la parsimonia y el signo observado salen de una
+    sola medida. Pearson y Spearman quedan en la tabla bivariada como descripción.
+
     El signo esperado del catálogo es un **diagnóstico de coherencia sustantiva, no un
     filtro** (G7-B12): la columna `Signo_coherente` lo registra, pero no cambia la
     elegibilidad. Una asociación de signo contrario a la literatura puede contener
@@ -187,12 +196,17 @@ def evaluar_elegibilidad(
 
     filas = []
     for codigo in candidatas:
-        medida = biv.loc[codigo, "Medida_interpretable"]
-        r = float(
-            biv.loc[codigo, "Spearman_rho"]
-            if medida == "Spearman"
-            else biv.loc[codigo, "Pearson_r"]
-        )
+        if fh_idx is not None:
+            # Una sola medida (G7-B13): la del modelo que decide la elegibilidad.
+            medida = MEDIDA_FH
+            r = float(fh_idx.loc[codigo, "r_ponderada"])
+        else:
+            medida = biv.loc[codigo, "Medida_interpretable"]
+            r = float(
+                biv.loc[codigo, "Spearman_rho"]
+                if medida == "Spearman"
+                else biv.loc[codigo, "Pearson_r"]
+            )
         esperado = signo_esperado.get(codigo, "±")
         observado = "+" if r > 0 else "-"
         coherente = (
@@ -359,6 +373,7 @@ def ficha_decision(
     p_maximo: int = 4,
     exigir_signo: bool = False,
     fh: pd.DataFrame = None,
+    forma: pd.DataFrame = None,
 ) -> tuple:
     """Construye la ficha de decisión de cada candidata y elige el conjunto final.
 
@@ -379,9 +394,13 @@ def ficha_decision(
        Con `exigir_signo=True` se aplica la regla anterior (signo contrario → ``no
        elegible``), que se usa solo como escenario de sensibilidad.
     5. Entre las ``elegibles`` se seleccionan las `p_maximo` de mayor asociación en valor
-       absoluto, medida con el coeficiente que `tabla_bivariada()` declaró interpretable
-       (Pearson, o Spearman cuando valores extremos condicionan la relación lineal). El
-       resto queda como ``elegible, no seleccionada por parsimonia``.
+       absoluto. Con `fh`, la asociación es la correlación ponderada del Fay-Herriot
+       univariado, la misma medida que decide la elegibilidad (G7-B13); sin `fh`, el
+       coeficiente que `tabla_bivariada()` declaró interpretable. El resto queda como
+       ``elegible, no seleccionada por parsimonia``.
+    6. La forma funcional es un **diagnóstico** (G7-B13): con `forma`, la ficha registra la
+       prueba de curvatura y la comparación con la escala logarítmica, y si una elegible
+       queda en «revisar», su motivo lo advierte. Ninguna covariable se transforma.
 
     Args:
         candidatas (list[str]): Códigos de las candidatas conceptualmente elegibles.
@@ -396,6 +415,7 @@ def ficha_decision(
         exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible
             (escenario de sensibilidad de G7-B12).
         fh (pd.DataFrame | None): Salida de `diagnosticos.fh_univariado()` (G7-B8).
+        forma (pd.DataFrame | None): Salida de `diagnosticos.forma_funcional()` (G7-B13).
 
     Returns:
         tuple[list, pd.DataFrame]: (seleccionadas, ficha). `seleccionadas` conserva el orden
@@ -418,6 +438,7 @@ def ficha_decision(
         candidatas, bivariado, ic, signo_esperado, exigir_signo=exigir_signo, fh=fh
     ).set_index("Codigo")
     columnas_fh = [c for c in COLUMNAS_FH if c in eleg.columns]
+    forma_idx = forma.set_index("Codigo") if forma is not None else None
 
     filas = []
     for codigo in candidatas:
@@ -448,6 +469,11 @@ def ficha_decision(
                 "IC_sup": e["IC_sup"],
                 "IC_contiene_cero": e["IC_contiene_cero"],
                 **{c: e[c] for c in columnas_fh},
+                **(
+                    {c: forma_idx.loc[codigo, c] for c in COLUMNAS_FORMA}
+                    if forma_idx is not None
+                    else {}
+                ),
                 "Robustez": rob.loc[codigo, "Decision"],
                 "Redundancia": (
                     "representante"
@@ -483,6 +509,12 @@ def ficha_decision(
             ficha.loc[idx, "Motivo"] = (
                 f"elegible; puesto {i + 1} de {len(elegibles)} por asociación "
                 f"(|{fila['Medida']}| = {fila['abs_r']:.2f}), fuera de la cota de {p_maximo} covariables"
+            )
+        if forma_idx is not None and fila["Forma_funcional"] == "revisar":
+            ficha.loc[idx, "Motivo"] += (
+                f"; forma funcional a revisar (curvatura p = {fila['p_curvatura']:.3f}, "
+                f"ΔAIC con log = {fila['dAIC_log']:.2f}) antes de fijar el predictor "
+                "lineal (G7-B13)"
             )
         if fila["Signo_coherente"] == "no":
             ficha.loc[idx, "Motivo"] += (

@@ -26,6 +26,7 @@
 # MAGIC | Modelo Fay-Herriot univariado por covariable | **Se hace** | La respuesta tiene error de muestreo de varianza ψ_d distinta en cada dominio; el modelo la incorpora y la correlación no (G7-B8). Su intervalo para la pendiente decide la elegibilidad; Pearson, Spearman y Fisher quedan como descripción. |
 # MAGIC | Influencia y estabilidad | **Se hace** | Distancia de Cook y exclusión de dominios, sobre el mismo Fay-Herriot univariado, como dos evidencias de un único criterio de robustez. |
 # MAGIC | Redundancia | **Se hace** | Un representante por grupo de covariables equivalentes. |
+# MAGIC | Forma funcional | **Se hace** | Curvatura y escala logarítmica en el Fay-Herriot univariado, y residuos parciales del conjunto elegido (G7-B13). Es un diagnóstico: ninguna covariable se transforma, y la ficha advierte las que conviene revisar. |
 # MAGIC | Ficha de decisión | **Se hace** | Reúne por covariable la evidencia descriptiva (signo esperado y observado, intervalo de la correlación), el Fay-Herriot univariado y los diagnósticos, y aplica reglas explícitas. |
 # MAGIC
 # MAGIC ## Procedimiento de selección
@@ -33,14 +34,16 @@
 # MAGIC ```
 # MAGIC candidatas conceptualmente elegibles (catálogo de literatura)
 # MAGIC   → 1. asociación:   correlación con la respuesta y su intervalo (descripción), Fay-Herriot
-# MAGIC                       univariado con ψ_d (decisión) y signo esperado
+# MAGIC                       univariado con ψ_d (decisión y medida única), signo esperado y forma
+# MAGIC                       funcional
 # MAGIC   → 2. robustez:     se descarta lo que depende de un solo dominio (en el Fay-Herriot univariado)
 # MAGIC   → 3. redundancia:  un representante por grupo de covariables equivalentes (el primer
 # MAGIC                       integrante elegible por orden de Cook: retroceso)
 # MAGIC   → 4. decisión:     elegibles = pendiente del FH univariado con intervalo sin cero (el signo
 # MAGIC                       esperado es diagnóstico);
-# MAGIC                       seleccionadas = las de mayor asociación hasta la cota de parsimonia
-# MAGIC   → 5. verificación: multicolinealidad del conjunto elegido
+# MAGIC                       seleccionadas = las de mayor correlación ponderada hasta la cota de
+# MAGIC                       parsimonia
+# MAGIC   → 5. verificación: multicolinealidad y residuos parciales del conjunto elegido
 # MAGIC ```
 # MAGIC
 # MAGIC ## Salidas
@@ -127,9 +130,8 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # MAGIC %md
 # MAGIC # 1. Asociación con la respuesta y su incertidumbre
 # MAGIC
-# MAGIC Se retoma la tabla bivariada del análisis descriptivo (Pearson, Spearman y cuál de los
-# MAGIC dos es interpretable para cada covariable) y se le añade el **intervalo de confianza de
-# MAGIC Fisher** del coeficiente de Pearson. Con 23 dominios el error estándar de una
+# MAGIC Se retoma la tabla bivariada del análisis descriptivo (Pearson y Spearman) y se le añade
+# MAGIC el **intervalo de confianza de Fisher** del coeficiente de Pearson. Con 23 dominios el error estándar de una
 # MAGIC correlación es grande, y un valor puntual comunica más certeza de la que hay.
 # MAGIC
 # MAGIC **La decisión se toma con el modelo, no con la correlación (G7-B8).** La respuesta es
@@ -143,6 +145,21 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # MAGIC descripción. La columna `r_ponderada` expresa la pendiente del modelo en escala de
 # MAGIC correlación y `Razon_pesos` (peso máximo / peso mínimo) muestra cuánto se aparta el
 # MAGIC ajuste de uno con pesos iguales.
+# MAGIC
+# MAGIC **Una sola medida (G7-B13).** La misma correlación ponderada es la que ordena las
+# MAGIC elegibles en la parsimonia y fija el signo observado. Antes el orden usaba Spearman cuando
+# MAGIC valores extremos condicionaban a Pearson, mientras el intervalo que decidía era de Pearson
+# MAGIC y la covariable entraba sin transformar a un modelo lineal: tres medidas para una sola
+# MAGIC decisión. Spearman queda como descripción de la asociación monótona.
+# MAGIC
+# MAGIC **Forma funcional (G7-B13).** Antes de fijar el predictor lineal se examina, en el mismo
+# MAGIC modelo univariado, si la relación tiene **curvatura** (prueba de Wald del término
+# MAGIC cuadrático de la covariable estandarizada) y si la **escala logarítmica** la describe
+# MAGIC mejor (AIC con log(x) frente a x, cuando x es positiva). Es un diagnóstico: ninguna
+# MAGIC covariable se transforma de forma automática, porque elegir la escala mirando la
+# MAGIC respuesta sería otra selección sobre los mismos 23 dominios, y una transformación tendría
+# MAGIC que aplicarse también a los municipios objetivo en el notebook del modelo. Si una
+# MAGIC covariable elegible queda en «revisar», la ficha lo advierte.
 # MAGIC
 # MAGIC No se reportan p-valores. Se evalúan varias covariables sin corrección por
 # MAGIC multiplicidad y su interpretación nominal no sería válida; el intervalo comunica la
@@ -188,6 +205,21 @@ print(
     f"a {df_fh['Razon_pesos'].max():.3f} según la covariable "
     f"(ψ_d entre {PSI.min():.3f} y {PSI.max():.3f}; Â entre {df_fh['A_hat_FH'].min():.2f} "
     f"y {df_fh['A_hat_FH'].max():.2f})."
+)
+
+# COMMAND ----------
+
+# DBTITLE 1,Forma funcional en el Fay-Herriot univariado
+# Curvatura y escala logarítmica (G7-B13): diagnóstico, no transformación.
+df_forma = diag.forma_funcional(
+    df_cand, CANDIDATAS, Y, PSI, alias=ALIAS, alfa=ALFA_IC_CORRELACION
+)
+display(spark.createDataFrame(df_forma))
+
+a_revisar = df_forma.loc[df_forma["Forma_funcional"] == "revisar", "Alias"].tolist()
+print(
+    f"Forma lineal adecuada en {len(CANDIDATAS) - len(a_revisar)} de {len(CANDIDATAS)} "
+    f"candidatas; a revisar: {', '.join(a_revisar) if a_revisar else 'ninguna'}."
 )
 
 # COMMAND ----------
@@ -324,9 +356,12 @@ display(spark.createDataFrame(df_redundancia))
 # MAGIC 4. signo observado contrario al mecanismo del catálogo → **se conserva** y su motivo
 # MAGIC    lo advierte: el signo es un diagnóstico que se interpreta en el documento, no un
 # MAGIC    filtro (G7-B12);
-# MAGIC 5. entre las **elegibles**, se seleccionan las `P_MAXIMO` de mayor asociación en
-# MAGIC    valor absoluto. La cota proviene de la parsimonia del proyecto: con 23 dominios el
-# MAGIC    modelo admite del orden de cuatro covariables más el intercepto.
+# MAGIC 5. entre las **elegibles**, se seleccionan las `P_MAXIMO` de mayor correlación
+# MAGIC    ponderada del Fay-Herriot univariado en valor absoluto, la misma medida que decide la
+# MAGIC    elegibilidad (G7-B13). La cota proviene de la parsimonia del proyecto: con 23 dominios
+# MAGIC    el modelo admite del orden de cuatro covariables más el intercepto;
+# MAGIC 6. forma funcional a revisar → **se conserva** y su motivo lo advierte: la covariable
+# MAGIC    entra en su escala original y la advertencia se resuelve en el documento (G7-B13).
 # MAGIC
 # MAGIC Las elegibles que quedan fuera por la cota no son inservibles: son candidatas
 # MAGIC legítimas si el número de dominios con encuesta aumenta, y se conservan en la tabla de
@@ -346,6 +381,7 @@ SELECCIONADAS, df_ficha = sel.ficha_decision(
     dimension=DIMENSION,
     p_maximo=P_MAXIMO,
     fh=df_fh,
+    forma=df_forma,
 )
 display(spark.createDataFrame(df_ficha))
 
@@ -440,6 +476,7 @@ seleccionadas_signo, df_ficha_signo = sel.ficha_decision(
     p_maximo=P_MAXIMO,
     exigir_signo=True,
     fh=df_fh,
+    forma=df_forma,
 )
 seleccionadas_signo, _, _ = sel.ajustar_por_vif(
     df_cand,
@@ -473,6 +510,23 @@ fig, _ = desc.figura_correlacion_agrupada(
     titulo="Correlación entre las covariables seleccionadas",
 )
 desc.guardar_figura(fig, "eda_correlacion_finales", VOLUMEN_FIGURAS)
+display(fig)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Residuos parciales (G7-B13).** Cada panel muestra, para una covariable seleccionada,
+# MAGIC la parte de la tasa que queda tras descontar las demás covariables en el Fay-Herriot con
+# MAGIC todo el conjunto. La línea discontinua es la recta del modelo y la roja una curva
+# MAGIC suavizada (lowess). Si la forma lineal es adecuada, ambas siguen la misma tendencia; una
+# MAGIC curva que se aparta de la recta de forma sistemática, y no solo por uno o dos dominios,
+# MAGIC indicaría que el predictor lineal no recoge la relación.
+
+# COMMAND ----------
+
+# DBTITLE 1,Figura: residuos parciales del conjunto seleccionado
+fig = diag.figura_residuos_parciales(df_cand, SELECCIONADAS, Y, PSI, alias=ALIAS)
+desc.guardar_figura(fig, "eda_residuos_parciales", VOLUMEN_FIGURAS)
 display(fig)
 
 # COMMAND ----------
@@ -546,6 +600,7 @@ display(spark.createDataFrame(df_trazabilidad))
 # DBTITLE 1,Escritura de las tablas de diagnóstico y trazabilidad
 df_diagnosticos = (
     df_ic.merge(df_fh.drop(columns=["Alias"]), on="Codigo")
+    .merge(df_forma.drop(columns=["Alias"]), on="Codigo")
     .merge(df_influencia.drop(columns=["Alias"]), on="Codigo")
     .merge(df_estabilidad.drop(columns=["Alias"]), on="Codigo")
 )

@@ -13,6 +13,9 @@ este módulo produce evidencia destinada a una decisión concreta:
   asociación depende de un único dominio. `influencia_por_covariable()` y
   `estabilidad_loo()` son sus versiones por mínimos cuadrados ordinarios, sin ψ_d, que se
   conservan como referencia.
+* `forma_funcional()` y `figura_residuos_parciales()` examinan si la forma lineal es
+  adecuada antes de fijar el predictor (G7-B13): curvatura, escala logarítmica y residuos
+  parciales del conjunto elegido. Son diagnósticos; no transforman covariables.
 * `vif_conjunto()` verifica que el conjunto finalmente elegido no presente
   multicolinealidad.
 
@@ -243,12 +246,6 @@ def estabilidad_loo(
 def _ajuste_fh(x: np.ndarray, y: np.ndarray, psi: np.ndarray) -> tuple:
     """Fay-Herriot univariado: A por REML y (β0, β1) por mínimos cuadrados generalizados.
 
-    Es la misma formulación de `modelo/shared/fay_herriot.FayHerriotClasico` (log-verosimilitud
-    REML optimizada en escala logarítmica en ``[1e-6, 10·Var(y)]``, β̂ = (X'V⁻¹X)⁻¹X'V⁻¹y con
-    ``V = diag(A + ψ_d)``), reescrita aquí para que el análisis no dependa del paquete del
-    modelo. Con los datos del proyecto ambas coinciden: β̂ hasta 1e-11 y Â hasta 5e-5,
-    la tolerancia del optimizador acotado.
-
     Args:
         x (np.ndarray): Covariable, shape (n,).
         y (np.ndarray): Estimación directa, shape (n,).
@@ -257,7 +254,26 @@ def _ajuste_fh(x: np.ndarray, y: np.ndarray, psi: np.ndarray) -> tuple:
     Returns:
         tuple: (A, beta, cov_beta). `beta` tiene shape (2,) y `cov_beta` shape (2, 2).
     """
-    X = np.column_stack([np.ones_like(x), x])
+    return _ajuste_fh_matriz(np.column_stack([np.ones_like(x), x]), y, psi)
+
+
+def _ajuste_fh_matriz(X: np.ndarray, y: np.ndarray, psi: np.ndarray) -> tuple:
+    """Fay-Herriot con matriz de diseño `X`: A por REML y β por mínimos cuadrados generalizados.
+
+    Es la misma formulación de `modelo/shared/fay_herriot.FayHerriotClasico` (log-verosimilitud
+    REML optimizada en escala logarítmica en ``[1e-6, 10·Var(y)]``, β̂ = (X'V⁻¹X)⁻¹X'V⁻¹y con
+    ``V = diag(A + ψ_d)``), reescrita aquí para que el análisis no dependa del paquete del
+    modelo. Con los datos del proyecto ambas coinciden: β̂ hasta 1e-11 y Â hasta 5e-5,
+    la tolerancia del optimizador acotado.
+
+    Args:
+        X (np.ndarray): Matriz de diseño con el intercepto, shape (n, p).
+        y (np.ndarray): Estimación directa, shape (n,).
+        psi (np.ndarray): Varianza de muestreo de cada dominio, shape (n,).
+
+    Returns:
+        tuple: (A, beta, cov_beta). `beta` tiene shape (p,) y `cov_beta` shape (p, p).
+    """
 
     def menos_reml(log_a):
         vi = 1.0 / (psi + np.exp(log_a))
@@ -273,6 +289,35 @@ def _ajuste_fh(x: np.ndarray, y: np.ndarray, psi: np.ndarray) -> tuple:
     xtvi = X.T / (psi + a)
     cov_beta = np.linalg.inv(xtvi @ X)
     return a, cov_beta @ (xtvi @ y), cov_beta
+
+
+def _loglik_ml(X: np.ndarray, y: np.ndarray, psi: np.ndarray) -> float:
+    """Log-verosimilitud ML maximizada del Fay-Herriot con matriz de diseño `X`.
+
+    Es la verosimilitud con la que el notebook del modelo calcula el AIC (A reoptimizado por
+    ML, no por REML), de modo que dos especificaciones con distinta X son comparables.
+
+    Args:
+        X (np.ndarray): Matriz de diseño con el intercepto, shape (n, p).
+        y (np.ndarray): Estimación directa, shape (n,).
+        psi (np.ndarray): Varianza de muestreo de cada dominio, shape (n,).
+
+    Returns:
+        float: Log-verosimilitud ML en su máximo.
+    """
+
+    def menos_ml(log_a):
+        v = psi + np.exp(log_a)
+        xtvi = X.T / v
+        residuo = y - X @ np.linalg.solve(xtvi @ X, xtvi @ y)
+        return 0.5 * (
+            len(y) * np.log(2 * np.pi) + np.sum(np.log(v)) + np.sum(residuo**2 / v)
+        )
+
+    res = minimize_scalar(
+        menos_ml, bounds=(np.log(1e-6), np.log(np.var(y) * 10)), method="bounded"
+    )
+    return float(-res.fun)
 
 
 def correlacion_ponderada(x: np.ndarray, y: np.ndarray, pesos: np.ndarray) -> float:
@@ -491,6 +536,152 @@ def estabilidad_fh(
             }
         )
     return pd.DataFrame(filas)
+
+
+def forma_funcional(
+    df: pd.DataFrame,
+    columnas: list,
+    y: np.ndarray,
+    psi: np.ndarray,
+    alias: dict = None,
+    alfa: float = 0.05,
+    delta_aic: float = 2.0,
+) -> pd.DataFrame:
+    """Examina si la forma lineal es adecuada para cada covariable (G7-B13).
+
+    Dos contrastes sobre el Fay-Herriot univariado con ψ_d, el mismo modelo que decide la
+    elegibilidad (G7-B8):
+
+    * **Curvatura**: se agrega el término cuadrático de la covariable estandarizada y se
+      contrasta su coeficiente con la prueba de Wald al nivel `alfa`.
+    * **Escala logarítmica**: si la covariable es estrictamente positiva, se compara el AIC
+      (verosimilitud ML) del modelo con ``log(x)`` frente al modelo con ``x``. Ambos tienen el
+      mismo número de parámetros, de modo que la diferencia de AIC es la de verosimilitudes.
+
+    El resultado es un **diagnóstico, no una transformación automática**: la covariable
+    entra al modelo en su escala original. Si el contraste encuentra curvatura o un AIC
+    menor en al menos `delta_aic` con el logaritmo, la ficha de decisión lo advierte para
+    que se revise antes de fijar el predictor lineal. Transformar una covariable exigiría
+    aplicar la misma transformación a los municipios objetivo en el notebook del modelo.
+
+    Args:
+        df (pd.DataFrame): Datos con una fila por dominio.
+        columnas (list[str]): Covariables a evaluar.
+        y (np.ndarray): Estimación directa de la respuesta.
+        psi (np.ndarray): Varianza de muestreo de cada dominio (SE²).
+        alias (dict | None): Mapa columna → alias legible.
+        alfa (float): Nivel de la prueba de curvatura.
+        delta_aic (float): Mejora mínima de AIC con el logaritmo para advertirla.
+
+    Returns:
+        pd.DataFrame: Una fila por covariable con `p_curvatura`, `Curvatura` (`"sí"`/`"no"`),
+            `dAIC_log` (AIC con log menos AIC lineal; vacío si x no es positiva),
+            `Log_mejora` (`"sí"`/`"no"`/`"—"`) y `Forma_funcional` (`"lineal adecuada"` o
+            `"revisar"`).
+
+    Example:
+        >>> forma_funcional(df_cand, codigos, Y, PSI, alias)
+    """
+    alias = alias or {}
+    y = np.asarray(y, dtype=float)
+    psi = np.asarray(psi, dtype=float)
+    uno = np.ones_like(y)
+    filas = []
+    for col in columnas:
+        x = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=float)
+        z = (x - x.mean()) / x.std()
+        _, beta, cov_beta = _ajuste_fh_matriz(np.column_stack([uno, z, z**2]), y, psi)
+        p_curva = float(2 * stats.norm.sf(abs(beta[2] / np.sqrt(cov_beta[2, 2]))))
+        curvatura = p_curva < alfa
+        if x.min() > 0:
+            ll_lineal = _loglik_ml(np.column_stack([uno, x]), y, psi)
+            ll_log = _loglik_ml(np.column_stack([uno, np.log(x)]), y, psi)
+            d_aic = -2 * (ll_log - ll_lineal)
+            log_mejora = "sí" if d_aic <= -delta_aic else "no"
+        else:
+            d_aic, log_mejora = np.nan, "—"
+        filas.append(
+            {
+                "Alias": alias.get(col, col),
+                "Codigo": col,
+                "p_curvatura": round(p_curva, 4),
+                "Curvatura": "sí" if curvatura else "no",
+                "dAIC_log": round(d_aic, 3) if not np.isnan(d_aic) else np.nan,
+                "Log_mejora": log_mejora,
+                "Forma_funcional": (
+                    "revisar" if curvatura or log_mejora == "sí" else "lineal adecuada"
+                ),
+            }
+        )
+    return pd.DataFrame(filas)
+
+
+def figura_residuos_parciales(
+    df: pd.DataFrame,
+    columnas: list,
+    y: np.ndarray,
+    psi: np.ndarray,
+    alias: dict = None,
+):
+    """Residuos parciales de cada covariable en el Fay-Herriot con todo el conjunto (G7-B13).
+
+    Para la covariable ``j`` el residuo parcial es ``θ̂_d - x_d'β̂ + β̂_j·x_dj``: la parte de la
+    respuesta que queda tras descontar las demás covariables. Si la forma lineal es adecuada,
+    los puntos siguen la recta de pendiente ``β̂_j``; una curva suavizada (lowess) que se
+    aparta de ella de forma sistemática indica que el predictor lineal no recoge la relación.
+
+    Args:
+        df (pd.DataFrame): Datos con una fila por dominio.
+        columnas (list[str]): Covariables del conjunto (normalmente las seleccionadas).
+        y (np.ndarray): Estimación directa de la respuesta.
+        psi (np.ndarray): Varianza de muestreo de cada dominio (SE²).
+        alias (dict | None): Mapa columna → alias legible.
+
+    Returns:
+        matplotlib.figure.Figure: Un panel por covariable.
+
+    Example:
+        >>> fig = figura_residuos_parciales(df_cand, SELECCIONADAS, Y, PSI, ALIAS)
+    """
+    import matplotlib.pyplot as plt
+    from statsmodels.nonparametric.smoothers_lowess import lowess
+
+    alias = alias or {}
+    y = np.asarray(y, dtype=float)
+    psi = np.asarray(psi, dtype=float)
+    Xc = np.column_stack(
+        [pd.to_numeric(df[c], errors="coerce").to_numpy(dtype=float) for c in columnas]
+    )
+    X = np.column_stack([np.ones_like(y), Xc])
+    _, beta, _ = _ajuste_fh_matriz(X, y, psi)
+    residuo = y - X @ beta
+
+    fig, ejes = plt.subplots(
+        1, len(columnas), figsize=(4.2 * len(columnas), 3.8), squeeze=False
+    )
+    for j, (col, ax) in enumerate(zip(columnas, ejes[0])):
+        x = Xc[:, j]
+        parcial = residuo + beta[j + 1] * x
+        ax.scatter(x, parcial, s=30, color="steelblue", edgecolors="white", zorder=3)
+        orden = np.argsort(x)
+        ax.plot(
+            x[orden],
+            beta[j + 1] * x[orden] + (parcial - beta[j + 1] * x).mean(),
+            color="dimgray",
+            linestyle="--",
+            linewidth=1.2,
+            label="Recta del modelo",
+        )
+        suave = lowess(parcial, x, frac=0.8)
+        ax.plot(
+            suave[:, 0], suave[:, 1], color="firebrick", linewidth=1.4, label="Lowess"
+        )
+        ax.set_xlabel(alias.get(col, col), fontsize=9)
+        ax.set_ylabel("Residuo parcial", fontsize=9)
+        ax.tick_params(labelsize=8)
+    ejes[0][0].legend(fontsize=8, loc="best")
+    plt.tight_layout()
+    return fig
 
 
 def vif_conjunto(df: pd.DataFrame, columnas: list, alias: dict = None) -> pd.DataFrame:
