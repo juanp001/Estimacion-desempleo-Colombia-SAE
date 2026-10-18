@@ -33,7 +33,8 @@
 # MAGIC candidatas conceptualmente elegibles (catálogo de literatura)
 # MAGIC   → 1. asociación:   correlación con la respuesta, su intervalo y el signo esperado
 # MAGIC   → 2. robustez:     se descarta lo que depende de un solo dominio
-# MAGIC   → 3. redundancia:  un representante por grupo de covariables equivalentes
+# MAGIC   → 3. redundancia:  un representante por grupo de covariables equivalentes (el primer
+# MAGIC                       integrante elegible por orden de Cook: retroceso)
 # MAGIC   → 4. decisión:     elegibles = intervalo sin cero y signo coherente con el mecanismo;
 # MAGIC                       seleccionadas = las de mayor asociación hasta la cota de parsimonia
 # MAGIC   → 5. verificación: multicolinealidad del conjunto elegido
@@ -239,19 +240,27 @@ display(spark.createDataFrame(df_robustez))
 # MAGIC **todos** los pares tienen correlación de magnitud mayor o igual que
 # MAGIC `UMBRAL_REDUNDANCIA`. No se usan componentes conexas: la correlación alta no es
 # MAGIC transitiva, y dos covariables con |r| < 0,80 terminarían juntas solo por estar
-# MAGIC correlacionadas con una tercera (G7-B10). Dentro de cada grupo entra una sola, elegida
-# MAGIC por un desempate determinista: la asociación menos dependiente de un dominio individual
-# MAGIC (menor distancia de Cook máxima).
+# MAGIC correlacionadas con una tercera (G7-B10). Dentro de cada grupo entra una sola.
 # MAGIC
-# MAGIC El criterio no usa la magnitud de la correlación con la respuesta, de modo que resolver
-# MAGIC la redundancia no reintroduce selección sobre la variable dependiente. Cubrir
-# MAGIC dimensiones distintas no es una regla impuesta: es la consecuencia natural de no admitir
-# MAGIC dos covariables que midan lo mismo.
+# MAGIC **Representante con retroceso (G7-B11).** Los integrantes se ordenan por la asociación
+# MAGIC menos dependiente de un dominio individual (menor distancia de Cook máxima) y entra el
+# MAGIC **primero que cumple las reglas de elegibilidad** de la ficha de decisión (intervalo sin
+# MAGIC cero y signo coherente). Si el de menor Cook no es elegible se pasa al siguiente, en
+# MAGIC lugar de dejarlo como representante y perder después toda la dimensión. Si ninguno es
+# MAGIC elegible, queda el de menor Cook y la ficha lo declara no elegible.
+# MAGIC
+# MAGIC El orden no usa la magnitud de la correlación con la respuesta. El retroceso consulta
+# MAGIC las mismas reglas que la ficha aplicaría de todos modos, de modo que no añade ningún
+# MAGIC criterio sobre la variable dependiente: solo evita que el orden de los pasos elimine una
+# MAGIC dimensión. Cubrir dimensiones distintas no es una regla impuesta: es la consecuencia
+# MAGIC natural de no admitir dos covariables que midan lo mismo.
 
 # COMMAND ----------
 
 # DBTITLE 1,Resolución de redundancia sobre las covariables robustas
 cook_por_codigo = df_influencia.set_index("Codigo")["Cook_max"].to_dict()
+# Reglas de elegibilidad de la ficha (intervalo y signo), para el retroceso (G7-B11).
+df_elegibilidad = sel.evaluar_elegibilidad(CANDIDATAS, bivariado, df_ic, SIGNO)
 
 robustas, df_redundancia = sel.resolver_redundancia(
     df_cand,
@@ -259,6 +268,7 @@ robustas, df_redundancia = sel.resolver_redundancia(
     influencia=cook_por_codigo,
     alias=ALIAS,
     umbral=UMBRAL_REDUNDANCIA,
+    elegibilidad=df_elegibilidad,
 )
 display(spark.createDataFrame(df_redundancia))
 
@@ -272,7 +282,8 @@ display(spark.createDataFrame(df_redundancia))
 # MAGIC redundancia. Sobre ella se aplican, en orden, reglas explícitas:
 # MAGIC
 # MAGIC 1. descartada por robustez → fuera;
-# MAGIC 2. redundante con otra (no representante de su grupo) → fuera;
+# MAGIC 2. redundante con otra (no representante de su grupo) → fuera; con el retroceso del
+# MAGIC    paso 3 el representante ya es el primer integrante elegible del grupo;
 # MAGIC 3. intervalo de la correlación que contiene el cero → **no elegible**: la evidencia
 # MAGIC    no determina el signo de la asociación;
 # MAGIC 4. signo observado contrario al mecanismo del catálogo → **no elegible**: la

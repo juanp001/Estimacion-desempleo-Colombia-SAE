@@ -7,7 +7,9 @@ hay pesos, puntajes compuestos ni criterios de información.
     candidatas conceptualmente elegibles (catálogo de literatura)
       → filtro de robustez        (se descarta lo que depende de un solo dominio)
       → resolución de redundancia (un representante por grupo de covariables equivalentes:
-                                   enlace completo, todos los pares con |r| ≥ umbral)
+                                   enlace completo, todos los pares con |r| ≥ umbral; el
+                                   representante es el primer integrante elegible por
+                                   orden de Cook, con retroceso)
       → ficha de decisión         (intervalo de la correlación y signo esperado; entre las
                                    elegibles, las de mayor asociación hasta la cota de
                                    parsimonia)
@@ -122,12 +124,84 @@ def filtrar_por_robustez(
     return robustas, pd.DataFrame(filas)
 
 
+def evaluar_elegibilidad(
+    candidatas: list,
+    bivariado: pd.DataFrame,
+    ic: pd.DataFrame,
+    signo_esperado: dict,
+) -> pd.DataFrame:
+    """Aplica a cada candidata las reglas de elegibilidad de la ficha de decisión.
+
+    Son las reglas 3 y 4 de `ficha_decision()`, separadas para que la resolución de
+    redundancia pueda consultarlas al elegir representante (G7-B11) sin duplicar la lógica:
+
+    * el intervalo de Fisher de la correlación contiene el cero → no elegible;
+    * el signo observado contradice el del catálogo (cuando este fija una dirección) → no
+      elegible.
+
+    Args:
+        candidatas (list[str]): Códigos a evaluar.
+        bivariado (pd.DataFrame): Salida de `descriptivos.tabla_bivariada()`.
+        ic (pd.DataFrame): Salida de `diagnosticos.tabla_ic_correlacion()`.
+        signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
+
+    Returns:
+        pd.DataFrame: Una fila por candidata con `Codigo`, `Medida`, `r_interpretable`,
+            `Signo_esperado`, `Signo_observado`, `IC_inf`, `IC_sup`, `IC_contiene_cero`,
+            `Elegible` (`"sí"`/`"no"`) y `Motivo` (vacío si es elegible).
+
+    Example:
+        >>> evaluar_elegibilidad(CANDIDATAS, bivariado, df_ic, SIGNO)
+    """
+    biv = bivariado.set_index("Codigo")
+    ic_idx = ic.set_index("Codigo")
+
+    filas = []
+    for codigo in candidatas:
+        medida = biv.loc[codigo, "Medida_interpretable"]
+        r = float(
+            biv.loc[codigo, "Spearman_rho"]
+            if medida == "Spearman"
+            else biv.loc[codigo, "Pearson_r"]
+        )
+        esperado = signo_esperado.get(codigo, "±")
+        observado = "+" if r > 0 else "-"
+        contiene_cero = ic_idx.loc[codigo, "IC_contiene_cero"] == "sí"
+
+        if contiene_cero:
+            motivo = (
+                f"el intervalo de la correlación [{ic_idx.loc[codigo, 'IC_inf']:.2f}, "
+                f"{ic_idx.loc[codigo, 'IC_sup']:.2f}] contiene el cero"
+            )
+        elif esperado != "±" and observado != esperado:
+            motivo = f"signo observado ({observado}) contrario al esperado por el mecanismo ({esperado})"
+        else:
+            motivo = ""
+
+        filas.append(
+            {
+                "Codigo": codigo,
+                "Medida": medida,
+                "r_interpretable": round(r, 3),
+                "Signo_esperado": esperado,
+                "Signo_observado": observado,
+                "IC_inf": float(ic_idx.loc[codigo, "IC_inf"]),
+                "IC_sup": float(ic_idx.loc[codigo, "IC_sup"]),
+                "IC_contiene_cero": "sí" if contiene_cero else "no",
+                "Elegible": "no" if motivo else "sí",
+                "Motivo": motivo,
+            }
+        )
+    return pd.DataFrame(filas)
+
+
 def resolver_redundancia(
     df: pd.DataFrame,
     columnas: list,
     influencia: dict,
     alias: dict = None,
     umbral: float = 0.80,
+    elegibilidad: pd.DataFrame = None,
 ) -> tuple:
     """Conserva una sola covariable por grupo de covariables mutuamente redundantes.
 
@@ -136,11 +210,20 @@ def resolver_redundancia(
     correlación de magnitud mayor o igual que `umbral` (G7-B10). Las componentes conexas
     del grafo de correlaciones, usadas antes, equivalen al enlace simple y unen por
     encadenamiento covariables que no son redundantes entre sí: la correlación alta no es
-    transitiva. Luego elige un representante por grupo. El desempate es
-    determinista: la asociación menos dependiente de un dominio individual (menor distancia
-    de Cook máxima) y, a igualdad, el orden alfabético del código. No usa la magnitud de la
-    correlación con la respuesta, de modo que resolver la redundancia no reintroduce
-    selección sobre la variable dependiente.
+    transitiva. Luego elige un representante por grupo.
+
+    El orden de preferencia dentro del grupo es determinista: la asociación menos
+    dependiente de un dominio individual (menor distancia de Cook máxima) y, a igualdad, el
+    orden alfabético del código. No usa la magnitud de la correlación con la respuesta.
+
+    Retroceso (G7-B11): si se entrega `elegibilidad`, el representante es el **primer
+    integrante, en ese orden, que cumple las reglas de elegibilidad** de la ficha de
+    decisión. Antes el representante se fijaba solo por Cook y, si después resultaba no
+    elegible, el grupo entero desaparecía aunque otro integrante sí fuera elegible. Las
+    reglas son las mismas que la ficha aplicaría de todos modos, de modo que el retroceso
+    no añade ningún criterio sobre la respuesta: solo evita que el orden de los pasos
+    elimine una dimensión. Si ningún integrante es elegible, se conserva el primero por
+    Cook y la ficha lo declarará no elegible.
 
     Args:
         df (pd.DataFrame): Datos con una fila por dominio.
@@ -148,24 +231,47 @@ def resolver_redundancia(
         influencia (dict): Mapa código → distancia de Cook máxima.
         alias (dict | None): Mapa código → alias legible.
         umbral (float): Magnitud de correlación que define la redundancia.
+        elegibilidad (pd.DataFrame | None): Salida de `evaluar_elegibilidad()`. Sin ella
+            no hay retroceso y el representante es el de menor Cook.
 
     Returns:
         tuple[list, pd.DataFrame]: (representantes, reporte). El reporte tiene una fila por
             covariable con su grupo, si fue elegida representante y el motivo.
 
     Example:
-        >>> representantes, reporte = resolver_redundancia(df, codigos, cook, alias)
+        >>> representantes, reporte = resolver_redundancia(
+        ...     df, codigos, cook, alias, elegibilidad=df_elegibilidad)
     """
     alias = alias or {}
     grupos = _grupos_enlace_completo(df[columnas], umbral)
+    eleg = (
+        elegibilidad.set_index("Codigo")
+        if elegibilidad is not None
+        else pd.DataFrame(columns=["Elegible", "Motivo"])
+    )
+
+    def es_elegible(codigo):
+        return codigo in eleg.index and eleg.loc[codigo, "Elegible"] == "sí"
 
     representantes, filas = [], []
     for n_grupo, grupo in enumerate(grupos, 1):
-        elegida = min(grupo, key=lambda c: (influencia.get(c, np.inf), c))
+        orden = sorted(grupo, key=lambda c: (influencia.get(c, np.inf), c))
+        elegida = next((c for c in orden if es_elegible(c)), orden[0])
+        saltadas = orden[: orden.index(elegida)]
         representantes.append(elegida)
         for codigo in grupo:
             if len(grupo) == 1:
                 motivo = "sin covariables redundantes"
+            elif codigo == elegida and saltadas:
+                motivo = (
+                    f"representante del grupo por retroceso: primer integrante elegible en "
+                    f"orden de Cook máxima ({influencia.get(codigo, float('nan')):.3f}); antes "
+                    + "; ".join(
+                        f"{alias.get(c, c)} (Cook {influencia.get(c, float('nan')):.3f}) no es "
+                        f"elegible: {eleg.loc[c, 'Motivo']}"
+                        for c in saltadas
+                    )
+                )
             elif codigo == elegida:
                 motivo = (
                     f"representante del grupo: la asociación menos dependiente de un dominio "
@@ -214,7 +320,9 @@ def ficha_decision(
     aplica, en este orden, reglas explícitas:
 
     1. Descartada por robustez → ``descartada``.
-    2. No es representante de su grupo de redundancia → ``descartada``.
+    2. No es representante de su grupo de redundancia → ``descartada``. Con retroceso
+       (G7-B11) el representante ya es el primer integrante elegible del grupo, de modo
+       que este paso no elimina una dimensión que tenía una covariable elegible.
     3. El intervalo de Fisher de la correlación contiene el cero → ``no elegible``: la
        evidencia no determina siquiera el signo de la asociación.
     4. El signo observado contradice el mecanismo del catálogo (cuando este fija una
@@ -250,22 +358,16 @@ def ficha_decision(
     """
     alias = alias or {}
     dimension = dimension or {}
-    biv = bivariado.set_index("Codigo")
-    ic_idx = ic.set_index("Codigo")
     rob = robustez.set_index("Codigo")
     red = redundancia.set_index("Codigo")
+    # Reglas 3 y 4: las mismas que usa resolver_redundancia() para el retroceso (G7-B11).
+    eleg = evaluar_elegibilidad(candidatas, bivariado, ic, signo_esperado).set_index(
+        "Codigo"
+    )
 
     filas = []
     for codigo in candidatas:
-        medida = biv.loc[codigo, "Medida_interpretable"]
-        r = float(
-            biv.loc[codigo, "Spearman_rho"]
-            if medida == "Spearman"
-            else biv.loc[codigo, "Pearson_r"]
-        )
-        esperado = signo_esperado.get(codigo, "±")
-        observado = "+" if r > 0 else "-"
-        contiene_cero = ic_idx.loc[codigo, "IC_contiene_cero"] == "sí"
+        e = eleg.loc[codigo]
         robusta = rob.loc[codigo, "Decision"] == "conservada"
         representante = codigo in red.index and red.loc[codigo, "Representante"] == "sí"
 
@@ -273,17 +375,8 @@ def ficha_decision(
             decision, motivo = "descartada", f"robustez: {rob.loc[codigo, 'Motivo']}"
         elif not representante:
             decision, motivo = "descartada", f"redundancia: {red.loc[codigo, 'Motivo']}"
-        elif contiene_cero:
-            decision, motivo = (
-                "no elegible",
-                f"el intervalo de la correlación [{ic_idx.loc[codigo, 'IC_inf']:.2f}, "
-                f"{ic_idx.loc[codigo, 'IC_sup']:.2f}] contiene el cero",
-            )
-        elif esperado != "±" and observado != esperado:
-            decision, motivo = (
-                "no elegible",
-                f"signo observado ({observado}) contrario al esperado por el mecanismo ({esperado})",
-            )
+        elif e["Elegible"] == "no":
+            decision, motivo = "no elegible", e["Motivo"]
         else:
             decision, motivo = "elegible", ""
 
@@ -292,13 +385,13 @@ def ficha_decision(
                 "Alias": alias.get(codigo, codigo),
                 "Codigo": codigo,
                 "Dimension": dimension.get(codigo, "—"),
-                "Signo_esperado": esperado,
-                "Signo_observado": observado,
-                "Medida": medida,
-                "r_interpretable": round(r, 3),
-                "IC_inf": float(ic_idx.loc[codigo, "IC_inf"]),
-                "IC_sup": float(ic_idx.loc[codigo, "IC_sup"]),
-                "IC_contiene_cero": "sí" if contiene_cero else "no",
+                "Signo_esperado": e["Signo_esperado"],
+                "Signo_observado": e["Signo_observado"],
+                "Medida": e["Medida"],
+                "r_interpretable": e["r_interpretable"],
+                "IC_inf": e["IC_inf"],
+                "IC_sup": e["IC_sup"],
+                "IC_contiene_cero": e["IC_contiene_cero"],
                 "Robustez": rob.loc[codigo, "Decision"],
                 "Redundancia": (
                     "representante"
