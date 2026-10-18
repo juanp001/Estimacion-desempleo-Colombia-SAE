@@ -7,8 +7,9 @@ este módulo produce evidencia destinada a una decisión concreta:
   intervalo que contiene el cero indica que la evidencia no determina siquiera el signo.
   Desde G7-B8 es **descriptivo**: no decide.
 * `fh_univariado()` ajusta, por covariable, el modelo Fay-Herriot univariado con la varianza
-  de muestreo ψ_d de cada dominio (G7-B8). Su intervalo para la pendiente decide la
-  elegibilidad.
+  de muestreo ψ_d de cada dominio (G7-B8). Su p-valor ajustado por Benjamini-Hochberg sobre
+  todas las candidatas decide la elegibilidad (G7-B9); `estabilidad_bootstrap()` la
+  acompaña como lectura descriptiva.
 * `influencia_fh()` y `estabilidad_fh()` determinan, sobre ese mismo modelo, si la
   asociación depende de un único dominio. `influencia_por_covariable()` y
   `estabilidad_loo()` son sus versiones por mínimos cuadrados ordinarios, sin ψ_d, que se
@@ -40,6 +41,7 @@ import pandas as pd
 from scipy import stats
 from scipy.optimize import minimize_scalar
 from statsmodels.regression.linear_model import OLS
+from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.outliers_influence import OLSInfluence, variance_inflation_factor
 from statsmodels.tools import add_constant
 
@@ -363,9 +365,15 @@ def fh_univariado(
     pesos iguales: cuando ``Â`` es mucho mayor que ψ_d, los pesos casi no varían y el modelo
     reproduce la regresión ordinaria.
 
+    Multiplicidad (G7-B9): `p_FH` es el p-valor de Wald de β1 y `q_FH` su ajuste de
+    Benjamini-Hochberg sobre **todas** las columnas evaluadas, que forman la familia de
+    contrastes. Un intervalo al 95 % sin cero equivale a ``p_FH < 0.05`` repetido en cada
+    candidata sin corrección; `q_FH` controla en cambio la proporción esperada de falsos
+    descubrimientos entre las declaradas elegibles.
+
     Args:
         df (pd.DataFrame): Datos con una fila por dominio.
-        columnas (list[str]): Covariables a evaluar.
+        columnas (list[str]): Covariables a evaluar (la familia completa de candidatas).
         y (np.ndarray): Estimación directa de la respuesta.
         psi (np.ndarray): Varianza de muestreo de cada dominio (SE²).
         alias (dict | None): Mapa columna → alias legible.
@@ -373,8 +381,8 @@ def fh_univariado(
 
     Returns:
         pd.DataFrame: Una fila por covariable con `A_hat_FH`, `Razon_pesos`, `r_ponderada`,
-            `Beta_FH`, `SE_FH`, `IC_FH_inf`, `IC_FH_sup` y `IC_FH_contiene_cero`
-            (`"sí"`/`"no"`), ordenada por |r_ponderada| descendente.
+            `Beta_FH`, `SE_FH`, `IC_FH_inf`, `IC_FH_sup`, `IC_FH_contiene_cero`
+            (`"sí"`/`"no"`), `p_FH` y `q_FH`, ordenada por |r_ponderada| descendente.
 
     Example:
         >>> fh_univariado(df_cand, codigos, Y, SE**2, alias)
@@ -402,9 +410,78 @@ def fh_univariado(
                 "IC_FH_inf": float(inferior),
                 "IC_FH_sup": float(superior),
                 "IC_FH_contiene_cero": "sí" if inferior <= 0 <= superior else "no",
+                "p_FH": float(2 * stats.norm.sf(abs(beta[1] / se))),
             }
         )
-    return pd.DataFrame(filas).sort_values("r_ponderada", key=abs, ascending=False)
+    tabla = pd.DataFrame(filas)
+    tabla["q_FH"] = multipletests(tabla["p_FH"], method="fdr_bh")[1]
+    return tabla.sort_values("r_ponderada", key=abs, ascending=False)
+
+
+def estabilidad_bootstrap(
+    df: pd.DataFrame,
+    columnas: list,
+    y: np.ndarray,
+    psi: np.ndarray,
+    alias: dict = None,
+    replicas: int = 1000,
+    semilla: int = 42,
+    alfa: float = 0.05,
+) -> pd.DataFrame:
+    """Estabilidad de la elegibilidad ante el remuestreo de dominios (G7-B9, descriptiva).
+
+    En cada réplica se toman 23 dominios con reemplazo, cada uno con su ψ_d, se reajusta el
+    Fay-Herriot univariado y se registra si el intervalo al ``1 - alfa`` de β1 excluye el cero
+    **con el mismo signo** que en la muestra completa. La proporción de réplicas es la
+    estabilidad. Todas las covariables usan las mismas réplicas.
+
+    Complementa el control de falsos descubrimientos con una lectura que no depende de la
+    aproximación normal: una covariable elegible con estabilidad baja depende de qué dominios
+    entren a la muestra. No decide; la ficha la reporta.
+
+    Args:
+        df (pd.DataFrame): Datos con una fila por dominio.
+        columnas (list[str]): Covariables a evaluar.
+        y (np.ndarray): Estimación directa de la respuesta.
+        psi (np.ndarray): Varianza de muestreo de cada dominio (SE²).
+        alias (dict | None): Mapa columna → alias legible.
+        replicas (int): Número de réplicas bootstrap.
+        semilla (int): Semilla del generador, para reproducir el resultado.
+        alfa (float): Nivel del intervalo en cada réplica.
+
+    Returns:
+        pd.DataFrame: Una fila por covariable con `Estabilidad_boot` (entre 0 y 1).
+
+    Example:
+        >>> estabilidad_bootstrap(df_cand, codigos, Y, PSI, alias, replicas=1000)
+    """
+    alias = alias or {}
+    y = np.asarray(y, dtype=float)
+    psi = np.asarray(psi, dtype=float)
+    z = stats.norm.ppf(1 - alfa / 2)
+    generador = np.random.default_rng(semilla)
+    muestras = [generador.integers(0, len(y), len(y)) for _ in range(replicas)]
+    filas = []
+    for col in columnas:
+        x = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=float)
+        _, beta, _ = _ajuste_fh(x, y, psi)
+        exitos = 0
+        for idx in muestras:
+            if np.ptp(x[idx]) == 0:
+                continue
+            _, b, cov_b = _ajuste_fh(x[idx], y[idx], psi[idx])
+            exitos += bool(
+                abs(b[1]) > z * np.sqrt(cov_b[1, 1])
+                and np.sign(b[1]) == np.sign(beta[1])
+            )
+        filas.append(
+            {
+                "Alias": alias.get(col, col),
+                "Codigo": col,
+                "Estabilidad_boot": round(exitos / replicas, 3),
+            }
+        )
+    return pd.DataFrame(filas)
 
 
 def influencia_fh(

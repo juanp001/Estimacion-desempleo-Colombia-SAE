@@ -200,8 +200,10 @@ analisis/eda_seleccion_covariables.py
   → 2 robustez (sobre el FH univariado, G7-B8: Cook 4/n con la fórmula de distancia_cook, Â fijo, y
     dejar-uno-fuera reajustando Â sobre la correlación ponderada por 1/(Â+ψ_d)): se descarta solo si
     Cook > 4/n y el cambio dejar-uno-fuera supera UMBRAL_DELTA_LOO (0.10) o invierte el signo
-  → 3 redundancia (enlace completo: todos los pares del grupo con |r| ≥ 0.80, G7-B10; representante = primer integrante elegible (IC del FH sin cero) por menor Cook máx, con retroceso, G7-B11)
-  → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = IC de β1 del FH sin cero; el signo
+  → 3 redundancia (enlace completo: todos los pares del grupo con |r| ≥ 0.80, G7-B10; representante = primer integrante elegible (q de BH del FH ≤ 0.10) por menor Cook máx, con retroceso, G7-B11)
+  → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = q de Benjamini-Hochberg del p de β1 del FH, sobre las 19
+      candidatas, ≤ Q_FDR_ELEGIBILIDAD (0.10), G7-B9; estabilidad bootstrap de dominios descriptiva
+      (REPLICAS_ESTABILIDAD); el signo
       esperado es diagnóstico, no filtro (columna Signo_coherente, G7-B12); seleccionadas = las
       P_MAXIMO (4) de mayor |r ponderada|
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
@@ -335,7 +337,7 @@ Reglas del flujo de selección:
   sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
 - Parámetros en `preprocesamiento/shared/config.py` (`BOOTSTRAP_REPLICAS`/`BOOTSTRAP_SEED`, umbrales de CV,
   `CV_MINIMO`, `PROP_MODAL_MAXIMA`, `UMBRAL_DUPLICADO`, `UMBRAL_REDUNDANCIA`, `UMBRAL_DELTA_LOO`,
-  `ALFA_IC_CORRELACION`, `P_MAXIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
+  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `REPLICAS_ESTABILIDAD`, `P_MAXIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
   (tablas, `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`).
 - **Dominio = ciudad o ciudad A.M.** en preprocesamiento, análisis y modelo (`CODIGO_DOMINIO`,
   `NOMBRE_DOMINIO`, `TIPO_DOMINIO`); `CODIGO_MUNICIPIO`/`MUNICIPIO` solo existen en las tablas de municipios

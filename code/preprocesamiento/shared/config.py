@@ -334,6 +334,11 @@ P_MAXIMO = 4
 VIF_MAXIMO = 5.0
 # Nivel de confianza del intervalo de Fisher para la correlación con la respuesta.
 ALFA_IC_CORRELACION = 0.05
+# Tasa de falsos descubrimientos (Benjamini-Hochberg) con la que se declara elegible una
+# candidata, sobre la familia de todas las candidatas (G7-B9).
+Q_FDR_ELEGIBILIDAD = 0.10
+# Réplicas del remuestreo de dominios para la estabilidad de la elegibilidad (G7-B9, descriptiva).
+REPLICAS_ESTABILIDAD = 1000
 
 # ── Dominios objetivo sin cobertura muestral ─────────────────────────────────
 # Códigos DIVIPOLA de los departamentos del estudio: Cauca (19) y Valle del Cauca (76).

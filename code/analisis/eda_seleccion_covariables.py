@@ -23,7 +23,7 @@
 # MAGIC | Índice de Moran (sobre la respuesta y sobre los residuos) | **No se hace** | El modelo Fay-Herriot clásico supone efectos independientes por dominio y el proyecto no ajusta variantes espaciales, de modo que el contraste no cambia ninguna decisión. |
 # MAGIC | Búsqueda exhaustiva de especificaciones por AIC | **No se hace** | Con 23 dominios produciría docenas de especificaciones equivalentes y reutilizaría los datos que ajustan el modelo; la elección entre ellas volvería a ser una regla añadida. La comparación entre especificaciones se hace en el notebook del modelo (significancia de los coeficientes y AIC). |
 # MAGIC | Ranking compuesto C y Q, nivel de respaldo L | **No se usan** | Pesos y topes arbitrarios; el nivel L complicaría el análisis sin decidir nada. |
-# MAGIC | Modelo Fay-Herriot univariado por covariable | **Se hace** | La respuesta tiene error de muestreo de varianza ψ_d distinta en cada dominio; el modelo la incorpora y la correlación no (G7-B8). Su intervalo para la pendiente decide la elegibilidad; Pearson, Spearman y Fisher quedan como descripción. |
+# MAGIC | Modelo Fay-Herriot univariado por covariable | **Se hace** | La respuesta tiene error de muestreo de varianza ψ_d distinta en cada dominio; el modelo la incorpora y la correlación no (G7-B8). Su p-valor para la pendiente, ajustado por Benjamini-Hochberg sobre todas las candidatas (G7-B9), decide la elegibilidad; Pearson, Spearman y Fisher quedan como descripción. |
 # MAGIC | Influencia y estabilidad | **Se hace** | Distancia de Cook y exclusión de dominios, sobre el mismo Fay-Herriot univariado, como dos evidencias de un único criterio de robustez. |
 # MAGIC | Redundancia | **Se hace** | Un representante por grupo de covariables equivalentes. |
 # MAGIC | Forma funcional | **Se hace** | Curvatura y escala logarítmica en el Fay-Herriot univariado, y residuos parciales del conjunto elegido (G7-B13). Es un diagnóstico: ninguna covariable se transforma, y la ficha advierte las que conviene revisar. |
@@ -39,8 +39,8 @@
 # MAGIC   → 2. robustez:     se descarta lo que depende de un solo dominio (en el Fay-Herriot univariado)
 # MAGIC   → 3. redundancia:  un representante por grupo de covariables equivalentes (el primer
 # MAGIC                       integrante elegible por orden de Cook: retroceso)
-# MAGIC   → 4. decisión:     elegibles = pendiente del FH univariado con intervalo sin cero (el signo
-# MAGIC                       esperado es diagnóstico);
+# MAGIC   → 4. decisión:     elegibles = pendiente del FH univariado con q de Benjamini-Hochberg
+# MAGIC                       ≤ Q_FDR_ELEGIBILIDAD (el signo esperado es diagnóstico);
 # MAGIC                       seleccionadas = las de mayor correlación ponderada hasta la cota de
 # MAGIC                       parsimonia
 # MAGIC   → 5. verificación: multicolinealidad y residuos parciales del conjunto elegido
@@ -161,9 +161,15 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # MAGIC que aplicarse también a los municipios objetivo en el notebook del modelo. Si una
 # MAGIC covariable elegible queda en «revisar», la ficha lo advierte.
 # MAGIC
-# MAGIC No se reportan p-valores. Se evalúan varias covariables sin corrección por
-# MAGIC multiplicidad y su interpretación nominal no sería válida; el intervalo comunica la
-# MAGIC misma información sin sugerir una precisión inexistente.
+# MAGIC **Multiplicidad (G7-B9).** Exigir que el intervalo al 95 % de cada candidata excluya el
+# MAGIC cero es la misma prueba al 5 % repetida 19 veces sin corrección. Por eso la elegibilidad
+# MAGIC se decide con el p-valor de β1 ajustado por **Benjamini-Hochberg** sobre todas las
+# MAGIC candidatas (`q_FH`): es elegible la que tiene `q_FH ≤ Q_FDR_ELEGIBILIDAD` (0,10), lo que
+# MAGIC controla en 10 % la proporción esperada de falsos descubrimientos entre las elegibles. Es
+# MAGIC un tamizaje previo al modelo; la decisión final sobre los coeficientes la toma el
+# MAGIC notebook del modelo. Como lectura complementaria, que no depende de la aproximación
+# MAGIC normal, se informa la **estabilidad bootstrap**: la proporción de réplicas con
+# MAGIC remuestreo de dominios en que el intervalo de β1 excluye el cero con el mismo signo.
 # MAGIC
 # MAGIC La tabla trae también el **signo esperado** del catálogo. Es un **diagnóstico de
 # MAGIC coherencia sustantiva, no un filtro** (G7-B12): una asociación de signo contrario a la
@@ -182,6 +188,20 @@ df_ic = diag.tabla_ic_correlacion(
 df_fh = diag.fh_univariado(
     df_cand, CANDIDATAS, Y, PSI, alias=ALIAS, alfa=ALFA_IC_CORRELACION
 )
+# Estabilidad de la elegibilidad ante el remuestreo de dominios (G7-B9, descriptiva).
+df_fh = df_fh.merge(
+    diag.estabilidad_bootstrap(
+        df_cand,
+        CANDIDATAS,
+        Y,
+        PSI,
+        alias=ALIAS,
+        replicas=REPLICAS_ESTABILIDAD,
+        semilla=BOOTSTRAP_SEED,
+        alfa=ALFA_IC_CORRELACION,
+    ).drop(columns=["Alias"]),
+    on="Codigo",
+)
 
 df_asociacion = (
     df_ic.merge(bivariado.drop(columns=["Alias", "Pearson_r"]), on="Codigo")
@@ -196,9 +216,11 @@ display(spark.createDataFrame(df_asociacion))
 
 n_con_cero = int((df_ic["IC_contiene_cero"] == "sí").sum())
 n_con_cero_fh = int((df_fh["IC_FH_contiene_cero"] == "sí").sum())
+n_q = int((df_fh["q_FH"] <= Q_FDR_ELEGIBILIDAD).sum())
 print(
-    f"Intervalo que contiene el cero: {n_con_cero_fh} de {len(CANDIDATAS)} en el Fay-Herriot "
-    f"univariado (decide) y {n_con_cero} con Fisher (descriptivo)."
+    f"Con q de Benjamini-Hochberg ≤ {Q_FDR_ELEGIBILIDAD}: {n_q} de {len(CANDIDATAS)} (decide). "
+    f"Intervalo al 95 % sin cero, sin corrección: {len(CANDIDATAS) - n_con_cero_fh} en el "
+    f"Fay-Herriot univariado y {len(CANDIDATAS) - n_con_cero} con Fisher (descriptivos)."
 )
 print(
     f"Razón entre el mayor y el menor peso 1/(Â + ψ_d): de {df_fh['Razon_pesos'].min():.3f} "
@@ -324,9 +346,10 @@ display(spark.createDataFrame(df_robustez))
 
 # DBTITLE 1,Resolución de redundancia sobre las covariables robustas
 cook_por_codigo = df_influencia.set_index("Codigo")["Cook_max"].to_dict()
-# Reglas de elegibilidad de la ficha (intervalo del FH univariado), para el retroceso (G7-B11).
+# Reglas de elegibilidad de la ficha (q de Benjamini-Hochberg del FH univariado), para el
+# retroceso (G7-B11).
 df_elegibilidad = sel.evaluar_elegibilidad(
-    CANDIDATAS, bivariado, df_ic, SIGNO, fh=df_fh
+    CANDIDATAS, bivariado, df_ic, SIGNO, fh=df_fh, q_fdr=Q_FDR_ELEGIBILIDAD
 )
 
 robustas, df_redundancia = sel.resolver_redundancia(
@@ -351,8 +374,10 @@ display(spark.createDataFrame(df_redundancia))
 # MAGIC 1. descartada por robustez → fuera;
 # MAGIC 2. redundante con otra (no representante de su grupo) → fuera; con el retroceso del
 # MAGIC    paso 3 el representante ya es el primer integrante elegible del grupo;
-# MAGIC 3. intervalo de la pendiente del Fay-Herriot univariado que contiene el cero → **no
-# MAGIC    elegible**: la evidencia no determina el signo de la asociación (G7-B8);
+# MAGIC 3. p-valor de la pendiente del Fay-Herriot univariado (G7-B8) con q de
+# MAGIC    Benjamini-Hochberg mayor que `Q_FDR_ELEGIBILIDAD` → **no elegible**: la evidencia no
+# MAGIC    alcanza para distinguir la asociación del azar entre las 19 candidatas evaluadas
+# MAGIC    (G7-B9);
 # MAGIC 4. signo observado contrario al mecanismo del catálogo → **se conserva** y su motivo
 # MAGIC    lo advierte: el signo es un diagnóstico que se interpreta en el documento, no un
 # MAGIC    filtro (G7-B12);
@@ -382,6 +407,7 @@ SELECCIONADAS, df_ficha = sel.ficha_decision(
     p_maximo=P_MAXIMO,
     fh=df_fh,
     forma=df_forma,
+    q_fdr=Q_FDR_ELEGIBILIDAD,
 )
 display(spark.createDataFrame(df_ficha))
 
@@ -454,7 +480,13 @@ df_verificacion = df_vif.assign(
 
 # DBTITLE 1,Sensibilidad: selección sin las covariables de signo inesperado
 df_elegibilidad_signo = sel.evaluar_elegibilidad(
-    CANDIDATAS, bivariado, df_ic, SIGNO, exigir_signo=True, fh=df_fh
+    CANDIDATAS,
+    bivariado,
+    df_ic,
+    SIGNO,
+    exigir_signo=True,
+    fh=df_fh,
+    q_fdr=Q_FDR_ELEGIBILIDAD,
 )
 _, df_redundancia_signo = sel.resolver_redundancia(
     df_cand,
@@ -477,6 +509,7 @@ seleccionadas_signo, df_ficha_signo = sel.ficha_decision(
     exigir_signo=True,
     fh=df_fh,
     forma=df_forma,
+    q_fdr=Q_FDR_ELEGIBILIDAD,
 )
 seleccionadas_signo, _, _ = sel.ajustar_por_vif(
     df_cand,
@@ -560,6 +593,7 @@ for _, entrada in reporte_catalogo.iterrows():
         "Pearson_r": None,
         "IC_contiene_cero": None,
         "IC_FH_contiene_cero": None,
+        "q_FH": None,
         "Signo_observado": None,
         "Cook_max": None,
         "Delta_LOO_max": None,
@@ -579,6 +613,7 @@ for _, entrada in reporte_catalogo.iterrows():
     fila["Pearson_r"] = float(ficha_idx.loc[codigo, "r_interpretable"])
     fila["IC_contiene_cero"] = ficha_idx.loc[codigo, "IC_contiene_cero"]
     fila["IC_FH_contiene_cero"] = ficha_idx.loc[codigo, "IC_FH_contiene_cero"]
+    fila["q_FH"] = float(ficha_idx.loc[codigo, "q_FH"])
     fila["Signo_observado"] = ficha_idx.loc[codigo, "Signo_observado"]
     fila["Cook_max"] = float(influencia_idx.loc[codigo, "Cook_max"])
     fila["Delta_LOO_max"] = float(estabilidad_idx.loc[codigo, "Delta_max_abs"])
