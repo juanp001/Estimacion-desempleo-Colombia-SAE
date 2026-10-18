@@ -133,6 +133,10 @@
 # MAGIC * **5% ≤ CV < 20%**: Estimación ACEPTABLE ⚠️
 # MAGIC * **CV ≥ 20%**: Estimación NO CONFIABLE ❌
 # MAGIC
+# MAGIC Sustento (G7-B7, detalle en `shared/config.py`): 5 % es la precisión de diseño de la GEIH para
+# MAGIC la tasa de desempleo (DANE, Metodología GEIH v9, PDF 12) y 20 % el límite de «no publicable»
+# MAGIC de varios institutos de estadística (Molina, 2019, CEPAL, PDF 16-17).
+# MAGIC
 # MAGIC ## Flujo de Datos
 # MAGIC
 # MAGIC ```

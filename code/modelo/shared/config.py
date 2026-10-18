@@ -102,7 +102,15 @@ UMBRAL_LAMBDA_AVISO = 0.20
 # muestra y la cifra publicada por el DANE.
 TOLERANCIA_DANE_PP = 0.01
 
-# ── Umbrales de confiabilidad del CV ─────────────────────────────────────────
+# ── Umbrales de confiabilidad del CV (G7-B7) ─────────────────────────────────
+# Misma regla que preprocesamiento/shared/config.py (allí está el sustento completo), para que la
+# estimación directa, el EBLUP y la predicción sintética se clasifiquen igual:
+# - 5 %: precisión de diseño de la GEIH para la tasa de desempleo (error estándar relativo ≤ 5 %
+#   con una tasa del 10 %; DANE, Metodología GEIH v9, 2016, PDF 12).
+# - 20 %: límite a partir del cual varios institutos de estadística consideran un dato «no
+#   publicable» (Molina, 2019, CEPAL, PDF 16-17).
+# En municipios el CV es condicional al modelo (B21, shared/consolidacion.py): la misma escala se
+# aplica, pero la etiqueta publicada lo advierte.
 CV_CONFIABLE = 5.0  # CV < 5 %   → confiable
 CV_ACEPTABLE = 20.0  # CV < 20 %  → aceptable; >= 20 % → no confiable
 
