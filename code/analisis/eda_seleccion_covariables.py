@@ -35,7 +35,7 @@
 # MAGIC   → 2. robustez:     se descarta lo que depende de un solo dominio
 # MAGIC   → 3. redundancia:  un representante por grupo de covariables equivalentes (el primer
 # MAGIC                       integrante elegible por orden de Cook: retroceso)
-# MAGIC   → 4. decisión:     elegibles = intervalo sin cero y signo coherente con el mecanismo;
+# MAGIC   → 4. decisión:     elegibles = intervalo sin cero (el signo esperado es diagnóstico);
 # MAGIC                       seleccionadas = las de mayor asociación hasta la cota de parsimonia
 # MAGIC   → 5. verificación: multicolinealidad del conjunto elegido
 # MAGIC ```
@@ -48,6 +48,7 @@
 # MAGIC * `tesis.preprocesamiento.decision_covariables`
 # MAGIC * `tesis.preprocesamiento.verificacion_seleccion`
 # MAGIC * `tesis.preprocesamiento.trazabilidad_covariables`
+# MAGIC * `tesis.preprocesamiento.sensibilidad_signo_covariables`
 # MAGIC * `tesis.preprocesamiento.covariables_candidatas` (elegibles)
 # MAGIC * `tesis.preprocesamiento.covariables_seleccionadas`
 # MAGIC * Figuras en el volumen `figuras_eda`, con prefijo `eda_`.
@@ -131,10 +132,11 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # MAGIC multiplicidad y su interpretación nominal no sería válida; el intervalo comunica la
 # MAGIC misma información sin sugerir una precisión inexistente.
 # MAGIC
-# MAGIC La tabla trae también el **signo esperado** del catálogo. Una covariable cuyo signo
-# MAGIC observado contradice el mecanismo por el que se propuso no puede sustentarse con la
-# MAGIC referencia que la respalda; esa comparación es uno de los criterios de la ficha de
-# MAGIC decisión.
+# MAGIC La tabla trae también el **signo esperado** del catálogo. Es un **diagnóstico de
+# MAGIC coherencia sustantiva, no un filtro** (G7-B12): una asociación de signo contrario a la
+# MAGIC literatura puede contener información, y el signo bivariado no tiene por qué coincidir
+# MAGIC con el coeficiente parcial del modelo. La ficha lo registra y lo advierte, y la sección 5
+# MAGIC muestra qué cambiaría si se excluyeran las covariables de signo inesperado.
 
 # COMMAND ----------
 
@@ -286,8 +288,9 @@ display(spark.createDataFrame(df_redundancia))
 # MAGIC    paso 3 el representante ya es el primer integrante elegible del grupo;
 # MAGIC 3. intervalo de la correlación que contiene el cero → **no elegible**: la evidencia
 # MAGIC    no determina el signo de la asociación;
-# MAGIC 4. signo observado contrario al mecanismo del catálogo → **no elegible**: la
-# MAGIC    covariable no puede sustentarse con la referencia por la que se propuso;
+# MAGIC 4. signo observado contrario al mecanismo del catálogo → **se conserva** y su motivo
+# MAGIC    lo advierte: el signo es un diagnóstico que se interpreta en el documento, no un
+# MAGIC    filtro (G7-B12);
 # MAGIC 5. entre las **elegibles**, se seleccionan las `P_MAXIMO` de mayor asociación en
 # MAGIC    valor absoluto. La cota proviene de la parsimonia del proyecto: con 23 dominios el
 # MAGIC    modelo admite del orden de cuatro covariables más el intercepto.
@@ -367,6 +370,55 @@ df_verificacion = df_vif.assign(
     Umbral_VIF=VIF_MAXIMO,
     Sustituciones="; ".join(sustituciones) if sustituciones else "ninguna",
 )
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Sensibilidad al signo esperado (G7-B12).** Se repiten la redundancia, la ficha y la
+# MAGIC verificación exigiendo el signo esperado como filtro, que era la regla anterior. Si el
+# MAGIC conjunto final coincide, el signo no condiciona la selección; si difiere, la tabla dice
+# MAGIC qué covariables entran o salen, y el documento interpreta el signo inesperado en lugar
+# MAGIC de ocultarlo.
+
+# COMMAND ----------
+
+# DBTITLE 1,Sensibilidad: selección sin las covariables de signo inesperado
+df_elegibilidad_signo = sel.evaluar_elegibilidad(
+    CANDIDATAS, bivariado, df_ic, SIGNO, exigir_signo=True
+)
+_, df_redundancia_signo = sel.resolver_redundancia(
+    df_cand,
+    supervivientes,
+    influencia=cook_por_codigo,
+    alias=ALIAS,
+    umbral=UMBRAL_REDUNDANCIA,
+    elegibilidad=df_elegibilidad_signo,
+)
+seleccionadas_signo, df_ficha_signo = sel.ficha_decision(
+    CANDIDATAS,
+    bivariado,
+    df_ic,
+    df_robustez,
+    df_redundancia_signo,
+    signo_esperado=SIGNO,
+    alias=ALIAS,
+    dimension=DIMENSION,
+    p_maximo=P_MAXIMO,
+    exigir_signo=True,
+)
+seleccionadas_signo, _, _ = sel.ajustar_por_vif(
+    df_cand,
+    seleccionadas_signo,
+    df_ficha_signo.loc[
+        df_ficha_signo["Decision"] == "no seleccionada", "Codigo"
+    ].tolist(),
+    vif_max=VIF_MAXIMO,
+    alias=ALIAS,
+)
+df_sensibilidad_signo = sel.sensibilidad_signo(
+    df_ficha, SELECCIONADAS, df_ficha_signo, seleccionadas_signo, alias=ALIAS
+)
+display(spark.createDataFrame(df_sensibilidad_signo))
 
 # COMMAND ----------
 
@@ -466,6 +518,7 @@ for tabla, destino in [
     (df_ficha, TBL_DECISION),
     (df_verificacion, TBL_VERIFICACION),
     (df_trazabilidad, TBL_TRAZABILIDAD),
+    (df_sensibilidad_signo, TBL_SENSIBILIDAD_SIGNO),
 ]:
     (
         spark.createDataFrame(tabla)

@@ -196,10 +196,12 @@ analisis/eda_seleccion_covariables.py
     elegibilidad es siempre de Pearson, y r_interpretable ordena y fija el signo)
   → 2 robustez (Cook 4/n + dejar-uno-fuera sobre los 23 dominios): se descarta solo si Cook > 4/n y el
     cambio dejar-uno-fuera supera UMBRAL_DELTA_LOO (0.10) o invierte el signo
-  → 3 redundancia (enlace completo: todos los pares del grupo con |r| ≥ 0.80, G7-B10; representante = primer integrante elegible por menor Cook máx, con retroceso, G7-B11)
-  → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = IC sin cero y signo
-      coherente con el mecanismo; seleccionadas = las P_MAXIMO (4) de mayor |r|
-  → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible)
+  → 3 redundancia (enlace completo: todos los pares del grupo con |r| ≥ 0.80, G7-B10; representante = primer integrante elegible (IC sin cero) por menor Cook máx, con retroceso, G7-B11)
+  → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = IC sin cero; el signo
+      esperado es diagnóstico, no filtro (columna Signo_coherente, G7-B12); seleccionadas = las
+      P_MAXIMO (4) de mayor |r|
+  → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible) y sensibilidad al signo
+      (selección repetida exigiendo el signo → sensibilidad_signo_covariables)
   → diagnosticos_covariables, robustez_covariables, redundancia_covariables, decision_covariables,
     verificacion_seleccion, trazabilidad_covariables, covariables_candidatas (elegibles),
     covariables_seleccionadas

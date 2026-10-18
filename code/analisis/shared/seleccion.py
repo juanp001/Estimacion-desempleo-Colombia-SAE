@@ -129,25 +129,35 @@ def evaluar_elegibilidad(
     bivariado: pd.DataFrame,
     ic: pd.DataFrame,
     signo_esperado: dict,
+    exigir_signo: bool = False,
 ) -> pd.DataFrame:
     """Aplica a cada candidata las reglas de elegibilidad de la ficha de decisión.
 
-    Son las reglas 3 y 4 de `ficha_decision()`, separadas para que la resolución de
-    redundancia pueda consultarlas al elegir representante (G7-B11) sin duplicar la lógica:
+    Son las reglas de `ficha_decision()` que dependen de la asociación con la respuesta,
+    separadas para que la resolución de redundancia pueda consultarlas al elegir
+    representante (G7-B11) sin duplicar la lógica:
 
-    * el intervalo de Fisher de la correlación contiene el cero → no elegible;
-    * el signo observado contradice el del catálogo (cuando este fija una dirección) → no
-      elegible.
+    * el intervalo de Fisher de la correlación contiene el cero → no elegible.
+
+    El signo esperado del catálogo es un **diagnóstico de coherencia sustantiva, no un
+    filtro** (G7-B12): la columna `Signo_coherente` lo registra, pero no cambia la
+    elegibilidad. Una asociación de signo contrario a la literatura puede contener
+    información, y el signo bivariado no tiene por qué coincidir con el coeficiente
+    parcial del modelo multivariado. Con `exigir_signo=True` se reproduce la regla
+    anterior (signo contrario → no elegible); se usa solo para el escenario de
+    sensibilidad «sin las covariables de signo inesperado».
 
     Args:
         candidatas (list[str]): Códigos a evaluar.
         bivariado (pd.DataFrame): Salida de `descriptivos.tabla_bivariada()`.
         ic (pd.DataFrame): Salida de `diagnosticos.tabla_ic_correlacion()`.
         signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
+        exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible.
 
     Returns:
         pd.DataFrame: Una fila por candidata con `Codigo`, `Medida`, `r_interpretable`,
-            `Signo_esperado`, `Signo_observado`, `IC_inf`, `IC_sup`, `IC_contiene_cero`,
+            `Signo_esperado`, `Signo_observado`, `Signo_coherente` (`"sí"`, `"no"` o `"—"`
+            si el catálogo no fija dirección), `IC_inf`, `IC_sup`, `IC_contiene_cero`,
             `Elegible` (`"sí"`/`"no"`) y `Motivo` (vacío si es elegible).
 
     Example:
@@ -167,13 +177,16 @@ def evaluar_elegibilidad(
         esperado = signo_esperado.get(codigo, "±")
         observado = "+" if r > 0 else "-"
         contiene_cero = ic_idx.loc[codigo, "IC_contiene_cero"] == "sí"
+        coherente = (
+            "—" if esperado == "±" else ("sí" if observado == esperado else "no")
+        )
 
         if contiene_cero:
             motivo = (
                 f"el intervalo de la correlación [{ic_idx.loc[codigo, 'IC_inf']:.2f}, "
                 f"{ic_idx.loc[codigo, 'IC_sup']:.2f}] contiene el cero"
             )
-        elif esperado != "±" and observado != esperado:
+        elif exigir_signo and coherente == "no":
             motivo = f"signo observado ({observado}) contrario al esperado por el mecanismo ({esperado})"
         else:
             motivo = ""
@@ -185,6 +198,7 @@ def evaluar_elegibilidad(
                 "r_interpretable": round(r, 3),
                 "Signo_esperado": esperado,
                 "Signo_observado": observado,
+                "Signo_coherente": coherente,
                 "IC_inf": float(ic_idx.loc[codigo, "IC_inf"]),
                 "IC_sup": float(ic_idx.loc[codigo, "IC_sup"]),
                 "IC_contiene_cero": "sí" if contiene_cero else "no",
@@ -313,6 +327,7 @@ def ficha_decision(
     alias: dict = None,
     dimension: dict = None,
     p_maximo: int = 4,
+    exigir_signo: bool = False,
 ) -> tuple:
     """Construye la ficha de decisión de cada candidata y elige el conjunto final.
 
@@ -325,9 +340,11 @@ def ficha_decision(
        que este paso no elimina una dimensión que tenía una covariable elegible.
     3. El intervalo de Fisher de la correlación contiene el cero → ``no elegible``: la
        evidencia no determina siquiera el signo de la asociación.
-    4. El signo observado contradice el mecanismo del catálogo (cuando este fija una
-       dirección) → ``no elegible``: una covariable cuyo efecto va en contra de la razón por
-       la que se propuso no puede sustentarse en el documento.
+    4. El signo esperado del catálogo es un **diagnóstico, no un filtro** (G7-B12): la
+       columna `Signo_coherente` lo registra y, si una covariable elegible tiene signo
+       contrario al esperado, su motivo lo advierte para que se interprete en el documento.
+       Con `exigir_signo=True` se aplica la regla anterior (signo contrario → ``no
+       elegible``), que se usa solo como escenario de sensibilidad.
     5. Entre las ``elegibles`` se seleccionan las `p_maximo` de mayor asociación en valor
        absoluto, medida con el coeficiente que `tabla_bivariada()` declaró interpretable
        (Pearson, o Spearman cuando valores extremos condicionan la relación lineal). El
@@ -343,6 +360,8 @@ def ficha_decision(
         alias (dict | None): Mapa código → alias legible.
         dimension (dict | None): Mapa código → dimensión conceptual.
         p_maximo (int): Número máximo de covariables seleccionadas.
+        exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible
+            (escenario de sensibilidad de G7-B12).
 
     Returns:
         tuple[list, pd.DataFrame]: (seleccionadas, ficha). `seleccionadas` conserva el orden
@@ -360,10 +379,10 @@ def ficha_decision(
     dimension = dimension or {}
     rob = robustez.set_index("Codigo")
     red = redundancia.set_index("Codigo")
-    # Reglas 3 y 4: las mismas que usa resolver_redundancia() para el retroceso (G7-B11).
-    eleg = evaluar_elegibilidad(candidatas, bivariado, ic, signo_esperado).set_index(
-        "Codigo"
-    )
+    # Mismas reglas que usa resolver_redundancia() para el retroceso (G7-B11).
+    eleg = evaluar_elegibilidad(
+        candidatas, bivariado, ic, signo_esperado, exigir_signo=exigir_signo
+    ).set_index("Codigo")
 
     filas = []
     for codigo in candidatas:
@@ -387,6 +406,7 @@ def ficha_decision(
                 "Dimension": dimension.get(codigo, "—"),
                 "Signo_esperado": e["Signo_esperado"],
                 "Signo_observado": e["Signo_observado"],
+                "Signo_coherente": e["Signo_coherente"],
                 "Medida": e["Medida"],
                 "r_interpretable": e["r_interpretable"],
                 "IC_inf": e["IC_inf"],
@@ -428,6 +448,11 @@ def ficha_decision(
                 f"elegible; puesto {i + 1} de {len(elegibles)} por asociación "
                 f"(|{fila['Medida']}| = {fila['abs_r']:.2f}), fuera de la cota de {p_maximo} covariables"
             )
+        if fila["Signo_coherente"] == "no":
+            ficha.loc[idx, "Motivo"] += (
+                f"; signo observado ({fila['Signo_observado']}) contrario al esperado "
+                f"({fila['Signo_esperado']}): se conserva, pero requiere interpretación (G7-B12)"
+            )
 
     ficha["abs_r"] = ficha["r_interpretable"].abs()
     orden_decision = {
@@ -449,6 +474,67 @@ def ficha_decision(
     for estado, n in ficha["Decision"].value_counts().items():
         print(f"  · {estado}: {n}")
     return seleccionadas, ficha
+
+
+def sensibilidad_signo(
+    ficha_base: pd.DataFrame,
+    seleccionadas_base: list,
+    ficha_sin: pd.DataFrame,
+    seleccionadas_sin: list,
+    alias: dict = None,
+) -> pd.DataFrame:
+    """Compara la selección con y sin las covariables de signo inesperado (G7-B12).
+
+    El escenario base trata el signo esperado como diagnóstico; el alternativo lo exige
+    como filtro (la regla anterior). Si ambos coinciden, el signo no condiciona el
+    resultado; si difieren, la tabla muestra qué covariables entran o salen para que el
+    documento interprete el signo inesperado en lugar de ocultarlo.
+
+    Args:
+        ficha_base (pd.DataFrame): Ficha con el signo como diagnóstico.
+        seleccionadas_base (list[str]): Conjunto final del escenario base (tras VIF).
+        ficha_sin (pd.DataFrame): Ficha con `exigir_signo=True`.
+        seleccionadas_sin (list[str]): Conjunto final del escenario sin signo inesperado.
+        alias (dict | None): Mapa código → alias legible.
+
+    Returns:
+        pd.DataFrame: Una fila por escenario con la regla de signo, el número de elegibles,
+            las seleccionadas, las elegibles de signo inesperado y la diferencia con el base.
+
+    Example:
+        >>> sensibilidad_signo(df_ficha, SELECCIONADAS, df_ficha_sin, sel_sin, ALIAS)
+    """
+    alias = alias or {}
+
+    def nombres(codigos):
+        return ", ".join(alias.get(c, c) for c in codigos) or "—"
+
+    def resumen(escenario, regla, ficha, seleccionadas):
+        elegibles = ficha["Decision"].isin(["seleccionada", "no seleccionada"])
+        inesperado = ficha.loc[elegibles & (ficha["Signo_coherente"] == "no"), "Codigo"]
+        return {
+            "Escenario": escenario,
+            "Regla_signo": regla,
+            "N_elegibles": int(elegibles.sum()),
+            "Seleccionadas": nombres(seleccionadas),
+            "Elegibles_signo_inesperado": nombres(inesperado),
+        }
+
+    filas = [
+        resumen("base", "diagnóstico", ficha_base, seleccionadas_base),
+        resumen("sin signo inesperado", "filtro", ficha_sin, seleccionadas_sin),
+    ]
+    salen = [c for c in seleccionadas_base if c not in seleccionadas_sin]
+    entran = [c for c in seleccionadas_sin if c not in seleccionadas_base]
+    filas[0]["Diferencia_con_base"] = "—"
+    filas[1]["Diferencia_con_base"] = (
+        "mismo conjunto"
+        if not salen and not entran
+        else f"salen: {nombres(salen)}; entran: {nombres(entran)}"
+    )
+    tabla = pd.DataFrame(filas)
+    print("Sensibilidad al signo esperado: " + filas[1]["Diferencia_con_base"])
+    return tabla
 
 
 def ajustar_por_vif(

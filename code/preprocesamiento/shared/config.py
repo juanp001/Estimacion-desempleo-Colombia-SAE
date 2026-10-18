@@ -63,6 +63,8 @@ TBL_VERIFICACION = "tesis.preprocesamiento.verificacion_seleccion"
 TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables"
 TBL_CANDIDATAS = "tesis.preprocesamiento.covariables_candidatas"
 TBL_SELECCIONADAS = "tesis.preprocesamiento.covariables_seleccionadas"
+# G7-B12: selección con y sin las covariables de signo contrario al esperado.
+TBL_SENSIBILIDAD_SIGNO = "tesis.preprocesamiento.sensibilidad_signo_covariables"
 # Sensibilidad de la estimación directa a la ventana temporal (G7-B2).
 TBL_SENSIBILIDAD_VENTANA = "tesis.preprocesamiento.sensibilidad_ventana_temporal"
 TBL_RESUMEN_VENTANA = "tesis.preprocesamiento.resumen_ventana_temporal"
