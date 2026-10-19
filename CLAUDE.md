@@ -334,7 +334,7 @@ niveles —dominio y municipio—, clasificación de confiabilidad y, B21, `etiq
 
 ```
 modelo/fay_herriot_espacial.py   (corre después de fay_herriot.py: lee tesis.modelo.fh_coeficientes)
-  → mismas covariables que el ganador clásico; SEBLUP con efectos SAR u = ρWu + v (Morales et al.,
+  → mismas covariables que el benchmark clásico seleccionado; SEBLUP con efectos SAR u = ρWu + v (Morales et al.,
     §18.2, pp. 490-494); W por DISTANCIA entre centroides (kNN k=3/5 o distancia inversa 1/2), nunca por
     contigüidad: los 23 dominios son ciudades dispersas y los objetivos no son contiguos a ellas
   → ρ se estima solo con los 23 dominios; W (estructura "completa") cubre dominios + objetivos
@@ -349,11 +349,16 @@ modelo/fay_herriot_espacial.py   (corre después de fay_herriot.py: lee tesis.mo
 Lógica en `modelo/shared/`: `matriz_proximidad.py` (Haversine, kNN, distancia inversa, estandarización por
 filas, `moran_i`), `fay_herriot_espacial.py` (`FayHerriotEspacial`, hija de `ModeloAreaPequena`;
 `validacion_dejar_uno_fuera`), `figuras_espacial.py`; parámetros en `config.py` (`ESCENARIOS_W`,
-`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018: **sin evidencia de
-dependencia espacial** (Moran p ≥ 0.49, perfil de ρ plano, el clásico predice igual o mejor), por lo que el
-modelo recomendado sigue siendo el clásico; detalle, tablas y limitaciones en `docs/fay_herriot_espacial.md`.
+`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018 (corrida de `test-2`,
+23 dominios, 82 objetivos): **sin evidencia de dependencia espacial** — Moran de los residuos p entre 0.82 y
+0.91; ρ̂ entre 0.11 y 0.39 (completa) sin significancia (LRT p ≥ 0.60); ΔAIC entre −1.09 y −2.00 (el clásico
+tiene menor AIC en los 8 casos); perfil de ρ plano (ganancia ≤ 0.22); RMSE dejar-un-dominio-fuera: clásico
+2.084 frente a 2.115-2.440 del espacial con efecto. El efecto espacial en los objetivos es casi nulo (media
+absoluta 0.05 pp) y 74 de 82 objetivos extrapolan. El modelo recomendado sigue siendo el clásico (benchmark);
+detalle, tablas, comparación con el cierre anterior y limitaciones en `docs/fay_herriot_espacial.md`.
 Ojo: en `municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; el notebook espacial
-la excluye de los objetivos (quedan 82).
+la excluye de los objetivos (quedan 82). `marca_extrapolacion` (B20) recibe la matriz de diseño de los
+objetivos (`X_obj`), no `x'Cov(β̂)x`.
 
 ### Flujo de tablas Unity Catalog (resumen end-to-end)
 

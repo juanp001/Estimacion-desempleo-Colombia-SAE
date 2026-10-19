@@ -262,6 +262,13 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
 6. **Tabla final consolidada** (`shared/consolidacion.py`): une EBLUP (dominios con encuesta directa) +
    predicción sintética (dominios sin encuesta), con columna `TIPO` indicando el origen →
    `tesis.modelo.fay_herriot_estimaciones_finales`.
+7. **Componente espacial** (`fay_herriot_espacial.py`, corre después del clásico): SEBLUP con efectos SAR
+   (Morales et al., §18.2), W por distancia entre centroides (kNN 3/5 e inversa 1/2), ρ estimado solo con los
+   23 dominios. Se compara con el benchmark clásico por I de Moran de residuos, ΔAIC, LRT de ρ = 0, perfil de
+   verosimilitud y validación dejar-un-dominio-fuera; tablas `tesis.modelo.fhe_*`. Resultado del cierre 2018:
+   **sin evidencia de dependencia espacial** (Moran p ≥ 0.82; ΔAIC de −1.09 a −2.00; RMSE del clásico 2.084
+   frente a 2.115-2.440 del espacial con efecto), así que el modelo recomendado sigue siendo el clásico. Detalle
+   y limitaciones en [docs/fay_herriot_espacial.md](docs/fay_herriot_espacial.md).
 
 ---
 
