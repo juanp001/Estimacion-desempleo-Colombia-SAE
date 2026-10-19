@@ -571,8 +571,8 @@ pred["CV_ESPACIAL_PCT"] = (
     100 * np.sqrt(final.mse_objetivo) / np.abs(final.pred_objetivo)
 )
 pred["DIF_ESPACIAL_VS_CLASICO"] = pred["PRED_ESPACIAL"] - pred["PRED_CLASICO"]
-var_beta_obj = np.einsum("ij,jk,ik->i", X_obj, clasico.cov_beta, X_obj)
-pred["EXTRAPOLA"] = marca_extrapolacion(var_beta_obj, clasico)
+# marca_extrapolacion (B20) recibe la matriz de diseño de los municipios objetivo, no x'Cov(β̂)x.
+pred["EXTRAPOLA"] = marca_extrapolacion(X_obj, clasico)
 pred["FUERA_DE_RANGO"] = marca_fuera_de_rango(
     pred["PRED_CLASICO"].values, TASA_MINIMA, TASA_MAXIMA
 )
