@@ -80,7 +80,7 @@ code/
     └── shared/
         ├── catalogo_literatura.py  # Variables con respaldo en la revisión de literatura
         ├── descriptivos.py         # Figuras e interpretaciones calculadas desde los datos
-        ├── diagnosticos.py         # Asociación, Cook, dejar-uno-fuera, VIF
+        ├── diagnosticos.py         # Asociación, FH univariado con ψ_d, Cook, dejar-uno-fuera, VIF
         └── seleccion.py            # Ficha de decisión y ajuste por VIF
 databricks.yml                      # Bundle DAB: variables de período, includes y exclusiones de sync
 dab/
@@ -210,13 +210,21 @@ Resultado: `catalogo_literatura`, `descriptivo_univariado` y `descriptivo_bivari
 **d) Selección cualitativa** (`code/analisis/eda_seleccion_covariables.py`), sobre las candidatas
 conceptuales y los 23 dominios:
 
-1. **Asociación**: Pearson/Spearman con la tasa de desempleo, intervalo de Fisher y signo esperado.
-2. **Robustez**: distancia de Cook (4/n) y exclusión de cada dominio, uno a uno.
-3. **Redundancia**: un representante por grupo de covariables con |r| ≥ 0.80 (el de menor Cook máximo).
-4. **Ficha de decisión** (`shared/seleccion.py`): elegible = intervalo sin cero y signo coherente con el
-   mecanismo; seleccionadas = las `P_MAXIMO` (4) de mayor |r|.
+1. **Asociación**: Pearson/Spearman con la tasa de desempleo e intervalo de Fisher, como descripción;
+   la decisión usa el **Fay-Herriot univariado** de cada covariable, que incorpora la varianza de
+   muestreo ψ_d de cada dominio (G7-B8). Su correlación ponderada es la única medida que ordena y fija el
+   signo (G7-B13); signo esperado; forma funcional (curvatura y escala logarítmica) como diagnóstico, sin
+   transformar covariables.
+2. **Robustez**: sobre el mismo modelo univariado, distancia de Cook (4/n) y exclusión de cada dominio,
+   uno a uno.
+3. **Redundancia**: grupos por enlace completo, en los que todos los pares tienen |r| ≥ 0.80 (G7-B10); un representante por grupo: el primer integrante elegible en orden de menor Cook máximo, con retroceso (G7-B11).
+4. **Ficha de decisión** (`shared/seleccion.py`): elegible = p-valor de la pendiente del Fay-Herriot
+   univariado con q de Benjamini-Hochberg ≤ 0.10 sobre todas las candidatas (G7-B9), con la estabilidad
+   bootstrap como lectura complementaria; el signo esperado es un
+   diagnóstico, no un filtro (G7-B12), y se reporta la selección con y sin las covariables de signo
+   inesperado; seleccionadas = las `P_MAXIMO` (4) de mayor |r ponderada|.
 5. **Verificación de multicolinealidad** (VIF ≤ `VIF_MAXIMO`): si falla, se sustituye por la siguiente
-   elegible.
+   elegible. Residuos parciales del conjunto elegido (G7-B13).
 
 No hay AIC ni Moran en el EDA (el Fay-Herriot es clásico y la comparación entre especificaciones se hace en
 el modelo). Resultado: `tesis.preprocesamiento.covariables_seleccionadas`, junto con
