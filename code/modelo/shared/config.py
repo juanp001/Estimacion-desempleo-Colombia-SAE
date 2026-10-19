@@ -1,13 +1,16 @@
 """Parámetros del modelo Fay-Herriot.
 
-Las especificaciones a comparar no se escriben a mano: se parte del conjunto que eligió
-`eda_seleccion_covariables` (`covariables_seleccionadas`) y se comparan ese conjunto
-y sus variantes dejando una covariable fuera, generadas en `shared/seleccion_modelo.py`. Así
-el modelo no puede quedar desincronizado del análisis exploratorio y la comparación responde
-a una pregunta concreta: si cada covariable aporta.
+Las especificaciones candidatas (EC1…ECk) del modelo base Fay-Herriot clásico no se escriben
+a mano: se parte del conjunto que eligió `eda_seleccion_covariables`
+(`covariables_seleccionadas`, EC1) y se comparan ese conjunto y las especificaciones que
+dejan una covariable fuera, generadas en `shared/seleccion_modelo.py`. Así el modelo no puede
+quedar desincronizado del análisis exploratorio y la comparación responde a una pregunta
+concreta: si cada covariable aporta. EC1…ECk no son los modelos finales del objetivo 1: la
+comparación del objetivo 1 es entre el benchmark seleccionado y las especificaciones
+espaciales.
 
-El ganador se elige siguiendo a Morales et al. (2021, p. 453): como el modelo se usa para
-predecir fuera de muestra, solo compiten las variantes con todas sus covariables
+El benchmark se elige siguiendo a Morales et al. (2021, p. 453): como el modelo se usa para
+predecir fuera de muestra, solo compiten las especificaciones con todas sus covariables
 significativas; entre ellas, la de menor AIC y, entre las equivalentes por AIC, la de menos
 covariables. El error cuadrático medio del EBLUP y la distancia de Cook se reportan como
 diagnósticos (ganancia de precisión y robustez), sin intervenir en la elección.
@@ -117,12 +120,14 @@ CV_ACEPTABLE = 20.0  # CV < 20 %  → aceptable; >= 20 % → no confiable
 # ── Selección de modelo ──────────────────────────────────────────────────────
 # Diferencia de AIC por debajo de la cual dos variantes se consideran equivalentes, según
 # la tabla de criterios de decisión del marco teórico. Entre las equivalentes, la
-# metodología impone elegir la de menos covariables.
+# metodología impone elegir la de menos covariables. Es una convención externa a Morales
+# et al. (2021): el libro no fija un umbral de ΔAIC; también se aplica a ΔAICc (complemento).
 DELTA_AIC_EQUIVALENTE = 2.0
 
 # Nivel de significancia que deben cumplir todas las covariables de una variante para
 # competir (Morales et al., p. 453: al predecir fuera de muestra no conviene incluir
-# covariables no significativas).
+# covariables no significativas). Regla estricta: el libro (p. 454) admite una covariable
+# con p > 0.05 si es interpretable; de darse, se reporta como excepción explícita.
 ALFA_SIGNIFICANCIA = 0.05
 
 # ── Avisos ───────────────────────────────────────────────────────────────────

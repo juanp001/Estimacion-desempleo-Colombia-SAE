@@ -216,12 +216,22 @@ analisis/eda_seleccion_covariables.py
 modelo/fay_herriot.py
   → FayHerriotClasico (shared/fay_herriot.py), MSE de Prasad-Rao con g3 = D²/(D+Â)³·avar(Â)
     (Morales et al., p. 440)
-  → variantes = conjunto seleccionado + dejar-una-fuera (shared/seleccion_modelo.py)
-  → ganador (Morales et al., p. 453): candidatas = variantes con todas las covariables p < 0.05;
-    entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos covariables. Si ninguna
-    variante tiene todas las covariables significativas, compiten todas (imprime aviso).
+  → especificaciones candidatas del modelo base Fay-Herriot clásico (EC1…ECk; NO son los modelos
+    finales del objetivo 1) = conjunto seleccionado (EC1) + dejar-una-fuera (shared/seleccion_modelo.py,
+    etiqueta_especificacion)
+  → benchmark seleccionado (Morales et al., p. 453; los modelos de área admiten sobreparametrizar, pero
+    aquí se predice también fuera de muestra, así que la regla es estricta; el libro admite una covariable
+    con p > 0.05 si es interpretable, p. 454, a reportar como excepción): candidatas = especificaciones con todas las
+    covariables p < 0.05; entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos
+    covariables. Si ninguna tiene todas las covariables significativas, compiten todas (imprime aviso).
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
-    robustez (Cook + reajuste sin el dominio más influyente) del ganador
+    robustez (Cook + reajuste sin el dominio más influyente) del benchmark. AICc (AIC + 2k(k+1)/(n−k−1),
+    k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
+    fh_seleccion_modelo; `AICc` en fh_coeficientes) y NO decide; `redaccion_seleccion` imprime el texto
+    «seleccionado entre varias especificaciones con soporte similar, mediante la regla de parsimonia».
+    La comparación del
+    objetivo 1 es después: benchmark vs. especificaciones espaciales.
+    En el código se conservan los nombres internos `modelo_ganador` / `elegir_ganador`
   → avisos (shared/diagnosticos.py): Â ≈ 0 (γ máx < 0.01), tasas fuera de [0,100]
     (FUERA_DE_RANGO) y extrapolación sintética (EXTRAPOLA = ESTADO_EXTRAPOLACION ≠ DENTRO_DEL_RANGO)
   → extrapolación B20 (celda 10a, shared/extrapolacion.py, cualquier número de covariables; la tasa
