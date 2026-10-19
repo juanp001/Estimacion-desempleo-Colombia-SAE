@@ -64,6 +64,7 @@ for _ruta in (CODE_DIR, os.path.join(CODE_DIR, "modelo")):
 
 from shared.config import *
 from shared.fay_herriot import FayHerriotClasico
+from shared.cuadro_comparativo import construir_cuadro_comparativo
 from shared.fay_herriot_espacial import (
     FayHerriotEspacial,
     validacion_dejar_uno_fuera,
@@ -462,6 +463,22 @@ mostrar(df_validacion.round(4))
 
 # COMMAND ----------
 
+# DBTITLE 1,7b. Cuadro comparativo (objetivo 1)
+# MAGIC %md
+# MAGIC ### Cuadro comparativo: benchmark clásico vs. especificaciones espaciales
+# MAGIC
+# MAGIC Resume en una sola tabla el ajuste (σ̂²_u, ρ̂, AIC, ΔAIC, LRT) y la validación
+# MAGIC dejar-un-dominio-fuera (RMSE, RMSE corregido por el ruido de la directa, sesgo). La
+# MAGIC primera fila es el benchmark clásico seleccionado; las demás, las ocho especificaciones
+# MAGIC espaciales. Todas comparten las covariables.
+
+# COMMAND ----------
+
+df_cuadro = construir_cuadro_comparativo(df_comparacion, df_validacion, clasico, covars)
+mostrar(df_cuadro.round(3))
+
+# COMMAND ----------
+
 # DBTITLE 1,8. Decisión
 # MAGIC %md
 # MAGIC ## 8. Decisión
@@ -695,6 +712,7 @@ vecindad_export = df_vecindad.copy()
 escribir(df_moran, TBL_FHE_MORAN)
 escribir(vecindad_export, TBL_FHE_VECINDAD)
 escribir(df_comparacion, TBL_FHE_COMPARACION)
+escribir(df_cuadro, TBL_FHE_CUADRO_COMPARATIVO)
 escribir(df_perfil, TBL_FHE_PERFIL_RHO)
 escribir(df_validacion, TBL_FHE_VALIDACION + "_metricas")
 escribir(cv_export, TBL_FHE_VALIDACION)

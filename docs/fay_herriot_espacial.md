@@ -260,6 +260,28 @@ estimación directa lleva a la misma conclusión (clásico 2.062; espacial con e
 
 ![Validación](img/fhe_validacion.png)
 
+### 6.5b Cuadro comparativo del objetivo 1 (`fhe_cuadro_comparativo`)
+
+Benchmark clásico seleccionado (EC4: `IICA_CONFLICTO + VA_PCT_PRIM`) frente a las ocho especificaciones
+espaciales, con las mismas covariables. Se genera con `shared/cuadro_comparativo.py` (paso 7b del notebook).
+RMSE = validación dejar-un-dominio-fuera (pp); «con efecto» solo existe en la estructura `completa`.
+
+| Modelo | σ̂²_u | ρ̂ | AIC | ΔAIC | p(LRT) | RMSE sintético | RMSE con efecto | Veredicto |
+|---|---|---|---|---|---|---|---|---|
+| **Clásico (benchmark)** | 4.035 | — | 102.67 | 0.00 | — | **2.084** | — | Referencia |
+| SEBLUP knn3 completa | 3.903 | 0.215 | 104.39 | −1.72 | 0.60 | 2.076 | 2.115 | No preferido |
+| SEBLUP knn3 muestra | 4.036 | 0.003 | 104.62 | −1.95 | 0.82 | 2.091 | — | No preferido |
+| SEBLUP knn5 completa | 4.040 | 0.108 | 104.67 | −2.00 | 0.95 | 2.095 | 2.219 | No preferido |
+| SEBLUP knn5 muestra | 4.049 | 0.058 | 104.60 | −1.92 | 0.78 | 2.090 | — | No preferido |
+| SEBLUP inversa1 completa | 4.053 | 0.313 | 104.58 | −1.91 | 0.76 | 2.329 | 2.219 | No preferido |
+| SEBLUP inversa1 muestra | 3.948 | −0.210 | 103.76 | −1.09 | 0.34 | 2.073 | — | No preferido |
+| SEBLUP inversa2 completa | 3.964 | 0.389 | 104.57 | −1.90 | 0.75 | 2.060 | 2.440 | No preferido |
+| SEBLUP inversa2 muestra | 3.969 | −0.129 | 104.18 | −1.51 | 0.48 | 2.086 | — | No preferido |
+
+Lectura: el clásico tiene el menor AIC; ninguna especificación espacial cumple ΔAIC > 2 y p(LRT) < 0.05,
+y las diferencias de RMSE (décimas de pp, con n = 23) no justifican el parámetro adicional. Conclusión del
+objetivo 1: el benchmark clásico se mantiene.
+
 ### 6.6 Predicción en los 82 municipios objetivo (`fhe_prediccion_objetivo`)
 
 Escenario de referencia `knn3` completa (ρ̂ = 0.215, σ̂²_u = 3.903, 500 de 500 réplicas válidas).
