@@ -128,6 +128,15 @@ from shared.seleccion_modelo import (
     figura_cook,
     interpretar_cook,
 )
+from shared.estabilidad_coeficientes import (
+    ADVERTENCIA_POST_SELECCION,
+    dejar_uno_fuera_coeficientes,
+    resumen_dejar_uno_fuera,
+    bootstrap_dominios,
+    resumen_bootstrap,
+    tabla_estabilidad,
+    interpretar_estabilidad,
+)
 from shared.diagnosticos import (
     graficar_validacion,
     explicacion_graficas,
@@ -454,6 +463,8 @@ if set(modelo_ganador.covars) != set(covars_eda):
     print(f"  conjunto del EDA: {' + '.join(covars_eda)}")
     print(f"  benchmark:        {' + '.join(modelo_ganador.covars)}")
 
+print("\nNOTA SOBRE LA INFERENCIA: " + ADVERTENCIA_POST_SELECCION)
+
 aviso = aviso_encuesta_sin_peso(modelo_ganador, UMBRAL_GAMMA_SIN_PESO)
 if aviso:
     print("\n" + aviso)
@@ -528,6 +539,39 @@ print(
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ## Estabilidad de los coeficientes del benchmark (análisis de sensibilidad)
+# MAGIC
+# MAGIC Los mismos 23 dominios filtran, seleccionan, comparan y luego calculan los p-valores,
+# MAGIC así que **la significancia es descriptiva y condicional a la selección**; los
+# MAGIC coeficientes se reportan como asociaciones preliminares. Para medir cuánto dependen de
+# MAGIC los dominios se hacen dos ejercicios con la especificación **fija**: (1) dejar un
+# MAGIC dominio fuera, reajustando todo el modelo (incluida Â), y (2) bootstrap de dominios
+# MAGIC (remuestreo con reemplazo, `ESTABILIDAD_REPLICAS`). El bootstrap no repite la
+# MAGIC selección, así que subestima la incertidumbre de haber escogido las covariables con
+# MAGIC estos mismos datos. Es un análisis propio: ni Morales et al. (§16.8.2, pp. 453-454) ni
+# MAGIC los artículos espaciales consultados lo tratan.
+
+# COMMAND ----------
+
+# DBTITLE 1,Estabilidad de coeficientes: dejar-uno-fuera y bootstrap de dominios
+detalle_loo = dejar_uno_fuera_coeficientes(
+    modelo_ganador, FayHerriotClasico, nombres_dominio, alfa=ALFA_SIGNIFICANCIA
+)
+resumen_loo = resumen_dejar_uno_fuera(detalle_loo, modelo_ganador.n)
+replicas_boot = bootstrap_dominios(
+    modelo_ganador,
+    FayHerriotClasico,
+    replicas=ESTABILIDAD_REPLICAS,
+    semilla=ESTABILIDAD_SEMILLA,
+)
+resumen_boot = resumen_bootstrap(modelo_ganador, replicas_boot, alfa=ALFA_SIGNIFICANCIA)
+df_estabilidad = tabla_estabilidad(resumen_loo, resumen_boot)
+display(df_estabilidad.round(4))
+print(interpretar_estabilidad(df_estabilidad))
+
+# COMMAND ----------
+
 # DBTITLE 1,9. Exportar resultados del benchmark seleccionado
 # Coeficientes del modelo benchmark, para el capítulo de resultados.
 cook_ganador = distancia_cook(modelo_ganador)
@@ -554,6 +598,18 @@ df_coef_ganador["Cook_max"] = round(float(cook_ganador.max()), 4)
     .saveAsTable(TBL_FH_COEFICIENTES)
 )
 print(f"Tabla escrita: {TBL_FH_COEFICIENTES}")
+
+for _tabla, _destino in (
+    (df_estabilidad, TBL_FH_ESTABILIDAD),
+    (detalle_loo, TBL_FH_ESTABILIDAD_LOO),
+):
+    (
+        spark.createDataFrame(_tabla)
+        .write.mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable(_destino)
+    )
+    print(f"Tabla escrita: {_destino}")
 
 resultados_ganador = modelo_ganador.resultados.copy()
 resultados_ganador["COOK_D"] = cook_ganador.round(4)

@@ -244,6 +244,13 @@ modelo/fay_herriot.py
     p. 441/453, Molina 2019 PDF 40-41. Tablas fh_rangos_covariables y fh_sensibilidad_extrapolacion;
     ESTADO_EXTRAPOLACION y APORTE_EXTRAPOLADO_PP también en prediccion_sintetica y la tabla final
     (entrada de B21)
+  → estabilidad de coeficientes del benchmark (shared/estabilidad_coeficientes.py; análisis de
+    sensibilidad, no decide): dejar-un-dominio-fuera (reajusta Â) y bootstrap de dominios con la
+    especificación fija (ESTABILIDAD_REPLICAS = 1000, semilla 42) → fh_estabilidad_coeficientes y
+    fh_estabilidad_dejar_uno_fuera. Los mismos 23 dominios filtran, seleccionan y calculan los p, así que
+    la significancia es descriptiva y los coeficientes son asociaciones preliminares condicionales a la
+    selección (ADVERTENCIA_POST_SELECCION se imprime en el notebook). Ni Morales (pp. 453-454) ni los
+    artículos espaciales tratan este punto: es un análisis propio; el bootstrap no repite la selección
   → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF; sin
     validación cruzada. La GVF y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py
   → figuras solo en pantalla (sin título y sin guardarse en volúmenes)

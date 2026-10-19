@@ -16,6 +16,9 @@ espaciales (`fay_herriot_espacial.py`).
    covariable con p > 0.05 si es interpretable (p. 454), lo cual debe reportarse como
    excepción explícita. Entre las especificaciones que cumplen la regla se elige por AIC y,
    entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
+   La regla «todas las covariables p < 0.05» es un criterio de **selección**, no evidencia:
+   los mismos dominios seleccionan y calculan los p, así que la significancia es descriptiva y
+   condicional a la selección (ver `estabilidad_coeficientes.py`).
    Notas sobre lo que NO viene del libro: el umbral ΔAIC ≤ 2 y el AICc son convenciones
    externas. El AICc (corrección de muestra pequeña, relevante con n = 23 dominios) se
    reporta como complemento y no cambia la decisión; en Fay-Herriot es una aproximación (su
