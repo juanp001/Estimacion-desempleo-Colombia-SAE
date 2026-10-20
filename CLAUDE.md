@@ -251,6 +251,21 @@ modelo/fay_herriot.py
     la significancia es descriptiva y los coeficientes son asociaciones preliminares condicionales a la
     selección (ADVERTENCIA_POST_SELECCION se imprime en el notebook). Ni Morales (pp. 453-454) ni los
     artículos espaciales tratan este punto: es un análisis propio; el bootstrap no repite la selección
+  → sensibilidad a dominios individuales, dejar-un-dominio-fuera (LOAO) completo (G7-B18, celda 10a-bis,
+    mismo `shared/estabilidad_coeficientes.py`; análisis propio, no decide ni cambia las tasas):
+    reajusta el benchmark (con Â) sin cada uno de los 23 dominios y reporta (a) por β_j el mínimo y el
+    máximo de β̂_j(-d) con el dominio que los produce, el cambio relativo máximo, el **cambio
+    estandarizado Δβ/EE(β̂)** (estilo DFBETAS; el porcentual se infla si |β̂| es pequeño), los cambios de
+    signo y los cruces de α, los 3 dominios que más mueven cada β y un mapa de calor; (b) el efecto en
+    predicciones: EBLUP de los 22 dominios que quedan, predicción sintética del dominio retirado
+    (x_d'β̂(-d) frente a su EBLUP = error de predecirlo fuera de muestra), predicción sintética de los 83
+    municipios (separando los que extrapolan, B20), Â, y cambios de clase de confiabilidad por CV.
+    Umbrales (convención propia, `config.py`): `LOAO_UMBRAL_CAMBIO_EE = 1.0` EE y `LOAO_UMBRAL_PRED_PP =
+    0.5` pp. Tablas `fh_loao_coeficientes`, `fh_loao_predicciones` y `fh_loao_dominios` (tesis.modelo;
+    `fh_estabilidad_dejar_uno_fuera` gana `EE_completo` y `Cambio_en_EE`). Ni Morales et al. ni los
+    artículos espaciales tratan la influencia por dominio; respaldan solo la lectura (en un área fuera
+    de muestra el predictor es x'β̂: Benedetti 2024 p. 144; Morales p. 441). Responde a la revisión que
+    citaba cambios de ~37 % y ~47 % al retirar Neiva: la tabla dice qué dominio los causa y si superan 1 EE
   → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF; sin
     validación cruzada. La GVF y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py
   → figuras solo en pantalla (sin título y sin guardarse en volúmenes)
@@ -330,7 +345,9 @@ resultados — común a cualquier variante SAE), `fay_herriot.py` (FayHerriotCla
 Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de
 diagnósticos, Cook, tabla de selección y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV
 directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `escenarios_psi`,
-`ajustar_escenarios`, figuras e interpretación), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
+`ajustar_escenarios`, figuras e interpretación), `estabilidad_coeficientes.py` (dejar-uno-fuera y bootstrap de coeficientes; G7-B18:
+`dejar_uno_fuera_predicciones`, `resumen_influencia_dominios`, `top_dominios_por_parametro`,
+`interpretar_influencia`, `figura_influencia`), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
 `verificar_benchmark`; funciones puras numpy/pandas con doctests), `extrapolacion.py` (B20:
 `rangos_covariables`, `estado_extrapolacion`, `prediccion_acotada`, `sensibilidad_quitar_dominio`,
 figuras e interpretación; doctests con 1 y 2 covariables), `consolidacion.py` (tabla final de dos

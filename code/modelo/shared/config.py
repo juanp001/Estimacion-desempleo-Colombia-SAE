@@ -47,6 +47,20 @@ TBL_FH_ESTABILIDAD_LOO = "tesis.modelo.fh_estabilidad_dejar_uno_fuera"
 ESTABILIDAD_REPLICAS = 1000
 ESTABILIDAD_SEMILLA = 42
 TBL_FH_COEFICIENTES = "tesis.modelo.fh_coeficientes"
+# Sensibilidad a dominios individuales, dejar-un-dominio-fuera (LOAO) completo (G7-B18,
+# shared/estabilidad_coeficientes.py): efecto en coeficientes, en los EBLUP de los dominios que
+# quedan, en la predicción sintética de los municipios y en Â. Convenciones propias (ni Morales et
+# al. ni los artículos espaciales fijan umbrales de influencia por dominio):
+# - un coeficiente se considera movido de forma relevante si cambia más de LOAO_UMBRAL_CAMBIO_EE
+#   errores estándar de su estimación con todos los dominios (cambio estandarizado, estilo DFBETAS,
+#   que no se infla cuando |β̂| es pequeño como el cambio porcentual);
+# - una predicción se considera movida de forma relevante si cambia más de LOAO_UMBRAL_PRED_PP
+#   puntos porcentuales (por encima de lo que mueve cambiar la varianza de muestreo, G7-B3).
+TBL_FH_LOAO_COEFICIENTES = "tesis.modelo.fh_loao_coeficientes"
+TBL_FH_LOAO_PREDICCIONES = "tesis.modelo.fh_loao_predicciones"
+TBL_FH_LOAO_DOMINIOS = "tesis.modelo.fh_loao_dominios"
+LOAO_UMBRAL_CAMBIO_EE = 1.0
+LOAO_UMBRAL_PRED_PP = 0.5
 # Extrapolación de la predicción sintética (B20, shared/extrapolacion.py): rango de cada
 # covariable en dominios y municipios, y sensibilidad por municipio (acotada y quitar un dominio).
 TBL_FH_RANGOS_COVARIABLES = "tesis.modelo.fh_rangos_covariables"

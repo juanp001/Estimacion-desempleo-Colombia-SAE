@@ -136,6 +136,11 @@ from shared.estabilidad_coeficientes import (
     resumen_bootstrap,
     tabla_estabilidad,
     interpretar_estabilidad,
+    dejar_uno_fuera_predicciones,  # G7-B18: LOAO completo y efecto en predicciones
+    resumen_influencia_dominios,
+    top_dominios_por_parametro,
+    interpretar_influencia,
+    figura_influencia,
 )
 from shared.diagnosticos import (
     graficar_validacion,
@@ -891,6 +896,109 @@ spark.createDataFrame(df_sens).write.mode("overwrite").option(
 print(
     f"Tablas escritas: {TBL_FH_RANGOS_COVARIABLES}, {TBL_FH_SENSIBILIDAD_EXTRAPOLACION}"
 )
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Sensibilidad a dominios individuales: dejar-un-dominio-fuera completo (G7-B18)
+# MAGIC
+# MAGIC Con 23 dominios, retirar uno puede mover los coeficientes (la revisión citó cambios de
+# MAGIC ~37 % y ~47 % al retirar un solo dominio). Esta celda reajusta el benchmark (**incluida
+# MAGIC Â**) 23 veces, una por dominio, y reporta:
+# MAGIC
+# MAGIC 1. **Coeficientes**: por β_j el mínimo y el máximo de β̂_j(-d) con el dominio que los produce,
+# MAGIC    el cambio relativo máximo, el **cambio estandarizado Δβ/EE(β̂)** (estilo DFBETAS: el
+# MAGIC    porcentual se infla cuando |β̂| es pequeño), los cambios de signo y los cruces del umbral
+# MAGIC    de significancia. Los 3 dominios que más mueven cada coeficiente y un mapa de calor.
+# MAGIC 2. **Predicciones**: EBLUP de los 22 dominios que quedan, la predicción sintética del
+# MAGIC    dominio retirado (error de predecirlo como si no tuviera encuesta), la predicción
+# MAGIC    sintética de los municipios objetivo (separando los que extrapolan, B20), Â y los
+# MAGIC    cambios de clase de confiabilidad por CV.
+# MAGIC
+# MAGIC **Cómo leer.** Se marca un coeficiente como movido si cambia más de `LOAO_UMBRAL_CAMBIO_EE`
+# MAGIC errores estándar y una predicción si cambia más de `LOAO_UMBRAL_PRED_PP` puntos
+# MAGIC porcentuales; ambos son convenciones propias (`shared/config.py`). El LOAO es un
+# MAGIC diagnóstico de sensibilidad: no interviene en la selección ni cambia las tasas publicadas.
+# MAGIC Ni Morales et al. ni los artículos espaciales consultados tratan este análisis; sí respaldan
+# MAGIC su lectura: en un área fuera de muestra el predictor es solo x'β̂ (Benedetti et al., 2024,
+# MAGIC p. 144; Morales et al., p. 441), así que un β̂ que depende de un dominio mueve directamente
+# MAGIC las predicciones de los municipios.
+
+# COMMAND ----------
+
+# DBTITLE 1,10a-bis. Dejar-un-dominio-fuera completo: coeficientes y predicciones (G7-B18)
+nombres_municipio = (
+    df_pred["MUNICIPIO"].astype(str)
+    + " ("
+    + df_pred["CODIGO_MUNICIPIO"].astype(str)
+    + ")"
+).to_numpy()
+municipios_extrapolan = dict(zip(nombres_municipio, df_pred["EXTRAPOLA"].astype(bool)))
+
+# `detalle_loo` y `resumen_loo` salen de la celda de estabilidad (8): mismos 23 reajustes.
+detalle_pred_loao, por_dominio_loao = dejar_uno_fuera_predicciones(
+    modelo_ganador,
+    FayHerriotClasico,
+    nombres_dominio,
+    X_obj=X_new,
+    nombres_obj=nombres_municipio,
+)
+df_influencia = resumen_influencia_dominios(
+    detalle_loo,
+    detalle_pred_loao,
+    por_dominio_loao,
+    municipios_extrapolan=municipios_extrapolan,
+    umbral_ee=LOAO_UMBRAL_CAMBIO_EE,
+    umbral_pp=LOAO_UMBRAL_PRED_PP,
+)
+
+print("Cada coeficiente: mínimo y máximo de β̂(-d) y dominio responsable")
+display(
+    resumen_loo[
+        [
+            "Parametro",
+            "Beta_completo",
+            "Beta_min",
+            "Dominio_beta_min",
+            "Beta_max",
+            "Dominio_beta_max",
+            "Cambio_pct_max_abs",
+            "Cambio_en_EE_max_abs",
+            "Dominio_max_cambio",
+            "N_cambia_signo",
+            "N_cruza_alfa",
+        ]
+    ].round(4)
+)
+print("Los 3 dominios que más mueven cada coeficiente:")
+display(top_dominios_por_parametro(detalle_loo, k=3).round(4))
+
+fig = figura_influencia(detalle_loo)
+if fig is not None:
+    display(fig)
+    plt.close(fig)
+
+print("Influencia de cada dominio en coeficientes y predicciones (de mayor a menor):")
+display(df_influencia.round(4))
+print(
+    interpretar_influencia(
+        resumen_loo, df_influencia, LOAO_UMBRAL_CAMBIO_EE, LOAO_UMBRAL_PRED_PP
+    )
+)
+
+_periodo = {"PER": int(df["PER"].iloc[0]), "MES": int(df["MES"].iloc[0])}
+for _tabla, _destino in (
+    (detalle_loo.assign(**_periodo), TBL_FH_LOAO_COEFICIENTES),
+    (detalle_pred_loao.assign(**_periodo), TBL_FH_LOAO_PREDICCIONES),
+    (df_influencia.assign(**_periodo), TBL_FH_LOAO_DOMINIOS),
+):
+    (
+        spark.createDataFrame(_tabla)
+        .write.mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable(_destino)
+    )
+    print(f"Tabla escrita: {_destino}")
 
 # COMMAND ----------
 
