@@ -61,6 +61,18 @@ TBL_FH_LOAO_PREDICCIONES = "tesis.modelo.fh_loao_predicciones"
 TBL_FH_LOAO_DOMINIOS = "tesis.modelo.fh_loao_dominios"
 LOAO_UMBRAL_CAMBIO_EE = 1.0
 LOAO_UMBRAL_PRED_PP = 0.5
+# Validación predictiva del benchmark, dejar-un-dominio-fuera con dos ejercicios (G7-B19,
+# shared/validacion_predictiva.py): covariables de M2 fijas y procedimiento completo (repite la
+# selección en cada iteración). Para repetir la selección se leen las candidatas pre-filtradas y
+# el diccionario de indicadores; los parámetros de la selección son los de
+# preprocesamiento/shared/config.py (P_MAXIMO, Q_FDR_ELEGIBILIDAD, ...), no se duplican aquí.
+TBL_COVARIABLES_PREFILTRADAS = "tesis.preprocesamiento.covariables_prefiltradas"
+TBL_DIM_INDICADORES = "tesis.dim.dim_indicadores"
+TBL_FH_VALIDACION_CRUZADA = "tesis.modelo.fh_validacion_cruzada"
+TBL_FH_VALIDACION_METRICAS = "tesis.modelo.fh_validacion_cruzada_metricas"
+TBL_FH_VALIDACION_SELECCION = "tesis.modelo.fh_validacion_cruzada_seleccion"
+TBL_FH_VALIDACION_FRECUENCIA = "tesis.modelo.fh_validacion_cruzada_frecuencia"
+VALIDACION_NIVEL_COBERTURA = 0.95
 # Extrapolación de la predicción sintética (B20, shared/extrapolacion.py): rango de cada
 # covariable en dominios y municipios, y sensibilidad por municipio (acotada y quitar un dominio).
 TBL_FH_RANGOS_COVARIABLES = "tesis.modelo.fh_rangos_covariables"
@@ -164,7 +176,7 @@ TBL_FHE_MORAN = "tesis.modelo.fhe_moran"
 TBL_FHE_VECINDAD = "tesis.modelo.fhe_vecindad"
 TBL_FHE_COMPARACION = "tesis.modelo.fhe_comparacion_modelos"
 TBL_FHE_CUADRO_COMPARATIVO = "tesis.modelo.fhe_cuadro_comparativo"
-TBL_FHE_PERFIL_RHO ="tesis.modelo.fhe_perfil_rho"
+TBL_FHE_PERFIL_RHO = "tesis.modelo.fhe_perfil_rho"
 TBL_FHE_VALIDACION = "tesis.modelo.fhe_validacion_cruzada"
 TBL_FHE_COEFICIENTES = "tesis.modelo.fhe_coeficientes"
 TBL_FHE_PREDICCION_OBJETIVO = "tesis.modelo.fhe_prediccion_objetivo"

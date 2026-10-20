@@ -266,8 +266,25 @@ modelo/fay_herriot.py
     artículos espaciales tratan la influencia por dominio; respaldan solo la lectura (en un área fuera
     de muestra el predictor es x'β̂: Benedetti 2024 p. 144; Morales p. 441). Responde a la revisión que
     citaba cambios de ~37 % y ~47 % al retirar Neiva: la tabla dice qué dominio los causa y si superan 1 EE
-  → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF; sin
-    validación cruzada. La GVF y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py
+  → validación predictiva, dejar-un-dominio-fuera con dos ejercicios (G7-B19, celda 10a-ter,
+    `modelo/shared/validacion_predictiva.py`; análisis propio, no decide ni cambia las tasas): retira
+    cada dominio, ajusta con los otros 22 y lo predice como sin encuesta (x_d'β̂(-d)) frente a su directa.
+    (1) **Covariables de M2 fijas** (solo reajusta β̂ y Â; optimista, la selección vio al dominio
+    retirado) y (2) **procedimiento completo**: en cada iteración repite la selección de covariables
+    (`analisis/shared/seleccion.seleccionar_covariables`, mismos pasos que `eda_seleccion_covariables`: FH
+    univariado con ψ_d, BH, robustez, redundancia, parsimonia, VIF; sobre las 19 candidatas de
+    `covariables_prefiltradas`) y la elección del benchmark (`ajustar_benchmark`: conjunto +
+    dejar-una-fuera + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
+    reproducen EC1 y M2. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
+    (√media(e²−ψ)), errores estandarizados `Z_psi = e/√ψ` y `Z_pred = e/√(ψ + x'Cov(β̂)x + Â)` (media,
+    sd, cobertura nominal), error dentro de muestra, y habilidad frente a un modelo de solo intercepto
+    evaluado igual. Salidas: `fh_validacion_cruzada` (por dominio y ejercicio),
+    `fh_validacion_cruzada_metricas`, `fh_validacion_cruzada_seleccion` (qué elige cada iteración) y
+    `fh_validacion_cruzada_frecuencia`. El pre-filtrado no se repite (no usa la respuesta). Con n = 23 son
+    23 predicciones: orden de magnitud. Morales et al. no tratan la validación cruzada por área; respaldan
+    solo la lectura (p. 441). `fay_herriot_espacial.py` ya hacía un LOAO con covariables fijas para
+    comparar clásico y espacial; el ejercicio 1 lo reproduce para el clásico.
+  → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF. La GVF y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py
   → figuras solo en pantalla (sin título y sin guardarse en volúmenes)
   → clave de dominio PER_MES_CODIGO_DOMINIO; etiquetas = NOMBRE_DOMINIO («Cali A.M.»)
   → benchmarking en dos niveles, ajuste de razón de Fay-Herriot (1979) (shared/benchmarking.py, con la
@@ -347,7 +364,9 @@ diagnósticos, Cook, tabla de selección y ganador), `diagnosticos.py` (gráfica
 directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `escenarios_psi`,
 `ajustar_escenarios`, figuras e interpretación), `estabilidad_coeficientes.py` (dejar-uno-fuera y bootstrap de coeficientes; G7-B18:
 `dejar_uno_fuera_predicciones`, `resumen_influencia_dominios`, `top_dominios_por_parametro`,
-`interpretar_influencia`, `figura_influencia`), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
+`interpretar_influencia`, `figura_influencia`), `validacion_predictiva.py` (G7-B19: `ajustar_benchmark`,
+`loao_covariables_fijas`, `loao_procedimiento_completo`, `metricas_validacion_cruzada`, `frecuencia_seleccion`,
+`interpretar_validacion`, `figura_validacion`), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
 `verificar_benchmark`; funciones puras numpy/pandas con doctests), `extrapolacion.py` (B20:
 `rangos_covariables`, `estado_extrapolacion`, `prediccion_acotada`, `sensibilidad_quitar_dominio`,
 figuras e interpretación; doctests con 1 y 2 covariables), `consolidacion.py` (tabla final de dos

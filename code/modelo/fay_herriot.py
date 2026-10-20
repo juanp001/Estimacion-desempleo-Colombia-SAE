@@ -166,6 +166,24 @@ from shared.consolidacion import (
     interpretar_calidad,
 )
 
+# G7-B19: la validación predictiva repite la selección de covariables del análisis. Se importa
+# por ruta completa (`shared` aquí es modelo/shared) y el config del preprocesamiento como
+# módulo, para no pisar los nombres de `shared.config`.
+from preprocesamiento.shared import config as cfg_pre
+from analisis.shared.catalogo_literatura import resolver_catalogo, mapas_catalogo
+from analisis.shared.seleccion import seleccionar_covariables
+from shared.validacion_predictiva import (
+    EJERCICIO_NULO,
+    ajustar_benchmark,
+    loao_covariables_fijas,
+    loao_procedimiento_completo,
+    metricas_validacion_cruzada,
+    frecuencia_seleccion,
+    resumen_seleccion,
+    interpretar_validacion,
+    figura_validacion,
+)
+
 # Cifra oficial del DANE de la ventana de la estimación directa (año reconstruido o trimestre
 # publicado). Se importa por ruta completa porque `shared` aquí es modelo/shared.
 from preprocesamiento.shared.ventana import td_dane_ventana
@@ -991,6 +1009,192 @@ for _tabla, _destino in (
     (detalle_loo.assign(**_periodo), TBL_FH_LOAO_COEFICIENTES),
     (detalle_pred_loao.assign(**_periodo), TBL_FH_LOAO_PREDICCIONES),
     (df_influencia.assign(**_periodo), TBL_FH_LOAO_DOMINIOS),
+):
+    (
+        spark.createDataFrame(_tabla)
+        .write.mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable(_destino)
+    )
+    print(f"Tabla escrita: {_destino}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Validación predictiva del benchmark: dejar-un-dominio-fuera (G7-B19)
+# MAGIC
+# MAGIC Ninguna cifra del ajuste con los 23 dominios dice qué tan bien predice el modelo **un
+# MAGIC dominio sin encuesta**, que es el uso real (municipios objetivo, predictor x'β̂). Para cada
+# MAGIC dominio d: se retira, se ajusta con los demás (reestimando Â y β̂), se predice como si no
+# MAGIC tuviera estimación directa y se compara con y_d. Dos ejercicios:
+# MAGIC
+# MAGIC 1. **Covariables de M2 fijas**: solo se reajustan los coeficientes. Es optimista, porque
+# MAGIC    las covariables se escogieron viendo también al dominio retirado.
+# MAGIC 2. **Procedimiento completo**: en cada iteración se repite todo con los 22 dominios que
+# MAGIC    quedan: la selección de covariables de `eda_seleccion_covariables` (Fay-Herriot
+# MAGIC    univariado con ψ_d, falsos descubrimientos, robustez, redundancia, parsimonia, VIF) y la
+# MAGIC    elección de la especificación de la celda 8 (conjunto y dejar-una-fuera, significancia,
+# MAGIC    AIC, parsimonia). Mide el error del **procedimiento**; su diferencia con el ejercicio 1
+# MAGIC    es el costo de seleccionar con los mismos datos.
+# MAGIC
+# MAGIC La RMSE se complementa con **errores estandarizados**, porque y_d es una estimación con
+# MAGIC ruido ψ_d y ψ_d varía mucho entre dominios: `Z_psi = (pred − y_d)/√ψ_d` (error en unidades
+# MAGIC del ruido de la directa) y `Z_pred = (pred − y_d)/√(ψ_d + x'Cov(β̂)x + Â)` (error contra
+# MAGIC su desviación esperada si el modelo fuera correcto: media ≈ 0, sd ≈ 1, cobertura ≈ nominal).
+# MAGIC Se reporta también el RMSE corregido por ruido, la comparación con un modelo de solo
+# MAGIC intercepto y el error dentro de muestra.
+# MAGIC
+# MAGIC Es un análisis propio: Morales et al. no desarrollan la validación cruzada por área; sí
+# MAGIC respaldan su lectura (p. 441). Con 23 predicciones las métricas son de baja precisión. El
+# MAGIC pre-filtrado no depende de la respuesta y no se repite. No cambia las tasas publicadas.
+
+# COMMAND ----------
+
+# DBTITLE 1,10a-ter. Validación predictiva: covariables fijas y procedimiento completo (G7-B19)
+# Candidatas del catálogo con sus códigos: la selección completa trabaja sobre las 19, no solo
+# sobre las covariables que ya quedaron en M2.
+indicadores_dict = {
+    fila["CODIGO_INDICADOR"]: fila["INDICADOR"]
+    for fila in spark.table(TBL_DIM_INDICADORES)
+    .select("CODIGO_INDICADOR", "INDICADOR")
+    .collect()
+}
+df_prefiltradas = spark.table(TBL_COVARIABLES_PREFILTRADAS).toPandas()
+catalogo_val, _ = resolver_catalogo(indicadores_dict, list(df_prefiltradas.columns))
+CAND_VAL, ALIAS_VAL, SIGNO_VAL, DIM_VAL = mapas_catalogo(catalogo_val)
+
+# Mismas filas y mismo orden que `df`; la tasa y su error estándar deben coincidir con las del modelo.
+df_val = df[["CODIGO_DOMINIO"]].merge(
+    df_prefiltradas[["CODIGO_DOMINIO", "NOMBRE_DOMINIO", Y_COL, SE_COL] + CAND_VAL],
+    on="CODIGO_DOMINIO",
+    how="left",
+)
+for _col in [Y_COL, SE_COL] + CAND_VAL:
+    df_val[_col] = pd.to_numeric(df_val[_col], errors="coerce")
+assert (
+    len(df_val) == len(df) and not df_val[CAND_VAL + [Y_COL, SE_COL]].isna().any().any()
+)
+assert np.allclose(df_val[Y_COL], df[Y_COL]) and np.allclose(df_val[SE_COL], df[SE_COL])
+
+covars_m2 = [alias_a_codigo[a] for a in modelo_ganador.covars]
+covars_eda_codigos = [alias_a_codigo[a] for a in covars_eda]
+COLS_ID = ["CODIGO_DOMINIO", "NOMBRE_DOMINIO"]
+
+
+def selector(df_entrenamiento):
+    """Repite la selección de covariables del análisis con los dominios de entrenamiento.
+
+    Args:
+        df_entrenamiento (pd.DataFrame): Dominios con las candidatas, la tasa y su error estándar.
+
+    Returns:
+        list[str]: Códigos de las covariables seleccionadas (vacío si ninguna es elegible).
+
+    Example:
+        >>> selector(df_val)
+    """
+    seleccionadas, _ = seleccionar_covariables(
+        df_entrenamiento,
+        CAND_VAL,
+        df_entrenamiento[Y_COL].to_numpy(),
+        df_entrenamiento[SE_COL].to_numpy() ** 2,
+        df_entrenamiento["NOMBRE_DOMINIO"].to_numpy(),
+        SIGNO_VAL,
+        alias=ALIAS_VAL,
+        dimension=DIM_VAL,
+        p_maximo=cfg_pre.P_MAXIMO,
+        q_fdr=cfg_pre.Q_FDR_ELEGIBILIDAD,
+        umbral_delta=cfg_pre.UMBRAL_DELTA_LOO,
+        umbral_redundancia=cfg_pre.UMBRAL_REDUNDANCIA,
+        vif_max=cfg_pre.VIF_MAXIMO,
+        alfa_ic=cfg_pre.ALFA_IC_CORRELACION,
+    )
+    return seleccionadas
+
+
+# Comprobación: con los 23 dominios el procedimiento debe reproducir lo que dejó el análisis (EC1) y
+# el benchmark M2; si no, este ejercicio ya no valida el modelo que se reporta.
+_sel_todos = selector(df_val)
+_m2_repetido = ajustar_benchmark(
+    df_val, _sel_todos, Y_COL, SE_COL, DELTA_AIC_EQUIVALENTE, ALFA_SIGNIFICANCIA
+)
+print(
+    "Selección repetida con los 23 dominios = conjunto del análisis (EC1): "
+    + ("PASS" if set(_sel_todos) == set(covars_eda_codigos) else "FAIL")
+    + f"  ({[ALIAS_VAL[c] for c in _sel_todos]})"
+)
+print(
+    "Benchmark repetido con los 23 dominios = M2: "
+    + ("PASS" if set(_m2_repetido.covars) == set(covars_m2) else "FAIL")
+)
+
+cv_fijas = loao_covariables_fijas(
+    covars_m2, df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL
+)
+cv_nulo = loao_covariables_fijas(
+    [], df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL, ejercicio=EJERCICIO_NULO
+)
+cv_completo, df_seleccion_cv = loao_procedimiento_completo(
+    df_val,
+    Y_COL,
+    SE_COL,
+    COLS_ID,
+    selector,
+    DELTA_AIC_EQUIVALENTE,
+    ALFA_SIGNIFICANCIA,
+    alias=ALIAS_VAL,
+)
+detalle_cv = pd.concat([cv_fijas, cv_completo, cv_nulo], ignore_index=True)
+
+rmse_dentro = float(np.sqrt(np.mean((modelo_ganador.Y - modelo_ganador.mu_hat) ** 2)))
+df_metricas_cv = metricas_validacion_cruzada(
+    detalle_cv, rmse_dentro_muestra=rmse_dentro, nivel=VALIDACION_NIVEL_COBERTURA
+)
+df_frecuencia_cv = frecuencia_seleccion(df_seleccion_cv, covars_m2, alias=ALIAS_VAL)
+resumen_sel_cv = resumen_seleccion(df_seleccion_cv, covars_m2)
+
+print("\nMétricas de predicción fuera de muestra (error = predicción − directa):")
+display(df_metricas_cv.round(4))
+print(
+    "Selección en cada iteración (qué elige el procedimiento al retirar cada dominio):"
+)
+display(df_seleccion_cv.drop(columns=["_Seleccion_EDA", "_Benchmark"]))
+print("Frecuencia con que entra cada covariable:")
+display(df_frecuencia_cv.round(3))
+print("Detalle por dominio (benchmark con covariables fijas y procedimiento completo):")
+display(
+    detalle_cv[detalle_cv["Ejercicio"] != EJERCICIO_NULO][
+        [
+            "Ejercicio",
+            "NOMBRE_DOMINIO",
+            "Directa",
+            "SE_directa",
+            "Prediccion",
+            "RMSE_sintetico",
+            "Error",
+            "Z_psi",
+            "Z_pred",
+            "Covariables",
+        ]
+    ].round(3)
+)
+
+fig = figura_validacion(detalle_cv[detalle_cv["Ejercicio"] != EJERCICIO_NULO])
+display(fig)
+plt.close(fig)
+print(interpretar_validacion(df_metricas_cv, detalle_cv, resumen_sel_cv))
+
+_periodo_cv = {"PER": int(df["PER"].iloc[0]), "MES": int(df["MES"].iloc[0])}
+for _tabla, _destino in (
+    (detalle_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_CRUZADA),
+    (df_metricas_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_METRICAS),
+    (
+        df_seleccion_cv.drop(columns=["_Seleccion_EDA", "_Benchmark"]).assign(
+            **_periodo_cv
+        ),
+        TBL_FH_VALIDACION_SELECCION,
+    ),
+    (df_frecuencia_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_FRECUENCIA),
 ):
     (
         spark.createDataFrame(_tabla)
