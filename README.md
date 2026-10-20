@@ -226,8 +226,8 @@ conceptuales y los 23 dominios:
 5. **Verificación de multicolinealidad** (VIF ≤ `VIF_MAXIMO`): si falla, se sustituye por la siguiente
    elegible. Residuos parciales del conjunto elegido (G7-B13).
 
-No hay AIC ni Moran en el EDA (el Fay-Herriot es clásico y la comparación entre especificaciones se hace en
-el modelo). Resultado: `tesis.preprocesamiento.covariables_seleccionadas`, junto con
+El índice de Moran se reserva para los residuos del benchmark y de las variantes
+espaciales. Resultado: `tesis.preprocesamiento.covariables_seleccionadas`, junto con
 `decision_covariables`, `trazabilidad_covariables`, `covariables_candidatas` y las tablas de diagnóstico.
 
 ### 5. Modelo Fay-Herriot (`code/modelo/fay_herriot.py`)
