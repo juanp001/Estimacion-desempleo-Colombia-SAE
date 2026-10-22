@@ -6,6 +6,11 @@ Este proyecto usa la **GEIH** (Gran Encuesta Integrada de Hogares, DANE) y **Ter
 un modelo de área pequeña **Fay-Herriot** que estima la tasa de desempleo en municipios de Colombia donde la
 GEIH no tiene cobertura muestral directa.
 
+El Fay-Herriot clásico (efectos de área independientes, `modelo/fay_herriot.py`) es el **benchmark no
+espacial**: el proyecto **sí incluye variantes espaciales** del Fay-Herriot, que se desarrollan en una rama
+aparte y se integrarán a este flujo (ver «Componente espacial»). Mientras no estén mezcladas, las tablas
+municipales del clásico son resultados preliminares del benchmark, no las estimaciones finales.
+
 Todo el código corre sobre Databricks (notebooks `.py` con `# Databricks notebook source` / `# COMMAND ----------`)
 y persiste en tablas Unity Catalog bajo el catálogo `tesis`. Esquemas: `geih_bronce`, `geih_plata`, `geih_oro`,
 `terridata`, `dim`, `preprocesamiento`, `modelo` (y `censo_nal`, que ningún código fuera de `censo_nal/` usa;
@@ -284,7 +289,9 @@ modelo/fay_herriot.py
     23 predicciones: orden de magnitud. Morales et al. no tratan la validación cruzada por área; respaldan
     solo la lectura (p. 441). `fay_herriot_espacial.py` ya hacía un LOAO con covariables fijas para
     comparar clásico y espacial; el ejercicio 1 lo reproduce para el clásico.
-  → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF. La GVF y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py
+  → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF. La GVF
+    y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py. La validación predictiva
+    dejar-un-área-fuera (G7-B19) está permitida: no hay restricción del proyecto contra ella
   → figuras solo en pantalla (sin título y sin guardarse en volúmenes)
   → clave de dominio PER_MES_CODIGO_DOMINIO; etiquetas = NOMBRE_DOMINIO («Cali A.M.»)
   → benchmarking en dos niveles, ajuste de razón de Fay-Herriot (1979) (shared/benchmarking.py, con la
@@ -433,10 +440,22 @@ Reglas del flujo de selección:
   dato utilizable quedan en `CATALOGO_EXCLUIDAS` con su motivo (hoy 5; los motivos son distintos: sin dato en
   los dominios con encuesta, serie terminada en 2016, solo departamental, ausente en los municipios objetivo
   o solo 2022-2023). El catálogo activo tiene 19 entradas. IICA es el proxy documentado de
-  «víctimas/desplazamiento»; la tasa de tránsito a educación superior se conserva por decisión del proyecto.
-- **Sin AIC en el EDA, sin Moran en ningún notebook**: el Fay-Herriot es clásico (efectos independientes)
-  y no se ajustan variantes espaciales, así que la autocorrelación espacial no cambia ninguna decisión.
-  La comparación entre especificaciones se hace solo en `modelo/fay_herriot.py`.
+  «víctimas/desplazamiento», pero **no es obligatoria**: puede salir del catálogo si no se sostiene. La tasa
+  de tránsito a educación superior se conserva por decisión del proyecto.
+- **Moran y AIC permitidos**: el índice de Moran (sobre residuos del benchmark y de las variantes espaciales)
+  y el AIC pueden usarse donde corresponda, incluido el EDA. La comparación entre especificaciones del
+  clásico se hace en `modelo/fay_herriot.py`.
+- **Componente espacial** (variantes espaciales del FH; el código vive en otra rama y se integrará a
+  `modelo/`). Requisitos de la revisión del Grupo 7 (`Comentarios Grupo 7.pdf`, sec. 7-9):
+  - la matriz W se construye sobre las unidades reales de la respuesta (un dominio A.M. es un solo nodo),
+    con la vecindad o distancia justificada;
+  - comparación controlada FH clásico vs espacial: misma respuesta, mismos ψ_d, mismos dominios y mismas
+    covariables congeladas; una comparación «mejor clásico vs mejor espacial» va aparte;
+  - Moran global y mapa de residuos del benchmark y de la variante espacial (I_base vs I_espacial), junto
+    con el desempeño predictivo y la incertidumbre;
+  - el predictor de los municipios sin muestra se deriva de la formulación espacial, no como sintético
+    más una corrección ad hoc; las mismas herramientas de validación, extrapolación (B20) y calidad
+    reportada (B21) se aplican a las dos variantes.
 - **Distancia de Cook en el FH**: `distancia_cook(modelo)` en `modelo/shared/seleccion_modelo.py` la calcula
   sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
 - Parámetros en `preprocesamiento/shared/config.py` (`BOOTSTRAP_REPLICAS`/`BOOTSTRAP_SEED`, umbrales de CV,
