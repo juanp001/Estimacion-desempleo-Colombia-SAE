@@ -11,7 +11,7 @@
 # MAGIC mínimos cuadrados generalizados y el AIC con la verosimilitud ML
 # MAGIC (`shared/fay_herriot.py`).
 # MAGIC
-# MAGIC **EC1…EC5 no son los modelos finales del objetivo 1.** Son *especificaciones
+# MAGIC **G7-B15 — EC1…EC5 no son los modelos finales del objetivo 1.** Son *especificaciones
 # MAGIC candidatas del modelo base Fay-Herriot clásico*; de ellas sale el benchmark
 # MAGIC seleccionado. La comparación del objetivo 1 se hace después, en
 # MAGIC `fay_herriot_espacial`, entre ese benchmark y las especificaciones espaciales.
@@ -30,7 +30,7 @@
 # MAGIC    alguna covariable con p > 0.05 si tiene interpretación razonable (p. 454); eso debe
 # MAGIC    reportarse como excepción explícita, no aplicarse en silencio. Entre las que compiten
 # MAGIC    se elige la de menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
-# MAGIC    El umbral ΔAIC ≤ 2 y el AICc son convenciones externas al libro. El **AICc** se calcula
+# MAGIC    El umbral ΔAIC ≤ 2 y el AICc son convenciones externas al libro. **G7-B16:** el **AICc** se calcula
 # MAGIC    como complemento (no cambia la decisión) porque con 23 dominios el AIC penaliza poco; en
 # MAGIC    Fay-Herriot es una aproximación (la fórmula viene de regresión con errores iid y aquí las
 # MAGIC    D_i son heterogéneas), y el libro remite a Marhuenda et al. (2014) para criterios de
@@ -123,7 +123,7 @@ from shared.seleccion_modelo import (
     tabla_cook,
     tabla_seleccion,
     elegir_ganador,
-    redaccion_seleccion,  # Punto 2: texto de soporte de la selección (AIC + AICc)
+    redaccion_seleccion,  # G7-B16: texto de soporte de la selección (AIC + AICc)
     sensibilidad_cook,
     figura_cook,
     interpretar_cook,
@@ -180,7 +180,7 @@ from shared.validacion_predictiva import (
     metricas_validacion_cruzada,
     frecuencia_seleccion,
     resumen_seleccion,
-    interpretar_validacion,
+    interpretar_validacion as interpretar_validacion_cruzada,  # no pisar la de diagnosticos
     figura_validacion,
 )
 
@@ -431,7 +431,7 @@ if len(modelos) > 1:
         "entre ellas se elige la de menos covariables"
     )
     print("  MSE_medio y Cook_max: informativas, no intervienen en la decisión")
-    # Punto 2: AICc como complemento (n pequeño); tampoco interviene en la decisión.
+    # G7-B16: AICc como complemento (n pequeño); tampoco interviene en la decisión.
     print(
         "  AICc / Delta_AICc: AIC con corrección de muestra pequeña (n = "
         f"{modelos[0].n} dominios), complemento que no interviene en la decisión"
@@ -486,13 +486,14 @@ if set(modelo_ganador.covars) != set(covars_eda):
     print(f"  conjunto del EDA: {' + '.join(covars_eda)}")
     print(f"  benchmark:        {' + '.join(modelo_ganador.covars)}")
 
+# G7-B17: aviso de inferencia posterior a la selección.
 print("\nNOTA SOBRE LA INFERENCIA: " + ADVERTENCIA_POST_SELECCION)
 
 aviso = aviso_encuesta_sin_peso(modelo_ganador, UMBRAL_GAMMA_SIN_PESO)
 if aviso:
     print("\n" + aviso)
 
-# Punto 2: redacción calculada desde los datos («seleccionado entre varias especificaciones
+# G7-B16: redacción calculada desde los datos («seleccionado entre varias especificaciones
 # con soporte similar, mediante la regla de parsimonia predefinida») con la lectura de AICc.
 if len(modelos) > 1:
     print("\nREDACCIÓN SUGERIDA PARA EL DOCUMENTO:")
@@ -563,7 +564,7 @@ print(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Estabilidad de los coeficientes del benchmark (análisis de sensibilidad)
+# MAGIC ## Estabilidad de los coeficientes del benchmark (análisis de sensibilidad, G7-B17)
 # MAGIC
 # MAGIC Los mismos 23 dominios filtran, seleccionan, comparan y luego calculan los p-valores,
 # MAGIC así que **la significancia es descriptiva y condicional a la selección**; los
@@ -577,7 +578,7 @@ print(
 
 # COMMAND ----------
 
-# DBTITLE 1,Estabilidad de coeficientes: dejar-uno-fuera y bootstrap de dominios
+# DBTITLE 1,Estabilidad de coeficientes: dejar-uno-fuera y bootstrap de dominios (G7-B17)
 detalle_loo = dejar_uno_fuera_coeficientes(
     modelo_ganador, FayHerriotClasico, nombres_dominio, alfa=ALFA_SIGNIFICANCIA
 )
@@ -611,7 +612,7 @@ df_coef_ganador["Modelo"] = " + ".join(modelo_ganador.covars)
 df_coef_ganador["A_hat"] = round(float(modelo_ganador.A_hat), 6)
 df_coef_ganador["R2"] = round(float(modelo_ganador.r2), 4)
 df_coef_ganador["AIC"] = round(float(modelo_ganador.aic), 3)
-# Punto 2: AICc del benchmark junto al AIC (columna nueva en fh_coeficientes).
+# G7-B16: AICc del benchmark junto al AIC (columna nueva en fh_coeficientes).
 df_coef_ganador["AICc"] = round(float(modelo_ganador.aicc), 3)
 df_coef_ganador["Cook_max"] = round(float(cook_ganador.max()), 4)
 (
@@ -1028,7 +1029,7 @@ for _tabla, _destino in (
 # MAGIC dominio d: se retira, se ajusta con los demás (reestimando Â y β̂), se predice como si no
 # MAGIC tuviera estimación directa y se compara con y_d. Dos ejercicios:
 # MAGIC
-# MAGIC 1. **Covariables de M2 fijas**: solo se reajustan los coeficientes. Es optimista, porque
+# MAGIC 1. **Covariables del benchmark fijas**: solo se reajustan los coeficientes. Es optimista, porque
 # MAGIC    las covariables se escogieron viendo también al dominio retirado.
 # MAGIC 2. **Procedimiento completo**: en cada iteración se repite todo con los 22 dominios que
 # MAGIC    quedan: la selección de covariables de `eda_seleccion_covariables` (Fay-Herriot
@@ -1052,7 +1053,7 @@ for _tabla, _destino in (
 
 # DBTITLE 1,10a-ter. Validación predictiva: covariables fijas y procedimiento completo (G7-B19)
 # Candidatas del catálogo con sus códigos: la selección completa trabaja sobre las 19, no solo
-# sobre las covariables que ya quedaron en M2.
+# sobre las covariables que ya quedaron en el benchmark.
 indicadores_dict = {
     fila["CODIGO_INDICADOR"]: fila["INDICADOR"]
     for fila in spark.table(TBL_DIM_INDICADORES)
@@ -1076,7 +1077,7 @@ assert (
 )
 assert np.allclose(df_val[Y_COL], df[Y_COL]) and np.allclose(df_val[SE_COL], df[SE_COL])
 
-covars_m2 = [alias_a_codigo[a] for a in modelo_ganador.covars]
+covars_benchmark = [alias_a_codigo[a] for a in modelo_ganador.covars]
 covars_eda_codigos = [alias_a_codigo[a] for a in covars_eda]
 COLS_ID = ["CODIGO_DOMINIO", "NOMBRE_DOMINIO"]
 
@@ -1113,7 +1114,7 @@ def selector(df_entrenamiento):
 
 
 # Comprobación: con los 23 dominios el procedimiento debe reproducir lo que dejó el análisis (EC1) y
-# el benchmark M2; si no, este ejercicio ya no valida el modelo que se reporta.
+# el benchmark seleccionado; si no, este ejercicio ya no valida el modelo que se reporta.
 _sel_todos = selector(df_val)
 _m2_repetido = ajustar_benchmark(
     df_val, _sel_todos, Y_COL, SE_COL, DELTA_AIC_EQUIVALENTE, ALFA_SIGNIFICANCIA
@@ -1124,12 +1125,12 @@ print(
     + f"  ({[ALIAS_VAL[c] for c in _sel_todos]})"
 )
 print(
-    "Benchmark repetido con los 23 dominios = M2: "
-    + ("PASS" if set(_m2_repetido.covars) == set(covars_m2) else "FAIL")
+    "Benchmark repetido con los 23 dominios = benchmark seleccionado: "
+    + ("PASS" if set(_m2_repetido.covars) == set(covars_benchmark) else "FAIL")
 )
 
 cv_fijas = loao_covariables_fijas(
-    covars_m2, df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL
+    covars_benchmark, df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL
 )
 cv_nulo = loao_covariables_fijas(
     [], df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL, ejercicio=EJERCICIO_NULO
@@ -1150,8 +1151,8 @@ rmse_dentro = float(np.sqrt(np.mean((modelo_ganador.Y - modelo_ganador.mu_hat) *
 df_metricas_cv = metricas_validacion_cruzada(
     detalle_cv, rmse_dentro_muestra=rmse_dentro, nivel=VALIDACION_NIVEL_COBERTURA
 )
-df_frecuencia_cv = frecuencia_seleccion(df_seleccion_cv, covars_m2, alias=ALIAS_VAL)
-resumen_sel_cv = resumen_seleccion(df_seleccion_cv, covars_m2)
+df_frecuencia_cv = frecuencia_seleccion(df_seleccion_cv, covars_benchmark, alias=ALIAS_VAL)
+resumen_sel_cv = resumen_seleccion(df_seleccion_cv, covars_benchmark)
 
 print("\nMétricas de predicción fuera de muestra (error = predicción − directa):")
 display(df_metricas_cv.round(4))
@@ -1182,7 +1183,7 @@ display(
 fig = figura_validacion(detalle_cv[detalle_cv["Ejercicio"] != EJERCICIO_NULO])
 display(fig)
 plt.close(fig)
-print(interpretar_validacion(df_metricas_cv, detalle_cv, resumen_sel_cv))
+print(interpretar_validacion_cruzada(df_metricas_cv, detalle_cv, resumen_sel_cv))
 
 _periodo_cv = {"PER": int(df["PER"].iloc[0]), "MES": int(df["MES"].iloc[0])}
 for _tabla, _destino in (

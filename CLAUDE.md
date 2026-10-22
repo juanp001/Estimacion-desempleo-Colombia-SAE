@@ -216,7 +216,7 @@ analisis/eda_seleccion_covariables.py
 modelo/fay_herriot.py
   → FayHerriotClasico (shared/fay_herriot.py), MSE de Prasad-Rao con g3 = D²/(D+Â)³·avar(Â)
     (Morales et al., p. 440)
-  → especificaciones candidatas del modelo base Fay-Herriot clásico (EC1…ECk; NO son los modelos
+  → (G7-B15) especificaciones candidatas del modelo base Fay-Herriot clásico (EC1…ECk, antes M1–M5; NO son los modelos
     finales del objetivo 1) = conjunto seleccionado (EC1) + dejar-una-fuera (shared/seleccion_modelo.py,
     etiqueta_especificacion)
   → benchmark seleccionado (Morales et al., p. 453; los modelos de área admiten sobreparametrizar, pero
@@ -225,7 +225,7 @@ modelo/fay_herriot.py
     covariables p < 0.05; entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos
     covariables. Si ninguna tiene todas las covariables significativas, compiten todas (imprime aviso).
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
-    robustez (Cook + reajuste sin el dominio más influyente) del benchmark. AICc (AIC + 2k(k+1)/(n−k−1),
+    robustez (Cook + reajuste sin el dominio más influyente) del benchmark. G7-B16: AICc (AIC + 2k(k+1)/(n−k−1),
     k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
     fh_seleccion_modelo; `AICc` en fh_coeficientes) y NO decide; `redaccion_seleccion` imprime el texto
     «seleccionado entre varias especificaciones con soporte similar, mediante la regla de parsimonia».
@@ -249,7 +249,7 @@ modelo/fay_herriot.py
     especificación fija (ESTABILIDAD_REPLICAS = 1000, semilla 42) → fh_estabilidad_coeficientes y
     fh_estabilidad_dejar_uno_fuera. Los mismos 23 dominios filtran, seleccionan y calculan los p, así que
     la significancia es descriptiva y los coeficientes son asociaciones preliminares condicionales a la
-    selección (ADVERTENCIA_POST_SELECCION se imprime en el notebook). Ni Morales (pp. 453-454) ni los
+    selección (G7-B17: ADVERTENCIA_POST_SELECCION se imprime en el notebook). Ni Morales (pp. 453-454) ni los
     artículos espaciales tratan este punto: es un análisis propio; el bootstrap no repite la selección
   → sensibilidad a dominios individuales, dejar-un-dominio-fuera (LOAO) completo (G7-B18, celda 10a-bis,
     mismo `shared/estabilidad_coeficientes.py`; análisis propio, no decide ni cambia las tasas):
@@ -269,13 +269,13 @@ modelo/fay_herriot.py
   → validación predictiva, dejar-un-dominio-fuera con dos ejercicios (G7-B19, celda 10a-ter,
     `modelo/shared/validacion_predictiva.py`; análisis propio, no decide ni cambia las tasas): retira
     cada dominio, ajusta con los otros 22 y lo predice como sin encuesta (x_d'β̂(-d)) frente a su directa.
-    (1) **Covariables de M2 fijas** (solo reajusta β̂ y Â; optimista, la selección vio al dominio
+    (1) **Covariables del benchmark fijas** (solo reajusta β̂ y Â; optimista, la selección vio al dominio
     retirado) y (2) **procedimiento completo**: en cada iteración repite la selección de covariables
     (`analisis/shared/seleccion.seleccionar_covariables`, mismos pasos que `eda_seleccion_covariables`: FH
     univariado con ψ_d, BH, robustez, redundancia, parsimonia, VIF; sobre las 19 candidatas de
     `covariables_prefiltradas`) y la elección del benchmark (`ajustar_benchmark`: conjunto +
     dejar-una-fuera + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
-    reproducen EC1 y M2. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
+    reproducen EC1 y el benchmark. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
     (√media(e²−ψ)), errores estandarizados `Z_psi = e/√ψ` y `Z_pred = e/√(ψ + x'Cov(β̂)x + Â)` (media,
     sd, cobertura nominal), error dentro de muestra, y habilidad frente a un modelo de solo intercepto
     evaluado igual. Salidas: `fh_validacion_cruzada` (por dominio y ejercicio),

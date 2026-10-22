@@ -1,6 +1,6 @@
 """Parámetros del modelo Fay-Herriot.
 
-Las especificaciones candidatas (EC1…ECk) del modelo base Fay-Herriot clásico no se escriben
+G7-B15: las especificaciones candidatas (EC1…ECk) del modelo base Fay-Herriot clásico no se escriben
 a mano: se parte del conjunto que eligió `eda_seleccion_covariables`
 (`covariables_seleccionadas`, EC1) y se comparan ese conjunto y las especificaciones que
 dejan una covariable fuera, generadas en `shared/seleccion_modelo.py`. Así el modelo no puede
@@ -62,7 +62,7 @@ TBL_FH_LOAO_DOMINIOS = "tesis.modelo.fh_loao_dominios"
 LOAO_UMBRAL_CAMBIO_EE = 1.0
 LOAO_UMBRAL_PRED_PP = 0.5
 # Validación predictiva del benchmark, dejar-un-dominio-fuera con dos ejercicios (G7-B19,
-# shared/validacion_predictiva.py): covariables de M2 fijas y procedimiento completo (repite la
+# shared/validacion_predictiva.py): covariables del benchmark fijas y procedimiento completo (repite la
 # selección en cada iteración). Para repetir la selección se leen las candidatas pre-filtradas y
 # el diccionario de indicadores; los parámetros de la selección son los de
 # preprocesamiento/shared/config.py (P_MAXIMO, Q_FDR_ELEGIBILIDAD, ...), no se duplican aquí.
@@ -153,7 +153,7 @@ CV_ACEPTABLE = 20.0  # CV < 20 %  → aceptable; >= 20 % → no confiable
 # Diferencia de AIC por debajo de la cual dos variantes se consideran equivalentes, según
 # la tabla de criterios de decisión del marco teórico. Entre las equivalentes, la
 # metodología impone elegir la de menos covariables. Es una convención externa a Morales
-# et al. (2021): el libro no fija un umbral de ΔAIC; también se aplica a ΔAICc (complemento).
+# et al. (2021): el libro no fija un umbral de ΔAIC; también se aplica a ΔAICc (complemento, G7-B16).
 DELTA_AIC_EQUIVALENTE = 2.0
 
 # Nivel de significancia que deben cumplir todas las covariables de una variante para

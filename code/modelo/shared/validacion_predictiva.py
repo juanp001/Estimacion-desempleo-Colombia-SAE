@@ -12,7 +12,7 @@ dominio d:
 
 Se hacen **dos ejercicios** que responden preguntas distintas:
 
-* **Covariables fijas (M2)**: la especificación del benchmark se mantiene y solo se reajustan
+* **Covariables fijas (benchmark)**: la especificación del benchmark se mantiene y solo se reajustan
   los coeficientes. Mide el error de predicción de *ese modelo*, pero es optimista: las
   covariables se escogieron viendo a los 23 dominios, también al retirado.
 * **Procedimiento completo**: en cada iteración se repite todo lo que llevó al benchmark con
@@ -58,7 +58,7 @@ EJERCICIO_FIJAS = "COVARIABLES_FIJAS"
 EJERCICIO_COMPLETO = "PROCEDIMIENTO_COMPLETO"
 EJERCICIO_NULO = "SIN_COVARIABLES"
 ETIQUETAS_EJERCICIO = {
-    EJERCICIO_FIJAS: "Covariables de M2 fijas",
+    EJERCICIO_FIJAS: "Covariables del benchmark fijas",
     EJERCICIO_COMPLETO: "Procedimiento completo",
     EJERCICIO_NULO: "Sin covariables (referencia)",
 }
@@ -177,7 +177,7 @@ def loao_covariables_fijas(
     sintético x_d'β̂(-d). Con `covars=[]` es el modelo de solo intercepto, la referencia.
 
     Args:
-        covars (list[str]): Covariables del benchmark (M2); vacío para la referencia.
+        covars (list[str]): Covariables del benchmark (benchmark); vacío para la referencia.
         df (pd.DataFrame): Los n dominios con encuesta.
         y_col (str): Columna de la estimación directa.
         se_col (str): Columna del error estándar de la directa.
@@ -189,7 +189,7 @@ def loao_covariables_fijas(
         pd.DataFrame: Una fila por dominio (ver `_fila_prediccion`).
 
     Example:
-        >>> cv = loao_covariables_fijas(m2.covars, df, "TASA", "SE", ["NOMBRE_DOMINIO"])
+        >>> cv = loao_covariables_fijas(bm.covars, df, "TASA", "SE", ["NOMBRE_DOMINIO"])
         >>> float(np.sqrt((cv["Error"] ** 2).mean()))
     """
     alias = alias or {}
@@ -344,7 +344,7 @@ def metricas_validacion_cruzada(
 
 
 def frecuencia_seleccion(
-    seleccion: pd.DataFrame, covars_m2: list, alias: dict = None
+    seleccion: pd.DataFrame, covars_benchmark: list, alias: dict = None
 ) -> pd.DataFrame:
     """Con qué frecuencia el procedimiento elige cada covariable al retirar un dominio.
 
@@ -354,23 +354,23 @@ def frecuencia_seleccion(
 
     Args:
         seleccion (pd.DataFrame): Segundo elemento de `loao_procedimiento_completo`.
-        covars_m2 (list[str]): Covariables del benchmark con los n dominios.
+        covars_benchmark (list[str]): Covariables del benchmark con los n dominios.
         alias (dict | None): Mapa código → alias.
 
     Returns:
-        pd.DataFrame: Una fila por covariable que aparece en alguna iteración o en M2, con
+        pd.DataFrame: Una fila por covariable que aparece en alguna iteración o en el benchmark, con
             `Frecuencia_EDA`, `Frecuencia_benchmark` (proporciones de las n iteraciones) y
-            `En_M2`; ordenada por `Frecuencia_benchmark` descendente.
+            `En_benchmark`; ordenada por `Frecuencia_benchmark` descendente.
 
     Example:
-        >>> frecuencia_seleccion(seleccion, m2.covars, ALIAS)
+        >>> frecuencia_seleccion(seleccion, bm.covars, ALIAS)
     """
     alias = alias or {}
     n = len(seleccion)
     codigos = sorted(
         {c for fila in seleccion["_Seleccion_EDA"] for c in fila}
         | {c for fila in seleccion["_Benchmark"] for c in fila}
-        | set(covars_m2)
+        | set(covars_benchmark)
     )
     filas = [
         {
@@ -380,7 +380,7 @@ def frecuencia_seleccion(
             / n,
             "Frecuencia_benchmark": sum(c in fila for fila in seleccion["_Benchmark"])
             / n,
-            "En_M2": "sí" if c in covars_m2 else "no",
+            "En_benchmark": "sí" if c in covars_benchmark else "no",
         }
         for c in codigos
     ]
@@ -389,31 +389,31 @@ def frecuencia_seleccion(
     )
 
 
-def resumen_seleccion(seleccion: pd.DataFrame, covars_m2: list) -> dict:
-    """Cuántas veces el procedimiento reproduce la especificación M2 al retirar un dominio.
+def resumen_seleccion(seleccion: pd.DataFrame, covars_benchmark: list) -> dict:
+    """Cuántas veces el procedimiento reproduce la especificación del benchmark al retirar un dominio.
 
     Args:
         seleccion (pd.DataFrame): Segundo elemento de `loao_procedimiento_completo`.
-        covars_m2 (list[str]): Covariables del benchmark con los n dominios.
+        covars_benchmark (list[str]): Covariables del benchmark con los n dominios.
 
     Returns:
-        dict: `n_iteraciones`, `n_igual_m2` (mismo conjunto), `n_distintos_conjuntos` (conjuntos
+        dict: `n_iteraciones`, `n_igual_benchmark` (mismo conjunto), `n_distintos_conjuntos` (conjuntos
             de benchmark diferentes entre iteraciones), `n_sin_covariables` y la mediana del
-            índice de Jaccard con M2.
+            índice de Jaccard con el benchmark.
 
     Example:
-        >>> resumen_seleccion(seleccion, m2.covars)["n_igual_m2"]
+        >>> resumen_seleccion(seleccion, bm.covars)["n_igual_benchmark"]
     """
-    m2 = set(covars_m2)
+    bm = set(covars_benchmark)
 
     def jaccard(otro):
-        union = m2 | set(otro)
-        return len(m2 & set(otro)) / len(union) if union else 1.0
+        union = bm | set(otro)
+        return len(bm & set(otro)) / len(union) if union else 1.0
 
     benchmarks = [set(b) for b in seleccion["_Benchmark"]]
     return {
         "n_iteraciones": len(seleccion),
-        "n_igual_m2": sum(b == m2 for b in benchmarks),
+        "n_igual_benchmark": sum(b == bm for b in benchmarks),
         "n_distintos_conjuntos": len({frozenset(b) for b in benchmarks}),
         "n_sin_covariables": sum(len(b) == 0 for b in benchmarks),
         "jaccard_mediano": float(np.median([jaccard(b) for b in benchmarks])),
@@ -485,10 +485,10 @@ def interpretar_validacion(
         )
     if resumen_sel:
         lineas.append(
-            f"- El procedimiento completo reproduce M2 en {resumen_sel['n_igual_m2']} de "
+            f"- El procedimiento completo reproduce el benchmark en {resumen_sel['n_igual_benchmark']} de "
             f"{resumen_sel['n_iteraciones']} iteraciones; obtiene {resumen_sel['n_distintos_conjuntos']} "
             f"conjuntos distintos (sin covariables en {resumen_sel['n_sin_covariables']}); "
-            f"Jaccard mediano con M2 {resumen_sel['jaccard_mediano']:.2f}."
+            f"Jaccard mediano con el benchmark {resumen_sel['jaccard_mediano']:.2f}."
         )
     for ejercicio in (EJERCICIO_FIJAS, EJERCICIO_COMPLETO):
         g = detalle[

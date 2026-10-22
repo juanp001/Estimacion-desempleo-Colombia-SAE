@@ -1,4 +1,4 @@
-"""Estabilidad de los coeficientes del benchmark seleccionado (análisis de sensibilidad).
+"""Estabilidad de los coeficientes del benchmark seleccionado (análisis de sensibilidad, G7-B17).
 
 Con n = 23 dominios, los mismos datos filtran covariables, seleccionan la especificación,
 la comparan y luego calculan los p-valores de β̂. Por eso esos p-valores son descriptivos
@@ -37,6 +37,8 @@ import pandas as pd
 
 from shared.consolidacion import clasificar_confiabilidad
 
+# G7-B17: la significancia no es demostración fuerte (mismos 23 dominios filtran, seleccionan,
+# comparan y calculan los p); este texto se imprime en el notebook y acompaña a la estabilidad.
 ADVERTENCIA_POST_SELECCION = (
     "Los p-valores de los coeficientes son descriptivos: los mismos dominios se usaron para "
     "filtrar, seleccionar, comparar especificaciones y estimar β̂, así que la significancia "

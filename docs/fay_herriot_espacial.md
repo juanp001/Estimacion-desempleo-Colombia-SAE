@@ -53,16 +53,18 @@ no cambia, y la distancia entre ambos modelos en AIC se amplió a favor del clá
 
 Orden cronológico de los cambios que llevan a esta corrida; los commits están en la rama `test-2`.
 
-1. **Especificaciones candidatas EC1…ECk** (commit `cd28731`). Las variantes dejar-una-fuera dejaron de
+1. **Especificaciones candidatas EC1…ECk (G7-B15)** (commit `cd28731`). Las variantes dejar-una-fuera dejaron de
    llamarse M1…M5: son *especificaciones candidatas del modelo base Fay-Herriot clásico*, no los modelos
    finales del objetivo 1. De ellas sale el **benchmark seleccionado**. La comparación del objetivo 1 es
    después, entre ese benchmark y las especificaciones espaciales (este documento).
-2. **AICc como complemento** (mismo commit). `AICc = AIC + 2k(k+1)/(n−k−1)` con `k = p + 1`, n = 23. No
+2. **AICc como complemento (G7-B16)** (mismo commit). `AICc = AIC + 2k(k+1)/(n−k−1)` con `k = p + 1`, n = 23. No
    reemplaza la regla de selección (ΔAIC ≤ 2 con parsimonia). Es una convención externa al libro y una
    aproximación en Fay-Herriot (las varianzas D_i son heterogéneas); ver `shared/fay_herriot.py`.
 3. **Ajuste de citas de Morales et al.** La regla «todas las covariables con p < 0.05» (p. 453) se aplica
    porque el modelo también predice fuera de muestra; el libro admite además una covariable con p > 0.05
    si es interpretable (p. 454), que debe reportarse como excepción.
+   Los p-valores de los coeficientes son descriptivos, no demostración fuerte (G7-B17): los mismos 23 dominios
+   filtran, seleccionan, comparan y calculan los p; ver `shared/estabilidad_coeficientes.py`.
 4. **Componente espacial** (commit `b34c964`), traído desde la rama `test` a `test-2`: SEBLUP, matrices de
    proximidad, Moran, perfil de ρ y validación dejar-un-dominio-fuera.
 5. **Corrección de compatibilidad** (commit `ac7ab2a`). `test-2` cambió `marca_extrapolacion` (B20): ahora

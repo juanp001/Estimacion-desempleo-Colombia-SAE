@@ -1,6 +1,6 @@
 """Selección del benchmark entre las especificaciones candidatas del Fay-Herriot clásico.
 
-EC1…ECk **no son los modelos finales del objetivo 1**: son especificaciones candidatas del
+G7-B15 (M1–M5 son variantes del benchmark, no los modelos finales): EC1…ECk **no son los modelos finales del objetivo 1**: son especificaciones candidatas del
 modelo base Fay-Herriot clásico. La especificación elegida es el *benchmark seleccionado*, y
 la comparación del objetivo 1 se hace después entre ese benchmark y las especificaciones
 espaciales (`fay_herriot_espacial.py`).
@@ -16,10 +16,10 @@ espaciales (`fay_herriot_espacial.py`).
    covariable con p > 0.05 si es interpretable (p. 454), lo cual debe reportarse como
    excepción explícita. Entre las especificaciones que cumplen la regla se elige por AIC y,
    entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
-   La regla «todas las covariables p < 0.05» es un criterio de **selección**, no evidencia:
+   G7-B17: la regla «todas las covariables p < 0.05» es un criterio de **selección**, no evidencia:
    los mismos dominios seleccionan y calculan los p, así que la significancia es descriptiva y
    condicional a la selección (ver `estabilidad_coeficientes.py`).
-   Notas sobre lo que NO viene del libro: el umbral ΔAIC ≤ 2 y el AICc son convenciones
+   G7-B16 (AICc con n = 23): notas sobre lo que NO viene del libro: el umbral ΔAIC ≤ 2 y el AICc son convenciones
    externas. El AICc (corrección de muestra pequeña, relevante con n = 23 dominios) se
    reporta como complemento y no cambia la decisión; en Fay-Herriot es una aproximación (su
    fórmula supone regresión con errores iid y aquí las D_i son heterogéneas). Para criterios
@@ -54,7 +54,9 @@ from shared.modelo_area_pequena import ModeloAreaPequena
 
 
 def etiqueta_especificacion(indice: int) -> str:
-    """Etiqueta de una especificación candidata del Fay-Herriot clásico.
+    """Etiqueta de una especificación candidata del Fay-Herriot clásico (G7-B15).
+
+    Reemplaza los nombres M1…M5: son especificaciones del benchmark, no modelos finales.
 
     Args:
         indice (int): Posición de la especificación, empezando en 1.
@@ -285,7 +287,7 @@ def tabla_seleccion(
         modelos, nombres_covars, delta_aic, alfa
     )
     mejor_aic = min(modelos[i].aic for i in candidatas)
-    # Punto 2: AICc como complemento. Mismo conjunto de candidatas que el AIC, pero NO
+    # G7-B16: AICc como complemento. Mismo conjunto de candidatas que el AIC, pero NO
     # interviene en la decisión; solo se reporta para contrastar la lectura de «soporte similar».
     mejor_aicc = min(modelos[i].aicc for i in candidatas)
 
@@ -298,7 +300,7 @@ def tabla_seleccion(
                 "N_covariables": len(covars),
                 "AIC": round(float(modelo.aic), 4),
                 "Delta_AIC": round(float(modelo.aic - mejor_aic), 4),
-                # Punto 2: AICc y su diferencia frente a la mejor candidata por AICc.
+                # G7-B16: AICc y su diferencia frente a la mejor candidata por AICc.
                 "AICc": round(float(modelo.aicc), 4),
                 "Delta_AICc": round(float(modelo.aicc - mejor_aicc), 4),
                 "p_max_covariables": round(float(modelo.p_vals[1:].max()), 4),
@@ -319,7 +321,7 @@ def tabla_seleccion(
     )
 
 
-# --- Punto 2: redacción del soporte de la selección, con AICc como complemento -----------
+# --- G7-B16: redacción del soporte de la selección, con AICc como complemento -----------
 def redaccion_seleccion(
     modelos: list, nombres_covars: list, delta_aic: float = 2.0, alfa: float = 0.05
 ) -> str:
@@ -434,7 +436,7 @@ def elegir_ganador(
         f"{etiqueta_especificacion(idx_ganador + 1)} "
         f"({' + '.join(nombres_covars[idx_ganador])})"
     )
-    # Punto 2: lectura con AICc, solo informativa (la decisión ya se tomó con AIC).
+    # G7-B16: lectura con AICc, solo informativa (la decisión ya se tomó con AIC).
     mejor_aicc = min(modelos[i].aicc for i in candidatas)
     equivalentes_aicc = [
         i for i in candidatas if modelos[i].aicc - mejor_aicc <= delta_aic

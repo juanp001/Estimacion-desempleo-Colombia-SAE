@@ -236,7 +236,7 @@ Orquestador fino sobre `tesis.preprocesamiento.covariables_seleccionadas` (salid
 `eda_seleccion_covariables`); el dominio es el municipio en el período (`PER`, `MES` y código DIVIPOLA `CODIGO_MUNICIPIO`; ver `DOMINIO_COLS` en `shared/config.py`). Las
 decisiones se apoyan en Morales et al. (2021). Pasos:
 
-1. **Ajuste de especificaciones candidatas**: EC1 es el conjunto seleccionado y EC2…ECk dejan una
+1. **Ajuste de especificaciones candidatas (G7-B15)**: EC1 es el conjunto seleccionado y EC2…ECk dejan una
    covariable fuera (`shared/seleccion_modelo.py`). **No son los modelos finales del objetivo 1**, sino
    especificaciones candidatas del modelo base Fay-Herriot clásico; se ajustan con `FayHerriotClasico` (`shared/fay_herriot.py`, que hereda
    de la interfaz base `ModeloAreaPequena` en `shared/modelo_area_pequena.py`): Â por REML, β̂ por GLS,
@@ -250,7 +250,7 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
    guardan en volúmenes.
 4. **Selección del benchmark** (`shared/seleccion_modelo.py`): candidatas = especificaciones con todas las
    covariables p < 0.05 (p. 453); entre ellas la de menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de
-   menos covariables. Con n = 23 dominios se reporta también el AICc como complemento (no decide) y un
+   menos covariables. Con n = 23 dominios (G7-B16) se reporta también el AICc como complemento (no decide) y un
    texto sugerido para el documento (`redaccion_seleccion`). MSE y Cook no deciden: se reportan como ganancia de precisión y robustez del
    benchmark seleccionado (incluye reajuste sin el dominio más influyente). Se exportan `tesis.modelo.fh_diagnosticos_variantes`,
    `fh_cook`, `fh_seleccion_modelo`, `fh_coeficientes` y `tesis.modelo.fay_herriot_resultados`.

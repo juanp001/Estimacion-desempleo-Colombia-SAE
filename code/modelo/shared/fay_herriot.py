@@ -237,7 +237,7 @@ class FayHerriotClasico(ModeloAreaPequena):
         log_lik_ml = -res_ml.fun
         return -2 * log_lik_ml + 2 * (self.p + 1)  # p coefs + 1 para A
 
-    # --- Complemento AICc (punto 2): corrección de muestra pequeña del AIC ------------------
+    # --- Complemento AICc (G7-B16): corrección de muestra pequeña del AIC ------------------
     def _calcular_aicc(self) -> float:
         """AICc = AIC + 2k(k+1)/(n−k−1), con k = p + 1 parámetros (p coeficientes y Â).
 
@@ -288,5 +288,5 @@ class FayHerriotClasico(ModeloAreaPequena):
             self._diagnosticos_residuos(self.A_hat, self.mu_hat)
         )
         self.aic = self._calcular_aic()
-        # Punto 2: AICc como complemento del AIC (requiere self.aic, ya calculado arriba).
+        # G7-B16: AICc como complemento del AIC (requiere self.aic, ya calculado arriba).
         self.aicc = self._calcular_aicc()
