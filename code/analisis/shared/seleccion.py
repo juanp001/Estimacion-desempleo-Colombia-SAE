@@ -32,11 +32,15 @@ AIC, se hace en el notebook del modelo sobre el conjunto elegido y sus variantes
 una covariable fuera.
 """
 
+import contextlib
+import io
+
 import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import squareform
 
+from analisis.shared import diagnosticos as diag
 from analisis.shared.diagnosticos import vif_conjunto
 
 # Columnas del Fay-Herriot univariado que la elegibilidad y la ficha arrastran (G7-B8).
@@ -701,6 +705,114 @@ def ajustar_por_vif(
         f"Verificación de multicolinealidad: VIF máximo {float(tabla_vif['VIF'].max()):.3f} (umbral {vif_max})"
     )
     return conjunto, tabla_vif, sustituciones
+
+
+def seleccionar_covariables(
+    df: pd.DataFrame,
+    candidatas: list,
+    y: np.ndarray,
+    psi: np.ndarray,
+    etiquetas_dominio: np.ndarray,
+    signo_esperado: dict,
+    alias: dict = None,
+    dimension: dict = None,
+    p_maximo: int = 4,
+    q_fdr: float = 0.10,
+    umbral_delta: float = 0.10,
+    umbral_redundancia: float = 0.80,
+    vif_max: float = 5.0,
+    alfa_ic: float = 0.05,
+) -> tuple:
+    """Repite, sin imprimir, el procedimiento de selección de `eda_seleccion_covariables` (G7-B19).
+
+    Encadena los mismos pasos y funciones que el notebook de selección: Fay-Herriot univariado
+    con ψ_d y q de Benjamini-Hochberg, robustez (Cook y dejar-uno-fuera sobre el Fay-Herriot
+    univariado), redundancia por enlace completo con retroceso, ficha de decisión (las
+    `p_maximo` elegibles de mayor correlación ponderada) y verificación por VIF. Existe para
+    poder **repetir la selección completa dentro de la validación cruzada** del modelo
+    (`modelo/shared/validacion_predictiva.py`); el notebook de selección no lo usa. Si se
+    cambia un paso allí, hay que cambiarlo aquí: el notebook del modelo comprueba que con los
+    mismos datos este procedimiento reproduce `covariables_seleccionadas`.
+
+    No calcula la estabilidad bootstrap (`Estabilidad_boot`, descriptiva) ni la forma
+    funcional (diagnóstico): ninguna decide la selección.
+
+    Args:
+        df (pd.DataFrame): Una fila por dominio, con una columna por candidata.
+        candidatas (list[str]): Columnas de `df` con las candidatas conceptuales.
+        y (np.ndarray): Estimación directa de cada dominio, shape (n,).
+        psi (np.ndarray): Varianza de muestreo ψ_d = SE² de cada dominio, shape (n,).
+        etiquetas_dominio (np.ndarray): Nombre de cada dominio, shape (n,).
+        signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
+        alias (dict | None): Mapa código → alias legible.
+        dimension (dict | None): Mapa código → dimensión conceptual.
+        p_maximo (int): Cota de parsimonia del conjunto seleccionado.
+        q_fdr (float): Tasa de falsos descubrimientos de la elegibilidad (G7-B9).
+        umbral_delta (float): Cambio máximo tolerado en la correlación ponderada (G7-B8).
+        umbral_redundancia (float): |r| que define la redundancia (G7-B10).
+        vif_max (float): Umbral de multicolinealidad.
+        alfa_ic (float): Nivel del intervalo del Fay-Herriot univariado.
+
+    Returns:
+        tuple[list, pd.DataFrame]: (seleccionadas, ficha). `seleccionadas` es la lista final
+            de columnas tras el VIF, vacía si ninguna candidata resulta elegible (en ese caso
+            `ficha` es un DataFrame vacío).
+
+    Example:
+        >>> sel, ficha = seleccionar_covariables(df_cand, CANDIDATAS, Y, PSI, nombres, SIGNO)
+    """
+    from analisis.shared import descriptivos as desc
+
+    alias = alias or {}
+    y = np.asarray(y, dtype=float)
+    psi = np.asarray(psi, dtype=float)
+    with contextlib.redirect_stdout(io.StringIO()):
+        bivariado = desc.tabla_bivariada(df, candidatas, y, alias=alias)
+        df_ic = diag.tabla_ic_correlacion(df, candidatas, y, alias=alias, alfa=alfa_ic)
+        df_fh = diag.fh_univariado(df, candidatas, y, psi, alias=alias, alfa=alfa_ic)
+        influencia = diag.influencia_fh(
+            df, candidatas, y, psi, etiquetas_dominio, alias=alias
+        )
+        estabilidad = diag.estabilidad_fh(
+            df, candidatas, y, psi, etiquetas_dominio, alias=alias
+        )
+        supervivientes, robustez = filtrar_por_robustez(
+            candidatas, influencia, estabilidad, umbral_delta=umbral_delta, alias=alias
+        )
+        if not supervivientes:
+            return [], pd.DataFrame()
+        elegibilidad = evaluar_elegibilidad(
+            candidatas, bivariado, df_ic, signo_esperado, fh=df_fh, q_fdr=q_fdr
+        )
+        _, redundancia = resolver_redundancia(
+            df,
+            supervivientes,
+            influencia=influencia.set_index("Codigo")["Cook_max"].to_dict(),
+            alias=alias,
+            umbral=umbral_redundancia,
+            elegibilidad=elegibilidad,
+        )
+        try:
+            seleccionadas, ficha = ficha_decision(
+                candidatas,
+                bivariado,
+                df_ic,
+                robustez,
+                redundancia,
+                signo_esperado=signo_esperado,
+                alias=alias,
+                dimension=dimension,
+                p_maximo=p_maximo,
+                fh=df_fh,
+                q_fdr=q_fdr,
+            )
+        except ValueError:
+            return [], pd.DataFrame()
+        restantes = ficha.loc[ficha["Decision"] == "no seleccionada", "Codigo"].tolist()
+        seleccionadas, _, _ = ajustar_por_vif(
+            df, seleccionadas, restantes, vif_max=vif_max, alias=alias
+        )
+    return seleccionadas, ficha
 
 
 def _grupos_enlace_completo(df: pd.DataFrame, umbral: float) -> list:

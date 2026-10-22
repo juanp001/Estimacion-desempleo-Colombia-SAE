@@ -221,12 +221,22 @@ analisis/eda_seleccion_covariables.py
 modelo/fay_herriot.py
   → FayHerriotClasico (shared/fay_herriot.py), MSE de Prasad-Rao con g3 = D²/(D+Â)³·avar(Â)
     (Morales et al., p. 440)
-  → variantes = conjunto seleccionado + dejar-una-fuera (shared/seleccion_modelo.py)
-  → ganador (Morales et al., p. 453): candidatas = variantes con todas las covariables p < 0.05;
-    entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos covariables. Si ninguna
-    variante tiene todas las covariables significativas, compiten todas (imprime aviso).
+  → (G7-B15) especificaciones candidatas del modelo base Fay-Herriot clásico (EC1…ECk, antes M1–M5; NO son los modelos
+    finales del objetivo 1) = conjunto seleccionado (EC1) + dejar-una-fuera (shared/seleccion_modelo.py,
+    etiqueta_especificacion)
+  → benchmark seleccionado (Morales et al., p. 453; los modelos de área admiten sobreparametrizar, pero
+    aquí se predice también fuera de muestra, así que la regla es estricta; el libro admite una covariable
+    con p > 0.05 si es interpretable, p. 454, a reportar como excepción): candidatas = especificaciones con todas las
+    covariables p < 0.05; entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos
+    covariables. Si ninguna tiene todas las covariables significativas, compiten todas (imprime aviso).
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
-    robustez (Cook + reajuste sin el dominio más influyente) del ganador
+    robustez (Cook + reajuste sin el dominio más influyente) del benchmark. G7-B16: AICc (AIC + 2k(k+1)/(n−k−1),
+    k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
+    fh_seleccion_modelo; `AICc` en fh_coeficientes) y NO decide; `redaccion_seleccion` imprime el texto
+    «seleccionado entre varias especificaciones con soporte similar, mediante la regla de parsimonia».
+    La comparación del
+    objetivo 1 es después: benchmark vs. especificaciones espaciales (fay_herriot_espacial.py).
+    En el código se conservan los nombres internos `modelo_ganador` / `elegir_ganador`
   → avisos (shared/diagnosticos.py): Â ≈ 0 (γ máx < 0.01), tasas fuera de [0,100]
     (FUERA_DE_RANGO) y extrapolación sintética (EXTRAPOLA = ESTADO_EXTRAPOLACION ≠ DENTRO_DEL_RANGO)
   → extrapolación B20 (celda 10a, shared/extrapolacion.py, cualquier número de covariables; la tasa
@@ -239,6 +249,46 @@ modelo/fay_herriot.py
     p. 441/453, Molina 2019 PDF 40-41. Tablas fh_rangos_covariables y fh_sensibilidad_extrapolacion;
     ESTADO_EXTRAPOLACION y APORTE_EXTRAPOLADO_PP también en prediccion_sintetica y la tabla final
     (entrada de B21)
+  → estabilidad de coeficientes del benchmark (shared/estabilidad_coeficientes.py; análisis de
+    sensibilidad, no decide): dejar-un-dominio-fuera (reajusta Â) y bootstrap de dominios con la
+    especificación fija (ESTABILIDAD_REPLICAS = 1000, semilla 42) → fh_estabilidad_coeficientes y
+    fh_estabilidad_dejar_uno_fuera. Los mismos 23 dominios filtran, seleccionan y calculan los p, así que
+    la significancia es descriptiva y los coeficientes son asociaciones preliminares condicionales a la
+    selección (G7-B17: ADVERTENCIA_POST_SELECCION se imprime en el notebook). Ni Morales (pp. 453-454) ni los
+    artículos espaciales tratan este punto: es un análisis propio; el bootstrap no repite la selección
+  → sensibilidad a dominios individuales, dejar-un-dominio-fuera (LOAO) completo (G7-B18, celda 10a-bis,
+    mismo `shared/estabilidad_coeficientes.py`; análisis propio, no decide ni cambia las tasas):
+    reajusta el benchmark (con Â) sin cada uno de los 23 dominios y reporta (a) por β_j el mínimo y el
+    máximo de β̂_j(-d) con el dominio que los produce, el cambio relativo máximo, el **cambio
+    estandarizado Δβ/EE(β̂)** (estilo DFBETAS; el porcentual se infla si |β̂| es pequeño), los cambios de
+    signo y los cruces de α, los 3 dominios que más mueven cada β y un mapa de calor; (b) el efecto en
+    predicciones: EBLUP de los 22 dominios que quedan, predicción sintética del dominio retirado
+    (x_d'β̂(-d) frente a su EBLUP = error de predecirlo fuera de muestra), predicción sintética de los 83
+    municipios (separando los que extrapolan, B20), Â, y cambios de clase de confiabilidad por CV.
+    Umbrales (convención propia, `config.py`): `LOAO_UMBRAL_CAMBIO_EE = 1.0` EE y `LOAO_UMBRAL_PRED_PP =
+    0.5` pp. Tablas `fh_loao_coeficientes`, `fh_loao_predicciones` y `fh_loao_dominios` (tesis.modelo;
+    `fh_estabilidad_dejar_uno_fuera` gana `EE_completo` y `Cambio_en_EE`). Ni Morales et al. ni los
+    artículos espaciales tratan la influencia por dominio; respaldan solo la lectura (en un área fuera
+    de muestra el predictor es x'β̂: Benedetti 2024 p. 144; Morales p. 441). Responde a la revisión que
+    citaba cambios de ~37 % y ~47 % al retirar Neiva: la tabla dice qué dominio los causa y si superan 1 EE
+  → validación predictiva, dejar-un-dominio-fuera con dos ejercicios (G7-B19, celda 10a-ter,
+    `modelo/shared/validacion_predictiva.py`; análisis propio, no decide ni cambia las tasas): retira
+    cada dominio, ajusta con los otros 22 y lo predice como sin encuesta (x_d'β̂(-d)) frente a su directa.
+    (1) **Covariables del benchmark fijas** (solo reajusta β̂ y Â; optimista, la selección vio al dominio
+    retirado) y (2) **procedimiento completo**: en cada iteración repite la selección de covariables
+    (`analisis/shared/seleccion.seleccionar_covariables`, mismos pasos que `eda_seleccion_covariables`: FH
+    univariado con ψ_d, BH, robustez, redundancia, parsimonia, VIF; sobre las 19 candidatas de
+    `covariables_prefiltradas`) y la elección del benchmark (`ajustar_benchmark`: conjunto +
+    dejar-una-fuera + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
+    reproducen EC1 y el benchmark. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
+    (√media(e²−ψ)), errores estandarizados `Z_psi = e/√ψ` y `Z_pred = e/√(ψ + x'Cov(β̂)x + Â)` (media,
+    sd, cobertura nominal), error dentro de muestra, y habilidad frente a un modelo de solo intercepto
+    evaluado igual. Salidas: `fh_validacion_cruzada` (por dominio y ejercicio),
+    `fh_validacion_cruzada_metricas`, `fh_validacion_cruzada_seleccion` (qué elige cada iteración) y
+    `fh_validacion_cruzada_frecuencia`. El pre-filtrado no se repite (no usa la respuesta). Con n = 23 son
+    23 predicciones: orden de magnitud. Morales et al. no tratan la validación cruzada por área; respaldan
+    solo la lectura (p. 441). `fay_herriot_espacial.py` ya hacía un LOAO con covariables fijas para
+    comparar clásico y espacial; el ejercicio 1 lo reproduce para el clásico.
   → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF. La GVF
     y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py. La validación predictiva
     dejar-un-área-fuera (G7-B19) está permitida: no hay restricción del proyecto contra ella
@@ -319,12 +369,46 @@ resultados — común a cualquier variante SAE), `fay_herriot.py` (FayHerriotCla
 Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de
 diagnósticos, Cook, tabla de selección y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV
 directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `escenarios_psi`,
-`ajustar_escenarios`, figuras e interpretación), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
+`ajustar_escenarios`, figuras e interpretación), `estabilidad_coeficientes.py` (dejar-uno-fuera y bootstrap de coeficientes; G7-B18:
+`dejar_uno_fuera_predicciones`, `resumen_influencia_dominios`, `top_dominios_por_parametro`,
+`interpretar_influencia`, `figura_influencia`), `validacion_predictiva.py` (G7-B19: `ajustar_benchmark`,
+`loao_covariables_fijas`, `loao_procedimiento_completo`, `metricas_validacion_cruzada`, `frecuencia_seleccion`,
+`interpretar_validacion`, `figura_validacion`), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
 `verificar_benchmark`; funciones puras numpy/pandas con doctests), `extrapolacion.py` (B20:
 `rangos_covariables`, `estado_extrapolacion`, `prediccion_acotada`, `sensibilidad_quitar_dominio`,
 figuras e interpretación; doctests con 1 y 2 covariables), `consolidacion.py` (tabla final de dos
 niveles —dominio y municipio—, clasificación de confiabilidad y, B21, `etiqueta_calidad`,
 `resumen_calidad`, `interpretar_calidad`; doctests).
+
+### Componente espacial del Fay-Herriot — `modelo/fay_herriot_espacial.py`
+
+```
+modelo/fay_herriot_espacial.py   (corre después de fay_herriot.py: lee tesis.modelo.fh_coeficientes)
+  → mismas covariables que el benchmark clásico seleccionado; SEBLUP con efectos SAR u = ρWu + v (Morales et al.,
+    §18.2, pp. 490-494); W por DISTANCIA entre centroides (kNN k=3/5 o distancia inversa 1/2), nunca por
+    contigüidad: los 23 dominios son ciudades dispersas y los objetivos no son contiguos a ellas
+  → ρ se estima solo con los 23 dominios; W (estructura "completa") cubre dominios + objetivos
+    (Saei-Chambers; Benedetti 2024, pp. 146-149); estructura "muestra" = W solo entre dominios
+  → diagnósticos: I de Moran de los residuos del clásico, LRT de ρ=0, ΔAIC, perfil de verosimilitud de ρ,
+    validación dejar-un-dominio-fuera; MSE por bootstrap paramétrico (500 réplicas, p. 494)
+  → criterio: espacial preferido solo si ΔAIC > 2 y p(LRT) < 0.05; un ρ̂ en la cota (0.99) no es referencia
+  → tesis.modelo.fhe_* (moran, vecindad, comparacion_modelos, perfil_rho, validacion_cruzada[_metricas],
+    coeficientes, prediccion_objetivo) y figuras fhe_*.png en el volumen figuras_eda
+```
+
+Lógica en `modelo/shared/`: `matriz_proximidad.py` (Haversine, kNN, distancia inversa, estandarización por
+filas, `moran_i`), `fay_herriot_espacial.py` (`FayHerriotEspacial`, hija de `ModeloAreaPequena`;
+`validacion_dejar_uno_fuera`), `figuras_espacial.py`; parámetros en `config.py` (`ESCENARIOS_W`,
+`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018 (corrida de `test-2`,
+23 dominios, 82 objetivos): **sin evidencia de dependencia espacial** — Moran de los residuos p entre 0.82 y
+0.91; ρ̂ entre 0.11 y 0.39 (completa) sin significancia (LRT p ≥ 0.60); ΔAIC entre −1.09 y −2.00 (el clásico
+tiene menor AIC en los 8 casos); perfil de ρ plano (ganancia ≤ 0.22); RMSE dejar-un-dominio-fuera: clásico
+2.084 frente a 2.115-2.440 del espacial con efecto. El efecto espacial en los objetivos es casi nulo (media
+absoluta 0.05 pp) y 74 de 82 objetivos extrapolan. El modelo recomendado sigue siendo el clásico (benchmark);
+detalle, tablas, comparación con el cierre anterior y limitaciones en `docs/fay_herriot_espacial.md`.
+Ojo: en `municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; el notebook espacial
+la excluye de los objetivos (quedan 82). `marca_extrapolacion` (B20) recibe la matriz de diseño de los
+objetivos (`X_obj`), no `x'Cov(β̂)x`.
 
 ### Flujo de tablas Unity Catalog (resumen end-to-end)
 
@@ -408,7 +492,7 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
 | `ingesta_terridata` | `terridata_bronce` → `terridata_plata` |
 | `preprocesamiento` | `estimacion_directa` → `adicion_covariables` → `pre_filtrado_covariables` → `dominios_sin_encuesta` |
 | `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables`; `sensibilidad_ventana_temporal` (independiente) |
-| `modelo` | `fay_herriot`; `sensibilidad_varianza` (independiente) |
+| `modelo` | `fay_herriot` → `fay_herriot_espacial`; `sensibilidad_varianza` (independiente) |
 
 - Entre jobs no hay dependencias en el YAML; el orden real es `dimensiones` → `ingesta_geih` /
   `ingesta_terridata` → `preprocesamiento` → `analisis` → `modelo`.

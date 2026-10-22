@@ -1,13 +1,16 @@
 """Parámetros del modelo Fay-Herriot.
 
-Las especificaciones a comparar no se escriben a mano: se parte del conjunto que eligió
-`eda_seleccion_covariables` (`covariables_seleccionadas`) y se comparan ese conjunto
-y sus variantes dejando una covariable fuera, generadas en `shared/seleccion_modelo.py`. Así
-el modelo no puede quedar desincronizado del análisis exploratorio y la comparación responde
-a una pregunta concreta: si cada covariable aporta.
+G7-B15: las especificaciones candidatas (EC1…ECk) del modelo base Fay-Herriot clásico no se escriben
+a mano: se parte del conjunto que eligió `eda_seleccion_covariables`
+(`covariables_seleccionadas`, EC1) y se comparan ese conjunto y las especificaciones que
+dejan una covariable fuera, generadas en `shared/seleccion_modelo.py`. Así el modelo no puede
+quedar desincronizado del análisis exploratorio y la comparación responde a una pregunta
+concreta: si cada covariable aporta. EC1…ECk no son los modelos finales del objetivo 1: la
+comparación del objetivo 1 es entre el benchmark seleccionado y las especificaciones
+espaciales (`fay_herriot_espacial.py`).
 
-El ganador se elige siguiendo a Morales et al. (2021, p. 453): como el modelo se usa para
-predecir fuera de muestra, solo compiten las variantes con todas sus covariables
+El benchmark se elige siguiendo a Morales et al. (2021, p. 453): como el modelo se usa para
+predecir fuera de muestra, solo compiten las especificaciones con todas sus covariables
 significativas; entre ellas, la de menor AIC y, entre las equivalentes por AIC, la de menos
 covariables. El error cuadrático medio del EBLUP y la distancia de Cook se reportan como
 diagnósticos (ganancia de precisión y robustez), sin intervenir en la elección.
@@ -37,7 +40,39 @@ TBL_FAY_HERRIOT_ESTIMACIONES_FINALES = "tesis.modelo.fay_herriot_estimaciones_fi
 TBL_FH_DIAGNOSTICOS_VARIANTES = "tesis.modelo.fh_diagnosticos_variantes"
 TBL_FH_COOK = "tesis.modelo.fh_cook"
 TBL_FH_SELECCION_MODELO = "tesis.modelo.fh_seleccion_modelo"
+TBL_FH_ESTABILIDAD = "tesis.modelo.fh_estabilidad_coeficientes"
+TBL_FH_ESTABILIDAD_LOO = "tesis.modelo.fh_estabilidad_dejar_uno_fuera"
+
+# Estabilidad de coeficientes del benchmark (análisis de sensibilidad, no entra en la selección).
+ESTABILIDAD_REPLICAS = 1000
+ESTABILIDAD_SEMILLA = 42
 TBL_FH_COEFICIENTES = "tesis.modelo.fh_coeficientes"
+# Sensibilidad a dominios individuales, dejar-un-dominio-fuera (LOAO) completo (G7-B18,
+# shared/estabilidad_coeficientes.py): efecto en coeficientes, en los EBLUP de los dominios que
+# quedan, en la predicción sintética de los municipios y en Â. Convenciones propias (ni Morales et
+# al. ni los artículos espaciales fijan umbrales de influencia por dominio):
+# - un coeficiente se considera movido de forma relevante si cambia más de LOAO_UMBRAL_CAMBIO_EE
+#   errores estándar de su estimación con todos los dominios (cambio estandarizado, estilo DFBETAS,
+#   que no se infla cuando |β̂| es pequeño como el cambio porcentual);
+# - una predicción se considera movida de forma relevante si cambia más de LOAO_UMBRAL_PRED_PP
+#   puntos porcentuales (por encima de lo que mueve cambiar la varianza de muestreo, G7-B3).
+TBL_FH_LOAO_COEFICIENTES = "tesis.modelo.fh_loao_coeficientes"
+TBL_FH_LOAO_PREDICCIONES = "tesis.modelo.fh_loao_predicciones"
+TBL_FH_LOAO_DOMINIOS = "tesis.modelo.fh_loao_dominios"
+LOAO_UMBRAL_CAMBIO_EE = 1.0
+LOAO_UMBRAL_PRED_PP = 0.5
+# Validación predictiva del benchmark, dejar-un-dominio-fuera con dos ejercicios (G7-B19,
+# shared/validacion_predictiva.py): covariables del benchmark fijas y procedimiento completo (repite la
+# selección en cada iteración). Para repetir la selección se leen las candidatas pre-filtradas y
+# el diccionario de indicadores; los parámetros de la selección son los de
+# preprocesamiento/shared/config.py (P_MAXIMO, Q_FDR_ELEGIBILIDAD, ...), no se duplican aquí.
+TBL_COVARIABLES_PREFILTRADAS = "tesis.preprocesamiento.covariables_prefiltradas"
+TBL_DIM_INDICADORES = "tesis.dim.dim_indicadores"
+TBL_FH_VALIDACION_CRUZADA = "tesis.modelo.fh_validacion_cruzada"
+TBL_FH_VALIDACION_METRICAS = "tesis.modelo.fh_validacion_cruzada_metricas"
+TBL_FH_VALIDACION_SELECCION = "tesis.modelo.fh_validacion_cruzada_seleccion"
+TBL_FH_VALIDACION_FRECUENCIA = "tesis.modelo.fh_validacion_cruzada_frecuencia"
+VALIDACION_NIVEL_COBERTURA = 0.95
 # Extrapolación de la predicción sintética (B20, shared/extrapolacion.py): rango de cada
 # covariable en dominios y municipios, y sensibilidad por municipio (acotada y quitar un dominio).
 TBL_FH_RANGOS_COVARIABLES = "tesis.modelo.fh_rangos_covariables"
@@ -117,12 +152,14 @@ CV_ACEPTABLE = 20.0  # CV < 20 %  → aceptable; >= 20 % → no confiable
 # ── Selección de modelo ──────────────────────────────────────────────────────
 # Diferencia de AIC por debajo de la cual dos variantes se consideran equivalentes, según
 # la tabla de criterios de decisión del marco teórico. Entre las equivalentes, la
-# metodología impone elegir la de menos covariables.
+# metodología impone elegir la de menos covariables. Es una convención externa a Morales
+# et al. (2021): el libro no fija un umbral de ΔAIC; también se aplica a ΔAICc (complemento, G7-B16).
 DELTA_AIC_EQUIVALENTE = 2.0
 
 # Nivel de significancia que deben cumplir todas las covariables de una variante para
 # competir (Morales et al., p. 453: al predecir fuera de muestra no conviene incluir
-# covariables no significativas).
+# covariables no significativas). Regla estricta: el libro (p. 454) admite una covariable
+# con p > 0.05 si es interpretable; de darse, se reporta como excepción explícita.
 ALFA_SIGNIFICANCIA = 0.05
 
 # ── Avisos ───────────────────────────────────────────────────────────────────
@@ -132,3 +169,35 @@ UMBRAL_GAMMA_SIN_PESO = 0.01
 # Rango admisible de una tasa en porcentaje.
 TASA_MINIMA = 0.0
 TASA_MAXIMA = 100.0
+
+# ── Fay-Herriot espacial (fay_herriot_espacial.py) ───────────────────────────
+# Tablas destino. Se escriben con el prefijo `fhe_` para no pisar las del modelo clásico.
+TBL_FHE_MORAN = "tesis.modelo.fhe_moran"
+TBL_FHE_VECINDAD = "tesis.modelo.fhe_vecindad"
+TBL_FHE_COMPARACION = "tesis.modelo.fhe_comparacion_modelos"
+TBL_FHE_CUADRO_COMPARATIVO = "tesis.modelo.fhe_cuadro_comparativo"
+TBL_FHE_PERFIL_RHO = "tesis.modelo.fhe_perfil_rho"
+TBL_FHE_VALIDACION = "tesis.modelo.fhe_validacion_cruzada"
+TBL_FHE_COEFICIENTES = "tesis.modelo.fhe_coeficientes"
+TBL_FHE_PREDICCION_OBJETIVO = "tesis.modelo.fhe_prediccion_objetivo"
+
+# Escenarios de la matriz de proximidad W: (nombre, tipo, parámetro). `knn` = k vecinos más
+# cercanos (parámetro k); `inversa` = peso 1/d^potencia (parámetro potencia). Se comparan varios
+# porque con 23 dominios dispersos la elección de W puede cambiar la conclusión.
+ESCENARIOS_W = [
+    ("knn3", "knn", 3),
+    ("knn5", "knn", 5),
+    ("inversa1", "inversa", 1.0),
+    ("inversa2", "inversa", 2.0),
+]
+
+# Cota del optimizador para |ρ| (< 1 para que I − ρW sea invertible).
+RHO_LIMITE = 0.99
+# Permutaciones del I de Moran.
+N_PERMUTACIONES_MORAN = 9999
+# Réplicas del bootstrap paramétrico del MSE espacial (Morales et al., §18.2.3).
+BOOTSTRAP_ESPACIAL_REPLICAS = 500
+SEMILLA_ESPACIAL = 42
+# Criterio para preferir el modelo espacial al clásico: ΔAIC (clásico − espacial) mayor que
+# DELTA_AIC_EQUIVALENTE (2) y prueba de razón de verosimilitudes de ρ = 0 con p < ALFA_LRT.
+ALFA_LRT = 0.05

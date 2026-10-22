@@ -129,7 +129,7 @@ estimacion_directa.py                            │
                             │
                             ▼
                        fay_herriot.py
-              compara el conjunto seleccionado con sus variantes dejar-una-fuera
+              compara el conjunto seleccionado (EC1) con sus especificaciones dejar-una-fuera (EC2…)
               selección: todas las covariables p < 0.05 → menor AIC → parsimonia (ΔAIC ≤ 2)
                             │
                             ▼
@@ -236,8 +236,9 @@ Orquestador fino sobre `tesis.preprocesamiento.covariables_seleccionadas` (salid
 `eda_seleccion_covariables`); el dominio es el municipio en el período (`PER`, `MES` y código DIVIPOLA `CODIGO_MUNICIPIO`; ver `DOMINIO_COLS` en `shared/config.py`). Las
 decisiones se apoyan en Morales et al. (2021). Pasos:
 
-1. **Ajuste de modelos**: el conjunto seleccionado y sus variantes dejando una covariable fuera
-   (`shared/seleccion_modelo.py`) se ajustan con `FayHerriotClasico` (`shared/fay_herriot.py`, que hereda
+1. **Ajuste de especificaciones candidatas (G7-B15)**: EC1 es el conjunto seleccionado y EC2…ECk dejan una
+   covariable fuera (`shared/seleccion_modelo.py`). **No son los modelos finales del objetivo 1**, sino
+   especificaciones candidatas del modelo base Fay-Herriot clásico; se ajustan con `FayHerriotClasico` (`shared/fay_herriot.py`, que hereda
    de la interfaz base `ModeloAreaPequena` en `shared/modelo_area_pequena.py`): Â por REML, β̂ por GLS,
    AIC por ML y MSE de Prasad-Rao con `g3 = D²/(D+Â)³·avar(Â)` (p. 440). Las varianzas D_i son las
    bootstrap de la estimación directa, tratadas como conocidas (p. 427), sin GVF.
@@ -247,19 +248,27 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
    residuos estandarizados, coeficientes con SE/z/p-valor, R², Shapiro-Wilk, distancia de Cook y ganancia
    de precisión MSE(EBLUP) vs. varianza directa (Wilcoxon). Las figuras se muestran sin título y no se
    guardan en volúmenes.
-4. **Selección de modelo** (`shared/seleccion_modelo.py`): candidatas = variantes con todas las
+4. **Selección del benchmark** (`shared/seleccion_modelo.py`): candidatas = especificaciones con todas las
    covariables p < 0.05 (p. 453); entre ellas la de menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de
-   menos covariables. MSE y Cook no deciden: se reportan como ganancia de precisión y robustez del
-   ganador (incluye reajuste sin el dominio más influyente). Se exportan `tesis.modelo.fh_diagnosticos_variantes`,
+   menos covariables. Con n = 23 dominios (G7-B16) se reporta también el AICc como complemento (no decide) y un
+   texto sugerido para el documento (`redaccion_seleccion`). MSE y Cook no deciden: se reportan como ganancia de precisión y robustez del
+   benchmark seleccionado (incluye reajuste sin el dominio más influyente). Se exportan `tesis.modelo.fh_diagnosticos_variantes`,
    `fh_cook`, `fh_seleccion_modelo`, `fh_coeficientes` y `tesis.modelo.fay_herriot_resultados`.
 5. **Predicción sintética** para municipios sin estimación directa (sin cobertura GEIH, leídos desde
    `tesis.preprocesamiento.municipios_sin_encuesta`), con avisos de extrapolación y de tasas fuera
-   de [0, 100]: ŷ = X'β̂ del modelo ganador, **sin shrinkage** (γ=0, porque no hay
+   de [0, 100]: ŷ = X'β̂ del benchmark seleccionado, **sin shrinkage** (γ=0, porque no hay
    varianza de muestreo); la incertidumbre combina la varianza de β̂ propagada (x'·Cov(β̂)·x) con la
    varianza de efectos aleatorios (Â). Se exporta a `tesis.modelo.fay_herriot_prediccion_sintetica`.
 6. **Tabla final consolidada** (`shared/consolidacion.py`): une EBLUP (dominios con encuesta directa) +
    predicción sintética (dominios sin encuesta), con columna `TIPO` indicando el origen →
    `tesis.modelo.fay_herriot_estimaciones_finales`.
+7. **Componente espacial** (`fay_herriot_espacial.py`, corre después del clásico): SEBLUP con efectos SAR
+   (Morales et al., §18.2), W por distancia entre centroides (kNN 3/5 e inversa 1/2), ρ estimado solo con los
+   23 dominios. Se compara con el benchmark clásico por I de Moran de residuos, ΔAIC, LRT de ρ = 0, perfil de
+   verosimilitud y validación dejar-un-dominio-fuera; tablas `tesis.modelo.fhe_*`. Resultado del cierre 2018:
+   **sin evidencia de dependencia espacial** (Moran p ≥ 0.82; ΔAIC de −1.09 a −2.00; RMSE del clásico 2.084
+   frente a 2.115-2.440 del espacial con efecto), así que el modelo recomendado sigue siendo el clásico. Detalle
+   y limitaciones en [docs/fay_herriot_espacial.md](docs/fay_herriot_espacial.md).
 
 ---
 

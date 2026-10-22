@@ -6,21 +6,37 @@
 # MAGIC Las decisiones metodológicas se apoyan en Morales et al. (2021), *A Course on Small
 # MAGIC Area Estimation and Mixed Models*.
 # MAGIC
-# MAGIC Es un Fay-Herriot **clásico**: efectos aleatorios independientes por dominio, sin
-# MAGIC componente espacial. Â se estima por REML, β̂ por mínimos cuadrados generalizados y
-# MAGIC el AIC con la verosimilitud ML (`shared/fay_herriot.py`).
+# MAGIC Es el modelo base (**benchmark**) Fay-Herriot **clásico**: efectos aleatorios
+# MAGIC independientes por dominio, sin componente espacial. Â se estima por REML, β̂ por
+# MAGIC mínimos cuadrados generalizados y el AIC con la verosimilitud ML
+# MAGIC (`shared/fay_herriot.py`).
+# MAGIC
+# MAGIC **G7-B15 — EC1…EC5 no son los modelos finales del objetivo 1.** Son *especificaciones
+# MAGIC candidatas del modelo base Fay-Herriot clásico*; de ellas sale el benchmark
+# MAGIC seleccionado. La comparación del objetivo 1 se hace después, en
+# MAGIC `fay_herriot_espacial`, entre ese benchmark y las especificaciones espaciales.
 # MAGIC
 # MAGIC 1. **MSE del EBLUP.** Estimador de Prasad-Rao para REML del libro (p. 440), con
 # MAGIC    `g3 = D²/(D+Â)³ · avar(Â)`.
 # MAGIC 2. **De dónde salen las covariables.** El conjunto lo elige
-# MAGIC    `eda_seleccion_covariables`, y aquí se compara con sus **variantes dejando una
-# MAGIC    covariable fuera**, para responder si cada covariable aporta.
-# MAGIC 3. **Cómo se elige el ganador.** El modelo se usa para predecir municipios sin
-# MAGIC    encuesta, y para ese objetivo el libro (p. 453) desaconseja sobreparametrizar y
-# MAGIC    recomienda que todas las covariables sean significativas (p < 0.05). Solo compiten
-# MAGIC    las variantes que lo cumplen; entre ellas gana la de menor AIC y, entre las
-# MAGIC    equivalentes (ΔAIC ≤ 2), la de menos covariables. El MSE del EBLUP y la distancia
-# MAGIC    de Cook se muestran después como diagnósticos del modelo elegido: ganancia de
+# MAGIC    `eda_seleccion_covariables` (EC1) y aquí se compara con las **especificaciones que
+# MAGIC    dejan una covariable fuera** (EC2…), para responder si cada covariable aporta.
+# MAGIC 3. **Cómo se elige el benchmark.** El modelo se usa para predecir municipios sin
+# MAGIC    encuesta. Según Morales et al. (p. 453), los modelos de área suelen servir para
+# MAGIC    predecir lo observado y admiten sobreparametrizar; pero si además se predice fuera de
+# MAGIC    muestra (aquí, la predicción sintética) no conviene sobreparametrizar y se recomienda
+# MAGIC    que todas las covariables sean significativas (p < 0.05). Esa es la regla estricta que
+# MAGIC    se aplica: solo compiten las especificaciones que la cumplen. El libro admite incluir
+# MAGIC    alguna covariable con p > 0.05 si tiene interpretación razonable (p. 454); eso debe
+# MAGIC    reportarse como excepción explícita, no aplicarse en silencio. Entre las que compiten
+# MAGIC    se elige la de menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
+# MAGIC    El umbral ΔAIC ≤ 2 y el AICc son convenciones externas al libro. **G7-B16:** el **AICc** se calcula
+# MAGIC    como complemento (no cambia la decisión) porque con 23 dominios el AIC penaliza poco; en
+# MAGIC    Fay-Herriot es una aproximación (la fórmula viene de regresión con errores iid y aquí las
+# MAGIC    D_i son heterogéneas), y el libro remite a Marhuenda et al. (2014) para criterios de
+# MAGIC    información propios del modelo (p. 420). Sirve para decir que el benchmark se eligió entre
+# MAGIC    varias especificaciones con soporte similar mediante la regla de parsimonia. El MSE del EBLUP y la
+# MAGIC    distancia de Cook se muestran después como diagnósticos del benchmark: ganancia de
 # MAGIC    precisión y robustez.
 # MAGIC 4. **Avisos.** Encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y
 # MAGIC    municipios cuya predicción sintética es una extrapolación. La celda 10a (B20)
@@ -31,7 +47,7 @@
 # MAGIC    (B21) lleva ese estado a la tabla final: `CALIDAD_REPORTADA` dice que el CV de un
 # MAGIC    municipio es condicional al modelo y, si extrapola, lo marca como extrapolado.
 # MAGIC 5. **Municipios objetivo.** Municipios de `municipios_sin_encuesta` (sin estimación
-# MAGIC    directa propia), que reciben la predicción sintética x_m'β̂ del modelo ganador.
+# MAGIC    directa propia), que reciben la predicción sintética x_m'β̂ del benchmark seleccionado.
 # MAGIC 6. **Benchmarking en dos niveles** (`shared/benchmarking.py`, donde está la sustentación
 # MAGIC    completa). Nivel 1: los 23 EBLUP se ajustan para que, ponderados por la PEA expandida,
 # MAGIC    reproduzcan la tasa directa del total de las 23 ciudades (la cifra oficial del DANE).
@@ -100,15 +116,31 @@ for _ruta in (CODE_DIR, os.path.join(CODE_DIR, "modelo")):
 from shared.config import *
 from shared.fay_herriot import FayHerriotClasico
 from shared.seleccion_modelo import (
+    etiqueta_especificacion,
     variantes_dejar_una_fuera,
     distancia_cook,
     tabla_diagnosticos,
     tabla_cook,
     tabla_seleccion,
     elegir_ganador,
+    redaccion_seleccion,  # G7-B16: texto de soporte de la selección (AIC + AICc)
     sensibilidad_cook,
     figura_cook,
     interpretar_cook,
+)
+from shared.estabilidad_coeficientes import (
+    ADVERTENCIA_POST_SELECCION,
+    dejar_uno_fuera_coeficientes,
+    resumen_dejar_uno_fuera,
+    bootstrap_dominios,
+    resumen_bootstrap,
+    tabla_estabilidad,
+    interpretar_estabilidad,
+    dejar_uno_fuera_predicciones,  # G7-B18: LOAO completo y efecto en predicciones
+    resumen_influencia_dominios,
+    top_dominios_por_parametro,
+    interpretar_influencia,
+    figura_influencia,
 )
 from shared.diagnosticos import (
     graficar_validacion,
@@ -132,6 +164,24 @@ from shared.consolidacion import (
     construir_tabla_final,
     resumen_calidad,
     interpretar_calidad,
+)
+
+# G7-B19: la validación predictiva repite la selección de covariables del análisis. Se importa
+# por ruta completa (`shared` aquí es modelo/shared) y el config del preprocesamiento como
+# módulo, para no pisar los nombres de `shared.config`.
+from preprocesamiento.shared import config as cfg_pre
+from analisis.shared.catalogo_literatura import resolver_catalogo, mapas_catalogo
+from analisis.shared.seleccion import seleccionar_covariables
+from shared.validacion_predictiva import (
+    EJERCICIO_NULO,
+    ajustar_benchmark,
+    loao_covariables_fijas,
+    loao_procedimiento_completo,
+    metricas_validacion_cruzada,
+    frecuencia_seleccion,
+    resumen_seleccion,
+    interpretar_validacion as interpretar_validacion_cruzada,  # no pisar la de diagnosticos
+    figura_validacion,
 )
 
 # Cifra oficial del DANE de la ventana de la estimación directa (año reconstruido o trimestre
@@ -177,7 +227,7 @@ print(f"Columnas disponibles:  {df.columns.tolist()}\n")
 
 # COMMAND ----------
 
-# DBTITLE 1,2. Especificaciones a comparar (conjunto del EDA y variantes dejar-una-fuera)
+# DBTITLE 1,2. Especificaciones candidatas del modelo base (conjunto del EDA y dejar-una-fuera)
 covars_eda = [c for c in df.columns if c in alias_a_codigo]
 
 if not covars_eda:
@@ -189,16 +239,19 @@ if not covars_eda:
 nombres_covars = variantes_dejar_una_fuera(covars_eda)
 
 print(f"Conjunto elegido por el análisis exploratorio: {' + '.join(covars_eda)}")
-print(f"Especificaciones a comparar ({len(nombres_covars)}):")
+print(
+    f"Especificaciones candidatas del modelo base Fay-Herriot clásico "
+    f"({len(nombres_covars)}):"
+)
 for i, covars in enumerate(nombres_covars, 1):
     excluida = set(covars_eda) - set(covars)
     etiqueta = f"(sin {next(iter(excluida))})" if excluida else "(conjunto completo)"
-    print(f"  M{i}: {' + '.join(covars)}  {etiqueta}")
+    print(f"  {etiqueta_especificacion(i)}: {' + '.join(covars)}  {etiqueta}")
 
 # COMMAND ----------
 
 # DBTITLE 1,3. Ajuste de todos los modelos
-print(f"\nAjustando {len(nombres_covars)} modelo(s)...\n")
+print(f"\nAjustando {len(nombres_covars)} especificación(es) candidata(s)...\n")
 modelos = [FayHerriotClasico(covars, df, Y_COL, SE_COL) for covars in nombres_covars]
 for modelo in modelos:
     modelo.ajustar()
@@ -220,7 +273,9 @@ eblup_display_cols = [
 ]
 for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     print("=" * 65)
-    print(f"MODELO {i}: {' + '.join(covars)} — RESULTADOS EBLUP POR DOMINIO")
+    print(
+        f"{etiqueta_especificacion(i)}: {' + '.join(covars)} — RESULTADOS EBLUP POR DOMINIO"
+    )
     print("=" * 65)
     display(modelo.resultados[eblup_display_cols])
 
@@ -228,7 +283,7 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
 
 # DBTITLE 1,5. Gráficas de validación (por modelo)
 for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
-    etiqueta = f"Modelo {i}: {' + '.join(covars)}"
+    etiqueta = f"{etiqueta_especificacion(i)}: {' + '.join(covars)}"
     print("=" * 65)
     print(f"{etiqueta} — GRÁFICAS DE VALIDACIÓN")
     print("=" * 65)
@@ -248,7 +303,7 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     param_names = ["Intercepto"] + covars
 
     print("=" * 65)
-    print(f"MODELO {i}: {' + '.join(covars)}")
+    print(f"{etiqueta_especificacion(i)}: {' + '.join(covars)}")
     print("=" * 65)
 
     print(f"\nVarianza de efectos aleatorios (Â):   {modelo.A_hat:.6f}")
@@ -334,10 +389,10 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
 
 # COMMAND ----------
 
-# DBTITLE 1,7. Selección de modelo (solo cuando hay más de una especificación)
+# DBTITLE 1,7. Selección del benchmark (solo cuando hay más de una especificación)
 if len(modelos) > 1:
     print("=" * 65)
-    print("TABLA 1 — DIAGNÓSTICOS POR MODELO (informativa)")
+    print("TABLA 1 — DIAGNÓSTICOS POR ESPECIFICACIÓN CANDIDATA (informativa)")
     print("=" * 65)
     df_diag_variantes = tabla_diagnosticos(modelos, nombres_covars)
 
@@ -357,7 +412,7 @@ if len(modelos) > 1:
     )
 
     print("\n" + "=" * 65)
-    print("TABLA 2 — SELECCIÓN DE MODELO (significancia + AIC + parsimonia)")
+    print("TABLA 2 — SELECCIÓN DEL BENCHMARK (significancia + AIC + parsimonia)")
     print("=" * 65)
     df_sel_modelo = tabla_seleccion(
         modelos,
@@ -368,13 +423,19 @@ if len(modelos) > 1:
     display(df_sel_modelo)
     print(
         f"  Candidata: todas las covariables con p < {ALFA_SIGNIFICANCIA} "
-        "(Morales et al., p. 453: no sobreparametrizar al predecir fuera de muestra)"
+        "(Morales et al., p. 453: no sobreparametrizar al predecir fuera de muestra; "
+        "p. 454 admite una covariable con p > 0.05 si es interpretable, a reportar aparte)"
     )
     print(
         f"  Equivalente_AIC: ΔAIC ≤ {DELTA_AIC_EQUIVALENTE} frente a la mejor candidata; "
         "entre ellas se elige la de menos covariables"
     )
     print("  MSE_medio y Cook_max: informativas, no intervienen en la decisión")
+    # G7-B16: AICc como complemento (n pequeño); tampoco interviene en la decisión.
+    print(
+        "  AICc / Delta_AICc: AIC con corrección de muestra pequeña (n = "
+        f"{modelos[0].n} dominios), complemento que no interviene en la decisión"
+    )
 
     (
         spark.createDataFrame(df_diag_variantes)
@@ -402,7 +463,7 @@ if len(modelos) > 1:
 
 # COMMAND ----------
 
-# DBTITLE 1,8. Modelo ganador
+# DBTITLE 1,8. Benchmark seleccionado (Fay-Herriot clásico)
 modelo_ganador = (
     elegir_ganador(
         modelos,
@@ -416,23 +477,39 @@ modelo_ganador = (
 
 if set(modelo_ganador.covars) != set(covars_eda):
     print(
-        "\nAVISO: el modelo ganador no coincide con el conjunto completo elegido por el análisis"
+        "\nAVISO: el benchmark seleccionado no coincide con el conjunto completo (EC1) elegido por el análisis"
     )
     print(
         "exploratorio: alguna covariable no es significativa o no aporta ajuste suficiente."
     )
     print("Ambas cifras deben reportarse y la diferencia explicarse en el documento.")
     print(f"  conjunto del EDA: {' + '.join(covars_eda)}")
-    print(f"  modelo ganador:   {' + '.join(modelo_ganador.covars)}")
+    print(f"  benchmark:        {' + '.join(modelo_ganador.covars)}")
+
+# G7-B17: aviso de inferencia posterior a la selección.
+print("\nNOTA SOBRE LA INFERENCIA: " + ADVERTENCIA_POST_SELECCION)
 
 aviso = aviso_encuesta_sin_peso(modelo_ganador, UMBRAL_GAMMA_SIN_PESO)
 if aviso:
     print("\n" + aviso)
 
+# G7-B16: redacción calculada desde los datos («seleccionado entre varias especificaciones
+# con soporte similar, mediante la regla de parsimonia predefinida») con la lectura de AICc.
+if len(modelos) > 1:
+    print("\nREDACCIÓN SUGERIDA PARA EL DOCUMENTO:")
+    print(
+        redaccion_seleccion(
+            modelos,
+            nombres_covars,
+            delta_aic=DELTA_AIC_EQUIVALENTE,
+            alfa=ALFA_SIGNIFICANCIA,
+        )
+    )
+
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Ganancia de precisión del modelo elegido
+# MAGIC ## Ganancia de precisión del benchmark seleccionado
 # MAGIC
 # MAGIC **Cómo leer la figura.** Cada columna es un dominio, ordenados de menor a mayor
 # MAGIC varianza directa D_d. El punto gris es el CV de la estimación directa y el azul el CV
@@ -444,7 +521,7 @@ if aviso:
 
 # COMMAND ----------
 
-# DBTITLE 1,Figura: CV directo vs CV EBLUP del modelo elegido
+# DBTITLE 1,Figura: CV directo vs CV EBLUP del benchmark
 fig = figura_cv_directo_vs_eblup(modelo_ganador, nombres_dominio)
 display(fig)
 plt.close(fig)
@@ -453,10 +530,10 @@ print(interpretar_cv(modelo_ganador))
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Robustez del modelo elegido: distancia de Cook
+# MAGIC ## Robustez del benchmark seleccionado: distancia de Cook
 # MAGIC
 # MAGIC **Cómo leer la figura.** Cada barra es un dominio y su altura es la distancia de Cook
-# MAGIC en el ajuste por mínimos cuadrados generalizados del modelo elegido: cuánto cambiarían
+# MAGIC en el ajuste por mínimos cuadrados generalizados del benchmark: cuánto cambiarían
 # MAGIC los coeficientes si ese dominio no estuviera. La línea discontinua es el umbral
 # MAGIC convencional 4/n y las barras rojas lo superan. La tabla siguiente reajusta el modelo
 # MAGIC completo (incluida Â) sin el dominio más influyente. `Cambio_signif` marca si una
@@ -469,7 +546,7 @@ print(interpretar_cv(modelo_ganador))
 
 # COMMAND ----------
 
-# DBTITLE 1,Figura y tabla: distancia de Cook y sensibilidad del modelo elegido
+# DBTITLE 1,Figura y tabla: distancia de Cook y sensibilidad del benchmark
 fig = figura_cook([modelo_ganador], [modelo_ganador.covars], nombres_dominio)
 display(fig)
 plt.close(fig)
@@ -486,8 +563,41 @@ print(
 
 # COMMAND ----------
 
-# DBTITLE 1,9. Exportar resultados del modelo ganador
-# Coeficientes del modelo ganador, para el capítulo de resultados.
+# MAGIC %md
+# MAGIC ## Estabilidad de los coeficientes del benchmark (análisis de sensibilidad, G7-B17)
+# MAGIC
+# MAGIC Los mismos 23 dominios filtran, seleccionan, comparan y luego calculan los p-valores,
+# MAGIC así que **la significancia es descriptiva y condicional a la selección**; los
+# MAGIC coeficientes se reportan como asociaciones preliminares. Para medir cuánto dependen de
+# MAGIC los dominios se hacen dos ejercicios con la especificación **fija**: (1) dejar un
+# MAGIC dominio fuera, reajustando todo el modelo (incluida Â), y (2) bootstrap de dominios
+# MAGIC (remuestreo con reemplazo, `ESTABILIDAD_REPLICAS`). El bootstrap no repite la
+# MAGIC selección, así que subestima la incertidumbre de haber escogido las covariables con
+# MAGIC estos mismos datos. Es un análisis propio: ni Morales et al. (§16.8.2, pp. 453-454) ni
+# MAGIC los artículos espaciales consultados lo tratan.
+
+# COMMAND ----------
+
+# DBTITLE 1,Estabilidad de coeficientes: dejar-uno-fuera y bootstrap de dominios (G7-B17)
+detalle_loo = dejar_uno_fuera_coeficientes(
+    modelo_ganador, FayHerriotClasico, nombres_dominio, alfa=ALFA_SIGNIFICANCIA
+)
+resumen_loo = resumen_dejar_uno_fuera(detalle_loo, modelo_ganador.n)
+replicas_boot = bootstrap_dominios(
+    modelo_ganador,
+    FayHerriotClasico,
+    replicas=ESTABILIDAD_REPLICAS,
+    semilla=ESTABILIDAD_SEMILLA,
+)
+resumen_boot = resumen_bootstrap(modelo_ganador, replicas_boot, alfa=ALFA_SIGNIFICANCIA)
+df_estabilidad = tabla_estabilidad(resumen_loo, resumen_boot)
+display(df_estabilidad.round(4))
+print(interpretar_estabilidad(df_estabilidad))
+
+# COMMAND ----------
+
+# DBTITLE 1,9. Exportar resultados del benchmark seleccionado
+# Coeficientes del modelo benchmark, para el capítulo de resultados.
 cook_ganador = distancia_cook(modelo_ganador)
 df_coef_ganador = pd.DataFrame(
     {
@@ -502,6 +612,8 @@ df_coef_ganador["Modelo"] = " + ".join(modelo_ganador.covars)
 df_coef_ganador["A_hat"] = round(float(modelo_ganador.A_hat), 6)
 df_coef_ganador["R2"] = round(float(modelo_ganador.r2), 4)
 df_coef_ganador["AIC"] = round(float(modelo_ganador.aic), 3)
+# G7-B16: AICc del benchmark junto al AIC (columna nueva en fh_coeficientes).
+df_coef_ganador["AICc"] = round(float(modelo_ganador.aicc), 3)
 df_coef_ganador["Cook_max"] = round(float(cook_ganador.max()), 4)
 (
     spark.createDataFrame(df_coef_ganador)
@@ -510,6 +622,18 @@ df_coef_ganador["Cook_max"] = round(float(cook_ganador.max()), 4)
     .saveAsTable(TBL_FH_COEFICIENTES)
 )
 print(f"Tabla escrita: {TBL_FH_COEFICIENTES}")
+
+for _tabla, _destino in (
+    (df_estabilidad, TBL_FH_ESTABILIDAD),
+    (detalle_loo, TBL_FH_ESTABILIDAD_LOO),
+):
+    (
+        spark.createDataFrame(_tabla)
+        .write.mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable(_destino)
+    )
+    print(f"Tabla escrita: {_destino}")
 
 resultados_ganador = modelo_ganador.resultados.copy()
 resultados_ganador["COOK_D"] = cook_ganador.round(4)
@@ -613,7 +737,7 @@ print(f"Tabla escrita: {TBL_FAY_HERRIOT_RESULTADOS}")
 
 # DBTITLE 1,10. Predicción sintética para los municipios sin estimación directa propia
 # Para municipios sin estimación directa propia (Y ni Di), el EBLUP no puede calcularse: el
-# predictor es el sintético ŷ_m = x_m'β̂ del modelo ganador, sin contracción, con las
+# predictor es el sintético ŷ_m = x_m'β̂ del benchmark seleccionado, sin contracción, con las
 # covariables del municipio (no las del dominio). Su MSE es x_m'Cov(β̂)x_m + Â (Morales et al.,
 # p. 441). Usar el β̂ estimado con dominios para predecir municipios supone que el modelo de
 # enlace vale también para los municipios; por eso las covariables de los dominios A.M. se
@@ -642,7 +766,7 @@ if sin_dato.any():
     municipios_sin_dato = df_new.loc[sin_dato, "MUNICIPIO"].tolist()
     raise ValueError(
         f"{int(sin_dato.sum())} municipios objetivo no tienen valor para alguna covariable "
-        f"del modelo ganador y no admiten predicción sintética: {municipios_sin_dato}. "
+        f"del benchmark y no admiten predicción sintética: {municipios_sin_dato}. "
         f"Revisar la completitud reportada por dominios_sin_encuesta."
     )
 
@@ -791,6 +915,295 @@ spark.createDataFrame(df_sens).write.mode("overwrite").option(
 print(
     f"Tablas escritas: {TBL_FH_RANGOS_COVARIABLES}, {TBL_FH_SENSIBILIDAD_EXTRAPOLACION}"
 )
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Sensibilidad a dominios individuales: dejar-un-dominio-fuera completo (G7-B18)
+# MAGIC
+# MAGIC Con 23 dominios, retirar uno puede mover los coeficientes (la revisión citó cambios de
+# MAGIC ~37 % y ~47 % al retirar un solo dominio). Esta celda reajusta el benchmark (**incluida
+# MAGIC Â**) 23 veces, una por dominio, y reporta:
+# MAGIC
+# MAGIC 1. **Coeficientes**: por β_j el mínimo y el máximo de β̂_j(-d) con el dominio que los produce,
+# MAGIC    el cambio relativo máximo, el **cambio estandarizado Δβ/EE(β̂)** (estilo DFBETAS: el
+# MAGIC    porcentual se infla cuando |β̂| es pequeño), los cambios de signo y los cruces del umbral
+# MAGIC    de significancia. Los 3 dominios que más mueven cada coeficiente y un mapa de calor.
+# MAGIC 2. **Predicciones**: EBLUP de los 22 dominios que quedan, la predicción sintética del
+# MAGIC    dominio retirado (error de predecirlo como si no tuviera encuesta), la predicción
+# MAGIC    sintética de los municipios objetivo (separando los que extrapolan, B20), Â y los
+# MAGIC    cambios de clase de confiabilidad por CV.
+# MAGIC
+# MAGIC **Cómo leer.** Se marca un coeficiente como movido si cambia más de `LOAO_UMBRAL_CAMBIO_EE`
+# MAGIC errores estándar y una predicción si cambia más de `LOAO_UMBRAL_PRED_PP` puntos
+# MAGIC porcentuales; ambos son convenciones propias (`shared/config.py`). El LOAO es un
+# MAGIC diagnóstico de sensibilidad: no interviene en la selección ni cambia las tasas publicadas.
+# MAGIC Ni Morales et al. ni los artículos espaciales consultados tratan este análisis; sí respaldan
+# MAGIC su lectura: en un área fuera de muestra el predictor es solo x'β̂ (Benedetti et al., 2024,
+# MAGIC p. 144; Morales et al., p. 441), así que un β̂ que depende de un dominio mueve directamente
+# MAGIC las predicciones de los municipios.
+
+# COMMAND ----------
+
+# DBTITLE 1,10a-bis. Dejar-un-dominio-fuera completo: coeficientes y predicciones (G7-B18)
+nombres_municipio = (
+    df_pred["MUNICIPIO"].astype(str)
+    + " ("
+    + df_pred["CODIGO_MUNICIPIO"].astype(str)
+    + ")"
+).to_numpy()
+municipios_extrapolan = dict(zip(nombres_municipio, df_pred["EXTRAPOLA"].astype(bool)))
+
+# `detalle_loo` y `resumen_loo` salen de la celda de estabilidad (8): mismos 23 reajustes.
+detalle_pred_loao, por_dominio_loao = dejar_uno_fuera_predicciones(
+    modelo_ganador,
+    FayHerriotClasico,
+    nombres_dominio,
+    X_obj=X_new,
+    nombres_obj=nombres_municipio,
+)
+df_influencia = resumen_influencia_dominios(
+    detalle_loo,
+    detalle_pred_loao,
+    por_dominio_loao,
+    municipios_extrapolan=municipios_extrapolan,
+    umbral_ee=LOAO_UMBRAL_CAMBIO_EE,
+    umbral_pp=LOAO_UMBRAL_PRED_PP,
+)
+
+print("Cada coeficiente: mínimo y máximo de β̂(-d) y dominio responsable")
+display(
+    resumen_loo[
+        [
+            "Parametro",
+            "Beta_completo",
+            "Beta_min",
+            "Dominio_beta_min",
+            "Beta_max",
+            "Dominio_beta_max",
+            "Cambio_pct_max_abs",
+            "Cambio_en_EE_max_abs",
+            "Dominio_max_cambio",
+            "N_cambia_signo",
+            "N_cruza_alfa",
+        ]
+    ].round(4)
+)
+print("Los 3 dominios que más mueven cada coeficiente:")
+display(top_dominios_por_parametro(detalle_loo, k=3).round(4))
+
+fig = figura_influencia(detalle_loo)
+if fig is not None:
+    display(fig)
+    plt.close(fig)
+
+print("Influencia de cada dominio en coeficientes y predicciones (de mayor a menor):")
+display(df_influencia.round(4))
+print(
+    interpretar_influencia(
+        resumen_loo, df_influencia, LOAO_UMBRAL_CAMBIO_EE, LOAO_UMBRAL_PRED_PP
+    )
+)
+
+_periodo = {"PER": int(df["PER"].iloc[0]), "MES": int(df["MES"].iloc[0])}
+for _tabla, _destino in (
+    (detalle_loo.assign(**_periodo), TBL_FH_LOAO_COEFICIENTES),
+    (detalle_pred_loao.assign(**_periodo), TBL_FH_LOAO_PREDICCIONES),
+    (df_influencia.assign(**_periodo), TBL_FH_LOAO_DOMINIOS),
+):
+    (
+        spark.createDataFrame(_tabla)
+        .write.mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable(_destino)
+    )
+    print(f"Tabla escrita: {_destino}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Validación predictiva del benchmark: dejar-un-dominio-fuera (G7-B19)
+# MAGIC
+# MAGIC Ninguna cifra del ajuste con los 23 dominios dice qué tan bien predice el modelo **un
+# MAGIC dominio sin encuesta**, que es el uso real (municipios objetivo, predictor x'β̂). Para cada
+# MAGIC dominio d: se retira, se ajusta con los demás (reestimando Â y β̂), se predice como si no
+# MAGIC tuviera estimación directa y se compara con y_d. Dos ejercicios:
+# MAGIC
+# MAGIC 1. **Covariables del benchmark fijas**: solo se reajustan los coeficientes. Es optimista, porque
+# MAGIC    las covariables se escogieron viendo también al dominio retirado.
+# MAGIC 2. **Procedimiento completo**: en cada iteración se repite todo con los 22 dominios que
+# MAGIC    quedan: la selección de covariables de `eda_seleccion_covariables` (Fay-Herriot
+# MAGIC    univariado con ψ_d, falsos descubrimientos, robustez, redundancia, parsimonia, VIF) y la
+# MAGIC    elección de la especificación de la celda 8 (conjunto y dejar-una-fuera, significancia,
+# MAGIC    AIC, parsimonia). Mide el error del **procedimiento**; su diferencia con el ejercicio 1
+# MAGIC    es el costo de seleccionar con los mismos datos.
+# MAGIC
+# MAGIC La RMSE se complementa con **errores estandarizados**, porque y_d es una estimación con
+# MAGIC ruido ψ_d y ψ_d varía mucho entre dominios: `Z_psi = (pred − y_d)/√ψ_d` (error en unidades
+# MAGIC del ruido de la directa) y `Z_pred = (pred − y_d)/√(ψ_d + x'Cov(β̂)x + Â)` (error contra
+# MAGIC su desviación esperada si el modelo fuera correcto: media ≈ 0, sd ≈ 1, cobertura ≈ nominal).
+# MAGIC Se reporta también el RMSE corregido por ruido, la comparación con un modelo de solo
+# MAGIC intercepto y el error dentro de muestra.
+# MAGIC
+# MAGIC Es un análisis propio: Morales et al. no desarrollan la validación cruzada por área; sí
+# MAGIC respaldan su lectura (p. 441). Con 23 predicciones las métricas son de baja precisión. El
+# MAGIC pre-filtrado no depende de la respuesta y no se repite. No cambia las tasas publicadas.
+
+# COMMAND ----------
+
+# DBTITLE 1,10a-ter. Validación predictiva: covariables fijas y procedimiento completo (G7-B19)
+# Candidatas del catálogo con sus códigos: la selección completa trabaja sobre las 19, no solo
+# sobre las covariables que ya quedaron en el benchmark.
+indicadores_dict = {
+    fila["CODIGO_INDICADOR"]: fila["INDICADOR"]
+    for fila in spark.table(TBL_DIM_INDICADORES)
+    .select("CODIGO_INDICADOR", "INDICADOR")
+    .collect()
+}
+df_prefiltradas = spark.table(TBL_COVARIABLES_PREFILTRADAS).toPandas()
+catalogo_val, _ = resolver_catalogo(indicadores_dict, list(df_prefiltradas.columns))
+CAND_VAL, ALIAS_VAL, SIGNO_VAL, DIM_VAL = mapas_catalogo(catalogo_val)
+
+# Mismas filas y mismo orden que `df`; la tasa y su error estándar deben coincidir con las del modelo.
+df_val = df[["CODIGO_DOMINIO"]].merge(
+    df_prefiltradas[["CODIGO_DOMINIO", "NOMBRE_DOMINIO", Y_COL, SE_COL] + CAND_VAL],
+    on="CODIGO_DOMINIO",
+    how="left",
+)
+for _col in [Y_COL, SE_COL] + CAND_VAL:
+    df_val[_col] = pd.to_numeric(df_val[_col], errors="coerce")
+assert (
+    len(df_val) == len(df) and not df_val[CAND_VAL + [Y_COL, SE_COL]].isna().any().any()
+)
+assert np.allclose(df_val[Y_COL], df[Y_COL]) and np.allclose(df_val[SE_COL], df[SE_COL])
+
+covars_benchmark = [alias_a_codigo[a] for a in modelo_ganador.covars]
+covars_eda_codigos = [alias_a_codigo[a] for a in covars_eda]
+COLS_ID = ["CODIGO_DOMINIO", "NOMBRE_DOMINIO"]
+
+
+def selector(df_entrenamiento):
+    """Repite la selección de covariables del análisis con los dominios de entrenamiento.
+
+    Args:
+        df_entrenamiento (pd.DataFrame): Dominios con las candidatas, la tasa y su error estándar.
+
+    Returns:
+        list[str]: Códigos de las covariables seleccionadas (vacío si ninguna es elegible).
+
+    Example:
+        >>> selector(df_val)
+    """
+    seleccionadas, _ = seleccionar_covariables(
+        df_entrenamiento,
+        CAND_VAL,
+        df_entrenamiento[Y_COL].to_numpy(),
+        df_entrenamiento[SE_COL].to_numpy() ** 2,
+        df_entrenamiento["NOMBRE_DOMINIO"].to_numpy(),
+        SIGNO_VAL,
+        alias=ALIAS_VAL,
+        dimension=DIM_VAL,
+        p_maximo=cfg_pre.P_MAXIMO,
+        q_fdr=cfg_pre.Q_FDR_ELEGIBILIDAD,
+        umbral_delta=cfg_pre.UMBRAL_DELTA_LOO,
+        umbral_redundancia=cfg_pre.UMBRAL_REDUNDANCIA,
+        vif_max=cfg_pre.VIF_MAXIMO,
+        alfa_ic=cfg_pre.ALFA_IC_CORRELACION,
+    )
+    return seleccionadas
+
+
+# Comprobación: con los 23 dominios el procedimiento debe reproducir lo que dejó el análisis (EC1) y
+# el benchmark seleccionado; si no, este ejercicio ya no valida el modelo que se reporta.
+_sel_todos = selector(df_val)
+_m2_repetido = ajustar_benchmark(
+    df_val, _sel_todos, Y_COL, SE_COL, DELTA_AIC_EQUIVALENTE, ALFA_SIGNIFICANCIA
+)
+print(
+    "Selección repetida con los 23 dominios = conjunto del análisis (EC1): "
+    + ("PASS" if set(_sel_todos) == set(covars_eda_codigos) else "FAIL")
+    + f"  ({[ALIAS_VAL[c] for c in _sel_todos]})"
+)
+print(
+    "Benchmark repetido con los 23 dominios = benchmark seleccionado: "
+    + ("PASS" if set(_m2_repetido.covars) == set(covars_benchmark) else "FAIL")
+)
+
+cv_fijas = loao_covariables_fijas(
+    covars_benchmark, df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL
+)
+cv_nulo = loao_covariables_fijas(
+    [], df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL, ejercicio=EJERCICIO_NULO
+)
+cv_completo, df_seleccion_cv = loao_procedimiento_completo(
+    df_val,
+    Y_COL,
+    SE_COL,
+    COLS_ID,
+    selector,
+    DELTA_AIC_EQUIVALENTE,
+    ALFA_SIGNIFICANCIA,
+    alias=ALIAS_VAL,
+)
+detalle_cv = pd.concat([cv_fijas, cv_completo, cv_nulo], ignore_index=True)
+
+rmse_dentro = float(np.sqrt(np.mean((modelo_ganador.Y - modelo_ganador.mu_hat) ** 2)))
+df_metricas_cv = metricas_validacion_cruzada(
+    detalle_cv, rmse_dentro_muestra=rmse_dentro, nivel=VALIDACION_NIVEL_COBERTURA
+)
+df_frecuencia_cv = frecuencia_seleccion(df_seleccion_cv, covars_benchmark, alias=ALIAS_VAL)
+resumen_sel_cv = resumen_seleccion(df_seleccion_cv, covars_benchmark)
+
+print("\nMétricas de predicción fuera de muestra (error = predicción − directa):")
+display(df_metricas_cv.round(4))
+print(
+    "Selección en cada iteración (qué elige el procedimiento al retirar cada dominio):"
+)
+display(df_seleccion_cv.drop(columns=["_Seleccion_EDA", "_Benchmark"]))
+print("Frecuencia con que entra cada covariable:")
+display(df_frecuencia_cv.round(3))
+print("Detalle por dominio (benchmark con covariables fijas y procedimiento completo):")
+display(
+    detalle_cv[detalle_cv["Ejercicio"] != EJERCICIO_NULO][
+        [
+            "Ejercicio",
+            "NOMBRE_DOMINIO",
+            "Directa",
+            "SE_directa",
+            "Prediccion",
+            "RMSE_sintetico",
+            "Error",
+            "Z_psi",
+            "Z_pred",
+            "Covariables",
+        ]
+    ].round(3)
+)
+
+fig = figura_validacion(detalle_cv[detalle_cv["Ejercicio"] != EJERCICIO_NULO])
+display(fig)
+plt.close(fig)
+print(interpretar_validacion_cruzada(df_metricas_cv, detalle_cv, resumen_sel_cv))
+
+_periodo_cv = {"PER": int(df["PER"].iloc[0]), "MES": int(df["MES"].iloc[0])}
+for _tabla, _destino in (
+    (detalle_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_CRUZADA),
+    (df_metricas_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_METRICAS),
+    (
+        df_seleccion_cv.drop(columns=["_Seleccion_EDA", "_Benchmark"]).assign(
+            **_periodo_cv
+        ),
+        TBL_FH_VALIDACION_SELECCION,
+    ),
+    (df_frecuencia_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_FRECUENCIA),
+):
+    (
+        spark.createDataFrame(_tabla)
+        .write.mode("overwrite")
+        .option("overwriteSchema", "true")
+        .saveAsTable(_destino)
+    )
+    print(f"Tabla escrita: {_destino}")
 
 # COMMAND ----------
 

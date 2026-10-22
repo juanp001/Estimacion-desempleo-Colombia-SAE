@@ -1,7 +1,8 @@
 """Modelo Fay-Herriot clásico (efectos aleatorios independientes por dominio).
 
 Â se estima por REML, β̂ por mínimos cuadrados generalizados, el AIC con la verosimilitud ML
-y el MSE del EBLUP con el estimador de Prasad-Rao para REML de Datta y Lahiri (2000; Morales
+(más su corrección de muestra pequeña, AICc, como complemento: con pocos dominios el AIC
+tiende a favorecer modelos con demasiados parámetros) y el MSE del EBLUP con el estimador de Prasad-Rao para REML de Datta y Lahiri (2000; Morales
 et al., 2021, p. 440).
 """
 
@@ -236,6 +237,33 @@ class FayHerriotClasico(ModeloAreaPequena):
         log_lik_ml = -res_ml.fun
         return -2 * log_lik_ml + 2 * (self.p + 1)  # p coefs + 1 para A
 
+    # --- Complemento AICc (G7-B16): corrección de muestra pequeña del AIC ------------------
+    def _calcular_aicc(self) -> float:
+        """AICc = AIC + 2k(k+1)/(n−k−1), con k = p + 1 parámetros (p coeficientes y Â).
+
+        Con n = 23 dominios y hasta 5 parámetros la corrección no es despreciable; el AICc
+        se reporta como complemento del AIC y NO sustituye la regla de selección (ΔAIC ≤ 2
+        con parsimonia), solo comprueba si la lectura de «soporte similar» se mantiene.
+
+        Limitaciones: es una convención externa al libro de referencia y, en Fay-Herriot,
+        una aproximación, porque la fórmula de corrección se deduce para regresión con
+        errores iid y aquí las varianzas de muestreo D_i son heterogéneas. Criterios de
+        información propios del modelo: Marhuenda, Morales y Pardo (2014) y Lombardía et al.
+        (2017), citados en Morales et al. (2021, págs. 420 y 459).
+
+        Returns:
+            float: AICc del modelo ajustado; `np.nan` si n − k − 1 ≤ 0 (la corrección no
+                está definida).
+
+        Example:
+            >>> modelo.ajustar()
+            >>> modelo.aicc - modelo.aic  # penalización adicional por muestra pequeña
+        """
+        k = self.p + 1
+        if self.n - k - 1 <= 0:
+            return float("nan")
+        return float(self.aic + 2 * k * (k + 1) / (self.n - k - 1))
+
     def ajustar(self) -> None:
         """Ajusta el modelo Fay-Herriot clásico completo.
 
@@ -260,3 +288,5 @@ class FayHerriotClasico(ModeloAreaPequena):
             self._diagnosticos_residuos(self.A_hat, self.mu_hat)
         )
         self.aic = self._calcular_aic()
+        # G7-B16: AICc como complemento del AIC (requiere self.aic, ya calculado arriba).
+        self.aicc = self._calcular_aicc()

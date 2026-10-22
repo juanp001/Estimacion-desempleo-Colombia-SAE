@@ -1,15 +1,33 @@
-"""Selección entre especificaciones del modelo Fay-Herriot.
+"""Selección del benchmark entre las especificaciones candidatas del Fay-Herriot clásico.
 
-1. **Variantes dejar-una-fuera** del conjunto elegido por el análisis exploratorio: responden a
+G7-B15 (M1–M5 son variantes del benchmark, no los modelos finales): EC1…ECk **no son los modelos finales del objetivo 1**: son especificaciones candidatas del
+modelo base Fay-Herriot clásico. La especificación elegida es el *benchmark seleccionado*, y
+la comparación del objetivo 1 se hace después entre ese benchmark y las especificaciones
+espaciales (`fay_herriot_espacial.py`).
+
+1. **Especificaciones candidatas dejar-una-fuera** del conjunto elegido por el análisis
+   exploratorio (EC1 = conjunto completo; EC2…ECk quitan una covariable cada una): responden a
    la pregunta «¿aporta cada covariable?» sin recorrer docenas de especificaciones.
-2. **Criterio de selección** basado en Morales et al. (2021, p. 453): cuando el modelo se usa
-   para predecir fuera de muestra (aquí, la predicción sintética de municipios sin encuesta) no
-   conviene sobreparametrizar y se recomienda que todas las covariables sean significativas
-   (p < 0.05). Entre las variantes que lo cumplen se elige por AIC y, entre las equivalentes
-   (ΔAIC ≤ 2), la de menos covariables.
-3. **Distancia de Cook** como diagnóstico de robustez del modelo elegido (no entra en la
+2. **Criterio de selección** basado en Morales et al. (2021, p. 453): los modelos de área
+   suelen predecir lo observado y admiten sobreparametrizar, pero cuando el modelo también se
+   usa para predecir fuera de muestra (aquí, la predicción sintética de municipios sin
+   encuesta) no conviene sobreparametrizar y se recomienda que todas las covariables sean
+   significativas (p < 0.05). Esa es la regla estricta aplicada; el libro admite además una
+   covariable con p > 0.05 si es interpretable (p. 454), lo cual debe reportarse como
+   excepción explícita. Entre las especificaciones que cumplen la regla se elige por AIC y,
+   entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
+   G7-B17: la regla «todas las covariables p < 0.05» es un criterio de **selección**, no evidencia:
+   los mismos dominios seleccionan y calculan los p, así que la significancia es descriptiva y
+   condicional a la selección (ver `estabilidad_coeficientes.py`).
+   G7-B16 (AICc con n = 23): notas sobre lo que NO viene del libro: el umbral ΔAIC ≤ 2 y el AICc son convenciones
+   externas. El AICc (corrección de muestra pequeña, relevante con n = 23 dominios) se
+   reporta como complemento y no cambia la decisión; en Fay-Herriot es una aproximación (su
+   fórmula supone regresión con errores iid y aquí las D_i son heterogéneas). Para criterios
+   de información propios del modelo, el libro remite a Marhuenda et al. (2014) y a
+   Lombardía et al. (2017) (págs. 420 y 459).
+3. **Distancia de Cook** como diagnóstico de robustez del benchmark (no entra en la
    decisión): con 23 dominios, un solo territorio puede sostener los coeficientes.
-4. **Tabla de diagnósticos** por variante (ajuste, residuos, ganancia de precisión y efecto
+4. **Tabla de diagnósticos** por especificación (ajuste, residuos, ganancia de precisión y efecto
    suavizador), informativa.
 
 Distancia de Cook en el modelo Fay-Herriot
@@ -35,15 +53,33 @@ from scipy import stats
 from shared.modelo_area_pequena import ModeloAreaPequena
 
 
+def etiqueta_especificacion(indice: int) -> str:
+    """Etiqueta de una especificación candidata del Fay-Herriot clásico (G7-B15).
+
+    Reemplaza los nombres M1…M5: son especificaciones del benchmark, no modelos finales.
+
+    Args:
+        indice (int): Posición de la especificación, empezando en 1.
+
+    Returns:
+        str: Etiqueta «EC{indice}» (EC1 = conjunto completo del análisis exploratorio).
+
+    Example:
+        >>> etiqueta_especificacion(3)
+        'EC3'
+    """
+    return f"EC{indice}"
+
+
 def variantes_dejar_una_fuera(covars: list) -> list:
-    """Genera el conjunto completo y sus variantes quitando una covariable cada vez.
+    """Genera las especificaciones candidatas: el conjunto completo y quitando una covariable cada vez.
 
     Args:
         covars (list[str]): Covariables del conjunto elegido por el análisis exploratorio.
 
     Returns:
-        list[list[str]]: El conjunto completo en primer lugar y, si tiene al menos dos
-            covariables, una variante por cada covariable excluida, en el mismo orden.
+        list[list[str]]: El conjunto completo (EC1) en primer lugar y, si tiene al menos dos
+            covariables, una especificación por cada covariable excluida, en el mismo orden.
 
     Raises:
         ValueError: Si `covars` está vacío.
@@ -113,7 +149,7 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
         corr, corr_pval = stats.pearsonr(m.Y, m.Y - m.eblup)
         filas.append(
             {
-                "Modelo": f"M{i}",
+                "Modelo": etiqueta_especificacion(i),
                 "Covariables": " + ".join(nombres_covars[i - 1]),
                 "R2": round(m.r2, 4),
                 "Media_resid": round(m.residuals.mean(), 4),
@@ -157,7 +193,7 @@ def tabla_cook(
         influyentes = np.where(cook > umbral)[0]
         filas.append(
             {
-                "Modelo": f"M{i}",
+                "Modelo": etiqueta_especificacion(i),
                 "Covariables": " + ".join(covars),
                 "Cook_max": round(float(cook.max()), 4),
                 "Dominio_Cook_max": str(nombres_dominio[int(np.argmax(cook))]),
@@ -228,8 +264,8 @@ def tabla_seleccion(
     """Tabla de selección: significancia de las covariables, AIC y parsimonia.
 
     Solo las columnas `Todas_signif`, `AIC` y `N_covariables` intervienen en la decisión.
-    `MSE_medio` y `Cook_max` se reportan como información (ganancia de precisión y
-    robustez), sin rol en la elección.
+    `AICc`/`Delta_AICc` (corrección de muestra pequeña), `MSE_medio` y `Cook_max` se
+    reportan como información, sin rol en la elección.
 
     Args:
         modelos (list[ModeloAreaPequena]): Modelos ajustados.
@@ -251,16 +287,22 @@ def tabla_seleccion(
         modelos, nombres_covars, delta_aic, alfa
     )
     mejor_aic = min(modelos[i].aic for i in candidatas)
+    # G7-B16: AICc como complemento. Mismo conjunto de candidatas que el AIC, pero NO
+    # interviene en la decisión; solo se reporta para contrastar la lectura de «soporte similar».
+    mejor_aicc = min(modelos[i].aicc for i in candidatas)
 
     filas = []
     for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars)):
         filas.append(
             {
-                "Modelo": f"M{i + 1}",
+                "Modelo": etiqueta_especificacion(i + 1),
                 "Covariables": " + ".join(covars),
                 "N_covariables": len(covars),
                 "AIC": round(float(modelo.aic), 4),
                 "Delta_AIC": round(float(modelo.aic - mejor_aic), 4),
+                # G7-B16: AICc y su diferencia frente a la mejor candidata por AICc.
+                "AICc": round(float(modelo.aicc), 4),
+                "Delta_AICc": round(float(modelo.aicc - mejor_aicc), 4),
                 "p_max_covariables": round(float(modelo.p_vals[1:].max()), 4),
                 "Todas_signif": "sí" if todas_significativas(modelo, alfa) else "no",
                 "Candidata": "sí" if i in candidatas else "no",
@@ -279,12 +321,76 @@ def tabla_seleccion(
     )
 
 
+# --- G7-B16: redacción del soporte de la selección, con AICc como complemento -----------
+def redaccion_seleccion(
+    modelos: list, nombres_covars: list, delta_aic: float = 2.0, alfa: float = 0.05
+) -> str:
+    """Texto para el documento sobre cómo se seleccionó el benchmark y qué tan claro fue.
+
+    Distingue dos situaciones calculadas desde los datos: (a) varias especificaciones con
+    soporte similar por AIC (ΔAIC ≤ `delta_aic`), donde el benchmark se eligió por la regla
+    de parsimonia predefinida y no por ser claramente superior; (b) una sola especificación
+    en esa zona, elegida por menor AIC. En ambos casos añade la lectura con AICc, que se
+    reporta como complemento y no cambia la decisión.
+
+    Args:
+        modelos (list[ModeloAreaPequena]): Modelos ajustados (con `aic` y `aicc`).
+        nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
+        delta_aic (float): Diferencia de AIC/AICc que define soporte similar.
+        alfa (float): Nivel de significancia exigido a todas las covariables.
+
+    Returns:
+        str: Párrafo listo para adaptar en el documento de tesis.
+
+    Example:
+        >>> print(redaccion_seleccion(modelos, nombres_covars, 2.0, 0.05))
+    """
+    idx, candidatas, equivalentes, _ = _indice_ganador(
+        modelos, nombres_covars, delta_aic, alfa
+    )
+    etiqueta = etiqueta_especificacion(idx + 1)
+    mejor_aicc = min(modelos[i].aicc for i in candidatas)
+    delta_aicc_ganador = modelos[idx].aicc - mejor_aicc
+    equivalentes_aicc = [
+        i for i in candidatas if modelos[i].aicc - mejor_aicc <= delta_aic
+    ]
+    n = modelos[idx].n
+
+    if len(equivalentes) > 1:
+        lista = ", ".join(etiqueta_especificacion(i + 1) for i in equivalentes)
+        texto = (
+            f"{etiqueta} fue seleccionado, entre varias especificaciones con soporte "
+            f"similar (ΔAIC ≤ {delta_aic:g}: {lista}), mediante la regla de parsimonia "
+            f"predefinida (menor número de covariables); no es claramente superior a las demás."
+        )
+    else:
+        texto = (
+            f"{etiqueta} fue seleccionado por tener el menor AIC entre las especificaciones "
+            f"candidatas; ninguna otra tuvo soporte similar (ΔAIC ≤ {delta_aic:g})."
+        )
+
+    # El AICc penaliza más los parámetros adicionales cuando n es pequeño.
+    coincide = idx in equivalentes_aicc
+    texto += (
+        f" Como complemento, con n = {n} dominios se calculó el AICc: "
+        f"{etiqueta} queda a ΔAICc = {delta_aicc_ganador:.2f} de la mejor candidata y "
+        f"{len(equivalentes_aicc)} de {len(candidatas)} candidatas tienen soporte similar "
+        f"(ΔAICc ≤ {delta_aic:g}). "
+        + (
+            "La lectura se mantiene con AICc."
+            if coincide
+            else "Con AICc el seleccionado ya no queda en la zona de soporte similar: debe reportarse."
+        )
+    )
+    return texto
+
+
 def elegir_ganador(
     modelos: list, nombres_covars: list, delta_aic: float = 2.0, alfa: float = 0.05
 ) -> ModeloAreaPequena:
-    """Elige la especificación por significancia, AIC y parsimonia (Morales et al., p. 453).
+    """Elige el benchmark por significancia, AIC y parsimonia (Morales et al., p. 453).
 
-    1. Candidatas: variantes con todas sus covariables significativas (p < `alfa`). Si
+    1. Candidatas: especificaciones con todas sus covariables significativas (p < `alfa`). Si
        ninguna lo cumple, se usan todas y se imprime un aviso.
     2. Equivalentes: candidatas con AIC a lo sumo `delta_aic` por encima de la mejor.
     3. Ganadora: la equivalente con menos covariables; a igualdad, la de menor AIC.
@@ -296,7 +402,7 @@ def elegir_ganador(
         alfa (float): Nivel de significancia exigido a todas las covariables.
 
     Returns:
-        ModeloAreaPequena: El modelo elegido.
+        ModeloAreaPequena: El benchmark seleccionado (modelo base Fay-Herriot clásico).
 
     Raises:
         ValueError: Si `modelos` está vacío.
@@ -312,21 +418,32 @@ def elegir_ganador(
     )
     if hay_candidatas:
         print(
-            f"Variantes con todas las covariables significativas (p < {alfa}): "
-            + ", ".join(f"M{i + 1}" for i in candidatas)
+            f"Especificaciones con todas las covariables significativas (p < {alfa}): "
+            + ", ".join(etiqueta_especificacion(i + 1) for i in candidatas)
         )
     else:
         print(
-            f"⚠ AVISO: ninguna variante tiene todas sus covariables significativas "
+            f"⚠ AVISO: ninguna especificación tiene todas sus covariables significativas "
             f"(p < {alfa}). Se elige entre todas por AIC y parsimonia, pero el modelo no "
             f"cumple la recomendación del libro para predecir fuera de muestra (p. 453)."
         )
     print(
         f"Equivalentes por AIC (ΔAIC ≤ {delta_aic}): "
-        + ", ".join(f"M{i + 1}" for i in equivalentes)
+        + ", ".join(etiqueta_especificacion(i + 1) for i in equivalentes)
     )
     print(
-        f"Modelo ganador: M{idx_ganador + 1} ({' + '.join(nombres_covars[idx_ganador])})"
+        f"Benchmark seleccionado (Fay-Herriot clásico): "
+        f"{etiqueta_especificacion(idx_ganador + 1)} "
+        f"({' + '.join(nombres_covars[idx_ganador])})"
+    )
+    # G7-B16: lectura con AICc, solo informativa (la decisión ya se tomó con AIC).
+    mejor_aicc = min(modelos[i].aicc for i in candidatas)
+    equivalentes_aicc = [
+        i for i in candidatas if modelos[i].aicc - mejor_aicc <= delta_aic
+    ]
+    print(
+        f"Equivalentes por AICc (ΔAICc ≤ {delta_aic}, complemento): "
+        + ", ".join(etiqueta_especificacion(i + 1) for i in equivalentes_aicc)
     )
     return modelos[idx_ganador]
 
