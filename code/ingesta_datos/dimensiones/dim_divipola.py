@@ -87,8 +87,8 @@
 # DBTITLE 1,Importar librerias
 # Importar funciones de PySpark necesarias para la transformación
 from pyspark.sql.functions import (
-    col,             # Referenciar columnas para renombrado y transformaciones
-    regexp_replace   # Reemplazar patrones de texto (comas por puntos en coordenadas)
+    col,  # Referenciar columnas para renombrado y transformaciones
+    regexp_replace,  # Reemplazar patrones de texto (comas por puntos en coordenadas)
 )
 
 # COMMAND ----------
@@ -105,13 +105,13 @@ from pyspark.sql.functions import (
 # - Nombres descriptivos y concisos
 
 col_map = {
-    "Código Departamento": "CODIGO_DEPARTAMENTO",                        # Código DIVIPOLA del departamento (2 dígitos)
-    "Nombre Departamento": "DEPARTAMENTO",                               # Nombre completo del departamento
-    "Código Municipio": "CODIGO_MUNICIPIO",                              # Código DIVIPOLA del municipio (5 dígitos)
-    "Nombre Municipio": "MUNICIPIO",                                     # Nombre completo del municipio
-    "Tipo: Municipio / Isla / Área no municipalizada": "DIMENSION",     # Clasificación administrativa
-    "longitud": "LONGITUD",                                              # Coordenada de longitud (grados decimales)
-    "Latitud": "LATITUD"                                                 # Coordenada de latitud (grados decimales)
+    "Código Departamento": "CODIGO_DEPARTAMENTO",  # Código DIVIPOLA del departamento (2 dígitos)
+    "Nombre Departamento": "DEPARTAMENTO",  # Nombre completo del departamento
+    "Código Municipio": "CODIGO_MUNICIPIO",  # Código DIVIPOLA del municipio (5 dígitos)
+    "Nombre Municipio": "MUNICIPIO",  # Nombre completo del municipio
+    "Tipo: Municipio / Isla / Área no municipalizada": "DIMENSION",  # Clasificación administrativa
+    "longitud": "LONGITUD",  # Coordenada de longitud (grados decimales)
+    "Latitud": "LATITUD",  # Coordenada de latitud (grados decimales)
 }
 
 # COMMAND ----------
@@ -126,7 +126,11 @@ col_map = {
 # - header="true": Primera fila contiene nombres de columnas
 # - delimiter=",": Archivo separado por comas
 # - /*.csv: Lee todos los archivos CSV en el directorio
-df = spark.read.option("header", "true").option("delimiter", ",").csv("/Volumes/tesis/dim/divipola/*.csv")
+df = (
+    spark.read.option("header", "true")
+    .option("delimiter", ",")
+    .csv("/Volumes/tesis/dim/divipola/*.csv")
+)
 
 # --- PASO 2: RENOMBRAR COLUMNAS ---
 # Crear lista de expresiones para renombrar todas las columnas
@@ -139,10 +143,10 @@ map_select = [col(column).alias(col_map.get(column)) for column in df.columns]
 #    Ejemplo: "6,2476376" → "6.2476376" → 6.2476376 (double)
 # 3. Normalizar LONGITUD: mismo proceso que latitud
 #    Ejemplo: "-75,5635932" → "-75.5635932" → -75.5635932 (double)
-df_select = df.select(*map_select).withColumn(
-    "LATITUD", regexp_replace(col("LATITUD"), ",", ".").cast("double")
-).withColumn(
-    "LONGITUD", regexp_replace(col("LONGITUD"), ",", ".").cast("double")
+df_select = (
+    df.select(*map_select)
+    .withColumn("LATITUD", regexp_replace(col("LATITUD"), ",", ".").cast("double"))
+    .withColumn("LONGITUD", regexp_replace(col("LONGITUD"), ",", ".").cast("double"))
 )
 
 # COMMAND ----------

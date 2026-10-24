@@ -109,14 +109,18 @@ df_datos_unificados = df_datos_unificados.select(
 df_bronce = spark.table(TBL_BRONCE)
 
 df_clasificacion = (
-    df_bronce
-    .filter(col("DATO_NUMERICO").isNotNull() | col("DATO_CUALITATIVO").isNotNull())
+    df_bronce.filter(
+        col("DATO_NUMERICO").isNotNull() | col("DATO_CUALITATIVO").isNotNull()
+    )
     .groupBy("CODIGO_INDICADOR")
     .agg(
-        spark_sum(when(col("DATO_NUMERICO").isNotNull(), 1).otherwise(0)).alias("count_numerico"),
+        spark_sum(when(col("DATO_NUMERICO").isNotNull(), 1).otherwise(0)).alias(
+            "count_numerico"
+        ),
         spark_sum(
             when(
-                col("DATO_CUALITATIVO").isNotNull() & (col("DATO_CUALITATIVO") != "preliminar"),
+                col("DATO_CUALITATIVO").isNotNull()
+                & (col("DATO_CUALITATIVO") != "preliminar"),
                 1,
             ).otherwise(0)
         ).alias("count_cualitativo"),
@@ -124,13 +128,17 @@ df_clasificacion = (
 )
 
 df_clasificacion = (
-    df_clasificacion
-    .withColumn("total_valores", col("count_numerico") + col("count_cualitativo"))
-    .withColumn("porcentaje_numerico", col("count_numerico") / col("total_valores") * 100)
+    df_clasificacion.withColumn(
+        "total_valores", col("count_numerico") + col("count_cualitativo")
+    )
+    .withColumn(
+        "porcentaje_numerico", col("count_numerico") / col("total_valores") * 100
+    )
     .withColumn(
         "TIPO_DATO",
-        when(col("porcentaje_numerico") >= UMBRAL_CLASIFICACION_NUMERICO, lit("numerico"))
-        .otherwise(lit("cualitativo")),
+        when(
+            col("porcentaje_numerico") >= UMBRAL_CLASIFICACION_NUMERICO, lit("numerico")
+        ).otherwise(lit("cualitativo")),
     )
 )
 
@@ -141,7 +149,9 @@ display(df_clasificacion.groupBy("TIPO_DATO").count().orderBy("TIPO_DATO"))
 # Un único collect() evita releer bronce en Paso 4 y en las verificaciones
 clasificacion_completa = df_clasificacion.collect()
 
-tipo_indicador_dict = {row.CODIGO_INDICADOR: row.TIPO_DATO for row in clasificacion_completa}
+tipo_indicador_dict = {
+    row.CODIGO_INDICADOR: row.TIPO_DATO for row in clasificacion_completa
+}
 
 # DataFrame para el LEFT JOIN de metadatos en Paso 5 (construido desde Python, sin releer bronce)
 df_tipo_indicador = spark.createDataFrame(
@@ -153,8 +163,7 @@ df_tipo_indicador = spark.createDataFrame(
 
 # DBTITLE 1,Paso 3: Obtener lista de indicadores para el pivot
 df_indicadores = (
-    df_datos_unificados
-    .select("CODIGO_INDICADOR")
+    df_datos_unificados.select("CODIGO_INDICADOR")
     .distinct()
     .orderBy("CODIGO_INDICADOR")
 )
@@ -170,8 +179,7 @@ print(f"Pivotando {len(indicadores)} indicadores...")
 print("Este proceso puede tomar varios minutos...")
 
 df_pivoteado = (
-    df_datos_unificados
-    .groupBy(*COLUMNAS_ID)
+    df_datos_unificados.groupBy(*COLUMNAS_ID)
     .pivot("CODIGO_INDICADOR", indicadores)
     .agg(spark_max("VALOR"))
 )
@@ -181,14 +189,16 @@ print("\nAplicando tipos de datos a columnas de indicador...")
 
 columnas_con_tipo = [col(c) for c in COLUMNAS_ID]
 
-count_numerico    = 0
+count_numerico = 0
 count_cualitativo = 0
 
 for col_name in df_pivoteado.columns:
     if col_name not in COLUMNAS_ID:
         tipo = tipo_indicador_dict.get(col_name, "cualitativo")
         if tipo == "numerico":
-            columnas_con_tipo.append(expr(f"try_cast(`{col_name}` as double)").alias(col_name))
+            columnas_con_tipo.append(
+                expr(f"try_cast(`{col_name}` as double)").alias(col_name)
+            )
             count_numerico += 1
         else:
             columnas_con_tipo.append(col(f"`{col_name}`"))
@@ -199,7 +209,9 @@ df_pivoteado = df_pivoteado.select(columnas_con_tipo)
 print(f"\n✅ Tipos aplicados:")
 print(f"  - Numéricos (double con try_cast): {count_numerico}")
 print(f"  - Cualitativos (string):           {count_cualitativo}")
-print(f"\n⚠️  Valores no numéricos en columnas numéricas (ej: 'preliminar') → NULL con try_cast.")
+print(
+    f"\n⚠️  Valores no numéricos en columnas numéricas (ej: 'preliminar') → NULL con try_cast."
+)
 
 # COMMAND ----------
 
@@ -225,14 +237,16 @@ print(f"  - Columnas: {n_cols}  (8 de identificación + {n_cols - 8} indicadores
 # La verificación pesada se controla con EJECUTAR_VALIDACIONES_PESADAS (celda de configuración).
 
 df_bronce_v = spark.table(TBL_BRONCE)
-df_plata_v  = spark.table(TBL_PLATA)
+df_plata_v = spark.table(TBL_PLATA)
 
 resultados = {
     "Conservación de registros": verificar_conservacion_registros(df_bronce_v, n_filas),
-    "Duplicados en plata":        verificar_duplicados(df_plata_v, n_filas),
-    "Integridad de muestra":      verificar_integridad_muestra(df_bronce_v, df_plata_v),
-    "Calidad de casteo":          verificar_calidad_casteo(clasificacion_completa),
-    "Reclasificación":            verificar_reclasificacion_indicadores(spark, tipo_indicador_dict),
+    "Duplicados en plata": verificar_duplicados(df_plata_v, n_filas),
+    "Integridad de muestra": verificar_integridad_muestra(df_bronce_v, df_plata_v),
+    "Calidad de casteo": verificar_calidad_casteo(clasificacion_completa),
+    "Reclasificación": verificar_reclasificacion_indicadores(
+        spark, tipo_indicador_dict
+    ),
 }
 
 if EJECUTAR_VALIDACIONES_PESADAS:
@@ -267,8 +281,9 @@ else:
 
 # DBTITLE 1,Paso 6: Crear tabla dimensional de indicadores
 df_metadatos = (
-    df_datos_unificados
-    .select("CODIGO_INDICADOR", "INDICADOR", "DIMENSION", "SUBCATEGORIA", "UNIDAD_MEDIDA")
+    df_datos_unificados.select(
+        "CODIGO_INDICADOR", "INDICADOR", "DIMENSION", "SUBCATEGORIA", "UNIDAD_MEDIDA"
+    )
     .distinct()
     .join(df_tipo_indicador, on="CODIGO_INDICADOR", how="left")
     .orderBy("CODIGO_INDICADOR")

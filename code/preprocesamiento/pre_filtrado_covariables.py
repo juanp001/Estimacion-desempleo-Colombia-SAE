@@ -45,6 +45,7 @@ import sys
 
 import pandas as pd
 
+
 # Los módulos compartidos se importan por su ruta completa desde `code/` (por ejemplo
 # `preprocesamiento.shared.config`) y no como `shared.…`. El motivo es que existen dos
 # carpetas `shared/` distintas en el proyecto —una bajo `preprocesamiento/` y otra bajo
@@ -54,7 +55,9 @@ def _directorio_codigo() -> str:
     """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job."""
     try:
         contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-        return "/Workspace" + os.path.dirname(os.path.dirname(contexto.notebookPath().get()))
+        return "/Workspace" + os.path.dirname(
+            os.path.dirname(contexto.notebookPath().get())
+        )
     except Exception:
         return os.path.dirname(os.getcwd())
 
@@ -157,20 +160,31 @@ if not df_redundantes.empty:
 # COMMAND ----------
 
 # DBTITLE 1,Tabla de cascada del pre-filtrado
-cascada = pd.DataFrame([
-    {"Orden": 1, "Etapa": "Conjunto inicial",
-     "Criterio": "Indicadores pivotados de TerriData",
-     "Covariables": n_inicial,
-     "Retencion_pct": round(100.0, 2)},
-    {"Orden": 2, "Etapa": "Completitud",
-     "Criterio": f"Sin faltantes en los {len(df)} dominios",
-     "Covariables": n_sin_na,
-     "Retencion_pct": round(100 * n_sin_na / n_inicial, 2)},
-    {"Orden": 3, "Etapa": "Variabilidad",
-     "Criterio": f"CV >= {CV_MINIMO} y proporción modal <= {PROP_MODAL_MAXIMA:.0%}",
-     "Covariables": n_variabilidad,
-     "Retencion_pct": round(100 * n_variabilidad / n_inicial, 2)},
-])
+cascada = pd.DataFrame(
+    [
+        {
+            "Orden": 1,
+            "Etapa": "Conjunto inicial",
+            "Criterio": "Indicadores pivotados de TerriData",
+            "Covariables": n_inicial,
+            "Retencion_pct": round(100.0, 2),
+        },
+        {
+            "Orden": 2,
+            "Etapa": "Completitud",
+            "Criterio": f"Sin faltantes en los {len(df)} dominios",
+            "Covariables": n_sin_na,
+            "Retencion_pct": round(100 * n_sin_na / n_inicial, 2),
+        },
+        {
+            "Orden": 3,
+            "Etapa": "Variabilidad",
+            "Criterio": f"CV >= {CV_MINIMO} y proporción modal <= {PROP_MODAL_MAXIMA:.0%}",
+            "Covariables": n_variabilidad,
+            "Retencion_pct": round(100 * n_variabilidad / n_inicial, 2),
+        },
+    ]
+)
 display(spark.createDataFrame(cascada))
 
 spark.createDataFrame(cascada).write.mode("overwrite").option(
@@ -187,4 +201,3 @@ spark.createDataFrame(df_output).write.mode("overwrite").option(
 ).saveAsTable(TBL_PREFILTRADAS)
 
 print(f"Tabla escrita: {TBL_PREFILTRADAS}  ({n_variabilidad} covariables prefiltradas)")
-
