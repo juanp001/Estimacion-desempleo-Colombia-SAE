@@ -171,7 +171,7 @@ from shared.consolidacion import (
 # R-40: la preparación de datos, la predicción sintética y la escritura viven en shared/.
 from shared.datos_modelo import alias_desde_catalogo, periodo_unico, preparar_municipios
 from shared.modelo_area_pequena import prediccion_sintetica
-from shared.escritura import escribir_tabla
+from shared.escritura import EscrituraDiferida
 
 # G7-B19: la validación predictiva repite la selección de covariables del análisis. Se importa
 # por ruta completa (`shared` aquí es modelo/shared) y el config del preprocesamiento como
@@ -206,6 +206,10 @@ from shared.benchmarking import (
 import warnings
 
 warnings.filterwarnings("ignore")
+
+# R-38: las celdas registran sus tablas aquí y la celda 13 las escribe todas, después de la
+# verificación del benchmarking (celda 12). Si una verificación falla, no se publica nada.
+pendientes = EscrituraDiferida(spark)
 
 
 # COMMAND ----------
@@ -446,9 +450,9 @@ if len(modelos) > 1:
         f"{modelos[0].n} dominios), complemento que no interviene en la decisión"
     )
 
-    escribir_tabla(spark, df_diag_variantes, TBL_FH_DIAGNOSTICOS_VARIANTES)
-    escribir_tabla(spark, df_cook_variantes, TBL_FH_COOK)
-    escribir_tabla(spark, df_sel_modelo, TBL_FH_SELECCION_MODELO)
+    pendientes.agregar(df_diag_variantes, TBL_FH_DIAGNOSTICOS_VARIANTES)
+    pendientes.agregar(df_cook_variantes, TBL_FH_COOK)
+    pendientes.agregar(df_sel_modelo, TBL_FH_SELECCION_MODELO)
 
 # COMMAND ----------
 
@@ -622,9 +626,9 @@ df_coef_ganador["AIC"] = round(float(modelo_ganador.aic), 3)
 # G7-B16: AICc del benchmark junto al AIC (columna nueva en fh_coeficientes).
 df_coef_ganador["AICc"] = round(float(modelo_ganador.aicc), 3)
 df_coef_ganador["Cook_max"] = round(float(cook_ganador.max()), 4)
-escribir_tabla(spark, df_coef_ganador, TBL_FH_COEFICIENTES)
+pendientes.agregar(df_coef_ganador, TBL_FH_COEFICIENTES)
 # El detalle dejar-un-dominio-fuera se escribe una sola vez, en fh_loao_coeficientes (R-39).
-escribir_tabla(spark, df_estabilidad, TBL_FH_ESTABILIDAD)
+pendientes.agregar(df_estabilidad, TBL_FH_ESTABILIDAD)
 
 resultados_ganador = modelo_ganador.resultados.copy()
 resultados_ganador["COOK_D"] = cook_ganador.round(4)
@@ -713,7 +717,7 @@ print(
     f"{promedio_ponderado(modelo_ganador.eblup, pea_dominio):.4f} %)"
 )
 
-escribir_tabla(spark, resultados_ganador, TBL_FAY_HERRIOT_RESULTADOS)
+pendientes.agregar(resultados_ganador, TBL_FAY_HERRIOT_RESULTADOS)
 
 # COMMAND ----------
 
@@ -862,8 +866,8 @@ if fig is not None:
 
 print(interpretar_extrapolacion(rangos, df_sens, sens_dom, max_directa))
 
-escribir_tabla(spark, rangos, TBL_FH_RANGOS_COVARIABLES, PER_MES)
-escribir_tabla(spark, df_sens, TBL_FH_SENSIBILIDAD_EXTRAPOLACION)
+pendientes.agregar(rangos, TBL_FH_RANGOS_COVARIABLES, PER_MES)
+pendientes.agregar(df_sens, TBL_FH_SENSIBILIDAD_EXTRAPOLACION)
 
 # COMMAND ----------
 
@@ -954,9 +958,9 @@ print(
     )
 )
 
-escribir_tabla(spark, detalle_loo, TBL_FH_LOAO_COEFICIENTES, PER_MES)
-escribir_tabla(spark, detalle_pred_loao, TBL_FH_LOAO_PREDICCIONES, PER_MES)
-escribir_tabla(spark, df_influencia, TBL_FH_LOAO_DOMINIOS, PER_MES)
+pendientes.agregar(detalle_loo, TBL_FH_LOAO_COEFICIENTES, PER_MES)
+pendientes.agregar(detalle_pred_loao, TBL_FH_LOAO_PREDICCIONES, PER_MES)
+pendientes.agregar(df_influencia, TBL_FH_LOAO_DOMINIOS, PER_MES)
 
 # COMMAND ----------
 
@@ -1123,15 +1127,14 @@ display(fig)
 plt.close(fig)
 print(interpretar_validacion_cruzada(df_metricas_cv, detalle_cv, resumen_sel_cv))
 
-escribir_tabla(spark, detalle_cv, TBL_FH_VALIDACION_CRUZADA, PER_MES)
-escribir_tabla(spark, df_metricas_cv, TBL_FH_VALIDACION_METRICAS, PER_MES)
-escribir_tabla(
-    spark,
+pendientes.agregar(detalle_cv, TBL_FH_VALIDACION_CRUZADA, PER_MES)
+pendientes.agregar(df_metricas_cv, TBL_FH_VALIDACION_METRICAS, PER_MES)
+pendientes.agregar(
     df_seleccion_cv.drop(columns=["_Seleccion_EDA", "_Benchmark"]),
     TBL_FH_VALIDACION_SELECCION,
     PER_MES,
 )
-escribir_tabla(spark, df_frecuencia_cv, TBL_FH_VALIDACION_FRECUENCIA, PER_MES)
+pendientes.agregar(df_frecuencia_cv, TBL_FH_VALIDACION_FRECUENCIA, PER_MES)
 
 # COMMAND ----------
 
@@ -1220,7 +1223,7 @@ display(
     ).round(4)
 )
 
-escribir_tabla(spark, df_pred, TBL_FAY_HERRIOT_PREDICCION_SINTETICA)
+pendientes.agregar(df_pred, TBL_FAY_HERRIOT_PREDICCION_SINTETICA)
 
 # COMMAND ----------
 
@@ -1302,7 +1305,7 @@ print(
 )
 display(df_final)
 
-escribir_tabla(spark, df_final, TBL_FAY_HERRIOT_ESTIMACIONES_FINALES)
+pendientes.agregar(df_final, TBL_FAY_HERRIOT_ESTIMACIONES_FINALES)
 
 # COMMAND ----------
 
@@ -1362,7 +1365,9 @@ print(interpretar_calidad(df_pred))
 # MAGIC * **(d) miembros completos:** las unidades son exactamente los miembros del territorio
 # MAGIC   (en el nivel 2, los municipios del A.M. según `dim_dominio_geih`).
 # MAGIC
-# MAGIC Si alguna falla, la celda se detiene. **λ** es además un diagnóstico del modelo: «si el
+# MAGIC Si alguna falla, la celda se detiene y **no se escribe ninguna tabla**: las celdas
+# MAGIC anteriores solo registran sus tablas y la celda 13 las escribe todas cuando la verificación
+# MAGIC pasó (R-38). **λ** es además un diagnóstico del modelo: «si el
 # MAGIC modelo es adecuado, el factor de ajuste estará en torno a uno» (INE Chile, ENUSC 2018,
 # MAGIC PDF 23); se avisa si se aleja de 1 más de `UMBRAL_LAMBDA_AVISO`. Por último se repite la
 # MAGIC comprobación sobre la tabla final publicada (valores redondeados a 4 decimales).
@@ -1470,3 +1475,11 @@ for padre, sub in mun_final.groupby("CODIGO_DOMINIO_PADRE"):
     )
     if not ok:
         raise ValueError(f"La tabla final no reproduce el valor del dominio {padre}.")
+
+# COMMAND ----------
+
+# DBTITLE 1,13. Escritura de las tablas (solo si la verificación pasó)
+# R-38: el job no tiene transacciones; escribir al final evita dejar publicada una versión que no
+# pasó la verificación del benchmarking ni la de la tabla final redondeada.
+print(f"Tablas a escribir: {len(pendientes.tablas())}")
+pendientes.escribir_todas()
