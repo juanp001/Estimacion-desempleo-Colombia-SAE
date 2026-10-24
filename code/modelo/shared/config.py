@@ -98,6 +98,20 @@ TBL_SENS_VARIANZA_COEFICIENTES = "tesis.modelo.sensibilidad_varianza_coeficiente
 TBL_SENS_VARIANZA_DOMINIOS = "tesis.modelo.sensibilidad_varianza_dominios"
 TBL_SENS_VARIANZA_MUNICIPIOS = "tesis.modelo.sensibilidad_varianza_municipios"
 
+# Identificación de la tabla final (R-11, revisión del Grupo 7, sec. 2 y 10). La tabla
+# consolidada sale del Fay-Herriot clásico, el benchmark no espacial; la comparación con las
+# variantes espaciales del objetivo 1 corre después (fay_herriot_espacial.py) y aún no cierra
+# (bloque 6b de la revisión), así que sus cifras son preliminares. Cuando se cierre el objetivo 1,
+# ESTADO_RESULTADO pasa a "FINAL_TRAS_COMPARACION_ESPACIAL" citando fhe_cuadro_comparativo.
+MODELO_FUENTE_TABLA_FINAL = "FH_CLASICO_BENCHMARK_NO_ESPACIAL"
+ESTADO_RESULTADO_TABLA_FINAL = "PRELIMINAR"
+COMENTARIO_TABLA_FINAL = (
+    "Estimaciones del Fay-Herriot clásico (benchmark no espacial), resultados preliminares: "
+    "la comparación con las variantes espaciales del objetivo 1 (fay_herriot_espacial, "
+    "fhe_cuadro_comparativo) no ha cerrado. Dominios = EBLUP con benchmarking; municipios = "
+    "predicción sintética condicional al modelo (ver CALIDAD_REPORTADA)."
+)
+
 # ── Variable objetivo y varianza directa ─────────────────────────────────────
 Y_COL = "TASA_DESEMPLEO_PCT"
 SE_COL = "SE_BOOTSTRAP_PCT"

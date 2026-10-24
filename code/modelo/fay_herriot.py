@@ -7,7 +7,10 @@
 # MAGIC Area Estimation and Mixed Models*.
 # MAGIC
 # MAGIC Es el modelo base (**benchmark**) Fay-Herriot **clásico**: efectos aleatorios
-# MAGIC independientes por dominio, sin componente espacial. Â se estima por REML, β̂ por
+# MAGIC independientes por dominio, sin componente espacial. **Sus tablas son resultados
+# MAGIC preliminares del benchmark no espacial** (R-11): la tabla final lleva
+# MAGIC `MODELO_FUENTE = FH_CLASICO_BENCHMARK_NO_ESPACIAL` y `ESTADO_RESULTADO = PRELIMINAR` hasta que
+# MAGIC cierre la comparación con las variantes espaciales del objetivo 1 (`fay_herriot_espacial`). Â se estima por REML, β̂ por
 # MAGIC mínimos cuadrados generalizados y el AIC con la verosimilitud ML
 # MAGIC (`shared/fay_herriot.py`).
 # MAGIC
@@ -1230,8 +1233,9 @@ pendientes.agregar(df_pred, TBL_FAY_HERRIOT_PREDICCION_SINTETICA)
 
 # COMMAND ----------
 
-# DBTITLE 1,11. Tabla final consolidada (dominios + municipios)
-# Dos niveles: los 23 dominios con el EBLUP ajustado (nivel 1) y los municipios objetivo con la
+# DBTITLE 1,11. Tabla final consolidada (dominios + municipios), benchmark preliminar
+# Resultados preliminares del Fay-Herriot clásico, benchmark no espacial (R-11): la tabla lleva
+# MODELO_FUENTE y ESTADO_RESULTADO. Dos niveles: los 23 dominios con el EBLUP ajustado (nivel 1) y los municipios objetivo con la
 # predicción sintética (ajustada en el nivel 2 cuando pertenecen a un dominio A.M.). La tasa sin
 # ajustar se conserva en TASA_SIN_AJUSTE_PCT para trazabilidad.
 tabla_dominios = pd.DataFrame(
@@ -1308,7 +1312,10 @@ print(
 )
 display(df_final)
 
-pendientes.agregar(df_final, TBL_FAY_HERRIOT_ESTIMACIONES_FINALES)
+# R-11: la tabla dice de qué modelo sale y que es preliminar (columnas y comentario en UC).
+pendientes.agregar(
+    df_final, TBL_FAY_HERRIOT_ESTIMACIONES_FINALES, comentario=COMENTARIO_TABLA_FINAL
+)
 
 # COMMAND ----------
 

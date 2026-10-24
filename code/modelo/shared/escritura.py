@@ -9,7 +9,11 @@ import pandas as pd
 
 
 def escribir_tabla(
-    spark, df_pd: pd.DataFrame, tabla: str, periodo: dict = None
+    spark,
+    df_pd: pd.DataFrame,
+    tabla: str,
+    periodo: dict = None,
+    comentario: str = None,
 ) -> None:
     """Escribe un DataFrame de pandas en Unity Catalog (sobrescribe tabla y esquema).
 
@@ -19,6 +23,8 @@ def escribir_tabla(
         tabla (str): Nombre calificado `catalogo.esquema.tabla`.
         periodo (dict | None): Columnas constantes a agregar antes de escribir, p. ej.
             `{"PER": 2018, "MES": 12}`.
+        comentario (str | None): Comentario de la tabla en Unity Catalog (`COMMENT ON
+            TABLE`), p. ej. su origen y estado (R-11).
 
     Returns:
         None
@@ -38,6 +44,9 @@ def escribir_tabla(
         .option("overwriteSchema", "true")
         .saveAsTable(tabla)
     )
+    if comentario:
+        texto = comentario.replace("'", "\\'")
+        spark.sql(f"COMMENT ON TABLE {tabla} IS '{texto}'")
     print(f"Tabla escrita: {tabla} ({len(df_pd)} filas)")
 
 
@@ -72,18 +81,25 @@ class EscrituraDiferida:
         self.spark = spark
         self._pendientes = {}
 
-    def agregar(self, df_pd: pd.DataFrame, tabla: str, periodo: dict = None) -> None:
+    def agregar(
+        self,
+        df_pd: pd.DataFrame,
+        tabla: str,
+        periodo: dict = None,
+        comentario: str = None,
+    ) -> None:
         """Registra una tabla para escribirla al final (reemplaza un registro previo).
 
         Args:
             df_pd (pd.DataFrame): Datos a escribir (se guarda una copia).
             tabla (str): Nombre calificado de la tabla destino.
             periodo (dict | None): Columnas constantes a agregar (`{"PER": ..., "MES": ...}`).
+            comentario (str | None): Comentario de la tabla en Unity Catalog.
 
         Returns:
             None
         """
-        self._pendientes[tabla] = (df_pd.copy(), periodo)
+        self._pendientes[tabla] = (df_pd.copy(), periodo, comentario)
 
     def tablas(self) -> list:
         """Nombres de las tablas registradas, en el orden en que se agregaron.
@@ -99,6 +115,6 @@ class EscrituraDiferida:
         Returns:
             None
         """
-        for tabla, (df_pd, periodo) in self._pendientes.items():
-            escribir_tabla(self.spark, df_pd, tabla, periodo)
+        for tabla, (df_pd, periodo, comentario) in self._pendientes.items():
+            escribir_tabla(self.spark, df_pd, tabla, periodo, comentario)
         self._pendientes = {}

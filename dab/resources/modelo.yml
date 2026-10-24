@@ -3,8 +3,9 @@ resources:
     modelo:
       name: modelo
       description: >-
-        Modelo Fay-Herriot clásico (EBLUP, predicción sintética y tabla final en tesis.modelo), su
-        variante espacial SEBLUP y sensibilidad a la varianza de muestreo ψ_d con GVF (G7-B3, independiente).
+        Modelo Fay-Herriot clásico, benchmark no espacial (EBLUP, predicción sintética y tabla final
+        preliminar en tesis.modelo, R-11), su variante espacial SEBLUP y sensibilidad a la varianza de
+        muestreo ψ_d con GVF (G7-B3, independiente).
       max_concurrent_runs: 1
       environments:
         - environment_key: serverless
