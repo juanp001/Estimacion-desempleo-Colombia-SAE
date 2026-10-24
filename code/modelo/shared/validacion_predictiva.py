@@ -52,6 +52,7 @@ import pandas as pd
 from scipy import stats
 
 from shared.fay_herriot import FayHerriotClasico
+from shared.modelo_area_pequena import prediccion_sintetica
 from shared.seleccion_modelo import elegir_ganador, variantes_dejar_una_fuera
 
 EJERCICIO_FIJAS = "COVARIABLES_FIJAS"
@@ -110,6 +111,80 @@ def ajustar_benchmark(
         return elegir_ganador(modelos, variantes, delta_aic=delta_aic, alfa=alfa)
 
 
+def crear_selector(
+    candidatas: list,
+    signo_esperado: dict,
+    alias: dict,
+    dimension: dict,
+    cfg_pre,
+    y_col: str,
+    se_col: str,
+    col_nombre: str = "NOMBRE_DOMINIO",
+):
+    """Arma la función que repite la selección de covariables del análisis (G7-B19, R-40).
+
+    La validación del procedimiento completo necesita repetir, con cada conjunto de dominios
+    de entrenamiento, la misma selección de `eda_seleccion_covariables`
+    (`analisis.shared.seleccion.seleccionar_covariables`) con los parámetros del
+    preprocesamiento. Antes era una función definida dentro del notebook que leía variables
+    globales; aquí recibe todo como argumento.
+
+    Args:
+        candidatas (list[str]): Códigos de las candidatas del catálogo (`mapas_catalogo`).
+        signo_esperado (dict): Código → signo esperado.
+        alias (dict): Código → alias legible.
+        dimension (dict): Código → dimensión conceptual.
+        cfg_pre (module): `preprocesamiento.shared.config` (P_MAXIMO, Q_FDR_ELEGIBILIDAD,
+            UMBRAL_DELTA_LOO, UMBRAL_REDUNDANCIA, VIF_MAXIMO, ALFA_IC_CORRELACION).
+        y_col (str): Columna de la estimación directa.
+        se_col (str): Columna del error estándar de la directa (ψ_d = SE²).
+        col_nombre (str): Columna con el nombre de cada dominio.
+
+    Returns:
+        Callable[[pd.DataFrame], list]: `selector(df_entrenamiento)` → códigos seleccionados
+            (vacío si ninguna candidata es elegible).
+
+    Example:
+        >>> selector = crear_selector(CAND, SIGNO, ALIAS, DIM, cfg_pre, "Y", "SE")  # doctest: +SKIP
+        >>> selector(df_val)  # doctest: +SKIP
+        ['260020003', '120210008', '070010020']
+
+    Casos de uso:
+        - `loao_procedimiento_completo` (ejercicio 2 de G7-B19).
+        - Comprobación de que, con los 23 dominios, la selección reproduce EC1.
+    """
+    from analisis.shared.seleccion import seleccionar_covariables
+
+    def selector(df_entrenamiento: pd.DataFrame) -> list:
+        """Repite la selección del análisis con los dominios de entrenamiento.
+
+        Args:
+            df_entrenamiento (pd.DataFrame): Dominios con las candidatas, la tasa y su error.
+
+        Returns:
+            list[str]: Códigos de las covariables seleccionadas.
+        """
+        seleccionadas, _ = seleccionar_covariables(
+            df_entrenamiento,
+            candidatas,
+            df_entrenamiento[y_col].to_numpy(),
+            df_entrenamiento[se_col].to_numpy() ** 2,
+            df_entrenamiento[col_nombre].to_numpy(),
+            signo_esperado,
+            alias=alias,
+            dimension=dimension,
+            p_maximo=cfg_pre.P_MAXIMO,
+            q_fdr=cfg_pre.Q_FDR_ELEGIBILIDAD,
+            umbral_delta=cfg_pre.UMBRAL_DELTA_LOO,
+            umbral_redundancia=cfg_pre.UMBRAL_REDUNDANCIA,
+            vif_max=cfg_pre.VIF_MAXIMO,
+            alfa_ic=cfg_pre.ALFA_IC_CORRELACION,
+        )
+        return seleccionadas
+
+    return selector
+
+
 def _fila_prediccion(
     ejercicio: str,
     d: int,
@@ -138,8 +213,11 @@ def _fila_prediccion(
     """
     fila_d = df.iloc[d]
     x = np.concatenate([[1.0], fila_d[list(modelo.covars)].to_numpy(dtype=float)])
-    pred = float(x @ modelo.beta_hat)
-    var_sintetica = float(x @ modelo.cov_beta @ x + modelo.A_hat)
+    pred_d, rmse_d, _ = prediccion_sintetica(
+        x[None, :], modelo.beta_hat, modelo.cov_beta, modelo.A_hat
+    )
+    pred = float(pred_d[0])
+    var_sintetica = float(rmse_d[0]) ** 2
     y_d = float(fila_d[y_col])
     psi = float(fila_d[se_col]) ** 2
     error = pred - y_d

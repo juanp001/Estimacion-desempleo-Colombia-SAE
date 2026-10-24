@@ -166,6 +166,11 @@ from shared.consolidacion import (
     interpretar_calidad,
 )
 
+# R-40: la preparación de datos, la predicción sintética y la escritura viven en shared/.
+from shared.datos_modelo import alias_desde_catalogo, periodo_unico, preparar_municipios
+from shared.modelo_area_pequena import prediccion_sintetica
+from shared.escritura import escribir_tabla
+
 # G7-B19: la validación predictiva repite la selección de covariables del análisis. Se importa
 # por ruta completa (`shared` aquí es modelo/shared) y el config del preprocesamiento como
 # módulo, para no pisar los nombres de `shared.config`.
@@ -175,6 +180,7 @@ from analisis.shared.seleccion import seleccionar_covariables
 from shared.validacion_predictiva import (
     EJERCICIO_NULO,
     ajustar_benchmark,
+    crear_selector,
     loao_covariables_fijas,
     loao_procedimiento_completo,
     metricas_validacion_cruzada,
@@ -191,6 +197,7 @@ from shared.benchmarking import (
     promedio_ponderado,
     benchmark_nivel1,
     benchmark_nivel2,
+    brecha_agregacion,
     verificar_benchmark,
 )
 
@@ -202,16 +209,16 @@ warnings.filterwarnings("ignore")
 # COMMAND ----------
 
 # DBTITLE 1,1. Carga de datos
-# La tabla de seleccionadas conserva los alias del catálogo; el mapa código → alias de la
-# trazabilidad sirve para reconocer qué columnas son covariables y, más adelante, para
-# renombrar la tabla de dominios objetivo, que conserva los códigos de indicador.
-mapa_alias = {
-    fila["Codigo"]: fila["Alias"]
-    for fila in spark.table(TBL_TRAZABILIDAD).select("Codigo", "Alias").collect()
-}
+# La tabla de seleccionadas conserva los alias del catálogo; el mapa código → alias del
+# catálogo de literatura (R-63) sirve para reconocer qué columnas son covariables y, más
+# adelante, para renombrar la tabla de dominios objetivo, que conserva los códigos de indicador.
+mapa_alias = alias_desde_catalogo()
 alias_a_codigo = {alias: codigo for codigo, alias in mapa_alias.items()}
 
 df = spark.table(TBL_COVARIABLES_SELECCIONADAS).toPandas()
+# Período único de la tabla: ventana del benchmarking y columnas PER/MES de los diagnósticos.
+PERIODO = periodo_unico(df, TBL_COVARIABLES_SELECCIONADAS)
+PER_MES = {"PER": PERIODO["PER"], "MES": PERIODO["MES"]}
 
 # El dominio se identifica por su código (DIVIPOLA de la capital): los nombres cambian de
 # formato entre fuentes.
@@ -437,29 +444,9 @@ if len(modelos) > 1:
         f"{modelos[0].n} dominios), complemento que no interviene en la decisión"
     )
 
-    (
-        spark.createDataFrame(df_diag_variantes)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(TBL_FH_DIAGNOSTICOS_VARIANTES)
-    )
-    print(f"Tabla escrita: {TBL_FH_DIAGNOSTICOS_VARIANTES}")
-
-    (
-        spark.createDataFrame(df_cook_variantes)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(TBL_FH_COOK)
-    )
-    print(f"Tabla escrita: {TBL_FH_COOK}")
-
-    (
-        spark.createDataFrame(df_sel_modelo)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(TBL_FH_SELECCION_MODELO)
-    )
-    print(f"Tabla escrita: {TBL_FH_SELECCION_MODELO}")
+    escribir_tabla(spark, df_diag_variantes, TBL_FH_DIAGNOSTICOS_VARIANTES)
+    escribir_tabla(spark, df_cook_variantes, TBL_FH_COOK)
+    escribir_tabla(spark, df_sel_modelo, TBL_FH_SELECCION_MODELO)
 
 # COMMAND ----------
 
@@ -615,25 +602,9 @@ df_coef_ganador["AIC"] = round(float(modelo_ganador.aic), 3)
 # G7-B16: AICc del benchmark junto al AIC (columna nueva en fh_coeficientes).
 df_coef_ganador["AICc"] = round(float(modelo_ganador.aicc), 3)
 df_coef_ganador["Cook_max"] = round(float(cook_ganador.max()), 4)
-(
-    spark.createDataFrame(df_coef_ganador)
-    .write.mode("overwrite")
-    .option("overwriteSchema", "true")
-    .saveAsTable(TBL_FH_COEFICIENTES)
-)
-print(f"Tabla escrita: {TBL_FH_COEFICIENTES}")
-
-for _tabla, _destino in (
-    (df_estabilidad, TBL_FH_ESTABILIDAD),
-    (detalle_loo, TBL_FH_ESTABILIDAD_LOO),
-):
-    (
-        spark.createDataFrame(_tabla)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(_destino)
-    )
-    print(f"Tabla escrita: {_destino}")
+escribir_tabla(spark, df_coef_ganador, TBL_FH_COEFICIENTES)
+escribir_tabla(spark, df_estabilidad, TBL_FH_ESTABILIDAD)
+escribir_tabla(spark, detalle_loo, TBL_FH_ESTABILIDAD_LOO)
 
 resultados_ganador = modelo_ganador.resultados.copy()
 resultados_ganador["COOK_D"] = cook_ganador.round(4)
@@ -667,14 +638,9 @@ if resultados_ganador["FUERA_DE_RANGO"].any():
 # publica la serie anual de las 23 ciudades (preprocesamiento/shared/ventana.py). La ejecución se
 # detiene si difieren más de TOLERANCIA_DANE_PP: un valor de referencia que no reproduce la cifra
 # oficial indicaría un problema en los datos, no algo que el ajuste deba absorber.
-periodos = df[["PER", "MES", "PERIODO", "N_MESES_VENTANA"]].drop_duplicates()
-if len(periodos) != 1:
-    raise ValueError(
-        f"El benchmarking se define por período y hay {len(periodos)} períodos en {TBL_COVARIABLES_SELECCIONADAS}."
-    )
-PER_MODELO, MES_MODELO = int(periodos["PER"].iloc[0]), int(periodos["MES"].iloc[0])
-N_MESES_MODELO = int(periodos["N_MESES_VENTANA"].iloc[0])
-PERIODO_MODELO = periodos["PERIODO"].iloc[0]
+PER_MODELO, MES_MODELO = PERIODO["PER"], PERIODO["MES"]
+N_MESES_MODELO = PERIODO["N_MESES_VENTANA"]
+PERIODO_MODELO = PERIODO["PERIODO"]
 print(
     f"Ventana de las estimaciones directas: {PERIODO_MODELO} ({N_MESES_MODELO} meses)"
 )
@@ -727,11 +693,7 @@ print(
     f"{promedio_ponderado(modelo_ganador.eblup, pea_dominio):.4f} %)"
 )
 
-spark_df = spark.createDataFrame(resultados_ganador)
-spark_df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    TBL_FAY_HERRIOT_RESULTADOS
-)
-print(f"Tabla escrita: {TBL_FAY_HERRIOT_RESULTADOS}")
+escribir_tabla(spark, resultados_ganador, TBL_FAY_HERRIOT_RESULTADOS)
 
 # COMMAND ----------
 
@@ -746,29 +708,11 @@ print(f"Tabla escrita: {TBL_FAY_HERRIOT_RESULTADOS}")
 covars_ganador = modelo_ganador.covars
 beta_ganador = modelo_ganador.beta_hat
 
-# La tabla de dominios objetivo conserva los códigos de indicador; se renombran a los
-# alias del modelo usando el mismo mapa que produjo la etapa de selección.
-df_new = spark.table(TBL_MUNICIPIOS_SIN_ENCUESTA).toPandas()
-df_new = df_new.rename(
-    columns={
-        alias_a_codigo[alias]: alias
-        for alias in covars_ganador
-        if alias_a_codigo.get(alias) in df_new.columns
-    }
+# La tabla de dominios objetivo conserva los códigos de indicador; se renombran a los alias
+# del modelo con el mapa del catálogo y se valida que ningún municipio quede sin covariable.
+df_new, X_new = preparar_municipios(
+    spark.table(TBL_MUNICIPIOS_SIN_ENCUESTA).toPandas(), covars_ganador, alias_a_codigo
 )
-
-faltantes = [c for c in covars_ganador if c not in df_new.columns]
-if faltantes:
-    raise ValueError(f"Faltan columnas en los datos nuevos: {faltantes}")
-
-sin_dato = df_new[covars_ganador].isna().any(axis=1)
-if sin_dato.any():
-    municipios_sin_dato = df_new.loc[sin_dato, "MUNICIPIO"].tolist()
-    raise ValueError(
-        f"{int(sin_dato.sum())} municipios objetivo no tienen valor para alguna covariable "
-        f"del benchmark y no admiten predicción sintética: {municipios_sin_dato}. "
-        f"Revisar la completitud reportada por dominios_sin_encuesta."
-    )
 
 df_new["DOMINIO"] = (
     df_new["PER"].astype(str)
@@ -778,16 +722,10 @@ df_new["DOMINIO"] = (
     + df_new["CODIGO_MUNICIPIO"]
 )
 
-X_new = np.column_stack(
-    [np.ones(len(df_new))] + [df_new[c].values for c in covars_ganador]
-)
-y_sintetico = X_new @ beta_ganador
-
 # Incertidumbre: x_m'Cov(β̂)x_m (estimar β) + Â (efecto aleatorio no observado).
-var_beta = np.einsum("ij,jk,ik->i", X_new, modelo_ganador.cov_beta, X_new)
-var_sintetico = var_beta + modelo_ganador.A_hat
-rmse_sintetico = np.sqrt(var_sintetico)
-cv_sintetico = 100 * rmse_sintetico / np.abs(y_sintetico)
+y_sintetico, rmse_sintetico, cv_sintetico = prediccion_sintetica(
+    X_new, beta_ganador, modelo_ganador.cov_beta, modelo_ganador.A_hat
+)
 
 df_pred = df_new[["DOMINIO"] + MUNICIPIO_COLS].copy()
 df_pred["PRED_SINTETICO"] = y_sintetico.round(4)
@@ -904,17 +842,8 @@ if fig is not None:
 
 print(interpretar_extrapolacion(rangos, df_sens, sens_dom, max_directa))
 
-spark.createDataFrame(
-    rangos.assign(PER=int(df["PER"].iloc[0]), MES=int(df["MES"].iloc[0]))
-).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    TBL_FH_RANGOS_COVARIABLES
-)
-spark.createDataFrame(df_sens).write.mode("overwrite").option(
-    "overwriteSchema", "true"
-).saveAsTable(TBL_FH_SENSIBILIDAD_EXTRAPOLACION)
-print(
-    f"Tablas escritas: {TBL_FH_RANGOS_COVARIABLES}, {TBL_FH_SENSIBILIDAD_EXTRAPOLACION}"
-)
+escribir_tabla(spark, rangos, TBL_FH_RANGOS_COVARIABLES, PER_MES)
+escribir_tabla(spark, df_sens, TBL_FH_SENSIBILIDAD_EXTRAPOLACION)
 
 # COMMAND ----------
 
@@ -1005,19 +934,9 @@ print(
     )
 )
 
-_periodo = {"PER": int(df["PER"].iloc[0]), "MES": int(df["MES"].iloc[0])}
-for _tabla, _destino in (
-    (detalle_loo.assign(**_periodo), TBL_FH_LOAO_COEFICIENTES),
-    (detalle_pred_loao.assign(**_periodo), TBL_FH_LOAO_PREDICCIONES),
-    (df_influencia.assign(**_periodo), TBL_FH_LOAO_DOMINIOS),
-):
-    (
-        spark.createDataFrame(_tabla)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(_destino)
-    )
-    print(f"Tabla escrita: {_destino}")
+escribir_tabla(spark, detalle_loo, TBL_FH_LOAO_COEFICIENTES, PER_MES)
+escribir_tabla(spark, detalle_pred_loao, TBL_FH_LOAO_PREDICCIONES, PER_MES)
+escribir_tabla(spark, df_influencia, TBL_FH_LOAO_DOMINIOS, PER_MES)
 
 # COMMAND ----------
 
@@ -1072,46 +991,26 @@ df_val = df[["CODIGO_DOMINIO"]].merge(
 )
 for _col in [Y_COL, SE_COL] + CAND_VAL:
     df_val[_col] = pd.to_numeric(df_val[_col], errors="coerce")
-assert (
-    len(df_val) == len(df) and not df_val[CAND_VAL + [Y_COL, SE_COL]].isna().any().any()
-)
-assert np.allclose(df_val[Y_COL], df[Y_COL]) and np.allclose(df_val[SE_COL], df[SE_COL])
+if len(df_val) != len(df) or df_val[CAND_VAL + [Y_COL, SE_COL]].isna().any().any():
+    raise ValueError(
+        "Las candidatas pre-filtradas no cubren los dominios del modelo o tienen faltantes."
+    )
+if not (
+    np.allclose(df_val[Y_COL], df[Y_COL]) and np.allclose(df_val[SE_COL], df[SE_COL])
+):
+    raise ValueError(
+        f"La tasa o su error estándar de {TBL_COVARIABLES_PREFILTRADAS} no coinciden con "
+        f"los de {TBL_COVARIABLES_SELECCIONADAS}."
+    )
 
 covars_benchmark = [alias_a_codigo[a] for a in modelo_ganador.covars]
 covars_eda_codigos = [alias_a_codigo[a] for a in covars_eda]
 COLS_ID = ["CODIGO_DOMINIO", "NOMBRE_DOMINIO"]
 
 
-def selector(df_entrenamiento):
-    """Repite la selección de covariables del análisis con los dominios de entrenamiento.
-
-    Args:
-        df_entrenamiento (pd.DataFrame): Dominios con las candidatas, la tasa y su error estándar.
-
-    Returns:
-        list[str]: Códigos de las covariables seleccionadas (vacío si ninguna es elegible).
-
-    Example:
-        >>> selector(df_val)
-    """
-    seleccionadas, _ = seleccionar_covariables(
-        df_entrenamiento,
-        CAND_VAL,
-        df_entrenamiento[Y_COL].to_numpy(),
-        df_entrenamiento[SE_COL].to_numpy() ** 2,
-        df_entrenamiento["NOMBRE_DOMINIO"].to_numpy(),
-        SIGNO_VAL,
-        alias=ALIAS_VAL,
-        dimension=DIM_VAL,
-        p_maximo=cfg_pre.P_MAXIMO,
-        q_fdr=cfg_pre.Q_FDR_ELEGIBILIDAD,
-        umbral_delta=cfg_pre.UMBRAL_DELTA_LOO,
-        umbral_redundancia=cfg_pre.UMBRAL_REDUNDANCIA,
-        vif_max=cfg_pre.VIF_MAXIMO,
-        alfa_ic=cfg_pre.ALFA_IC_CORRELACION,
-    )
-    return seleccionadas
-
+selector = crear_selector(
+    CAND_VAL, SIGNO_VAL, ALIAS_VAL, DIM_VAL, cfg_pre, Y_COL, SE_COL
+)
 
 # Comprobación: con los 23 dominios el procedimiento debe reproducir lo que dejó el análisis (EC1) y
 # el benchmark seleccionado; si no, este ejercicio ya no valida el modelo que se reporta.
@@ -1119,15 +1018,25 @@ _sel_todos = selector(df_val)
 _m2_repetido = ajustar_benchmark(
     df_val, _sel_todos, Y_COL, SE_COL, DELTA_AIC_EQUIVALENTE, ALFA_SIGNIFICANCIA
 )
+# R-32: si alguna comprobación falla, la corrida se detiene antes de escribir la validación.
+_ok_seleccion = set(_sel_todos) == set(covars_eda_codigos)
+_ok_benchmark = set(_m2_repetido.covars) == set(covars_benchmark)
 print(
     "Selección repetida con los 23 dominios = conjunto del análisis (EC1): "
-    + ("PASS" if set(_sel_todos) == set(covars_eda_codigos) else "FAIL")
+    + ("PASS" if _ok_seleccion else "FAIL")
     + f"  ({[ALIAS_VAL[c] for c in _sel_todos]})"
 )
 print(
     "Benchmark repetido con los 23 dominios = benchmark seleccionado: "
-    + ("PASS" if set(_m2_repetido.covars) == set(covars_benchmark) else "FAIL")
+    + ("PASS" if _ok_benchmark else "FAIL")
 )
+if not (_ok_seleccion and _ok_benchmark):
+    raise ValueError(
+        "La selección repetida dentro del modelo no reproduce el conjunto del análisis o el "
+        "benchmark: analisis.shared.seleccion.seleccionar_covariables quedó desincronizada "
+        "de eda_seleccion_covariables, y la validación del procedimiento completo no "
+        "validaría el modelo reportado."
+    )
 
 cv_fijas = loao_covariables_fijas(
     covars_benchmark, df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL
@@ -1187,25 +1096,15 @@ display(fig)
 plt.close(fig)
 print(interpretar_validacion_cruzada(df_metricas_cv, detalle_cv, resumen_sel_cv))
 
-_periodo_cv = {"PER": int(df["PER"].iloc[0]), "MES": int(df["MES"].iloc[0])}
-for _tabla, _destino in (
-    (detalle_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_CRUZADA),
-    (df_metricas_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_METRICAS),
-    (
-        df_seleccion_cv.drop(columns=["_Seleccion_EDA", "_Benchmark"]).assign(
-            **_periodo_cv
-        ),
-        TBL_FH_VALIDACION_SELECCION,
-    ),
-    (df_frecuencia_cv.assign(**_periodo_cv), TBL_FH_VALIDACION_FRECUENCIA),
-):
-    (
-        spark.createDataFrame(_tabla)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(_destino)
-    )
-    print(f"Tabla escrita: {_destino}")
+escribir_tabla(spark, detalle_cv, TBL_FH_VALIDACION_CRUZADA, PER_MES)
+escribir_tabla(spark, df_metricas_cv, TBL_FH_VALIDACION_METRICAS, PER_MES)
+escribir_tabla(
+    spark,
+    df_seleccion_cv.drop(columns=["_Seleccion_EDA", "_Benchmark"]),
+    TBL_FH_VALIDACION_SELECCION,
+    PER_MES,
+)
+escribir_tabla(spark, df_frecuencia_cv, TBL_FH_VALIDACION_FRECUENCIA, PER_MES)
 
 # COMMAND ----------
 
@@ -1278,25 +1177,23 @@ display(
 # Brecha de agregación de cada dominio A.M.: sintético del dominio (x̄_D'β̂, con las covariables
 # agregadas por su denominador) frente al promedio ponderado por la PET de los sintéticos de sus
 # municipios, que es la base del λ_D. Solo se imprime.
-sintetico_dominio = dict(
-    zip(resultados_ganador["CODIGO_DOMINIO"], resultados_ganador["PRED_SINTETICO"])
+_en_n2 = df_bm2["BENCHMARK"].to_numpy()
+display(
+    brecha_agregacion(
+        y_sintetico[_en_n2],
+        df_pred.loc[_en_n2, "PESO_N2"],
+        df_pred.loc[_en_n2, "CODIGO_DOMINIO_PADRE"],
+        dict(
+            zip(
+                resultados_ganador["CODIGO_DOMINIO"],
+                resultados_ganador["PRED_SINTETICO"],
+            )
+        ),
+        objetivos_n2,
+    ).round(4)
 )
-pred_exacta = pd.Series(y_sintetico, index=df_pred.index)
-for padre, grupo in df_pred[df_bm2["BENCHMARK"]].groupby("CODIGO_DOMINIO_PADRE"):
-    agregado = float(
-        (pred_exacta[grupo.index] * grupo["PESO_N2"]).sum() / grupo["PESO_N2"].sum()
-    )
-    sint_d = float(sintetico_dominio[padre])
-    print(
-        f"Dominio {padre}: x̄_D'β̂ = {sint_d:.4f} | Σw·x_m'β̂/Σw = {agregado:.4f} "
-        f"| brecha = {agregado - sint_d:+.4f} pp | EBLUP ajustado = {objetivos_n2[padre]:.4f}"
-    )
 
-spark_df_pred = spark.createDataFrame(df_pred)
-spark_df_pred.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    TBL_FAY_HERRIOT_PREDICCION_SINTETICA
-)
-print(f"Tabla escrita: {TBL_FAY_HERRIOT_PREDICCION_SINTETICA}")
+escribir_tabla(spark, df_pred, TBL_FAY_HERRIOT_PREDICCION_SINTETICA)
 
 # COMMAND ----------
 
@@ -1378,11 +1275,7 @@ print(
 )
 display(df_final)
 
-spark_df_final = spark.createDataFrame(df_final)
-spark_df_final.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    TBL_FAY_HERRIOT_ESTIMACIONES_FINALES
-)
-print(f"Tabla escrita: {TBL_FAY_HERRIOT_ESTIMACIONES_FINALES}")
+escribir_tabla(spark, df_final, TBL_FAY_HERRIOT_ESTIMACIONES_FINALES)
 
 # COMMAND ----------
 

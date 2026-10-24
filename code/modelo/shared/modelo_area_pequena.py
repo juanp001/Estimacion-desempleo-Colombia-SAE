@@ -1,8 +1,53 @@
+"""Interfaz base de los modelos de área pequeña y predicción sintética común.
+
+`ModeloAreaPequena` reúne lo que comparte cualquier variante Fay-Herriot (matriz de diseño,
+comparación del MSE con la varianza directa y tabla de resultados). `prediccion_sintetica`
+es la única implementación del predictor x'β̂ de un área sin encuesta y de su MSE
+x'Cov(β̂)x + Â (Morales et al., 2021, p. 441); la usan el notebook del modelo, la estabilidad
+de coeficientes, la validación predictiva y la sensibilidad a la varianza (R-40).
+"""
+
 from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
 from scipy import stats
+
+
+def prediccion_sintetica(
+    X: np.ndarray, beta: np.ndarray, cov_beta: np.ndarray, A: float
+) -> tuple:
+    """Predicción sintética x'β̂ de áreas sin encuesta, con su RMSE y su CV.
+
+    Para un área fuera de la muestra el EBLUP se reduce al sintético x'β̂ y su MSE es
+    x'Cov(β̂)x (incertidumbre de estimar β) + Â (efecto aleatorio no observado), Morales et
+    al. (2021), p. 441. El MSE supone que el modelo es correcto también en esas áreas.
+
+    Args:
+        X (np.ndarray): Matriz de diseño de las áreas, shape (m, p), con la columna de unos.
+        beta (np.ndarray): Coeficientes β̂, shape (p,).
+        cov_beta (np.ndarray): Covarianza de β̂, shape (p, p).
+        A (float): Varianza estimada de los efectos aleatorios Â.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray, np.ndarray]: (predicción, RMSE, CV en %), cada uno de
+            shape (m,). El CV es 100·RMSE/|predicción|.
+
+    Example:
+        >>> X = np.array([[1.0, 2.0], [1.0, 4.0]])
+        >>> pred, rmse, cv = prediccion_sintetica(
+        ...     X, np.array([1.0, 0.5]), np.diag([0.01, 0.0]), 0.03
+        ... )
+        >>> pred.tolist(), rmse.round(2).tolist(), cv.round(1).tolist()
+        ([2.0, 3.0], [0.2, 0.2], [10.0, 6.7])
+
+    Casos de uso:
+        - Predicción de los municipios objetivo con el benchmark (`fay_herriot.py`, celda 10).
+        - Predicción del dominio retirado en los reajustes dejar-un-dominio-fuera.
+    """
+    pred = X @ beta
+    rmse = np.sqrt(np.einsum("ij,jk,ik->i", X, cov_beta, X) + A)
+    return pred, rmse, 100 * rmse / np.abs(pred)
 
 
 class ModeloAreaPequena(ABC):

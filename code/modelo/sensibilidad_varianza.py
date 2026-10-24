@@ -73,6 +73,8 @@ for _ruta in (CODE_DIR, os.path.join(CODE_DIR, "modelo")):
 from shared.config import *
 from shared.fay_herriot import FayHerriotClasico
 from shared.seleccion_modelo import elegir_ganador, variantes_dejar_una_fuera
+from shared.datos_modelo import alias_desde_catalogo, periodo_unico, preparar_municipios
+from shared.escritura import escribir_tabla
 from shared.sensibilidad_varianza import (
     ESCENARIO_BASE,
     ajustar_escenarios,
@@ -98,31 +100,11 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-
-def escribir(df_pd: pd.DataFrame, tabla: str) -> None:
-    """Escribe un DataFrame de pandas en Unity Catalog (sobrescribe la tabla y su esquema).
-
-    Args:
-        df_pd (pd.DataFrame): Datos a escribir.
-        tabla (str): Nombre calificado catalog.schema.tabla.
-    """
-    (
-        spark.createDataFrame(df_pd)
-        .write.mode("overwrite")
-        .option("overwriteSchema", "true")
-        .saveAsTable(tabla)
-    )
-    print(f"Tabla escrita: {tabla}")
-
-
 # COMMAND ----------
 
 # DBTITLE 1,1. Carga de datos y modelo base
-mapa_alias = {
-    fila["Codigo"]: fila["Alias"]
-    for fila in spark.table(TBL_TRAZABILIDAD).select("Codigo", "Alias").collect()
-}
-alias_a_codigo = {alias: codigo for codigo, alias in mapa_alias.items()}
+# Mapa código → alias del catálogo de literatura (R-63), como en fay_herriot.py.
+alias_a_codigo = {alias: codigo for codigo, alias in alias_desde_catalogo().items()}
 
 df = (
     spark.table(TBL_COVARIABLES_SELECCIONADAS)
@@ -133,14 +115,10 @@ df = (
 covars_eda = [c for c in df.columns if c in alias_a_codigo]
 nombres_covars = variantes_dejar_una_fuera(covars_eda)
 
-periodos = df[["PER", "MES", "PERIODO", "N_MESES_VENTANA"]].drop_duplicates()
-if len(periodos) != 1:
-    raise ValueError(
-        f"Hay {len(periodos)} períodos en {TBL_COVARIABLES_SELECCIONADAS}."
-    )
-PER_MODELO, MES_MODELO = int(periodos["PER"].iloc[0]), int(periodos["MES"].iloc[0])
-N_MESES_MODELO = int(periodos["N_MESES_VENTANA"].iloc[0])
-print(f"Ventana: {periodos['PERIODO'].iloc[0]} — {len(df)} dominios")
+PERIODO = periodo_unico(df, TBL_COVARIABLES_SELECCIONADAS)
+PER_MODELO, MES_MODELO = PERIODO["PER"], PERIODO["MES"]
+N_MESES_MODELO = PERIODO["N_MESES_VENTANA"]
+print(f"Ventana: {PERIODO['PERIODO']} — {len(df)} dominios")
 
 # Modelo base: el mismo que fay_herriot.py (ψ_d = SE_BOOTSTRAP_PCT², bootstrap por viviendas).
 modelos_base = [FayHerriotClasico(c, df, Y_COL, SE_COL) for c in nombres_covars]
@@ -253,30 +231,16 @@ display(fig)
 plt.close(fig)
 
 display(directa)
-escribir(directa, TBL_SENS_VARIANZA_DIRECTA)
-escribir(df_gvf, TBL_GVF_AJUSTE)
+escribir_tabla(spark, directa, TBL_SENS_VARIANZA_DIRECTA)
+escribir_tabla(spark, df_gvf, TBL_GVF_AJUSTE)
 
 # COMMAND ----------
 
 # DBTITLE 1,4. Municipios objetivo (matriz de diseño de la especificación de referencia)
-df_new = spark.table(TBL_MUNICIPIOS_SIN_ENCUESTA).toPandas()
-df_new = df_new.rename(
-    columns={
-        alias_a_codigo[alias]: alias
-        for alias in covars_referencia
-        if alias_a_codigo.get(alias) in df_new.columns
-    }
-)
-faltantes = [c for c in covars_referencia if c not in df_new.columns]
-if faltantes:
-    raise ValueError(f"Faltan columnas en municipios_sin_encuesta: {faltantes}")
-if df_new[covars_referencia].isna().any().any():
-    raise ValueError(
-        "Hay municipios objetivo sin valor en alguna covariable de referencia."
-    )
-X_municipios = np.column_stack(
-    [np.ones(len(df_new))]
-    + [df_new[c].to_numpy(dtype=float) for c in covars_referencia]
+df_new, X_municipios = preparar_municipios(
+    spark.table(TBL_MUNICIPIOS_SIN_ENCUESTA).toPandas(),
+    covars_referencia,
+    alias_a_codigo,
 )
 print(f"Municipios objetivo: {len(df_new)}")
 
@@ -337,7 +301,7 @@ plt.close(fig)
 
 print(interpretar_sensibilidad(resumen))
 
-escribir(resumen, TBL_SENS_VARIANZA_FH)
-escribir(coeficientes, TBL_SENS_VARIANZA_COEFICIENTES)
-escribir(dominios, TBL_SENS_VARIANZA_DOMINIOS)
-escribir(municipios, TBL_SENS_VARIANZA_MUNICIPIOS)
+escribir_tabla(spark, resumen, TBL_SENS_VARIANZA_FH)
+escribir_tabla(spark, coeficientes, TBL_SENS_VARIANZA_COEFICIENTES)
+escribir_tabla(spark, dominios, TBL_SENS_VARIANZA_DOMINIOS)
+escribir_tabla(spark, municipios, TBL_SENS_VARIANZA_MUNICIPIOS)

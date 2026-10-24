@@ -36,6 +36,7 @@ import numpy as np
 import pandas as pd
 
 from shared.consolidacion import clasificar_confiabilidad
+from shared.modelo_area_pequena import prediccion_sintetica
 
 # G7-B17: la significancia no es demostración fuerte (mismos 23 dominios filtran, seleccionan,
 # comparan y calculan los p); este texto se imprime en el notebook y acompaña a la estabilidad.
@@ -325,26 +326,6 @@ def interpretar_estabilidad(tabla: pd.DataFrame) -> str:
 # ── G7-B18: dejar-un-dominio-fuera (LOAO) completo y su efecto en las predicciones ──────────
 
 
-def _cv_sintetico(X: np.ndarray, beta: np.ndarray, cov_beta: np.ndarray, A: float):
-    """Predicción sintética x'β̂, RMSE = sqrt(x'Cov(β̂)x + Â) y CV (%).
-
-    Args:
-        X (np.ndarray): Matriz de diseño (filas = unidades, con intercepto), shape (m, p).
-        beta (np.ndarray): Coeficientes β̂, shape (p,).
-        cov_beta (np.ndarray): Cov(β̂), shape (p, p).
-        A (float): Varianza de los efectos aleatorios Â.
-
-    Returns:
-        tuple[np.ndarray, np.ndarray]: Predicción (m,) y CV en % (m,).
-
-    Example:
-        >>> pred, cv = _cv_sintetico(X_obj, ganador.beta_hat, ganador.cov_beta, ganador.A_hat)
-    """
-    pred = X @ beta
-    rmse = np.sqrt(np.einsum("ij,jk,ik->i", X, cov_beta, X) + A)
-    return pred, 100 * rmse / np.abs(pred)
-
-
 def dejar_uno_fuera_predicciones(
     modelo,
     clase_modelo: type,
@@ -391,7 +372,7 @@ def dejar_uno_fuera_predicciones(
         nombres_obj = (
             np.arange(len(X_obj)) if nombres_obj is None else np.asarray(nombres_obj)
         )
-        pred_obj0, cv_obj0 = _cv_sintetico(
+        pred_obj0, _, cv_obj0 = prediccion_sintetica(
             X_obj, modelo.beta_hat, modelo.cov_beta, modelo.A_hat
         )
 
@@ -418,7 +399,7 @@ def dejar_uno_fuera_predicciones(
             )
 
         # Dominio excluido: EBLUP con todos vs. sintético fuera de muestra sin él.
-        pred_i, cv_i = _cv_sintetico(
+        pred_i, _, cv_i = prediccion_sintetica(
             modelo.X[[i]], ajuste.beta_hat, ajuste.cov_beta, ajuste.A_hat
         )
         filas.append(
@@ -434,7 +415,7 @@ def dejar_uno_fuera_predicciones(
         )
 
         if X_obj is not None:
-            pred_obj, cv_obj = _cv_sintetico(
+            pred_obj, _, cv_obj = prediccion_sintetica(
                 X_obj, ajuste.beta_hat, ajuste.cov_beta, ajuste.A_hat
             )
             for m in range(len(X_obj)):

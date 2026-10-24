@@ -259,6 +259,63 @@ def benchmark_nivel2(
     return salida
 
 
+def brecha_agregacion(
+    pred_municipios,
+    pesos,
+    padres,
+    sintetico_dominio: dict,
+    objetivos: dict,
+) -> pd.DataFrame:
+    """Brecha entre el sintético de cada dominio A.M. y el agregado de sus municipios (R-40).
+
+    Las covariables del dominio se agregaron con el denominador de cada indicador, no con la
+    PET, así que el promedio ponderado por la PET de los sintéticos municipales
+    Σ w_m x_m'β̂ / Σ w_m no coincide exactamente con el sintético del dominio x̄_D'β̂. Esa
+    brecha es parte de λ_D − 1 en el nivel 2; la consistencia del ajuste sigue siendo exacta.
+
+    Args:
+        pred_municipios (array-like): Predicción sintética x_m'β̂ de cada municipio (sin
+            redondear), solo los que se ajustan en el nivel 2.
+        pesos (array-like): Peso de cada municipio (población de 15 años y más).
+        padres (array-like): Código del dominio A.M. de cada municipio.
+        sintetico_dominio (dict): Dominio → x̄_D'β̂.
+        objetivos (dict): Dominio → EBLUP ajustado en el nivel 1 (valor de referencia).
+
+    Returns:
+        pd.DataFrame: Una fila por dominio con `CODIGO_DOMINIO`, `SINTETICO_DOMINIO`,
+            `AGREGADO_MUNICIPIOS`, `BRECHA_PP` (agregado − sintético) y `EBLUP_AJUSTADO`.
+
+    Example:
+        >>> b = brecha_agregacion([10.0, 14.0], [3.0, 1.0], ["D", "D"], {"D": 10.5}, {"D": 12.0})
+        >>> b[["AGREGADO_MUNICIPIOS", "BRECHA_PP"]].iloc[0].tolist()
+        [11.0, 0.5]
+
+    Casos de uso:
+        Se imprime en la celda 10b de `fay_herriot.py` para explicar λ_D.
+    """
+    datos = pd.DataFrame(
+        {
+            "PRED": np.asarray(pred_municipios, dtype=float),
+            "PESO": np.asarray(pesos, dtype=float),
+            "PADRE": np.asarray(padres),
+        }
+    )
+    filas = []
+    for padre, grupo in datos.groupby("PADRE", sort=True):
+        agregado = promedio_ponderado(grupo["PRED"], grupo["PESO"])
+        sint_d = float(sintetico_dominio[padre])
+        filas.append(
+            {
+                "CODIGO_DOMINIO": padre,
+                "SINTETICO_DOMINIO": sint_d,
+                "AGREGADO_MUNICIPIOS": agregado,
+                "BRECHA_PP": agregado - sint_d,
+                "EBLUP_AJUSTADO": float(objetivos[padre]),
+            }
+        )
+    return pd.DataFrame(filas)
+
+
 def verificar_benchmark(
     df: pd.DataFrame,
     col_grupo: str,
