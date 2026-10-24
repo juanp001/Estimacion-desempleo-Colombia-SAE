@@ -98,6 +98,9 @@ class EscrituraDiferida:
 
         Returns:
             None
+
+        Casos de uso:
+            Cada celda de `fay_herriot.py` que produce una tabla.
         """
         self._pendientes[tabla] = (df_pd.copy(), periodo, comentario)
 
@@ -106,6 +109,9 @@ class EscrituraDiferida:
 
         Returns:
             list[str]: Tablas pendientes de escribir.
+
+        Casos de uso:
+            Mostrar cuántas tablas escribirá la celda 13.
         """
         return list(self._pendientes)
 
@@ -114,6 +120,9 @@ class EscrituraDiferida:
 
         Returns:
             None
+
+        Casos de uso:
+            Celda 13 de `fay_herriot.py`, después de la verificación del benchmarking.
         """
         for tabla, (df_pd, periodo, comentario) in self._pendientes.items():
             escribir_tabla(self.spark, df_pd, tabla, periodo, comentario)

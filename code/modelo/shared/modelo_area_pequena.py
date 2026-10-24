@@ -86,8 +86,8 @@ class ModeloAreaPequena(ABC):
         >>> class FayHerriotClasico(ModeloAreaPequena):
         ...     def ajustar(self):
         ...         pass  # ver shared/fay_herriot.py
-        >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
-        >>> modelo.ajustar()
+        >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")  # doctest: +SKIP
+        >>> modelo.ajustar()  # doctest: +SKIP
     """
 
     def __init__(self, covars: list, df: pd.DataFrame, y_col: str, se_col: str):
@@ -103,7 +103,7 @@ class ModeloAreaPequena(ABC):
             ValueError: Si falta alguna de las columnas requeridas en `df`.
 
         Example:
-            >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
+            >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")  # doctest: +SKIP
         """
         columnas_requeridas = set(covars) | {y_col, se_col}
         faltantes = columnas_requeridas - set(df.columns)
@@ -129,6 +129,12 @@ class ModeloAreaPequena(ABC):
         Cada subclase implementa esto según la estructura de su matriz de
         varianzas V. Debe poblar los atributos documentados en el
         docstring de la clase.
+
+        Returns:
+            None: Los resultados quedan como atributos de la instancia.
+
+        Casos de uso:
+            `FayHerriotClasico.ajustar` y `FayHerriotEspacial.ajustar`.
         """
 
     def validar_mse_directo(self) -> dict:
@@ -182,6 +188,12 @@ class ModeloAreaPequena(ABC):
             RuntimeError: Si se llama antes de `ajustar()`.
             ValueError: Si `dominio_col`, `metadata_cols` o `CV_PORCENTAJE`
                 no existen en `self.df`.
+
+        Example:
+            >>> modelo.tabla_resultados(metadata_cols=DOMINIO_COLS)  # doctest: +SKIP
+
+        Casos de uso:
+            Celda 3 de `fay_herriot.py`; de aquí sale `fay_herriot_resultados`.
         """
         if not hasattr(self, "eblup"):
             raise RuntimeError("Llama a ajustar() antes de tabla_resultados().")

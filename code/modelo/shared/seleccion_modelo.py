@@ -110,8 +110,8 @@ def distancia_cook(modelo: ModeloAreaPequena) -> np.ndarray:
         RuntimeError: Si el modelo no ha sido ajustado.
 
     Example:
-        >>> cook = distancia_cook(modelo)
-        >>> (cook > 4 / modelo.n).sum()
+        >>> cook = distancia_cook(modelo)  # doctest: +SKIP
+        >>> (cook > 4 / modelo.n).sum()  # doctest: +SKIP
     """
     if not hasattr(modelo, "cov_beta"):
         raise RuntimeError("Llama a ajustar() antes de calcular la distancia de Cook.")
@@ -142,7 +142,7 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
         AttributeError: Si algún modelo no tiene `resultados` asignado.
 
     Example:
-        >>> tabla_diagnosticos(modelos, nombres_covars)
+        >>> tabla_diagnosticos(modelos, nombres_covars)  # doctest: +SKIP
     """
     filas = []
     for i, m in enumerate(modelos, 1):
@@ -184,7 +184,7 @@ def tabla_cook(
             la produce, el umbral 4/n, el número de dominios que lo superan y su lista.
 
     Example:
-        >>> tabla_cook(modelos, nombres_covars, df["NOMBRE_DOMINIO"].values)
+        >>> tabla_cook(modelos, nombres_covars, df["NOMBRE_DOMINIO"].values)  # doctest: +SKIP
     """
     filas = []
     for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
@@ -225,7 +225,7 @@ def todas_significativas(modelo: ModeloAreaPequena, alfa: float = 0.05) -> bool:
         bool: True si todas las covariables son significativas al nivel `alfa`.
 
     Example:
-        >>> todas_significativas(modelo, alfa=0.05)
+        >>> todas_significativas(modelo, alfa=0.05)  # doctest: +SKIP
     """
     return bool(np.all(modelo.p_vals[1:] < alfa))
 
@@ -281,7 +281,7 @@ def tabla_seleccion(
             primero y, dentro de cada grupo, por AIC.
 
     Example:
-        >>> tabla_seleccion(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)
+        >>> tabla_seleccion(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)  # doctest: +SKIP
     """
     idx_ganador, candidatas, equivalentes, _ = _indice_ganador(
         modelos, nombres_covars, delta_aic, alfa
@@ -343,7 +343,7 @@ def redaccion_seleccion(
         str: Párrafo listo para adaptar en el documento de tesis.
 
     Example:
-        >>> print(redaccion_seleccion(modelos, nombres_covars, 2.0, 0.05))
+        >>> print(redaccion_seleccion(modelos, nombres_covars, 2.0, 0.05))  # doctest: +SKIP
     """
     idx, candidatas, equivalentes, _ = _indice_ganador(
         modelos, nombres_covars, delta_aic, alfa
@@ -408,7 +408,7 @@ def elegir_ganador(
         ValueError: Si `modelos` está vacío.
 
     Example:
-        >>> ganador = elegir_ganador(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)
+        >>> ganador = elegir_ganador(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)  # doctest: +SKIP
     """
     if not modelos:
         raise ValueError("La lista de modelos está vacía.")
@@ -537,7 +537,7 @@ def figura_cook(modelos: list, nombres_covars: list, nombres_dominio: np.ndarray
             umbral 4/n; las barras que lo superan se pintan en rojo.
 
     Example:
-        >>> fig = figura_cook([ganador], [ganador.covars], df["NOMBRE_DOMINIO"].values)
+        >>> fig = figura_cook([ganador], [ganador.covars], df["NOMBRE_DOMINIO"].values)  # doctest: +SKIP
     """
     import matplotlib.pyplot as plt
 
@@ -593,7 +593,7 @@ def interpretar_cook(
         str: Interpretación lista para imprimir junto a la figura y la tabla de sensibilidad.
 
     Example:
-        >>> print(interpretar_cook(ganador, nombres_dominio, sensibilidad_cook(ganador, ...)))
+        >>> print(interpretar_cook(ganador, nombres_dominio, sensibilidad_cook(ganador, ...)))  # doctest: +SKIP
     """
     cook = distancia_cook(modelo)
     umbral = 4 / modelo.n

@@ -92,8 +92,8 @@ def ajustar_benchmark(
         FayHerriotClasico: El benchmark ajustado (con `covars`).
 
     Example:
-        >>> m = ajustar_benchmark(df_tr, ["A", "B"], "TASA", "SE", 2.0, 0.05)
-        >>> m.covars
+        >>> m = ajustar_benchmark(df_tr, ["A", "B"], "TASA", "SE", 2.0, 0.05)  # doctest: +SKIP
+        >>> m.covars  # doctest: +SKIP
         ['A']
     """
     if not covars_eda:
@@ -276,8 +276,8 @@ def loao_covariables_fijas(
         ValueError: Si `reajustes` no tiene un elemento por dominio de `df`.
 
     Example:
-        >>> cv = loao_covariables_fijas(bm.covars, df, "TASA", "SE", ["NOMBRE_DOMINIO"])
-        >>> float(np.sqrt((cv["Error"] ** 2).mean()))
+        >>> cv = loao_covariables_fijas(bm.covars, df, "TASA", "SE", ["NOMBRE_DOMINIO"])  # doctest: +SKIP
+        >>> float(np.sqrt((cv["Error"] ** 2).mean()))  # doctest: +SKIP
     """
     alias = alias or {}
     if reajustes is None:
@@ -334,12 +334,20 @@ def loao_procedimiento_completo(
             `_Benchmark`.
 
     Example:
-        >>> detalle, seleccion = loao_procedimiento_completo(
+        >>> detalle, seleccion = loao_procedimiento_completo(  # doctest: +SKIP
         ...     df, "TASA", "SE", ["NOMBRE_DOMINIO"], selector, 2.0, 0.05)
     """
     alias = alias or {}
 
-    def texto(covars):
+    def texto(covars: list) -> str:
+        """Covariables unidas con « + » y mostradas con su alias («—» si no hay ninguna).
+
+        Args:
+            covars (list[str]): Códigos de las covariables.
+
+        Returns:
+            str: Texto para la tabla de selección.
+        """
         return " + ".join(alias.get(c, c) for c in covars) or "—"
 
     filas, filas_sel = [], []
@@ -390,7 +398,7 @@ def metricas_validacion_cruzada(
         pd.DataFrame: Una fila por ejercicio, en el orden en que aparecen en `detalle`.
 
     Example:
-        >>> metricas_validacion_cruzada(pd.concat([cv_fijas, cv_completo, cv_nulo]), 1.1)
+        >>> metricas_validacion_cruzada(pd.concat([cv_fijas, cv_completo, cv_nulo]), 1.1)  # doctest: +SKIP
     """
     corte = float(stats.norm.ppf(0.5 + nivel / 2))
     filas = []
@@ -453,7 +461,7 @@ def frecuencia_seleccion(
             `En_benchmark`; ordenada por `Frecuencia_benchmark` descendente.
 
     Example:
-        >>> frecuencia_seleccion(seleccion, bm.covars, ALIAS)
+        >>> frecuencia_seleccion(seleccion, bm.covars, ALIAS)  # doctest: +SKIP
     """
     alias = alias or {}
     n = len(seleccion)
@@ -492,11 +500,19 @@ def resumen_seleccion(seleccion: pd.DataFrame, covars_benchmark: list) -> dict:
             índice de Jaccard con el benchmark.
 
     Example:
-        >>> resumen_seleccion(seleccion, bm.covars)["n_igual_benchmark"]
+        >>> resumen_seleccion(seleccion, bm.covars)["n_igual_benchmark"]  # doctest: +SKIP
     """
     bm = set(covars_benchmark)
 
-    def jaccard(otro):
+    def jaccard(otro) -> float:
+        """Índice de Jaccard entre un conjunto de covariables y el del benchmark.
+
+        Args:
+            otro (Iterable[str]): Covariables elegidas en una iteración.
+
+        Returns:
+            float: |A ∩ B| / |A ∪ B| (1.0 si ambos están vacíos).
+        """
         union = bm | set(otro)
         return len(bm & set(otro)) / len(union) if union else 1.0
 
@@ -532,7 +548,7 @@ def interpretar_validacion(
             sobre n = 23.
 
     Example:
-        >>> print(interpretar_validacion(metricas, detalle, resumen_sel))
+        >>> print(interpretar_validacion(metricas, detalle, resumen_sel))  # doctest: +SKIP
     """
     m = metricas.set_index("Ejercicio")
     lineas = []
@@ -618,7 +634,7 @@ def figura_validacion(detalle: pd.DataFrame, columna_nombre: str = "NOMBRE_DOMIN
         matplotlib.figure.Figure: Figura de dos paneles.
 
     Example:
-        >>> fig = figura_validacion(pd.concat([cv_fijas, cv_completo]))
+        >>> fig = figura_validacion(pd.concat([cv_fijas, cv_completo]))  # doctest: +SKIP
     """
     import matplotlib.pyplot as plt
 

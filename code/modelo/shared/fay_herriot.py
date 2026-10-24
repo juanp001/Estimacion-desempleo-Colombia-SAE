@@ -257,7 +257,7 @@ class FayHerriotClasico(ModeloAreaPequena):
             np.ndarray: MSE estimado del EBLUP por dominio, shape (n,).
 
         Example:
-            >>> modelo._calcular_mse_prasad_rao(modelo.A_hat, modelo.gamma_i, modelo.cov_beta)
+            >>> modelo._calcular_mse_prasad_rao(modelo.A_hat, modelo.gamma_i, modelo.cov_beta)  # doctest: +SKIP
         """
         varianza = self.Di + A
         g1 = gamma_i * self.Di
@@ -318,8 +318,8 @@ class FayHerriotClasico(ModeloAreaPequena):
                 está definida).
 
         Example:
-            >>> modelo.ajustar()
-            >>> modelo.aicc - modelo.aic  # penalización adicional por muestra pequeña
+            >>> modelo.ajustar()  # doctest: +SKIP
+            >>> modelo.aicc - modelo.aic  # penalización adicional por muestra pequeña  # doctest: +SKIP
         """
         k = self.p + 1
         if self.n - k - 1 <= 0:
@@ -356,7 +356,18 @@ class FayHerriotClasico(ModeloAreaPequena):
         Orquesta la estimación de A por REML, beta por GLS, el predictor
         EBLUP, su MSE de Prasad-Rao, los diagnósticos de residuos y el
         AIC. Puebla todos los atributos del contrato documentado en
-        `ModeloAreaPequena`.
+        `ModeloAreaPequena` y las banderas de convergencia (R-41).
+
+        Returns:
+            None: Los resultados quedan como atributos de la instancia.
+
+        Example:
+            >>> modelo = FayHerriotClasico(["IICA_CONFLICTO"], df, "TASA", "SE")  # doctest: +SKIP
+            >>> modelo.ajustar()  # doctest: +SKIP
+
+        Casos de uso:
+            Especificaciones candidatas y reajustes del notebook del modelo, la validación
+            predictiva y los escenarios de varianza.
         """
         self.A_hat = self._estimar_varianza_aleatoria()
         self.beta_hat, self.se_beta, self.t_stats, self.p_vals, self.cov_beta = (

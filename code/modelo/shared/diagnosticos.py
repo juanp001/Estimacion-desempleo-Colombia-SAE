@@ -173,7 +173,7 @@ def explicacion_graficas() -> str:
         str: Explicación lista para imprimir antes de `graficar_validacion()`.
 
     Example:
-        >>> print(explicacion_graficas())
+        >>> print(explicacion_graficas())  # doctest: +SKIP
     """
     return (
         "Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (Yd − EBLUP)\n"
@@ -200,7 +200,7 @@ def interpretar_validacion(modelo: ModeloAreaPequena) -> str:
         str: Interpretación lista para imprimir junto a las figuras.
 
     Example:
-        >>> print(interpretar_validacion(modelo))
+        >>> print(interpretar_validacion(modelo))  # doctest: +SKIP
     """
     corr, pval = stats.pearsonr(modelo.Y, modelo.Y - modelo.eblup)
     suaviza_ok = corr > 0 and pval < 0.05
@@ -230,7 +230,7 @@ def graficar_validacion(modelo: ModeloAreaPequena) -> list:
             título.
 
     Example:
-        >>> figs = graficar_validacion(modelo)
+        >>> figs = graficar_validacion(modelo)  # doctest: +SKIP
     """
     nombres_dominio = modelo.resultados["NOMBRE_DOMINIO"].values
     paneles = [
@@ -263,7 +263,7 @@ def figura_cv_directo_vs_eblup(modelo: ModeloAreaPequena, nombres_dominio: np.nd
             umbrales de confiabilidad.
 
     Example:
-        >>> fig = figura_cv_directo_vs_eblup(ganador, df["NOMBRE_DOMINIO"].values)
+        >>> fig = figura_cv_directo_vs_eblup(ganador, df["NOMBRE_DOMINIO"].values)  # doctest: +SKIP
     """
     orden = np.argsort(modelo.Di)
     cv_dir = modelo.resultados["CV_PORCENTAJE"].values[orden]
@@ -298,7 +298,7 @@ def interpretar_cv(modelo: ModeloAreaPequena) -> str:
         str: Interpretación lista para imprimir junto a `figura_cv_directo_vs_eblup`.
 
     Example:
-        >>> print(interpretar_cv(ganador))
+        >>> print(interpretar_cv(ganador))  # doctest: +SKIP
     """
     res = modelo.resultados
     orden = np.argsort(modelo.Di)
@@ -336,8 +336,8 @@ def aviso_encuesta_sin_peso(modelo: ModeloAreaPequena, umbral_gamma: float) -> s
         str: Texto del aviso, o cadena vacía si el γ máximo supera el umbral.
 
     Example:
-        >>> aviso = aviso_encuesta_sin_peso(modelo, 0.01)
-        >>> if aviso: print(aviso)
+        >>> aviso = aviso_encuesta_sin_peso(modelo, 0.01)  # doctest: +SKIP
+        >>> if aviso: print(aviso)  # doctest: +SKIP
     """
     gamma_max = float(np.max(modelo.gamma_i))
     if gamma_max >= umbral_gamma:
@@ -387,7 +387,7 @@ def marca_extrapolacion(X_nuevos: np.ndarray, modelo: ModeloAreaPequena) -> np.n
         np.ndarray: Arreglo booleano shape (m,), True si el municipio extrapola.
 
     Example:
-        >>> marca_extrapolacion(X_new, ganador)
+        >>> marca_extrapolacion(X_new, ganador)  # doctest: +SKIP
     """
     estado = estado_extrapolacion(
         modelo.X, X_nuevos, modelo.cov_beta, modelo.beta_hat, list(modelo.covars)

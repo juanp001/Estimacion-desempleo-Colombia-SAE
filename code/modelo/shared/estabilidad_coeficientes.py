@@ -215,7 +215,7 @@ def resumen_dejar_uno_fuera(detalle: pd.DataFrame, n_dominios: int) -> pd.DataFr
             `N_cambia_signo`, `N_cruza_alfa`, `p_max` y `N_reajustes` (G7-B18).
 
     Example:
-        >>> resumen_dejar_uno_fuera(detalle, 23)
+        >>> resumen_dejar_uno_fuera(detalle, 23)  # doctest: +SKIP
     """
     filas = []
     for parametro, g in detalle.groupby("Parametro", sort=False):
@@ -273,7 +273,7 @@ def bootstrap_dominios(
             `A_hat` y `A_en_cota`.
 
     Example:
-        >>> bootstrap_dominios(ganador, FayHerriotClasico, replicas=1000, semilla=42)
+        >>> bootstrap_dominios(ganador, FayHerriotClasico, replicas=1000, semilla=42)  # doctest: +SKIP
     """
     rng = np.random.default_rng(semilla)
     parametros = _parametros(modelo)
@@ -314,7 +314,7 @@ def resumen_bootstrap(
             `Prop_p_menor_alfa`, `N_replicas` y `IC_incluye_cero`.
 
     Example:
-        >>> resumen_bootstrap(ganador, replicas_df)
+        >>> resumen_bootstrap(ganador, replicas_df)  # doctest: +SKIP
     """
     inferior, superior = 100 * (1 - nivel) / 2, 100 * (1 + nivel) / 2
     filas = []
@@ -355,7 +355,7 @@ def tabla_estabilidad(
             (las de bootstrap con sufijo `_boot` donde se repiten).
 
     Example:
-        >>> tabla_estabilidad(resumen_loo, resumen_boot)
+        >>> tabla_estabilidad(resumen_loo, resumen_boot)  # doctest: +SKIP
     """
     return resumen_loo.drop(columns="Beta_completo").merge(
         resumen_boot, on="Parametro", suffixes=("", "_boot")
@@ -372,7 +372,7 @@ def interpretar_estabilidad(tabla: pd.DataFrame) -> str:
         str: Texto con una línea por covariable y la advertencia de selección.
 
     Example:
-        >>> print(interpretar_estabilidad(tabla))
+        >>> print(interpretar_estabilidad(tabla))  # doctest: +SKIP
     """
     lineas = []
     for _, f in tabla[tabla["Parametro"] != "Intercepto"].iterrows():
@@ -552,7 +552,7 @@ def resumen_influencia_dominios(
             `Cambio_A_pct`.
 
     Example:
-        >>> resumen_influencia_dominios(detalle_coef, detalle_pred, por_dominio)
+        >>> resumen_influencia_dominios(detalle_coef, detalle_pred, por_dominio)  # doctest: +SKIP
     """
     param = detalle_coef[detalle_coef["Parametro"] != "Intercepto"]
     filas = []
@@ -620,7 +620,7 @@ def top_dominios_por_parametro(detalle_coef: pd.DataFrame, k: int = 3) -> pd.Dat
             `Cambia_signo` y `Cruza_alfa`.
 
     Example:
-        >>> top_dominios_por_parametro(detalle_coef, k=3)
+        >>> top_dominios_por_parametro(detalle_coef, k=3)  # doctest: +SKIP
     """
     d = detalle_coef[detalle_coef["Parametro"] != "Intercepto"].copy()
     d["_abs"] = d["Cambio_en_EE"].abs()
@@ -658,7 +658,7 @@ def interpretar_influencia(
             advertencia de selección. Sin cifras fijas: todo sale de las tablas.
 
     Example:
-        >>> print(interpretar_influencia(resumen_loo, influencia))
+        >>> print(interpretar_influencia(resumen_loo, influencia))  # doctest: +SKIP
     """
     lineas = []
     for _, f in resumen_loo[resumen_loo["Parametro"] != "Intercepto"].iterrows():
@@ -725,7 +725,7 @@ def figura_influencia(detalle_coef: pd.DataFrame):
             o None si no hay covariables.
 
     Example:
-        >>> fig = figura_influencia(detalle_coef); display(fig); plt.close(fig)
+        >>> fig = figura_influencia(detalle_coef); display(fig); plt.close(fig)  # doctest: +SKIP
     """
     import matplotlib.pyplot as plt
 
