@@ -82,7 +82,9 @@ def reajustes_sin_dominio(
 
     Returns:
         list[ModeloAreaPequena | None]: n elementos; el i-ésimo es el modelo ajustado sin el
-            dominio de la fila i, o None si ese ajuste falló.
+            dominio de la fila i, o None si ese ajuste falló por una matriz singular
+            (`numpy.linalg.LinAlgError`). Cualquier otra excepción se propaga (R-41): un error
+            de programación no debe quedar oculto como un reajuste fallido.
 
     Example:
         >>> reajustes = reajustes_sin_dominio(  # doctest: +SKIP
@@ -99,10 +101,46 @@ def reajustes_sin_dominio(
         try:
             ajuste = clase_modelo(list(covars), df_sin, y_col, se_col)
             ajuste.ajustar()
-        except Exception:
+        except np.linalg.LinAlgError:
             ajuste = None
         reajustes.append(ajuste)
     return reajustes
+
+
+def resumen_ajustes(ajustes: list) -> dict:
+    """Cuenta los ajustes fallidos y los que tienen problemas de convergencia (R-41).
+
+    Args:
+        ajustes (list): Modelos ajustados o None (salida de `reajustes_sin_dominio`, o las
+            réplicas de `bootstrap_dominios`). Los modelos sin `avisos_ajuste` (otras
+            clases) cuentan como sin avisos.
+
+    Returns:
+        dict: `{"total", "fallidos", "sin_convergencia", "A_en_cota", "texto"}`; `texto` es
+            una línea lista para imprimir.
+
+    Example:
+        >>> resumen_ajustes([None, None])["texto"]
+        '2 ajustes: 2 fallidos (matriz singular), 0 sin convergencia, 0 con Â en la cota.'
+
+    Casos de uso:
+        - Aviso de los reajustes dejar-un-dominio-fuera y del bootstrap de dominios.
+    """
+    validos = [a for a in ajustes if a is not None]
+    avisos = [a.avisos_ajuste() if hasattr(a, "avisos_ajuste") else [] for a in validos]
+    sin_conv = sum(any("convergió" in x for x in av) for av in avisos)
+    en_cota = sum(any("cota" in x for x in av) for av in avisos)
+    fallidos = len(ajustes) - len(validos)
+    return {
+        "total": len(ajustes),
+        "fallidos": fallidos,
+        "sin_convergencia": sin_conv,
+        "A_en_cota": en_cota,
+        "texto": (
+            f"{len(ajustes)} ajustes: {fallidos} fallidos (matriz singular), {sin_conv} sin "
+            f"convergencia, {en_cota} con Â en la cota."
+        ),
+    }
 
 
 def dejar_uno_fuera_coeficientes(
@@ -219,8 +257,10 @@ def bootstrap_dominios(
     """Bootstrap no paramétrico de dominios con la especificación fija.
 
     En cada réplica se remuestrean con reemplazo los n dominios (con su estimación directa,
-    su error estándar y sus covariables) y se reajusta el modelo. Las réplicas cuyo ajuste
-    falla se descartan.
+    su error estándar y sus covariables) y se reajusta el modelo. Las réplicas con matriz
+    singular (`numpy.linalg.LinAlgError`) se descartan y se cuentan; cualquier otra excepción
+    se propaga (R-41). Se imprime cuántas réplicas fallaron, no convergieron o dejaron Â en
+    la cota del optimizador (Â ≈ 0 en un remuestreo).
 
     Args:
         modelo (ModeloAreaPequena): Benchmark ya ajustado.
@@ -229,27 +269,31 @@ def bootstrap_dominios(
         semilla (int): Semilla de `np.random.default_rng`.
 
     Returns:
-        pd.DataFrame: Una fila por réplica válida con `beta_<parámetro>`, `p_<parámetro>`
-            y `A_hat`.
+        pd.DataFrame: Una fila por réplica válida con `beta_<parámetro>`, `p_<parámetro>`,
+            `A_hat` y `A_en_cota`.
 
     Example:
         >>> bootstrap_dominios(ganador, FayHerriotClasico, replicas=1000, semilla=42)
     """
     rng = np.random.default_rng(semilla)
     parametros = _parametros(modelo)
-    filas = []
+    filas, ajustes = [], []
     for _ in range(replicas):
         idx = rng.integers(0, modelo.n, modelo.n)
         df_b = modelo.df.iloc[idx].reset_index(drop=True)
         try:
             ajuste = clase_modelo(modelo.covars, df_b, modelo.y_col, modelo.se_col)
             ajuste.ajustar()
-        except Exception:
+        except np.linalg.LinAlgError:
+            ajustes.append(None)
             continue
+        ajustes.append(ajuste)
         fila = {f"beta_{p}": float(b) for p, b in zip(parametros, ajuste.beta_hat)}
         fila.update({f"p_{p}": float(v) for p, v in zip(parametros, ajuste.p_vals)})
         fila["A_hat"] = float(ajuste.A_hat)
+        fila["A_en_cota"] = bool(getattr(ajuste, "A_en_cota", False))
         filas.append(fila)
+    print("Bootstrap de dominios: " + resumen_ajustes(ajustes)["texto"])
     return pd.DataFrame(filas)
 
 

@@ -131,6 +131,7 @@ from shared.seleccion_modelo import (
 from shared.estabilidad_coeficientes import (
     ADVERTENCIA_POST_SELECCION,
     reajustes_sin_dominio,  # R-39: los 23 reajustes dejar-un-dominio-fuera, una sola vez
+    resumen_ajustes,  # R-41: fallidos y problemas de convergencia
     dejar_uno_fuera_coeficientes,
     resumen_dejar_uno_fuera,
     bootstrap_dominios,
@@ -503,10 +504,14 @@ if len(modelos) > 1:
 reajustes_loao = reajustes_sin_dominio(
     FayHerriotClasico, modelo_ganador.covars, modelo_ganador.df, Y_COL, SE_COL
 )
-print(
-    f"Reajustes dejar-un-dominio-fuera: {sum(r is not None for r in reajustes_loao)} "
-    f"de {len(reajustes_loao)}"
-)
+# R-41: se cuentan los reajustes fallidos (matriz singular) y los que no convergen o dejan Â
+# en la cota del optimizador; también se avisa si el benchmark mismo está en ese caso.
+print("Reajustes dejar-un-dominio-fuera: " + resumen_ajustes(reajustes_loao)["texto"])
+if modelo_ganador.avisos_ajuste():
+    print(
+        "⚠ AVISO: el ajuste del benchmark tiene problemas de convergencia: "
+        + "; ".join(modelo_ganador.avisos_ajuste())
+    )
 
 # COMMAND ----------
 

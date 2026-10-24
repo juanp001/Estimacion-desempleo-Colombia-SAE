@@ -12,6 +12,53 @@ from scipy.optimize import minimize_scalar
 
 from shared.modelo_area_pequena import ModeloAreaPequena
 
+# Tolerancia, en escala log, para decir que Â quedó en una cota del optimizador (R-41). El
+# optimizador acotado de scipy converge a 1e-5 en log A; 1e-3 equivale a Â a menos de 0.1 % de
+# la cota.
+TOLERANCIA_COTA_LOG = 1e-3
+
+
+def _cotas_log_A(Y: np.ndarray) -> tuple:
+    """Cotas de log A para el optimizador: [log 1e-6, log(10·var(Y))].
+
+    Args:
+        Y (np.ndarray): Variable objetivo, shape (n,).
+
+    Returns:
+        tuple[float, float]: (cota inferior, cota superior) de log A.
+
+    Example:
+        >>> [round(float(c), 3) for c in _cotas_log_A(np.array([1.0, 3.0]))]
+        [-13.816, 2.303]
+    """
+    return np.log(1e-6), np.log(np.var(Y) * 10)
+
+
+def en_cota(
+    log_A: float, cotas: tuple, tolerancia: float = TOLERANCIA_COTA_LOG
+) -> bool:
+    """True si log Â quedó a menos de `tolerancia` de alguna cota del optimizador (R-41).
+
+    Un Â en la cota inferior (1e-6) es el caso Â ≈ 0 (el EBLUP se reduce al sintético); en la
+    superior, el optimizador no encontró un máximo interior. En ambos casos el ajuste no es
+    un máximo regular de la verosimilitud y conviene avisarlo.
+
+    Args:
+        log_A (float): Logaritmo de Â devuelto por el optimizador.
+        cotas (tuple[float, float]): Cotas de log A (`_cotas_log_A`).
+        tolerancia (float): Distancia máxima, en escala log.
+
+    Returns:
+        bool: Si Â está en una cota.
+
+    Example:
+        >>> en_cota(np.log(1e-6) + 1e-6, (np.log(1e-6), 2.0))
+        True
+        >>> en_cota(0.0, (np.log(1e-6), 2.0))
+        False
+    """
+    return bool(min(abs(log_A - cotas[0]), abs(log_A - cotas[1])) < tolerancia)
+
 
 def _vi_xtvi_xtvix(A: float, X: np.ndarray, Di: np.ndarray) -> tuple:
     """Componentes comunes de GLS bajo V = diag(Di + A): V⁻¹, X'V⁻¹ y X'V⁻¹X.
@@ -124,25 +171,37 @@ class FayHerriotClasico(ModeloAreaPequena):
 
     Args / Raises: ver `ModeloAreaPequena`.
 
+    Además del contrato de `ModeloAreaPequena`, `ajustar()` deja tres banderas de
+    convergencia (R-41): `convergio_reml` y `convergio_ml` (`res.success` del optimizador de
+    REML y de ML) y `A_en_cota` (Â en una cota del optimizador). `avisos_ajuste()` las resume.
+
     Example:
-        >>> modelo = FayHerriotClasico(["IND_PROD", "IND_POB_MULT"], df,
-        ...                            "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
+        >>> import pandas as pd
+        >>> df = pd.DataFrame({"x": [1.0, 2, 3, 4, 5, 6], "y": [2.1, 3.9, 6.2, 8.1, 9.8, 12.3],
+        ...                    "se": [0.5] * 6})
+        >>> modelo = FayHerriotClasico(["x"], df, "y", "se")
         >>> modelo.ajustar()
-        >>> modelo.aic, modelo.r2
+        >>> modelo.convergio_reml, modelo.avisos_ajuste()
+        (True, ['Â en la cota del optimizador'])
     """
 
     def _estimar_varianza_aleatoria(self) -> float:
         """Estima A maximizando la log-verosimilitud REML.
 
+        Guarda `convergio_reml` (éxito del optimizador) y `A_en_cota` (Â en una cota, R-41).
+
         Returns:
             float: Â, la varianza estimada de los efectos aleatorios.
         """
+        cotas = _cotas_log_A(self.Y)
         res = minimize_scalar(
             _neg_reml_loglik,
-            bounds=(np.log(1e-6), np.log(np.var(self.Y) * 10)),
+            bounds=cotas,
             method="bounded",
             args=(self.Y, self.X, self.Di),
         )
+        self.convergio_reml = bool(res.success)
+        self.A_en_cota = en_cota(float(res.x), cotas)
         return float(np.exp(res.x))
 
     def _estimar_beta_gls(self, A: float) -> tuple:
@@ -225,15 +284,18 @@ class FayHerriotClasico(ModeloAreaPequena):
     def _calcular_aic(self) -> float:
         """AIC vía la log-verosimilitud ML (A se reoptimiza con ML, no REML).
 
+        Guarda `convergio_ml` (éxito del optimizador de ML, R-41).
+
         Returns:
             float: AIC del modelo ajustado.
         """
         res_ml = minimize_scalar(
             _neg_ml_loglik,
-            bounds=(np.log(1e-6), np.log(np.var(self.Y) * 10)),
+            bounds=_cotas_log_A(self.Y),
             method="bounded",
             args=(self.Y, self.X, self.Di),
         )
+        self.convergio_ml = bool(res_ml.success)
         log_lik_ml = -res_ml.fun
         return -2 * log_lik_ml + 2 * (self.p + 1)  # p coefs + 1 para A
 
@@ -263,6 +325,30 @@ class FayHerriotClasico(ModeloAreaPequena):
         if self.n - k - 1 <= 0:
             return float("nan")
         return float(self.aic + 2 * k * (k + 1) / (self.n - k - 1))
+
+    def avisos_ajuste(self) -> list:
+        """Problemas de convergencia del ajuste (R-41); lista vacía si no hay ninguno.
+
+        Returns:
+            list[str]: Textos de aviso: optimizador REML o ML sin convergencia y Â en una cota.
+
+        Raises:
+            RuntimeError: Si se llama antes de `ajustar()`.
+
+        Example:
+            >>> modelo.avisos_ajuste()  # doctest: +SKIP
+            []
+        """
+        if not hasattr(self, "convergio_ml"):
+            raise RuntimeError("Llama a ajustar() antes de avisos_ajuste().")
+        avisos = []
+        if not self.convergio_reml:
+            avisos.append("REML no convergió")
+        if not self.convergio_ml:
+            avisos.append("ML (AIC) no convergió")
+        if self.A_en_cota:
+            avisos.append("Â en la cota del optimizador")
+        return avisos
 
     def ajustar(self) -> None:
         """Ajusta el modelo Fay-Herriot clásico completo.
