@@ -66,7 +66,7 @@ code/
 │       ├── estimador_sae.py        # Interfaz base EstimadorSAE + clase EstimacionDirecta
 │       └── feature_selection.py    # Filtros de completitud, variabilidad y reporte de redundancia
 ├── modelo/
-│   ├── fay_herriot.py              # Orquestador: ajuste, selección y consolidación del modelo final
+│   ├── fay_herriot.py              # Orquestador del benchmark clásico (no espacial): ajuste, selección y tabla final preliminar
 │   └── shared/
 │       ├── config.py               # Tablas, umbrales de CV, ΔAIC de equivalencia, α de significancia
 │       ├── modelo_area_pequena.py  # Interfaz base ModeloAreaPequena (matriz de diseño, comparación MSE)
@@ -137,7 +137,7 @@ estimacion_directa.py                            │
         (municipios sin cobertura GEIH, vía tesis.preprocesamiento.municipios_sin_encuesta)
                             │
                             ▼
-              tabla final consolidada (EBLUP + sintético)
+              tabla final consolidada (EBLUP + sintético), preliminar del benchmark
               tesis.modelo.fay_herriot_estimaciones_finales
 ```
 
@@ -245,9 +245,10 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
 2. **Resultados EBLUP por dominio**: para cada modelo, tabla con estimación directa, EBLUP, CV del EBLUP,
    factor de *shrinkage* (γ) y mejora de CV vs. estimación directa.
 3. **Gráficas y diagnósticos** por modelo (`shared/diagnosticos.py`): efecto suavizador, histograma de
-   residuos estandarizados, coeficientes con SE/z/p-valor, R², Shapiro-Wilk, distancia de Cook y ganancia
-   de precisión MSE(EBLUP) vs. varianza directa (Wilcoxon). Las figuras se muestran sin título y no se
-   guardan en volúmenes.
+   residuos estandarizados, coeficientes con SE/z/p-valor, R², Shapiro-Wilk (que con 23 áreas solo dice si
+   hay evidencia fuerte contra la aproximación normal, no la demuestra), distancia de Cook y ganancia de
+   precisión MSE(EBLUP) vs. varianza directa (razón Di/MSE, descriptiva: MSE < Di por construcción, p. 440).
+   Las figuras se muestran sin título y no se guardan en volúmenes.
 4. **Selección del benchmark** (`shared/seleccion_modelo.py`): candidatas = especificaciones con todas las
    covariables p < 0.05 (p. 453); entre ellas la de menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de
    menos covariables. Con n = 23 dominios (G7-B16) se reporta también el AICc como complemento (no decide) y un
@@ -261,7 +262,10 @@ decisiones se apoyan en Morales et al. (2021). Pasos:
    varianza de efectos aleatorios (Â). Se exporta a `tesis.modelo.fay_herriot_prediccion_sintetica`.
 6. **Tabla final consolidada** (`shared/consolidacion.py`): une EBLUP (dominios con encuesta directa) +
    predicción sintética (dominios sin encuesta), con columna `TIPO` indicando el origen →
-   `tesis.modelo.fay_herriot_estimaciones_finales`.
+   `tesis.modelo.fay_herriot_estimaciones_finales`. Es un **resultado preliminar del benchmark no
+   espacial**: lleva `MODELO_FUENTE = FH_CLASICO_BENCHMARK_NO_ESPACIAL` y `ESTADO_RESULTADO = PRELIMINAR`
+   hasta cerrar la comparación con las variantes espaciales del objetivo 1. Todas las tablas del notebook se
+   escriben al final, después de verificar el benchmarking.
 7. **Componente espacial** (`fay_herriot_espacial.py`, corre después del clásico): SEBLUP con efectos SAR
    (Morales et al., §18.2), W por distancia entre centroides (kNN 3/5 e inversa 1/2), ρ estimado solo con los
    23 dominios. Se compara con el benchmark clásico por I de Moran de residuos, ΔAIC, LRT de ρ = 0, perfil de
