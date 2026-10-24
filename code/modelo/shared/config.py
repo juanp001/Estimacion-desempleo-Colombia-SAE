@@ -17,21 +17,36 @@ diagnósticos (ganancia de precisión y robustez), sin intervenir en la elecció
 """
 
 # ── Tablas fuente (salidas del flujo de selección de covariables) ────────────
-TBL_COVARIABLES_SELECCIONADAS = "tesis.preprocesamiento.covariables_seleccionadas"
-TBL_MUNICIPIOS_SIN_ENCUESTA = "tesis.preprocesamiento.municipios_sin_encuesta"
-TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables"
+# Fuente única de nombres (R-40, R-59): las tablas y constantes que el preprocesamiento también
+# usa se importan de preprocesamiento/shared/config.py en lugar de repetirlas aquí. Los nombres
+# propios del modelo (TBL_COVARIABLES_SELECCIONADAS, ...) quedan como alias de los de allá. Los
+# notebooks de modelo/ ponen `code/` en sys.path antes de importar este módulo.
+from preprocesamiento.shared.config import (
+    COLS_PESO_POBLACION,
+    CV_ACEPTABLE,
+    CV_CONFIABLE,
+    EXPR_PESO_POBLACION,
+    NOMBRE_TOTAL_23,
+    TBL_DATOS_MUNICIPALES,
+    TBL_DIM_DOMINIO,
+    TBL_DIM_INDICADORES,
+    TBL_PREFILTRADAS,
+    TBL_SELECCIONADAS,
+    TBL_SIN_ENCUESTA,
+    TBL_TERRIDATA,
+    TBL_TRAZABILIDAD,
+)
+
+TBL_COVARIABLES_SELECCIONADAS = TBL_SELECCIONADAS
+TBL_MUNICIPIOS_SIN_ENCUESTA = TBL_SIN_ENCUESTA
 # Nombres oficiales de departamento y municipio por código DIVIPOLA: las dos fuentes de
 # dominios escriben los nombres con distinto formato, así que la tabla final se une por
-# código y toma los nombres de aquí.
+# código y toma los nombres de aquí. (R-54 revisa esta constante en el bloque de ingesta.)
 TBL_DIM_DIVIPOLA = "tesis.dim.dim_divipola"
-# Dominios GEIH (ciudad o ciudad A.M.) y sus municipios miembro: nombres de los dominios y
-# membresía que verifica el benchmarking de nivel 2.
-TBL_DIM_DOMINIO = "tesis.dim.dim_dominio_geih"
-# Indicadores municipales de TerriData: de aquí sale el peso del benchmarking de nivel 2.
-TBL_TERRIDATA = "tesis.terridata.terridata_extendido_plata"
-# Cifras oficiales publicadas por el DANE: valor de control del benchmarking de nivel 1.
-TBL_DATOS_MUNICIPALES = "tesis.geih_bronce.datos_municipales"
-NOMBRE_TOTAL_23 = "Total 23 ciudades y A.M."
+# TBL_DIM_DOMINIO: dominios GEIH (ciudad o ciudad A.M.) y sus municipios miembro (nombres y
+# membresía que verifica el benchmarking de nivel 2). TBL_TERRIDATA: de aquí sale el peso del
+# benchmarking de nivel 2. TBL_DATOS_MUNICIPALES y NOMBRE_TOTAL_23: cifra oficial del DANE,
+# valor de control del benchmarking de nivel 1.
 
 # ── Tablas destino ───────────────────────────────────────────────────────────
 TBL_FAY_HERRIOT_RESULTADOS = "tesis.modelo.fay_herriot_resultados"
@@ -66,8 +81,7 @@ LOAO_UMBRAL_PRED_PP = 0.5
 # selección en cada iteración). Para repetir la selección se leen las candidatas pre-filtradas y
 # el diccionario de indicadores; los parámetros de la selección son los de
 # preprocesamiento/shared/config.py (P_MAXIMO, Q_FDR_ELEGIBILIDAD, ...), no se duplican aquí.
-TBL_COVARIABLES_PREFILTRADAS = "tesis.preprocesamiento.covariables_prefiltradas"
-TBL_DIM_INDICADORES = "tesis.dim.dim_indicadores"
+TBL_COVARIABLES_PREFILTRADAS = TBL_PREFILTRADAS
 TBL_FH_VALIDACION_CRUZADA = "tesis.modelo.fh_validacion_cruzada"
 TBL_FH_VALIDACION_METRICAS = "tesis.modelo.fh_validacion_cruzada_metricas"
 TBL_FH_VALIDACION_SELECCION = "tesis.modelo.fh_validacion_cruzada_seleccion"
@@ -124,12 +138,7 @@ COL_PESO_NIVEL1 = "PEA_EXPANDIDA"
 # tasa de desempleo. Las covariables de los dominios A.M. se agregan con el denominador de cada
 # indicador (preprocesamiento/shared/reglas_agregacion.py). Suma de los grupos quinquenales por
 # sexo de 15-19 a 80 y más de TerriData (02001xxxx hombres, 02002xxxx mujeres).
-COLS_PESO_POBLACION = [
-    f"0200{sexo}0{grupo:03d}" for sexo in ("1", "2") for grupo in range(4, 18)
-]
-EXPR_PESO_POBLACION = " + ".join(
-    f"try_cast(`{c}` AS DOUBLE)" for c in COLS_PESO_POBLACION
-)
+# COLS_PESO_POBLACION y EXPR_PESO_POBLACION se importan de preprocesamiento/shared/config.py.
 # Aviso cuando el factor de ajuste se aleja de 1 más de esta fracción: «si el modelo es
 # adecuado, el factor de ajuste estará en torno a uno» (INE Chile, ENUSC 2018, PDF 23).
 UMBRAL_LAMBDA_AVISO = 0.20
@@ -138,16 +147,11 @@ UMBRAL_LAMBDA_AVISO = 0.20
 TOLERANCIA_DANE_PP = 0.01
 
 # ── Umbrales de confiabilidad del CV (G7-B7) ─────────────────────────────────
-# Misma regla que preprocesamiento/shared/config.py (allí está el sustento completo), para que la
-# estimación directa, el EBLUP y la predicción sintética se clasifiquen igual:
-# - 5 %: precisión de diseño de la GEIH para la tasa de desempleo (error estándar relativo ≤ 5 %
-#   con una tasa del 10 %; DANE, Metodología GEIH v9, 2016, PDF 12).
-# - 20 %: límite a partir del cual varios institutos de estadística consideran un dato «no
-#   publicable» (Molina, 2019, CEPAL, PDF 16-17).
-# En municipios el CV es condicional al modelo (B21, shared/consolidacion.py): la misma escala se
-# aplica, pero la etiqueta publicada lo advierte.
-CV_CONFIABLE = 5.0  # CV < 5 %   → confiable
-CV_ACEPTABLE = 20.0  # CV < 20 %  → aceptable; >= 20 % → no confiable
+# CV_CONFIABLE (5 %) y CV_ACEPTABLE (20 %) se importan de preprocesamiento/shared/config.py (R-59;
+# allí está el sustento completo), para que la estimación directa, el EBLUP y la predicción
+# sintética se clasifiquen con la misma regla sin poder desincronizarse. En municipios el CV es
+# condicional al modelo (B21, shared/consolidacion.py): la misma escala se aplica, pero la
+# etiqueta publicada lo advierte.
 
 # ── Selección de modelo ──────────────────────────────────────────────────────
 # Diferencia de AIC por debajo de la cual dos variantes se consideran equivalentes, según
