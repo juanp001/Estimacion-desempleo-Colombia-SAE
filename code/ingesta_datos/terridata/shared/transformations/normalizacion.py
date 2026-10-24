@@ -1,6 +1,6 @@
 from pyspark.sql.functions import col, upper, translate
 
-_TILDES_IN  = "áéíóúÁÉÍÓÚ"
+_TILDES_IN = "áéíóúÁÉÍÓÚ"
 _TILDES_OUT = "aeiouAEIOU"
 
 
@@ -19,21 +19,17 @@ CAMPOS_BRONCE = [
     col("CODIGO_ENTIDAD"),
     col("ENTIDAD"),
     _normalizar("ENTIDAD").alias("ENTIDAD_NORMALIZADO"),
-
     # --- CLASIFICACIÓN DEL INDICADOR ---
     col("DIMENSION"),
     col("SUBCATEGORIA"),
     col("INDICADOR"),
     col("CODIGO_INDICADOR"),
-
     # --- VALORES ---
     col("DATO_NUMERICO"),
     col("DATO_CUALITATIVO"),
-
     # --- TEMPORALIDAD ---
     col("ANO"),
     col("MES"),
-
     # --- METADATA ---
     col("FUENTE"),
     col("UNIDAD_MEDIDA"),

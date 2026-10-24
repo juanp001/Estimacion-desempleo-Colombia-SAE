@@ -251,23 +251,24 @@ modelo/fay_herriot.py
     (entrada de B21)
   → estabilidad de coeficientes del benchmark (shared/estabilidad_coeficientes.py; análisis de
     sensibilidad, no decide): dejar-un-dominio-fuera (reajusta Â) y bootstrap de dominios con la
-    especificación fija (ESTABILIDAD_REPLICAS = 1000, semilla 42) → fh_estabilidad_coeficientes y
-    fh_estabilidad_dejar_uno_fuera. Los mismos 23 dominios filtran, seleccionan y calculan los p, así que
+    especificación fija (ESTABILIDAD_REPLICAS = 1000, semilla 42) → fh_estabilidad_coeficientes (el
+    detalle dejar-un-dominio-fuera va solo en fh_loao_coeficientes, R-39). Los mismos 23 dominios filtran, seleccionan y calculan los p, así que
     la significancia es descriptiva y los coeficientes son asociaciones preliminares condicionales a la
     selección (G7-B17: ADVERTENCIA_POST_SELECCION se imprime en el notebook). Ni Morales (pp. 453-454) ni los
     artículos espaciales tratan este punto: es un análisis propio; el bootstrap no repite la selección
   → sensibilidad a dominios individuales, dejar-un-dominio-fuera (LOAO) completo (G7-B18, celda 10a-bis,
     mismo `shared/estabilidad_coeficientes.py`; análisis propio, no decide ni cambia las tasas):
-    reajusta el benchmark (con Â) sin cada uno de los 23 dominios y reporta (a) por β_j el mínimo y el
+    usa los 23 reajustes del benchmark (con Â) de `reajustes_sin_dominio` (celda 8a, R-39: una sola
+    implementación, que también alimentan Cook, B20 y el ejercicio 1 de G7-B19) y reporta (a) por β_j el mínimo y el
     máximo de β̂_j(-d) con el dominio que los produce, el cambio relativo máximo, el **cambio
     estandarizado Δβ/EE(β̂)** (estilo DFBETAS; el porcentual se infla si |β̂| es pequeño), los cambios de
     signo y los cruces de α, los 3 dominios que más mueven cada β y un mapa de calor; (b) el efecto en
-    predicciones: EBLUP de los 22 dominios que quedan, predicción sintética del dominio retirado
-    (x_d'β̂(-d) frente a su EBLUP = error de predecirlo fuera de muestra), predicción sintética de los 83
+    predicciones: EBLUP de los 22 dominios que quedan, predicción sintética de los 83
     municipios (separando los que extrapolan, B20), Â, y cambios de clase de confiabilidad por CV.
     Umbrales (convención propia, `config.py`): `LOAO_UMBRAL_CAMBIO_EE = 1.0` EE y `LOAO_UMBRAL_PRED_PP =
-    0.5` pp. Tablas `fh_loao_coeficientes`, `fh_loao_predicciones` y `fh_loao_dominios` (tesis.modelo;
-    `fh_estabilidad_dejar_uno_fuera` gana `EE_completo` y `Cambio_en_EE`). Ni Morales et al. ni los
+    0.5` pp. Tablas `fh_loao_coeficientes` (con `EE_completo` y `Cambio_en_EE`), `fh_loao_predicciones`
+    y `fh_loao_dominios` (tesis.modelo). El error del dominio retirado se mide solo contra la directa,
+    en G7-B19. Ni Morales et al. ni los
     artículos espaciales tratan la influencia por dominio; respaldan solo la lectura (en un área fuera
     de muestra el predictor es x'β̂: Benedetti 2024 p. 144; Morales p. 441). Responde a la revisión que
     citaba cambios de ~37 % y ~47 % al retirar Neiva: la tabla dice qué dominio los causa y si superan 1 EE
@@ -312,8 +313,15 @@ modelo/fay_herriot.py
     fh_coeficientes, fay_herriot_resultados (con EBLUP_BENCHMARK y LAMBDA_N1),
     fay_herriot_prediccion_sintetica (con LAMBDA_N2 y PRED_BENCHMARK), fay_herriot_estimaciones_finales
     (tesis.modelo; NIVEL = DOMINIO [23] o MUNICIPIO [83], TIPO = EBLUP_BENCHMARK / SINTETICO /
-    SINTETICO_BENCHMARK, TASA_SIN_AJUSTE_PCT para trazabilidad); la sensibilidad de Cook se muestra pero
-    no se persiste
+    SINTETICO_BENCHMARK, TASA_SIN_AJUSTE_PCT para trazabilidad; R-11: MODELO_FUENTE =
+    FH_CLASICO_BENCHMARK_NO_ESPACIAL y ESTADO_RESULTADO = PRELIMINAR, más COMMENT ON TABLE); la
+    sensibilidad de Cook se muestra pero no se persiste. R-38: todas las tablas se registran en
+    `EscrituraDiferida` (shared/escritura.py) y la celda 13 las escribe después de la verificación
+  → R-10: Shapiro-Wilk y la media de residuos se redactan con `diagnosticos.lectura_normalidad` /
+    `NOTA_MEDIA_RESIDUOS` (no demuestran normalidad; la media es ≈ 0 por construcción); R-64: sin prueba
+    de Wilcoxon ni % de dominios que mejoran (MSE < Di por construcción, p. 440); R-41:
+    FayHerriotClasico guarda convergio_reml/convergio_ml/A_en_cota y los reajustes solo absorben
+    LinAlgError
   → calidad reportada B21 (celda 11a, shared/consolidacion.py): CONFIABILIDAD sigue siendo solo por CV;
     BASE_CV = EBLUP (dominios) / CONDICIONAL_AL_MODELO (municipios) y CALIDAD_REPORTADA = la que se cita:
     en municipios agrega siempre «condicional al modelo» (el MSE x'Cov(β̂)x + Â supone el modelo
@@ -362,18 +370,22 @@ ciudad se reconstruye como Σ DS / Σ PEA de los 4 trimestres que no se pisan (M
 `sensibilidad_ventana_temporal` (ventana × dominio, con N_PERSONAS_15MAS/N_PEA/N_DESOCUPADOS y TD_DANE),
 `resumen_ventana_temporal`, `validacion_anual_totales` y la figura `ventana_sensibilidad`.
 
-Lógica compartida en `modelo/shared/`: `config.py` (tablas fuente/destino, umbrales de CV 5/20,
+Lógica compartida en `modelo/shared/`: `config.py` (tablas fuente/destino —las compartidas y los
+umbrales de CV 5/20 se importan de `preprocesamiento/shared/config.py`, R-40/R-59—,
 `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`, `UMBRAL_GAMMA_SIN_PESO`, límites de tasa, avisos),
 `modelo_area_pequena.py` (interfaz base ModeloAreaPequena: matriz de diseño, comparación de MSE, tabla de
-resultados — común a cualquier variante SAE), `fay_herriot.py` (FayHerriotClasico: REML, GLS, EBLUP, MSE de
+resultados — común a cualquier variante SAE; `prediccion_sintetica`, única fórmula x'β̂ y x'Cov(β̂)x + Â),
+`datos_modelo.py` (R-40/R-63: `periodo_unico`, `alias_desde_catalogo`, `preparar_municipios`),
+`escritura.py` (`escribir_tabla`, `EscrituraDiferida`), `fay_herriot.py` (FayHerriotClasico: REML, GLS, EBLUP, MSE de
 Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de
 diagnósticos, Cook, tabla de selección y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV
 directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `escenarios_psi`,
-`ajustar_escenarios`, figuras e interpretación), `estabilidad_coeficientes.py` (dejar-uno-fuera y bootstrap de coeficientes; G7-B18:
+`ajustar_escenarios`, figuras e interpretación), `estabilidad_coeficientes.py` (`reajustes_sin_dominio`, el único LOAO del clásico, R-39;
+`resumen_ajustes`; dejar-uno-fuera y bootstrap de coeficientes; G7-B18:
 `dejar_uno_fuera_predicciones`, `resumen_influencia_dominios`, `top_dominios_por_parametro`,
-`interpretar_influencia`, `figura_influencia`), `validacion_predictiva.py` (G7-B19: `ajustar_benchmark`,
+`interpretar_influencia`, `figura_influencia`), `validacion_predictiva.py` (G7-B19: `ajustar_benchmark`, `crear_selector`,
 `loao_covariables_fijas`, `loao_procedimiento_completo`, `metricas_validacion_cruzada`, `frecuencia_seleccion`,
-`interpretar_validacion`, `figura_validacion`), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`,
+`interpretar_validacion`, `figura_validacion`), `benchmarking.py` (`factor_razon`, `benchmark_nivel1`, `benchmark_nivel2`, `brecha_agregacion`,
 `verificar_benchmark`; funciones puras numpy/pandas con doctests), `extrapolacion.py` (B20:
 `rangos_covariables`, `estado_extrapolacion`, `prediccion_acotada`, `sensibilidad_quitar_dominio`,
 figuras e interpretación; doctests con 1 y 2 covariables), `consolidacion.py` (tabla final de dos

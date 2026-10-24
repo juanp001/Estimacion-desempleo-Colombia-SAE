@@ -1,8 +1,52 @@
+"""Interfaz base de los modelos de área pequeña y predicción sintética común.
+
+`ModeloAreaPequena` reúne lo que comparte cualquier variante Fay-Herriot (matriz de diseño,
+comparación del MSE con la varianza directa y tabla de resultados). `prediccion_sintetica`
+es la única implementación del predictor x'β̂ de un área sin encuesta y de su MSE
+x'Cov(β̂)x + Â (Morales et al., 2021, p. 441); la usan el notebook del modelo, la estabilidad
+de coeficientes, la validación predictiva y la sensibilidad a la varianza (R-40).
+"""
+
 from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-from scipy import stats
+
+
+def prediccion_sintetica(
+    X: np.ndarray, beta: np.ndarray, cov_beta: np.ndarray, A: float
+) -> tuple:
+    """Predicción sintética x'β̂ de áreas sin encuesta, con su RMSE y su CV.
+
+    Para un área fuera de la muestra el EBLUP se reduce al sintético x'β̂ y su MSE es
+    x'Cov(β̂)x (incertidumbre de estimar β) + Â (efecto aleatorio no observado), Morales et
+    al. (2021), p. 441. El MSE supone que el modelo es correcto también en esas áreas.
+
+    Args:
+        X (np.ndarray): Matriz de diseño de las áreas, shape (m, p), con la columna de unos.
+        beta (np.ndarray): Coeficientes β̂, shape (p,).
+        cov_beta (np.ndarray): Covarianza de β̂, shape (p, p).
+        A (float): Varianza estimada de los efectos aleatorios Â.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray, np.ndarray]: (predicción, RMSE, CV en %), cada uno de
+            shape (m,). El CV es 100·RMSE/|predicción|.
+
+    Example:
+        >>> X = np.array([[1.0, 2.0], [1.0, 4.0]])
+        >>> pred, rmse, cv = prediccion_sintetica(
+        ...     X, np.array([1.0, 0.5]), np.diag([0.01, 0.0]), 0.03
+        ... )
+        >>> pred.tolist(), rmse.round(2).tolist(), cv.round(1).tolist()
+        ([2.0, 3.0], [0.2, 0.2], [10.0, 6.7])
+
+    Casos de uso:
+        - Predicción de los municipios objetivo con el benchmark (`fay_herriot.py`, celda 10).
+        - Predicción del dominio retirado en los reajustes dejar-un-dominio-fuera.
+    """
+    pred = X @ beta
+    rmse = np.sqrt(np.einsum("ij,jk,ik->i", X, cov_beta, X) + A)
+    return pred, rmse, 100 * rmse / np.abs(pred)
 
 
 class ModeloAreaPequena(ABC):
@@ -42,8 +86,8 @@ class ModeloAreaPequena(ABC):
         >>> class FayHerriotClasico(ModeloAreaPequena):
         ...     def ajustar(self):
         ...         pass  # ver shared/fay_herriot.py
-        >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
-        >>> modelo.ajustar()
+        >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")  # doctest: +SKIP
+        >>> modelo.ajustar()  # doctest: +SKIP
     """
 
     def __init__(self, covars: list, df: pd.DataFrame, y_col: str, se_col: str):
@@ -59,7 +103,7 @@ class ModeloAreaPequena(ABC):
             ValueError: Si falta alguna de las columnas requeridas en `df`.
 
         Example:
-            >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")
+            >>> modelo = FayHerriotClasico(["IND_PROD"], df, "TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT")  # doctest: +SKIP
         """
         columnas_requeridas = set(covars) | {y_col, se_col}
         faltantes = columnas_requeridas - set(df.columns)
@@ -85,33 +129,42 @@ class ModeloAreaPequena(ABC):
         Cada subclase implementa esto según la estructura de su matriz de
         varianzas V. Debe poblar los atributos documentados en el
         docstring de la clase.
+
+        Returns:
+            None: Los resultados quedan como atributos de la instancia.
+
+        Casos de uso:
+            `FayHerriotClasico.ajustar` y `FayHerriotEspacial.ajustar`.
         """
 
     def validar_mse_directo(self) -> dict:
-        """Compara el MSE del predictor contra la varianza directa Di.
+        """Ganancia de precisión del predictor frente a la varianza directa Di.
+
+        Es descriptiva: con el EBLUP, MSE < Di casi siempre por construcción (g1 = γ·Di < Di y
+        g2 + 2g3 son pequeños; Morales et al., 2021, p. 440). Por eso no se hace una prueba de
+        Wilcoxon de Di > MSE ni se cuenta el % de dominios que «mejoran» (R-64): no contrastan
+        nada. Lo informativo es cuánto baja el MSE, que dan la razón y la reducción.
 
         Returns:
-            dict: `mse_ratio` (np.ndarray, Di/mse), `pct_mejora_mse`
-                (np.ndarray, % de reducción), `dominios_mejoran` (float,
-                fracción de dominios con mse < Di), `wil_stat` y
-                `wil_pval` (float, test de Wilcoxon Di > mse).
+            dict: `mse_ratio` (np.ndarray, Di/mse) y `pct_mejora_mse` (np.ndarray, % de
+                reducción del MSE frente a Di).
 
         Raises:
             RuntimeError: Si se llama antes de `ajustar()`.
+
+        Example:
+            >>> modelo.validar_mse_directo()["mse_ratio"].mean()  # doctest: +SKIP
+
+        Casos de uso:
+            Columnas RATIO_MSE y MEJORA_MSE_PCT de `tabla_resultados` y Ratio_MSE_medio de
+            `seleccion_modelo.tabla_diagnosticos`.
         """
         if not hasattr(self, "mse"):
             raise RuntimeError("Llama a ajustar() antes de validar_mse_directo().")
 
-        mse_ratio = self.Di / self.mse
-        pct_mejora_mse = 100 * (self.Di - self.mse) / self.Di
-        dominios_mejoran = float(np.mean(self.mse < self.Di))
-        wil_stat, wil_pval = stats.wilcoxon(self.Di - self.mse, alternative="greater")
         return {
-            "mse_ratio": mse_ratio,
-            "pct_mejora_mse": pct_mejora_mse,
-            "dominios_mejoran": dominios_mejoran,
-            "wil_stat": wil_stat,
-            "wil_pval": wil_pval,
+            "mse_ratio": self.Di / self.mse,
+            "pct_mejora_mse": 100 * (self.Di - self.mse) / self.Di,
         }
 
     def tabla_resultados(
@@ -135,6 +188,12 @@ class ModeloAreaPequena(ABC):
             RuntimeError: Si se llama antes de `ajustar()`.
             ValueError: Si `dominio_col`, `metadata_cols` o `CV_PORCENTAJE`
                 no existen en `self.df`.
+
+        Example:
+            >>> modelo.tabla_resultados(metadata_cols=DOMINIO_COLS)  # doctest: +SKIP
+
+        Casos de uso:
+            Celda 3 de `fay_herriot.py`; de aquí sale `fay_herriot_resultados`.
         """
         if not hasattr(self, "eblup"):
             raise RuntimeError("Llama a ajustar() antes de tabla_resultados().")

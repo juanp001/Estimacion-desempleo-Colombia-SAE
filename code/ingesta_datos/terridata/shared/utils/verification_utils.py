@@ -29,9 +29,11 @@ def verificar_conservacion_registros(df_bronce: DataFrame, n_filas_plata: int) -
     print("VERIFICACIÓN 1: CONSERVACIÓN DE REGISTROS")
     print("=" * 60)
 
-    count_largo = df_bronce.select(
-        "CODIGO_DEPARTAMENTO", "CODIGO_ENTIDAD", "ANO", "MES"
-    ).distinct().count()
+    count_largo = (
+        df_bronce.select("CODIGO_DEPARTAMENTO", "CODIGO_ENTIDAD", "ANO", "MES")
+        .distinct()
+        .count()
+    )
 
     print(f"Combinaciones únicas en BRONCE: {count_largo:,}")
     print(f"Filas en PLATA:                 {n_filas_plata:,}")
@@ -61,9 +63,11 @@ def verificar_duplicados(df_plata: DataFrame, n_filas: int) -> bool:
     print("VERIFICACIÓN 2: DUPLICADOS EN PLATA")
     print("=" * 60)
 
-    filas_unicas = df_plata.select(
-        "CODIGO_DEPARTAMENTO", "CODIGO_ENTIDAD", "ANO", "MES"
-    ).distinct().count()
+    filas_unicas = (
+        df_plata.select("CODIGO_DEPARTAMENTO", "CODIGO_ENTIDAD", "ANO", "MES")
+        .distinct()
+        .count()
+    )
 
     print(f"Total filas:   {n_filas:,}")
     print(f"Claves únicas: {filas_unicas:,}")
@@ -82,8 +86,9 @@ def verificar_duplicados(df_plata: DataFrame, n_filas: int) -> bool:
         return False
 
 
-def verificar_integridad_muestra(df_bronce: DataFrame, df_plata: DataFrame,
-                                  n_muestras: int = 10) -> bool:
+def verificar_integridad_muestra(
+    df_bronce: DataFrame, df_plata: DataFrame, n_muestras: int = 10
+) -> bool:
     """Compara una muestra aleatoria de valores de bronce contra su celda en plata.
 
     Args:
@@ -104,10 +109,17 @@ def verificar_integridad_muestra(df_bronce: DataFrame, df_plata: DataFrame,
     print("=" * 60)
 
     muestras = (
-        df_bronce
-        .filter(col("DATO_NUMERICO").isNotNull() | col("DATO_CUALITATIVO").isNotNull())
-        .select("CODIGO_ENTIDAD", "ANO", "MES", "CODIGO_INDICADOR",
-                "DATO_NUMERICO", "DATO_CUALITATIVO")
+        df_bronce.filter(
+            col("DATO_NUMERICO").isNotNull() | col("DATO_CUALITATIVO").isNotNull()
+        )
+        .select(
+            "CODIGO_ENTIDAD",
+            "ANO",
+            "MES",
+            "CODIGO_INDICADOR",
+            "DATO_NUMERICO",
+            "DATO_CUALITATIVO",
+        )
         .sample(False, 0.0001)
         .limit(n_muestras)
         .collect()
@@ -121,26 +133,33 @@ def verificar_integridad_muestra(df_bronce: DataFrame, df_plata: DataFrame,
     errores = 0
 
     for row in muestras:
-        entidad   = row.CODIGO_ENTIDAD
-        ano       = int(row.ANO)
-        mes       = int(row.MES)
+        entidad = row.CODIGO_ENTIDAD
+        ano = int(row.ANO)
+        mes = int(row.MES)
         indicador = row.CODIGO_INDICADOR
 
         valor_esperado = (
-            str(row.DATO_NUMERICO) if row.DATO_NUMERICO is not None
+            str(row.DATO_NUMERICO)
+            if row.DATO_NUMERICO is not None
             else row.DATO_CUALITATIVO
         )
 
-        fila_plata = df_plata.filter(
-            (col("CODIGO_ENTIDAD") == entidad) &
-            (col("ANO") == ano) &
-            (col("MES") == mes)
-        ).select(col(f"`{indicador}`").cast("string")).first()
+        fila_plata = (
+            df_plata.filter(
+                (col("CODIGO_ENTIDAD") == entidad)
+                & (col("ANO") == ano)
+                & (col("MES") == mes)
+            )
+            .select(col(f"`{indicador}`").cast("string"))
+            .first()
+        )
 
         valor_plata = fila_plata[0] if fila_plata else None
 
         if valor_esperado != valor_plata:
-            print(f"  ❌ Entidad {entidad}, Año {ano}, Mes {mes}, Indicador {indicador}")
+            print(
+                f"  ❌ Entidad {entidad}, Año {ano}, Mes {mes}, Indicador {indicador}"
+            )
             print(f"     Esperado: {valor_esperado!r}  →  Obtenido: {valor_plata!r}")
             errores += 1
         else:
@@ -171,28 +190,38 @@ def verificar_calidad_casteo(clasificacion_completa: list) -> bool:
     print("VERIFICACIÓN 4: CALIDAD DE CASTEO NUMÉRICO")
     print("=" * 60)
 
-    numericos           = [r for r in clasificacion_completa if r.TIPO_DATO == "numerico"]
-    total_valores       = sum(r.total_valores for r in numericos)
-    valores_en_riesgo   = sum(r.count_cualitativo for r in numericos)
-    indicadores_riesgo  = [r for r in numericos if r.count_cualitativo > 0]
+    numericos = [r for r in clasificacion_completa if r.TIPO_DATO == "numerico"]
+    total_valores = sum(r.total_valores for r in numericos)
+    valores_en_riesgo = sum(r.count_cualitativo for r in numericos)
+    indicadores_riesgo = [r for r in numericos if r.count_cualitativo > 0]
     pct_riesgo = (valores_en_riesgo / total_valores * 100) if total_valores > 0 else 0.0
 
     print(f"Indicadores numéricos:                          {len(numericos)}")
     print(f"  Con valores cualitativos (→ NULL tras cast):  {len(indicadores_riesgo)}")
-    print(f"  Valores en riesgo: {valores_en_riesgo:,} de {total_valores:,} ({pct_riesgo:.3f}%)")
+    print(
+        f"  Valores en riesgo: {valores_en_riesgo:,} de {total_valores:,} ({pct_riesgo:.3f}%)"
+    )
 
     if indicadores_riesgo:
         print("\nTop 10 indicadores con más valores en riesgo:")
-        top = sorted(indicadores_riesgo, key=lambda r: r.count_cualitativo, reverse=True)[:10]
+        top = sorted(
+            indicadores_riesgo, key=lambda r: r.count_cualitativo, reverse=True
+        )[:10]
         for r in top:
             pct = r.count_cualitativo / r.total_valores * 100
-            print(f"  - {r.CODIGO_INDICADOR}: {r.count_cualitativo:,} valores ({pct:.1f}%)")
+            print(
+                f"  - {r.CODIGO_INDICADOR}: {r.count_cualitativo:,} valores ({pct:.1f}%)"
+            )
 
     if pct_riesgo <= UMBRAL_RIESGO_CASTEO:
-        print(f"\n✅ CORRECTO: Riesgo ({pct_riesgo:.3f}%) dentro del umbral ({UMBRAL_RIESGO_CASTEO}%)")
+        print(
+            f"\n✅ CORRECTO: Riesgo ({pct_riesgo:.3f}%) dentro del umbral ({UMBRAL_RIESGO_CASTEO}%)"
+        )
         return True
     else:
-        print(f"\n❌ ADVERTENCIA: Riesgo ({pct_riesgo:.2f}%) excede umbral ({UMBRAL_RIESGO_CASTEO}%)")
+        print(
+            f"\n❌ ADVERTENCIA: Riesgo ({pct_riesgo:.2f}%) excede umbral ({UMBRAL_RIESGO_CASTEO}%)"
+        )
         return False
 
 
@@ -220,16 +249,19 @@ def verificar_reclasificacion_indicadores(spark, tipo_indicador_dict: dict) -> b
         prev_tipos = {
             row.CODIGO_INDICADOR: row.TIPO_DATO
             for row in spark.table(TBL_DIM_INDICADORES)
-                             .select("CODIGO_INDICADOR", "TIPO_DATO")
-                             .collect()
+            .select("CODIGO_INDICADOR", "TIPO_DATO")
+            .collect()
         }
     except Exception:
         print("⚠️  No existe versión previa de dim_indicadores. Verificación omitida.")
         return True
 
-    cambios    = [(ind, prev_tipos[ind], t) for ind, t in tipo_indicador_dict.items()
-                  if ind in prev_tipos and prev_tipos[ind] != t]
-    nuevos     = [ind for ind in tipo_indicador_dict if ind not in prev_tipos]
+    cambios = [
+        (ind, prev_tipos[ind], t)
+        for ind, t in tipo_indicador_dict.items()
+        if ind in prev_tipos and prev_tipos[ind] != t
+    ]
+    nuevos = [ind for ind in tipo_indicador_dict if ind not in prev_tipos]
     eliminados = [ind for ind in prev_tipos if ind not in tipo_indicador_dict]
 
     print(f"Indicadores nuevos:             {len(nuevos)}")
@@ -251,8 +283,9 @@ def verificar_reclasificacion_indicadores(spark, tipo_indicador_dict: dict) -> b
         return False
 
 
-def verificar_valores_no_nulos(df_largo: DataFrame, df_ancho: DataFrame,
-                                tolerancia_porcentaje: float = 1.0) -> bool:
+def verificar_valores_no_nulos(
+    df_largo: DataFrame, df_ancho: DataFrame, tolerancia_porcentaje: float = 1.0
+) -> bool:
     """Compara el total de valores no nulos entre bronce (largo) y plata (ancho).
 
     Es la verificación pesada: recorre todos los indicadores (ver
@@ -279,12 +312,14 @@ def verificar_valores_no_nulos(df_largo: DataFrame, df_ancho: DataFrame,
     print(f"Total de valores no nulos en BRONCE: {total_largo:,}")
 
     cols_indicadores = [c for c in df_ancho.columns if c not in COLUMNAS_ID]
-    count_expr = reduce(add, [when(col(c).isNotNull(), 1).otherwise(0) for c in cols_indicadores])
+    count_expr = reduce(
+        add, [when(col(c).isNotNull(), 1).otherwise(0) for c in cols_indicadores]
+    )
     total_ancho = df_ancho.select(spark_sum(count_expr).alias("total")).first()[0]
     print(f"Total de valores no nulos en PLATA:  {total_ancho:,}")
 
     diferencia = abs(total_largo - total_ancho)
-    pct_diff   = (diferencia / total_largo * 100) if total_largo > 0 else 0.0
+    pct_diff = (diferencia / total_largo * 100) if total_largo > 0 else 0.0
     print(f"Diferencia: {diferencia:,} ({pct_diff:.3f}%)")
 
     if pct_diff == 0:
@@ -294,5 +329,7 @@ def verificar_valores_no_nulos(df_largo: DataFrame, df_ancho: DataFrame,
         print(f"\n✅ CORRECTO: Dentro de tolerancia ({tolerancia_porcentaje}%)")
         return True
     else:
-        print(f"\n❌ ERROR: Diferencia ({pct_diff:.2f}%) excede tolerancia ({tolerancia_porcentaje}%)")
+        print(
+            f"\n❌ ERROR: Diferencia ({pct_diff:.2f}%) excede tolerancia ({tolerancia_porcentaje}%)"
+        )
         return False

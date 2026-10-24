@@ -110,8 +110,8 @@ def distancia_cook(modelo: ModeloAreaPequena) -> np.ndarray:
         RuntimeError: Si el modelo no ha sido ajustado.
 
     Example:
-        >>> cook = distancia_cook(modelo)
-        >>> (cook > 4 / modelo.n).sum()
+        >>> cook = distancia_cook(modelo)  # doctest: +SKIP
+        >>> (cook > 4 / modelo.n).sum()  # doctest: +SKIP
     """
     if not hasattr(modelo, "cov_beta"):
         raise RuntimeError("Llama a ajustar() antes de calcular la distancia de Cook.")
@@ -132,16 +132,17 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
         nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
 
     Returns:
-        pd.DataFrame: Una fila por modelo con R², media/SD de residuos, p-valor de
-            Shapiro-Wilk, reducción media de CV, shrinkage promedio, % de dominios que
-            mejoran el MSE, ratio MSE medio, p-valor de Wilcoxon y la correlación entre la
+        pd.DataFrame: Una fila por modelo con R², media/SD (ddof = 1) de residuos, p-valor de
+            Shapiro-Wilk (no demuestra normalidad, ver `diagnosticos.LECTURA_NORMALIDAD`),
+            reducción media de CV, shrinkage promedio, ratio Di/MSE medio (ganancia de
+            precisión descriptiva; sin Wilcoxon, R-64) y la correlación entre la
             estimación directa y la corrección del EBLUP (efecto suavizador) con su p-valor.
 
     Raises:
         AttributeError: Si algún modelo no tiene `resultados` asignado.
 
     Example:
-        >>> tabla_diagnosticos(modelos, nombres_covars)
+        >>> tabla_diagnosticos(modelos, nombres_covars)  # doctest: +SKIP
     """
     filas = []
     for i, m in enumerate(modelos, 1):
@@ -153,15 +154,14 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
                 "Covariables": " + ".join(nombres_covars[i - 1]),
                 "R2": round(m.r2, 4),
                 "Media_resid": round(m.residuals.mean(), 4),
-                "SD_resid": round(m.residuals.std(), 4),
+                # ddof = 1, como en el notebook y en diagnosticos.py (R-10).
+                "SD_resid": round(m.residuals.std(ddof=1), 4),
                 "SW_pval": round(m.sw_pval, 4),
                 "Delta_CV_pp": round(m.resultados["MEJORA_CV_PCT"].mean(), 2),
                 "Gamma_prom": (
                     round(m.gamma_i.mean(), 4) if m.gamma_i is not None else None
                 ),
-                "Pct_dom_mejoran": round(validacion["dominios_mejoran"] * 100, 1),
                 "Ratio_MSE_medio": round(validacion["mse_ratio"].mean(), 4),
-                "Wilcoxon_pval": round(validacion["wil_pval"], 4),
                 "Corr_suavizador": round(float(corr), 4),
                 "Corr_suavizador_pval": round(float(corr_pval), 4),
             }
@@ -184,7 +184,7 @@ def tabla_cook(
             la produce, el umbral 4/n, el número de dominios que lo superan y su lista.
 
     Example:
-        >>> tabla_cook(modelos, nombres_covars, df["NOMBRE_DOMINIO"].values)
+        >>> tabla_cook(modelos, nombres_covars, df["NOMBRE_DOMINIO"].values)  # doctest: +SKIP
     """
     filas = []
     for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
@@ -225,7 +225,7 @@ def todas_significativas(modelo: ModeloAreaPequena, alfa: float = 0.05) -> bool:
         bool: True si todas las covariables son significativas al nivel `alfa`.
 
     Example:
-        >>> todas_significativas(modelo, alfa=0.05)
+        >>> todas_significativas(modelo, alfa=0.05)  # doctest: +SKIP
     """
     return bool(np.all(modelo.p_vals[1:] < alfa))
 
@@ -281,7 +281,7 @@ def tabla_seleccion(
             primero y, dentro de cada grupo, por AIC.
 
     Example:
-        >>> tabla_seleccion(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)
+        >>> tabla_seleccion(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)  # doctest: +SKIP
     """
     idx_ganador, candidatas, equivalentes, _ = _indice_ganador(
         modelos, nombres_covars, delta_aic, alfa
@@ -343,7 +343,7 @@ def redaccion_seleccion(
         str: Párrafo listo para adaptar en el documento de tesis.
 
     Example:
-        >>> print(redaccion_seleccion(modelos, nombres_covars, 2.0, 0.05))
+        >>> print(redaccion_seleccion(modelos, nombres_covars, 2.0, 0.05))  # doctest: +SKIP
     """
     idx, candidatas, equivalentes, _ = _indice_ganador(
         modelos, nombres_covars, delta_aic, alfa
@@ -408,7 +408,7 @@ def elegir_ganador(
         ValueError: Si `modelos` está vacío.
 
     Example:
-        >>> ganador = elegir_ganador(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)
+        >>> ganador = elegir_ganador(modelos, nombres_covars, delta_aic=2.0, alfa=0.05)  # doctest: +SKIP
     """
     if not modelos:
         raise ValueError("La lista de modelos está vacía.")
@@ -450,19 +450,20 @@ def elegir_ganador(
 
 def sensibilidad_cook(
     modelo: ModeloAreaPequena,
-    clase_modelo: type,
+    reajustes: list,
     nombres_dominio: np.ndarray,
     alfa: float = 0.05,
 ) -> pd.DataFrame:
-    """Reajusta el modelo sin el dominio de mayor distancia de Cook y compara los β̂.
+    """Compara los β̂ con los del modelo sin el dominio de mayor distancia de Cook.
 
-    A diferencia de la distancia de Cook (que fija ``Â``), aquí se reestima todo el modelo,
-    incluida la varianza de efectos aleatorios, así que el cambio refleja la influencia
-    completa del dominio.
+    A diferencia de la distancia de Cook (que fija ``Â``), el modelo sin el dominio reestima
+    también la varianza de efectos aleatorios, así que el cambio refleja la influencia completa
+    del dominio. No reajusta nada: toma la fila de ese dominio de los reajustes
+    dejar-un-dominio-fuera (`estabilidad_coeficientes.reajustes_sin_dominio`, R-39).
 
     Args:
         modelo (ModeloAreaPequena): Modelo ya ajustado (normalmente el ganador).
-        clase_modelo (type): Clase con la que reajustar (p. ej. `FayHerriotClasico`).
+        reajustes (list): Salida de `reajustes_sin_dominio` para ese modelo.
         nombres_dominio (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
         alfa (float): Nivel de significancia para marcar cambios de significancia.
 
@@ -472,14 +473,22 @@ def sensibilidad_cook(
             signo y si cruza el umbral `alfa` en cualquier sentido (`Cambio_signif`:
             "pierde", "gana" o "no"). Incluye una fila `A_hat`.
 
+    Raises:
+        ValueError: Si el reajuste sin el dominio de mayor Cook falló.
+
     Example:
-        >>> sensibilidad_cook(ganador, FayHerriotClasico, df["NOMBRE_DOMINIO"].values)
+        >>> sensibilidad_cook(ganador, reajustes, nombres)  # doctest: +SKIP
+
+    Casos de uso:
+        Tabla de robustez del benchmark en `fay_herriot.py` (celda de Cook).
     """
     cook = distancia_cook(modelo)
     idx = int(np.argmax(cook))
-    df_sin = modelo.df.drop(index=modelo.df.index[idx]).reset_index(drop=True)
-    reajuste = clase_modelo(modelo.covars, df_sin, modelo.y_col, modelo.se_col)
-    reajuste.ajustar()
+    reajuste = reajustes[idx]
+    if reajuste is None:
+        raise ValueError(
+            f"El reajuste sin {nombres_dominio[idx]} (mayor distancia de Cook) falló."
+        )
 
     parametros = ["Intercepto"] + list(modelo.covars) + ["A_hat"]
     completo = np.append(modelo.beta_hat, modelo.A_hat)
@@ -528,7 +537,7 @@ def figura_cook(modelos: list, nombres_covars: list, nombres_dominio: np.ndarray
             umbral 4/n; las barras que lo superan se pintan en rojo.
 
     Example:
-        >>> fig = figura_cook([ganador], [ganador.covars], df["NOMBRE_DOMINIO"].values)
+        >>> fig = figura_cook([ganador], [ganador.covars], df["NOMBRE_DOMINIO"].values)  # doctest: +SKIP
     """
     import matplotlib.pyplot as plt
 
@@ -584,7 +593,7 @@ def interpretar_cook(
         str: Interpretación lista para imprimir junto a la figura y la tabla de sensibilidad.
 
     Example:
-        >>> print(interpretar_cook(ganador, nombres_dominio, sensibilidad_cook(ganador, ...)))
+        >>> print(interpretar_cook(ganador, nombres_dominio, sensibilidad_cook(ganador, ...)))  # doctest: +SKIP
     """
     cook = distancia_cook(modelo)
     umbral = 4 / modelo.n

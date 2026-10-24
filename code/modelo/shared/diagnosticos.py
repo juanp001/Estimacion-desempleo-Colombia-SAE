@@ -125,6 +125,47 @@ def _graficar_histograma_residuos(ax, residuals: np.ndarray) -> None:
     ax.grid(True, linestyle=":", alpha=0.5)
 
 
+# G7-B22 (R-10): cómo leer los diagnósticos de normalidad. Con 23 residuos marginales, que
+# mezclan u_d y e_d y no son independientes, Shapiro-Wilk tiene poca potencia: no rechazar no
+# demuestra normalidad. La normalidad de u_d y e_d es un supuesto del modelo (Morales et al.,
+# 2021, p. 426); el DANE redacta igual la prueba («no hay evidencia estadística suficiente para
+# rechazar», nota SAE FIES 2024, PDF 14). Redacción de la revisión del Grupo 7, sec. 5.22.
+LECTURA_NORMALIDAD = (
+    "los diagnósticos no muestran evidencia fuerte contra la aproximación normal, dentro de "
+    "la limitada potencia disponible con 23 áreas"
+)
+LECTURA_NORMALIDAD_RECHAZA = (
+    "Shapiro-Wilk rechaza la normalidad: revisar la aproximación normal de u_d y e_d"
+)
+# La media de los residuos estandarizados es ≈ 0 por construcción: con intercepto, el GLS cumple
+# Σ (y_d − x_d'β̂)/(ψ_d + Â) = 0. No informa sobre el sesgo del predictor.
+NOTA_MEDIA_RESIDUOS = (
+    "≈ 0 por construcción del GLS con intercepto; no informa sobre sesgo"
+)
+
+
+def lectura_normalidad(sw_pval: float, alfa: float = 0.05) -> str:
+    """Lectura del p-valor de Shapiro-Wilk sin afirmar normalidad (G7-B22, R-10).
+
+    Args:
+        sw_pval (float): p-valor de Shapiro-Wilk de los residuos estandarizados.
+        alfa (float): Nivel de la prueba.
+
+    Returns:
+        str: `LECTURA_NORMALIDAD` si no se rechaza; `LECTURA_NORMALIDAD_RECHAZA` si se rechaza.
+
+    Example:
+        >>> lectura_normalidad(0.31).startswith("los diagnósticos no muestran")
+        True
+        >>> lectura_normalidad(0.01).startswith("Shapiro-Wilk rechaza")
+        True
+
+    Casos de uso:
+        Diagnósticos por especificación en `fay_herriot.py` e `interpretar_validacion`.
+    """
+    return LECTURA_NORMALIDAD if sw_pval > alfa else LECTURA_NORMALIDAD_RECHAZA
+
+
 def explicacion_graficas() -> str:
     """Texto que explica qué observar en las gráficas de validación.
 
@@ -132,7 +173,7 @@ def explicacion_graficas() -> str:
         str: Explicación lista para imprimir antes de `graficar_validacion()`.
 
     Example:
-        >>> print(explicacion_graficas())
+        >>> print(explicacion_graficas())  # doctest: +SKIP
     """
     return (
         "Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (Yd − EBLUP)\n"
@@ -141,9 +182,11 @@ def explicacion_graficas() -> str:
         "Yd grandes (el EBLUP la baja). Es una descripción de la contracción hacia el\n"
         "predictor sintético, no una prueba de validez del modelo.\n"
         "Gráfica 2 (Histograma de residuos estandarizados): distribución de\n"
-        "(Y − x'β̂)/√(Dd+Â). Bajo el supuesto de normalidad del modelo deben verse\n"
-        "aproximadamente normales, centrados en 0 y con desviación ≈ 1; respalda\n"
-        "visualmente el test de Shapiro-Wilk.\n"
+        "(Y − x'β̂)/√(Dd+Â). Bajo el supuesto de normalidad del modelo se verían\n"
+        "aproximadamente normales y con desviación ≈ 1; la media es ≈ 0 por construcción\n"
+        "del GLS con intercepto. Con 23 residuos marginales (mezclan u_d y e_d) ni el\n"
+        "histograma ni Shapiro-Wilk pueden demostrar normalidad: solo mostrar si hay\n"
+        "evidencia fuerte en contra.\n"
     )
 
 
@@ -157,11 +200,10 @@ def interpretar_validacion(modelo: ModeloAreaPequena) -> str:
         str: Interpretación lista para imprimir junto a las figuras.
 
     Example:
-        >>> print(interpretar_validacion(modelo))
+        >>> print(interpretar_validacion(modelo))  # doctest: +SKIP
     """
     corr, pval = stats.pearsonr(modelo.Y, modelo.Y - modelo.eblup)
     suaviza_ok = corr > 0 and pval < 0.05
-    normal_ok = modelo.sw_pval > 0.05
     return (
         "INTERPRETACIÓN:\n"
         f"  Gráfica 1 (Efecto suavizador): corr(Yd, Yd−EBLUP)={corr:.3f} (p={pval:.4f})  "
@@ -171,9 +213,9 @@ def interpretar_validacion(modelo: ModeloAreaPequena) -> str:
             else "~ contracción débil (γ alto o buen ajuste del sintético)"
         )
         + "\n"
-        f"  Gráfica 2 (Residuos estandarizados): media={modelo.residuals.mean():.3f}, "
-        f"sd={modelo.residuals.std(ddof=1):.3f}, Shapiro-Wilk p={modelo.sw_pval:.4f}  "
-        + ("✓ compatible con normalidad" if normal_ok else "✗ revisar normalidad")
+        f"  Gráfica 2 (Residuos estandarizados): media={modelo.residuals.mean():.3f} "
+        f"({NOTA_MEDIA_RESIDUOS}), sd={modelo.residuals.std(ddof=1):.3f}, "
+        f"Shapiro-Wilk p={modelo.sw_pval:.4f}: {lectura_normalidad(modelo.sw_pval)}"
     )
 
 
@@ -188,7 +230,7 @@ def graficar_validacion(modelo: ModeloAreaPequena) -> list:
             título.
 
     Example:
-        >>> figs = graficar_validacion(modelo)
+        >>> figs = graficar_validacion(modelo)  # doctest: +SKIP
     """
     nombres_dominio = modelo.resultados["NOMBRE_DOMINIO"].values
     paneles = [
@@ -221,7 +263,7 @@ def figura_cv_directo_vs_eblup(modelo: ModeloAreaPequena, nombres_dominio: np.nd
             umbrales de confiabilidad.
 
     Example:
-        >>> fig = figura_cv_directo_vs_eblup(ganador, df["NOMBRE_DOMINIO"].values)
+        >>> fig = figura_cv_directo_vs_eblup(ganador, df["NOMBRE_DOMINIO"].values)  # doctest: +SKIP
     """
     orden = np.argsort(modelo.Di)
     cv_dir = modelo.resultados["CV_PORCENTAJE"].values[orden]
@@ -256,7 +298,7 @@ def interpretar_cv(modelo: ModeloAreaPequena) -> str:
         str: Interpretación lista para imprimir junto a `figura_cv_directo_vs_eblup`.
 
     Example:
-        >>> print(interpretar_cv(ganador))
+        >>> print(interpretar_cv(ganador))  # doctest: +SKIP
     """
     res = modelo.resultados
     orden = np.argsort(modelo.Di)
@@ -294,8 +336,8 @@ def aviso_encuesta_sin_peso(modelo: ModeloAreaPequena, umbral_gamma: float) -> s
         str: Texto del aviso, o cadena vacía si el γ máximo supera el umbral.
 
     Example:
-        >>> aviso = aviso_encuesta_sin_peso(modelo, 0.01)
-        >>> if aviso: print(aviso)
+        >>> aviso = aviso_encuesta_sin_peso(modelo, 0.01)  # doctest: +SKIP
+        >>> if aviso: print(aviso)  # doctest: +SKIP
     """
     gamma_max = float(np.max(modelo.gamma_i))
     if gamma_max >= umbral_gamma:
@@ -345,7 +387,7 @@ def marca_extrapolacion(X_nuevos: np.ndarray, modelo: ModeloAreaPequena) -> np.n
         np.ndarray: Arreglo booleano shape (m,), True si el municipio extrapola.
 
     Example:
-        >>> marca_extrapolacion(X_new, ganador)
+        >>> marca_extrapolacion(X_new, ganador)  # doctest: +SKIP
     """
     estado = estado_extrapolacion(
         modelo.X, X_nuevos, modelo.cov_beta, modelo.beta_hat, list(modelo.covars)

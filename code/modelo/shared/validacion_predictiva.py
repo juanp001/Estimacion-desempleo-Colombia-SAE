@@ -51,7 +51,9 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from shared.estabilidad_coeficientes import reajustes_sin_dominio
 from shared.fay_herriot import FayHerriotClasico
+from shared.modelo_area_pequena import prediccion_sintetica
 from shared.seleccion_modelo import elegir_ganador, variantes_dejar_una_fuera
 
 EJERCICIO_FIJAS = "COVARIABLES_FIJAS"
@@ -90,8 +92,8 @@ def ajustar_benchmark(
         FayHerriotClasico: El benchmark ajustado (con `covars`).
 
     Example:
-        >>> m = ajustar_benchmark(df_tr, ["A", "B"], "TASA", "SE", 2.0, 0.05)
-        >>> m.covars
+        >>> m = ajustar_benchmark(df_tr, ["A", "B"], "TASA", "SE", 2.0, 0.05)  # doctest: +SKIP
+        >>> m.covars  # doctest: +SKIP
         ['A']
     """
     if not covars_eda:
@@ -108,6 +110,80 @@ def ajustar_benchmark(
         return modelos[0]
     with contextlib.redirect_stdout(io.StringIO()):
         return elegir_ganador(modelos, variantes, delta_aic=delta_aic, alfa=alfa)
+
+
+def crear_selector(
+    candidatas: list,
+    signo_esperado: dict,
+    alias: dict,
+    dimension: dict,
+    cfg_pre,
+    y_col: str,
+    se_col: str,
+    col_nombre: str = "NOMBRE_DOMINIO",
+):
+    """Arma la función que repite la selección de covariables del análisis (G7-B19, R-40).
+
+    La validación del procedimiento completo necesita repetir, con cada conjunto de dominios
+    de entrenamiento, la misma selección de `eda_seleccion_covariables`
+    (`analisis.shared.seleccion.seleccionar_covariables`) con los parámetros del
+    preprocesamiento. Antes era una función definida dentro del notebook que leía variables
+    globales; aquí recibe todo como argumento.
+
+    Args:
+        candidatas (list[str]): Códigos de las candidatas del catálogo (`mapas_catalogo`).
+        signo_esperado (dict): Código → signo esperado.
+        alias (dict): Código → alias legible.
+        dimension (dict): Código → dimensión conceptual.
+        cfg_pre (module): `preprocesamiento.shared.config` (P_MAXIMO, Q_FDR_ELEGIBILIDAD,
+            UMBRAL_DELTA_LOO, UMBRAL_REDUNDANCIA, VIF_MAXIMO, ALFA_IC_CORRELACION).
+        y_col (str): Columna de la estimación directa.
+        se_col (str): Columna del error estándar de la directa (ψ_d = SE²).
+        col_nombre (str): Columna con el nombre de cada dominio.
+
+    Returns:
+        Callable[[pd.DataFrame], list]: `selector(df_entrenamiento)` → códigos seleccionados
+            (vacío si ninguna candidata es elegible).
+
+    Example:
+        >>> selector = crear_selector(CAND, SIGNO, ALIAS, DIM, cfg_pre, "Y", "SE")  # doctest: +SKIP
+        >>> selector(df_val)  # doctest: +SKIP
+        ['260020003', '120210008', '070010020']
+
+    Casos de uso:
+        - `loao_procedimiento_completo` (ejercicio 2 de G7-B19).
+        - Comprobación de que, con los 23 dominios, la selección reproduce EC1.
+    """
+    from analisis.shared.seleccion import seleccionar_covariables
+
+    def selector(df_entrenamiento: pd.DataFrame) -> list:
+        """Repite la selección del análisis con los dominios de entrenamiento.
+
+        Args:
+            df_entrenamiento (pd.DataFrame): Dominios con las candidatas, la tasa y su error.
+
+        Returns:
+            list[str]: Códigos de las covariables seleccionadas.
+        """
+        seleccionadas, _ = seleccionar_covariables(
+            df_entrenamiento,
+            candidatas,
+            df_entrenamiento[y_col].to_numpy(),
+            df_entrenamiento[se_col].to_numpy() ** 2,
+            df_entrenamiento[col_nombre].to_numpy(),
+            signo_esperado,
+            alias=alias,
+            dimension=dimension,
+            p_maximo=cfg_pre.P_MAXIMO,
+            q_fdr=cfg_pre.Q_FDR_ELEGIBILIDAD,
+            umbral_delta=cfg_pre.UMBRAL_DELTA_LOO,
+            umbral_redundancia=cfg_pre.UMBRAL_REDUNDANCIA,
+            vif_max=cfg_pre.VIF_MAXIMO,
+            alfa_ic=cfg_pre.ALFA_IC_CORRELACION,
+        )
+        return seleccionadas
+
+    return selector
 
 
 def _fila_prediccion(
@@ -138,8 +214,11 @@ def _fila_prediccion(
     """
     fila_d = df.iloc[d]
     x = np.concatenate([[1.0], fila_d[list(modelo.covars)].to_numpy(dtype=float)])
-    pred = float(x @ modelo.beta_hat)
-    var_sintetica = float(x @ modelo.cov_beta @ x + modelo.A_hat)
+    pred_d, rmse_d, _ = prediccion_sintetica(
+        x[None, :], modelo.beta_hat, modelo.cov_beta, modelo.A_hat
+    )
+    pred = float(pred_d[0])
+    var_sintetica = float(rmse_d[0]) ** 2
     y_d = float(fila_d[y_col])
     psi = float(fila_d[se_col]) ** 2
     error = pred - y_d
@@ -170,11 +249,14 @@ def loao_covariables_fijas(
     columnas_id: list,
     alias: dict = None,
     ejercicio: str = EJERCICIO_FIJAS,
+    reajustes: list = None,
 ) -> pd.DataFrame:
     """Ejercicio 1: dejar-un-dominio-fuera con las covariables del benchmark fijas.
 
-    Para cada dominio se reajusta el modelo (con Â reestimada) sin él y se predice con el
-    sintético x_d'β̂(-d). Con `covars=[]` es el modelo de solo intercepto, la referencia.
+    Para cada dominio se toma el modelo reajustado (con Â reestimada) sin él y se predice con
+    el sintético x_d'β̂(-d). Con `covars=[]` es el modelo de solo intercepto, la referencia.
+    Los reajustes son los de `estabilidad_coeficientes.reajustes_sin_dominio` (R-39): el
+    notebook pasa los del benchmark, que también usa el LOAO de coeficientes y predicciones.
 
     Args:
         covars (list[str]): Covariables del benchmark (benchmark); vacío para la referencia.
@@ -184,20 +266,28 @@ def loao_covariables_fijas(
         columnas_id (list[str]): Columnas de `df` que identifican el dominio en la salida.
         alias (dict | None): Mapa código → alias para el texto de las covariables.
         ejercicio (str): Etiqueta del ejercicio en la salida.
+        reajustes (list | None): Salida de `reajustes_sin_dominio` con `covars` sobre `df`.
+            Si es None se calcula aquí.
 
     Returns:
-        pd.DataFrame: Una fila por dominio (ver `_fila_prediccion`).
+        pd.DataFrame: Una fila por dominio con reajuste válido (ver `_fila_prediccion`).
+
+    Raises:
+        ValueError: Si `reajustes` no tiene un elemento por dominio de `df`.
 
     Example:
-        >>> cv = loao_covariables_fijas(bm.covars, df, "TASA", "SE", ["NOMBRE_DOMINIO"])
-        >>> float(np.sqrt((cv["Error"] ** 2).mean()))
+        >>> cv = loao_covariables_fijas(bm.covars, df, "TASA", "SE", ["NOMBRE_DOMINIO"])  # doctest: +SKIP
+        >>> float(np.sqrt((cv["Error"] ** 2).mean()))  # doctest: +SKIP
     """
     alias = alias or {}
+    if reajustes is None:
+        reajustes = reajustes_sin_dominio(FayHerriotClasico, covars, df, y_col, se_col)
+    if len(reajustes) != len(df):
+        raise ValueError("Se necesita un reajuste por dominio de df.")
     filas = []
-    for d in range(len(df)):
-        entrenamiento = df.drop(index=df.index[d]).reset_index(drop=True)
-        modelo = FayHerriotClasico(list(covars), entrenamiento, y_col, se_col)
-        modelo.ajustar()
+    for d, modelo in enumerate(reajustes):
+        if modelo is None:
+            continue
         filas.append(
             _fila_prediccion(
                 ejercicio, d, df, modelo, y_col, se_col, columnas_id, alias
@@ -244,12 +334,20 @@ def loao_procedimiento_completo(
             `_Benchmark`.
 
     Example:
-        >>> detalle, seleccion = loao_procedimiento_completo(
+        >>> detalle, seleccion = loao_procedimiento_completo(  # doctest: +SKIP
         ...     df, "TASA", "SE", ["NOMBRE_DOMINIO"], selector, 2.0, 0.05)
     """
     alias = alias or {}
 
-    def texto(covars):
+    def texto(covars: list) -> str:
+        """Covariables unidas con « + » y mostradas con su alias («—» si no hay ninguna).
+
+        Args:
+            covars (list[str]): Códigos de las covariables.
+
+        Returns:
+            str: Texto para la tabla de selección.
+        """
         return " + ".join(alias.get(c, c) for c in covars) or "—"
 
     filas, filas_sel = [], []
@@ -300,7 +398,7 @@ def metricas_validacion_cruzada(
         pd.DataFrame: Una fila por ejercicio, en el orden en que aparecen en `detalle`.
 
     Example:
-        >>> metricas_validacion_cruzada(pd.concat([cv_fijas, cv_completo, cv_nulo]), 1.1)
+        >>> metricas_validacion_cruzada(pd.concat([cv_fijas, cv_completo, cv_nulo]), 1.1)  # doctest: +SKIP
     """
     corte = float(stats.norm.ppf(0.5 + nivel / 2))
     filas = []
@@ -363,7 +461,7 @@ def frecuencia_seleccion(
             `En_benchmark`; ordenada por `Frecuencia_benchmark` descendente.
 
     Example:
-        >>> frecuencia_seleccion(seleccion, bm.covars, ALIAS)
+        >>> frecuencia_seleccion(seleccion, bm.covars, ALIAS)  # doctest: +SKIP
     """
     alias = alias or {}
     n = len(seleccion)
@@ -402,11 +500,19 @@ def resumen_seleccion(seleccion: pd.DataFrame, covars_benchmark: list) -> dict:
             índice de Jaccard con el benchmark.
 
     Example:
-        >>> resumen_seleccion(seleccion, bm.covars)["n_igual_benchmark"]
+        >>> resumen_seleccion(seleccion, bm.covars)["n_igual_benchmark"]  # doctest: +SKIP
     """
     bm = set(covars_benchmark)
 
-    def jaccard(otro):
+    def jaccard(otro) -> float:
+        """Índice de Jaccard entre un conjunto de covariables y el del benchmark.
+
+        Args:
+            otro (Iterable[str]): Covariables elegidas en una iteración.
+
+        Returns:
+            float: |A ∩ B| / |A ∪ B| (1.0 si ambos están vacíos).
+        """
         union = bm | set(otro)
         return len(bm & set(otro)) / len(union) if union else 1.0
 
@@ -442,7 +548,7 @@ def interpretar_validacion(
             sobre n = 23.
 
     Example:
-        >>> print(interpretar_validacion(metricas, detalle, resumen_sel))
+        >>> print(interpretar_validacion(metricas, detalle, resumen_sel))  # doctest: +SKIP
     """
     m = metricas.set_index("Ejercicio")
     lineas = []
@@ -528,7 +634,7 @@ def figura_validacion(detalle: pd.DataFrame, columna_nombre: str = "NOMBRE_DOMIN
         matplotlib.figure.Figure: Figura de dos paneles.
 
     Example:
-        >>> fig = figura_validacion(pd.concat([cv_fijas, cv_completo]))
+        >>> fig = figura_validacion(pd.concat([cv_fijas, cv_completo]))  # doctest: +SKIP
     """
     import matplotlib.pyplot as plt
 
