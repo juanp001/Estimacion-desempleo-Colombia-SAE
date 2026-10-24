@@ -51,6 +51,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from shared.estabilidad_coeficientes import reajustes_sin_dominio
 from shared.fay_herriot import FayHerriotClasico
 from shared.modelo_area_pequena import prediccion_sintetica
 from shared.seleccion_modelo import elegir_ganador, variantes_dejar_una_fuera
@@ -248,11 +249,14 @@ def loao_covariables_fijas(
     columnas_id: list,
     alias: dict = None,
     ejercicio: str = EJERCICIO_FIJAS,
+    reajustes: list = None,
 ) -> pd.DataFrame:
     """Ejercicio 1: dejar-un-dominio-fuera con las covariables del benchmark fijas.
 
-    Para cada dominio se reajusta el modelo (con Â reestimada) sin él y se predice con el
-    sintético x_d'β̂(-d). Con `covars=[]` es el modelo de solo intercepto, la referencia.
+    Para cada dominio se toma el modelo reajustado (con Â reestimada) sin él y se predice con
+    el sintético x_d'β̂(-d). Con `covars=[]` es el modelo de solo intercepto, la referencia.
+    Los reajustes son los de `estabilidad_coeficientes.reajustes_sin_dominio` (R-39): el
+    notebook pasa los del benchmark, que también usa el LOAO de coeficientes y predicciones.
 
     Args:
         covars (list[str]): Covariables del benchmark (benchmark); vacío para la referencia.
@@ -262,20 +266,28 @@ def loao_covariables_fijas(
         columnas_id (list[str]): Columnas de `df` que identifican el dominio en la salida.
         alias (dict | None): Mapa código → alias para el texto de las covariables.
         ejercicio (str): Etiqueta del ejercicio en la salida.
+        reajustes (list | None): Salida de `reajustes_sin_dominio` con `covars` sobre `df`.
+            Si es None se calcula aquí.
 
     Returns:
-        pd.DataFrame: Una fila por dominio (ver `_fila_prediccion`).
+        pd.DataFrame: Una fila por dominio con reajuste válido (ver `_fila_prediccion`).
+
+    Raises:
+        ValueError: Si `reajustes` no tiene un elemento por dominio de `df`.
 
     Example:
         >>> cv = loao_covariables_fijas(bm.covars, df, "TASA", "SE", ["NOMBRE_DOMINIO"])
         >>> float(np.sqrt((cv["Error"] ** 2).mean()))
     """
     alias = alias or {}
+    if reajustes is None:
+        reajustes = reajustes_sin_dominio(FayHerriotClasico, covars, df, y_col, se_col)
+    if len(reajustes) != len(df):
+        raise ValueError("Se necesita un reajuste por dominio de df.")
     filas = []
-    for d in range(len(df)):
-        entrenamiento = df.drop(index=df.index[d]).reset_index(drop=True)
-        modelo = FayHerriotClasico(list(covars), entrenamiento, y_col, se_col)
-        modelo.ajustar()
+    for d, modelo in enumerate(reajustes):
+        if modelo is None:
+            continue
         filas.append(
             _fila_prediccion(
                 ejercicio, d, df, modelo, y_col, se_col, columnas_id, alias

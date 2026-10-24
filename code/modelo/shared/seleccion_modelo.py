@@ -450,19 +450,20 @@ def elegir_ganador(
 
 def sensibilidad_cook(
     modelo: ModeloAreaPequena,
-    clase_modelo: type,
+    reajustes: list,
     nombres_dominio: np.ndarray,
     alfa: float = 0.05,
 ) -> pd.DataFrame:
-    """Reajusta el modelo sin el dominio de mayor distancia de Cook y compara los β̂.
+    """Compara los β̂ con los del modelo sin el dominio de mayor distancia de Cook.
 
-    A diferencia de la distancia de Cook (que fija ``Â``), aquí se reestima todo el modelo,
-    incluida la varianza de efectos aleatorios, así que el cambio refleja la influencia
-    completa del dominio.
+    A diferencia de la distancia de Cook (que fija ``Â``), el modelo sin el dominio reestima
+    también la varianza de efectos aleatorios, así que el cambio refleja la influencia completa
+    del dominio. No reajusta nada: toma la fila de ese dominio de los reajustes
+    dejar-un-dominio-fuera (`estabilidad_coeficientes.reajustes_sin_dominio`, R-39).
 
     Args:
         modelo (ModeloAreaPequena): Modelo ya ajustado (normalmente el ganador).
-        clase_modelo (type): Clase con la que reajustar (p. ej. `FayHerriotClasico`).
+        reajustes (list): Salida de `reajustes_sin_dominio` para ese modelo.
         nombres_dominio (np.ndarray): Nombre de cada dominio, en el orden de las filas del modelo.
         alfa (float): Nivel de significancia para marcar cambios de significancia.
 
@@ -472,14 +473,22 @@ def sensibilidad_cook(
             signo y si cruza el umbral `alfa` en cualquier sentido (`Cambio_signif`:
             "pierde", "gana" o "no"). Incluye una fila `A_hat`.
 
+    Raises:
+        ValueError: Si el reajuste sin el dominio de mayor Cook falló.
+
     Example:
-        >>> sensibilidad_cook(ganador, FayHerriotClasico, df["NOMBRE_DOMINIO"].values)
+        >>> sensibilidad_cook(ganador, reajustes, nombres)  # doctest: +SKIP
+
+    Casos de uso:
+        Tabla de robustez del benchmark en `fay_herriot.py` (celda de Cook).
     """
     cook = distancia_cook(modelo)
     idx = int(np.argmax(cook))
-    df_sin = modelo.df.drop(index=modelo.df.index[idx]).reset_index(drop=True)
-    reajuste = clase_modelo(modelo.covars, df_sin, modelo.y_col, modelo.se_col)
-    reajuste.ajustar()
+    reajuste = reajustes[idx]
+    if reajuste is None:
+        raise ValueError(
+            f"El reajuste sin {nombres_dominio[idx]} (mayor distancia de Cook) falló."
+        )
 
     parametros = ["Intercepto"] + list(modelo.covars) + ["A_hat"]
     completo = np.append(modelo.beta_hat, modelo.A_hat)

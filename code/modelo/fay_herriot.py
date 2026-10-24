@@ -130,6 +130,7 @@ from shared.seleccion_modelo import (
 )
 from shared.estabilidad_coeficientes import (
     ADVERTENCIA_POST_SELECCION,
+    reajustes_sin_dominio,  # R-39: los 23 reajustes dejar-un-dominio-fuera, una sola vez
     dejar_uno_fuera_coeficientes,
     resumen_dejar_uno_fuera,
     bootstrap_dominios,
@@ -495,6 +496,20 @@ if len(modelos) > 1:
 
 # COMMAND ----------
 
+# DBTITLE 1,8a. Reajustes dejar-un-dominio-fuera del benchmark (R-39)
+# El benchmark se reajusta (incluida Â) una vez sin cada dominio. De estos 23 reajustes salen la
+# sensibilidad de Cook, la estabilidad de coeficientes (G7-B17), el LOAO completo (G7-B18), la
+# sensibilidad de la extrapolación (B20) y el ejercicio 1 de la validación predictiva (G7-B19).
+reajustes_loao = reajustes_sin_dominio(
+    FayHerriotClasico, modelo_ganador.covars, modelo_ganador.df, Y_COL, SE_COL
+)
+print(
+    f"Reajustes dejar-un-dominio-fuera: {sum(r is not None for r in reajustes_loao)} "
+    f"de {len(reajustes_loao)}"
+)
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Ganancia de precisión del benchmark seleccionado
 # MAGIC
@@ -522,8 +537,8 @@ print(interpretar_cv(modelo_ganador))
 # MAGIC **Cómo leer la figura.** Cada barra es un dominio y su altura es la distancia de Cook
 # MAGIC en el ajuste por mínimos cuadrados generalizados del benchmark: cuánto cambiarían
 # MAGIC los coeficientes si ese dominio no estuviera. La línea discontinua es el umbral
-# MAGIC convencional 4/n y las barras rojas lo superan. La tabla siguiente reajusta el modelo
-# MAGIC completo (incluida Â) sin el dominio más influyente. `Cambio_signif` marca si una
+# MAGIC convencional 4/n y las barras rojas lo superan. La tabla siguiente compara con el modelo
+# MAGIC completo (incluida Â) reajustado sin el dominio más influyente (celda 8a). `Cambio_signif` marca si una
 # MAGIC covariable cruza el umbral de significancia en cualquier sentido (pierde o gana): si
 # MAGIC ninguna cambia de signo ni de significancia, la conclusión no depende de un solo
 # MAGIC territorio. Si ninguna covariable era significativa en el modelo completo, no perder
@@ -539,7 +554,7 @@ display(fig)
 plt.close(fig)
 
 df_sensibilidad = sensibilidad_cook(
-    modelo_ganador, FayHerriotClasico, nombres_dominio, alfa=ALFA_SIGNIFICANCIA
+    modelo_ganador, reajustes_loao, nombres_dominio, alfa=ALFA_SIGNIFICANCIA
 )
 display(df_sensibilidad)
 print(
@@ -567,7 +582,7 @@ print(
 
 # DBTITLE 1,Estabilidad de coeficientes: dejar-uno-fuera y bootstrap de dominios (G7-B17)
 detalle_loo = dejar_uno_fuera_coeficientes(
-    modelo_ganador, FayHerriotClasico, nombres_dominio, alfa=ALFA_SIGNIFICANCIA
+    modelo_ganador, reajustes_loao, nombres_dominio, alfa=ALFA_SIGNIFICANCIA
 )
 resumen_loo = resumen_dejar_uno_fuera(detalle_loo, modelo_ganador.n)
 replicas_boot = bootstrap_dominios(
@@ -603,8 +618,8 @@ df_coef_ganador["AIC"] = round(float(modelo_ganador.aic), 3)
 df_coef_ganador["AICc"] = round(float(modelo_ganador.aicc), 3)
 df_coef_ganador["Cook_max"] = round(float(cook_ganador.max()), 4)
 escribir_tabla(spark, df_coef_ganador, TBL_FH_COEFICIENTES)
+# El detalle dejar-un-dominio-fuera se escribe una sola vez, en fh_loao_coeficientes (R-39).
 escribir_tabla(spark, df_estabilidad, TBL_FH_ESTABILIDAD)
-escribir_tabla(spark, detalle_loo, TBL_FH_ESTABILIDAD_LOO)
 
 resultados_ganador = modelo_ganador.resultados.copy()
 resultados_ganador["COOK_D"] = cook_ganador.round(4)
@@ -797,7 +812,7 @@ if fig is not None:
     plt.show()
 
 sens_mun, sens_dom = sensibilidad_quitar_dominio(
-    modelo_ganador, FayHerriotClasico, X_new, df["NOMBRE_DOMINIO"].values
+    modelo_ganador, reajustes_loao, X_new, df["NOMBRE_DOMINIO"].values
 )
 df_sens = pd.concat(
     [
@@ -851,17 +866,17 @@ escribir_tabla(spark, df_sens, TBL_FH_SENSIBILIDAD_EXTRAPOLACION)
 # MAGIC ## Sensibilidad a dominios individuales: dejar-un-dominio-fuera completo (G7-B18)
 # MAGIC
 # MAGIC Con 23 dominios, retirar uno puede mover los coeficientes (la revisión citó cambios de
-# MAGIC ~37 % y ~47 % al retirar un solo dominio). Esta celda reajusta el benchmark (**incluida
-# MAGIC Â**) 23 veces, una por dominio, y reporta:
+# MAGIC ~37 % y ~47 % al retirar un solo dominio). Esta celda usa los 23 reajustes del benchmark
+# MAGIC (**incluida Â**, celda 8a), uno por dominio, y reporta:
 # MAGIC
 # MAGIC 1. **Coeficientes**: por β_j el mínimo y el máximo de β̂_j(-d) con el dominio que los produce,
 # MAGIC    el cambio relativo máximo, el **cambio estandarizado Δβ/EE(β̂)** (estilo DFBETAS: el
 # MAGIC    porcentual se infla cuando |β̂| es pequeño), los cambios de signo y los cruces del umbral
 # MAGIC    de significancia. Los 3 dominios que más mueven cada coeficiente y un mapa de calor.
-# MAGIC 2. **Predicciones**: EBLUP de los 22 dominios que quedan, la predicción sintética del
-# MAGIC    dominio retirado (error de predecirlo como si no tuviera encuesta), la predicción
-# MAGIC    sintética de los municipios objetivo (separando los que extrapolan, B20), Â y los
-# MAGIC    cambios de clase de confiabilidad por CV.
+# MAGIC 2. **Predicciones**: EBLUP de los 22 dominios que quedan, la predicción sintética de los
+# MAGIC    municipios objetivo (separando los que extrapolan, B20), Â y los cambios de clase de
+# MAGIC    confiabilidad por CV. El error de predecir el dominio retirado como si no tuviera
+# MAGIC    encuesta se mide contra la directa en la validación predictiva (G7-B19).
 # MAGIC
 # MAGIC **Cómo leer.** Se marca un coeficiente como movido si cambia más de `LOAO_UMBRAL_CAMBIO_EE`
 # MAGIC errores estándar y una predicción si cambia más de `LOAO_UMBRAL_PRED_PP` puntos
@@ -883,10 +898,10 @@ nombres_municipio = (
 ).to_numpy()
 municipios_extrapolan = dict(zip(nombres_municipio, df_pred["EXTRAPOLA"].astype(bool)))
 
-# `detalle_loo` y `resumen_loo` salen de la celda de estabilidad (8): mismos 23 reajustes.
+# `detalle_loo` y `resumen_loo` salen de la celda de estabilidad: mismos 23 reajustes (8a).
 detalle_pred_loao, por_dominio_loao = dejar_uno_fuera_predicciones(
     modelo_ganador,
-    FayHerriotClasico,
+    reajustes_loao,
     nombres_dominio,
     X_obj=X_new,
     nombres_obj=nombres_municipio,
@@ -1038,8 +1053,15 @@ if not (_ok_seleccion and _ok_benchmark):
         "validaría el modelo reportado."
     )
 
+# Ejercicio 1 con los reajustes de la celda 8a (R-39): el benchmark con sus covariables (alias)
+# sobre los mismos dominios; `df_val` tiene la misma tasa y error (comprobado arriba).
 cv_fijas = loao_covariables_fijas(
-    covars_benchmark, df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL
+    modelo_ganador.covars,
+    modelo_ganador.df,
+    Y_COL,
+    SE_COL,
+    COLS_ID,
+    reajustes=reajustes_loao,
 )
 cv_nulo = loao_covariables_fijas(
     [], df_val, Y_COL, SE_COL, COLS_ID, alias=ALIAS_VAL, ejercicio=EJERCICIO_NULO

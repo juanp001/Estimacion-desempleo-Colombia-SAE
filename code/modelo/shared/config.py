@@ -56,7 +56,6 @@ TBL_FH_DIAGNOSTICOS_VARIANTES = "tesis.modelo.fh_diagnosticos_variantes"
 TBL_FH_COOK = "tesis.modelo.fh_cook"
 TBL_FH_SELECCION_MODELO = "tesis.modelo.fh_seleccion_modelo"
 TBL_FH_ESTABILIDAD = "tesis.modelo.fh_estabilidad_coeficientes"
-TBL_FH_ESTABILIDAD_LOO = "tesis.modelo.fh_estabilidad_dejar_uno_fuera"
 
 # Estabilidad de coeficientes del benchmark (análisis de sensibilidad, no entra en la selección).
 ESTABILIDAD_REPLICAS = 1000
