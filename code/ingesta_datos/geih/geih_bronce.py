@@ -30,6 +30,7 @@ from shared.utils.spark_utils import leer_csv, escribir_tabla
 
 # COMMAND ----------
 
+
 # DBTITLE 1,Cargar tablas
 def cargar_tablas_bronce(
     spark,
@@ -81,7 +82,9 @@ def cargar_tablas_bronce(
 
         # Extrae mes del nombre de archivo (patrón: resto_fuerza_de_trabajo_01_2018.csv → "01")
         if tabla["aplicar_mes"]:
-            df = df.withColumn("MES", regexp_extract(col("archivo_origen"), r"_(\d{2})_\d{4}\.csv", 1))
+            df = df.withColumn(
+                "MES", regexp_extract(col("archivo_origen"), r"_(\d{2})_\d{4}\.csv", 1)
+            )
 
         # Identifica registros de fuerza de trabajo en sección resto
         if tabla["modulo"] == "fuerza_trabajo" and tabla["seccion"] == "resto":
@@ -91,8 +94,9 @@ def cargar_tablas_bronce(
         if tabla["marco"] == "antiguo" and tabla["modulo"] == "fuerza_trabajo":
             df = df.withColumn(
                 "fex_c_2011",
-                when(trim(col("fex_c_2011")) == "", lit(None).cast("string"))
-                .otherwise(col("fex_c_2011")),
+                when(trim(col("fex_c_2011")) == "", lit(None).cast("string")).otherwise(
+                    col("fex_c_2011")
+                ),
             )
 
         escribir_tabla(df, tabla["table_name"])

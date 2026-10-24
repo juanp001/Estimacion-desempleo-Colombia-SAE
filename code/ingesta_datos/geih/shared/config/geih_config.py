@@ -1,8 +1,8 @@
 # Unity Catalog
 CATALOG = "tesis"
 SCHEMA_BRONCE = "geih_bronce"
-SCHEMA_PLATA  = "geih_plata"
-SCHEMA_ORO    = "geih_oro"
+SCHEMA_PLATA = "geih_plata"
+SCHEMA_ORO = "geih_oro"
 
 # Base path for raw CSV volumes
 VOLUME_BASE = f"/Volumes/{CATALOG}/{SCHEMA_BRONCE}"
@@ -24,10 +24,10 @@ ANIO_INICIO_PUBLICADOS = 2016
 ANIO_FIN_PUBLICADOS = 2021
 
 # Destination table names — plata
-TBL_CG_PLATA  = f"{CATALOG}.{SCHEMA_PLATA}.caracteristicas_generales_consolidado"
-TBL_FT_PLATA  = f"{CATALOG}.{SCHEMA_PLATA}.fuerza_trabajo_consolidado"
-TBL_NO_PLATA  = f"{CATALOG}.{SCHEMA_PLATA}.no_ocupados_consolidado"
-TBL_OC_PLATA  = f"{CATALOG}.{SCHEMA_PLATA}.ocupados_consolidado"
+TBL_CG_PLATA = f"{CATALOG}.{SCHEMA_PLATA}.caracteristicas_generales_consolidado"
+TBL_FT_PLATA = f"{CATALOG}.{SCHEMA_PLATA}.fuerza_trabajo_consolidado"
+TBL_NO_PLATA = f"{CATALOG}.{SCHEMA_PLATA}.no_ocupados_consolidado"
+TBL_OC_PLATA = f"{CATALOG}.{SCHEMA_PLATA}.ocupados_consolidado"
 TBL_FEX_PLATA = f"{CATALOG}.{SCHEMA_PLATA}.dim_fex"
 
 # Destination table names — oro
@@ -39,41 +39,47 @@ TBL_LLAVES_SIN_PAREJA = f"{CATALOG}.{SCHEMA_ORO}.llaves_sin_pareja"
 # Dimension tables
 # Nota: pese al nombre, apunta a dim_geih_divipola (32 áreas GEIH con CODIGO_AREA_GEIH),
 # no a la dim_divipola completa.
-TBL_DIM_DIVIPOLA =f"{CATALOG}.dim.dim_geih_divipola"
+TBL_DIM_DIVIPOLA = f"{CATALOG}.dim.dim_geih_divipola"
 # Dominio de estimación (ciudad o ciudad A.M.) de cada municipio
 TBL_DIM_DOMINIO = f"{CATALOG}.dim.dim_dominio_geih"
 
 # Source table names — bronce (marco nuevo)
-TBL_CG_BRONCE  = f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales"
-TBL_FT_BRONCE  = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo"
-TBL_NO_BRONCE  = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados"
-TBL_OC_BRONCE  = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados"
+TBL_CG_BRONCE = f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales"
+TBL_FT_BRONCE = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo"
+TBL_NO_BRONCE = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados"
+TBL_OC_BRONCE = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados"
 TBL_FEX_BRONCE = f"{CATALOG}.{SCHEMA_BRONCE}.dim_fex"
 
 # Source table names — bronce (marco antiguo, características generales)
-TBL_CG_AREA_MA     = f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales_area_marco_antiguo"
-TBL_CG_CAB_MA      = f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales_cabecera_marco_antiguo"
-TBL_CG_RESTO_MA    = f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales_resto_marco_antiguo"
+TBL_CG_AREA_MA = (
+    f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales_area_marco_antiguo"
+)
+TBL_CG_CAB_MA = (
+    f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales_cabecera_marco_antiguo"
+)
+TBL_CG_RESTO_MA = (
+    f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales_resto_marco_antiguo"
+)
 
 # Source table names — bronce (marco antiguo, fuerza de trabajo)
-TBL_FT_AREA_MA     = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_area_marco_antiguo"
-TBL_FT_CAB_MA      = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_cabecera_marco_antiguo"
-TBL_FT_RESTO_MA    = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_resto_marco_antiguo"
+TBL_FT_AREA_MA = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_area_marco_antiguo"
+TBL_FT_CAB_MA = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_cabecera_marco_antiguo"
+TBL_FT_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_resto_marco_antiguo"
 
 # Source table names — bronce (marco antiguo, inactivos)
-TBL_IN_AREA_MA     = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_area_marco_antiguo"
-TBL_IN_CAB_MA      = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_cabecera_marco_antiguo"
-TBL_IN_RESTO_MA    = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_resto_marco_antiguo"
+TBL_IN_AREA_MA = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_area_marco_antiguo"
+TBL_IN_CAB_MA = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_cabecera_marco_antiguo"
+TBL_IN_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_resto_marco_antiguo"
 
 # Source table names — bronce (marco antiguo, no ocupados)
-TBL_NO_AREA_MA     = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_area_marco_antiguo"
-TBL_NO_CAB_MA      = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_cabecera_marco_antiguo"
-TBL_NO_RESTO_MA    = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_resto_marco_antiguo"
+TBL_NO_AREA_MA = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_area_marco_antiguo"
+TBL_NO_CAB_MA = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_cabecera_marco_antiguo"
+TBL_NO_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_resto_marco_antiguo"
 
 # Source table names — bronce (marco antiguo, ocupados)
-TBL_OC_AREA_MA     = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_area_marco_antiguo"
-TBL_OC_CAB_MA      = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_cabecera_marco_antiguo"
-TBL_OC_RESTO_MA    = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_resto_marco_antiguo"
+TBL_OC_AREA_MA = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_area_marco_antiguo"
+TBL_OC_CAB_MA = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_cabecera_marco_antiguo"
+TBL_OC_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_resto_marco_antiguo"
 
 
 # Ingestion configuration for the bronce layer.
@@ -112,7 +118,6 @@ TABLAS_CONFIG = {
             "aplicar_mes": None,
             "marco": "antiguo",
         },
-
         # ========== MARCO ANTIGUO - FUERZA DE TRABAJO ==========
         {
             "table_name": TBL_FT_AREA_MA,
@@ -138,7 +143,6 @@ TABLAS_CONFIG = {
             "aplicar_mes": True,
             "marco": "antiguo",
         },
-
         # ========== MARCO ANTIGUO - OCUPADOS ==========
         {
             "table_name": TBL_OC_AREA_MA,
@@ -164,7 +168,6 @@ TABLAS_CONFIG = {
             "aplicar_mes": None,
             "marco": "antiguo",
         },
-
         # ========== MARCO ANTIGUO - INACTIVOS ==========
         {
             "table_name": TBL_IN_AREA_MA,
@@ -190,7 +193,6 @@ TABLAS_CONFIG = {
             "aplicar_mes": None,
             "marco": "antiguo",
         },
-
         # ========== MARCO ANTIGUO - NO OCUPADOS ==========
         {
             "table_name": TBL_NO_AREA_MA,
@@ -216,7 +218,6 @@ TABLAS_CONFIG = {
             "aplicar_mes": None,
             "marco": "antiguo",
         },
-
         # ========== MARCO NUEVO (sin división por sección) ==========
         {
             "table_name": TBL_CG_BRONCE,
@@ -250,7 +251,6 @@ TABLAS_CONFIG = {
             "aplicar_mes": None,
             "marco": "nuevo",
         },
-
         # ========== FACTORES DE EXPANSIÓN (FEX) ==========
         {
             "table_name": TBL_FEX_BRONCE,

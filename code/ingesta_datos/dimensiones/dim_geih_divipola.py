@@ -84,9 +84,9 @@
 # MAGIC
 # MAGIC ```python
 # MAGIC # En geih_oro:
-# MAGIC .join(geih_div.alias("div_dep"), 
+# MAGIC .join(geih_div.alias("div_dep"),
 # MAGIC       cg.CODIGO_DPTO == col("div_dep.CODIGO_DEPARTAMENTO"), "left")
-# MAGIC .join(geih_div.alias("div_mun"), 
+# MAGIC .join(geih_div.alias("div_mun"),
 # MAGIC       cg.CODIGO_AREA == col("div_mun.CODIGO_AREA_GEIH"), "left")
 # MAGIC ```
 # MAGIC
@@ -108,7 +108,7 @@
 # DBTITLE 1,Importación de librerías
 # Importar funciones de PySpark necesarias para el filtrado y transformación
 from pyspark.sql.functions import (
-    col    # Referenciar columnas para filtros y operaciones de selección
+    col,  # Referenciar columnas para filtros y operaciones de selección
 )
 
 # COMMAND ----------
@@ -128,39 +128,39 @@ from pyspark.sql.functions import (
 # "25001" (que corresponde a Cundinamarca, no a Yopal) está comentado y no se usa.
 
 ciudades_geih = [
-    "05001",    # Medellín (Antioquia)
-    "08001",    # Barranquilla (Atlántico)
-    "11001",    # Bogotá D.C.
-    "13001",    # Cartagena (Bolívar)
-    "15001",    # Tunja (Boyacá)
-    "17001",    # Manizales (Caldas)
-    "18001",    # Florencia (Caquetá)
-    "19001",    # Popayán (Cauca)
-    "20001",    # Valledupar (Cesar)
-    "23001",    # Montería (Córdoba)
-    #"25001",   # Código erróneo para Yopal (es Cundinamarca); Yopal es "85001", más abajo
-    "27001",    # Quibdó (Chocó)
-    "41001",    # Neiva (Huila)
-    "44001",    # Riohacha (La Guajira)
-    "47001",    # Santa Marta (Magdalena)
-    "50001",    # Villavicencio (Meta)
-    "52001",    # Pasto (Nariño)
-    "54001",    # Cúcuta (Norte de Santander)
-    "63001",    # Armenia (Quindío)
-    "66001",    # Pereira (Risaralda)
-    "68001",    # Bucaramanga (Santander)
-    "70001",    # Sincelejo (Sucre)
-    "73001",    # Ibagué (Tolima)
-    "76001",    # Cali (Valle del Cauca)
-    "81001",    # Arauca (Arauca)
-    "85001",    # Yopal (Casanare)
-    "86001",    # Mocoa (Putumayo)
-    "88001",    # San Andrés (San Andrés y Providencia)
-    "91001",    # Leticia (Amazonas)
-    "94001",    # Inírida (Guainía)
-    "95001",    # San José del Guaviare (Guaviare)
-    "97001",    # Mitú (Vaupés)
-    "99001"     # Puerto Carreño (Vichada)
+    "05001",  # Medellín (Antioquia)
+    "08001",  # Barranquilla (Atlántico)
+    "11001",  # Bogotá D.C.
+    "13001",  # Cartagena (Bolívar)
+    "15001",  # Tunja (Boyacá)
+    "17001",  # Manizales (Caldas)
+    "18001",  # Florencia (Caquetá)
+    "19001",  # Popayán (Cauca)
+    "20001",  # Valledupar (Cesar)
+    "23001",  # Montería (Córdoba)
+    # "25001",   # Código erróneo para Yopal (es Cundinamarca); Yopal es "85001", más abajo
+    "27001",  # Quibdó (Chocó)
+    "41001",  # Neiva (Huila)
+    "44001",  # Riohacha (La Guajira)
+    "47001",  # Santa Marta (Magdalena)
+    "50001",  # Villavicencio (Meta)
+    "52001",  # Pasto (Nariño)
+    "54001",  # Cúcuta (Norte de Santander)
+    "63001",  # Armenia (Quindío)
+    "66001",  # Pereira (Risaralda)
+    "68001",  # Bucaramanga (Santander)
+    "70001",  # Sincelejo (Sucre)
+    "73001",  # Ibagué (Tolima)
+    "76001",  # Cali (Valle del Cauca)
+    "81001",  # Arauca (Arauca)
+    "85001",  # Yopal (Casanare)
+    "86001",  # Mocoa (Putumayo)
+    "88001",  # San Andrés (San Andrés y Providencia)
+    "91001",  # Leticia (Amazonas)
+    "94001",  # Inírida (Guainía)
+    "95001",  # San José del Guaviare (Guaviare)
+    "97001",  # Mitú (Vaupés)
+    "99001",  # Puerto Carreño (Vichada)
 ]
 
 # COMMAND ----------
@@ -185,16 +185,17 @@ df_geih_divipola = (
     # Filtrar: retener solo las 32 ciudades definidas en la lista ciudades_geih
     # isin() verifica si CODIGO_MUNICIPIO está en la lista
     .filter(col("CODIGO_MUNICIPIO").isin(ciudades_geih))
-    
     # Seleccionar y transformar campos:
     .select(
-        "CODIGO_DEPARTAMENTO",                                    # Código del departamento (2 dígitos)
-        "DEPARTAMENTO",                                            # Nombre del departamento
-        col("CODIGO_DEPARTAMENTO").alias("CODIGO_AREA_GEIH"),    # Alias para joins con tablas GEIH
-        "CODIGO_MUNICIPIO",                                        # Código del municipio (5 dígitos)
-        "MUNICIPIO",                                               # Nombre del municipio
-        "LONGITUD",                                                # Coordenada de longitud
-        "LATITUD"                                                  # Coordenada de latitud
+        "CODIGO_DEPARTAMENTO",  # Código del departamento (2 dígitos)
+        "DEPARTAMENTO",  # Nombre del departamento
+        col("CODIGO_DEPARTAMENTO").alias(
+            "CODIGO_AREA_GEIH"
+        ),  # Alias para joins con tablas GEIH
+        "CODIGO_MUNICIPIO",  # Código del municipio (5 dígitos)
+        "MUNICIPIO",  # Nombre del municipio
+        "LONGITUD",  # Coordenada de longitud
+        "LATITUD",  # Coordenada de latitud
     )
 )
 

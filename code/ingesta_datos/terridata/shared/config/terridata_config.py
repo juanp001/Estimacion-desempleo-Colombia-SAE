@@ -1,11 +1,11 @@
-CATALOG      = "tesis"
+CATALOG = "tesis"
 SCHEMA_DATOS = "terridata"
-SCHEMA_DIM   = "dim"
+SCHEMA_DIM = "dim"
 
 VOL_CONSOLIDADO = f"/Volumes/{CATALOG}/{SCHEMA_DATOS}/terridata_archivos/consolidado/"
 
-TBL_BRONCE          = f"{CATALOG}.{SCHEMA_DATOS}.terridata_bronce"
-TBL_PLATA           = f"{CATALOG}.{SCHEMA_DATOS}.terridata_extendido_plata"
+TBL_BRONCE = f"{CATALOG}.{SCHEMA_DATOS}.terridata_bronce"
+TBL_PLATA = f"{CATALOG}.{SCHEMA_DATOS}.terridata_extendido_plata"
 TBL_DIM_INDICADORES = f"{CATALOG}.{SCHEMA_DIM}.dim_indicadores"
 
 # Columnas de identificación en la tabla plata (groupBy del pivot)

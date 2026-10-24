@@ -45,10 +45,18 @@
 from pyspark.sql.functions import col, coalesce, concat_ws, lit
 
 from shared.config.geih_config import (
-    TBL_CG_PLATA, TBL_FT_PLATA, TBL_NO_PLATA, TBL_OC_PLATA, TBL_FEX_PLATA,
-    TBL_DIM_DIVIPOLA, TBL_MERCADO_LABORAL,
-    TBL_IN_CAB_MA, TBL_IN_RESTO_MA, TBL_DIM_DOMINIO,
-    TBL_RECONCILIACION_FT, TBL_LLAVES_SIN_PAREJA,
+    TBL_CG_PLATA,
+    TBL_FT_PLATA,
+    TBL_NO_PLATA,
+    TBL_OC_PLATA,
+    TBL_FEX_PLATA,
+    TBL_DIM_DIVIPOLA,
+    TBL_MERCADO_LABORAL,
+    TBL_IN_CAB_MA,
+    TBL_IN_RESTO_MA,
+    TBL_DIM_DOMINIO,
+    TBL_RECONCILIACION_FT,
+    TBL_LLAVES_SIN_PAREJA,
 )
 from shared.transformations.campos_nucleo import CAMPOS_NUCLEO_MARCO_ANTIGUO
 from shared.transformations.factor_expansion import (
@@ -65,25 +73,32 @@ from shared.utils.spark_utils import escribir_tabla
 # COMMAND ----------
 
 # DBTITLE 1,Cargar tablas fuente
-cg      = spark.table(TBL_CG_PLATA)
-ft      = spark.table(TBL_FT_PLATA)
-no      = spark.table(TBL_NO_PLATA)
-oc      = spark.table(TBL_OC_PLATA)
-fex     = spark.table(TBL_FEX_PLATA)
+cg = spark.table(TBL_CG_PLATA)
+ft = spark.table(TBL_FT_PLATA)
+no = spark.table(TBL_NO_PLATA)
+oc = spark.table(TBL_OC_PLATA)
+fex = spark.table(TBL_FEX_PLATA)
 geih_div = spark.table(TBL_DIM_DIVIPOLA)
 
 # COMMAND ----------
 
 # DBTITLE 1,Consolidar y guardar tabla oro
 df = (
-    cg
-    .join(ft,  cg.PK == ft.PK,  "left")
-    .join(no,  cg.PK == no.PK,  "left")
+    cg.join(ft, cg.PK == ft.PK, "left")
+    .join(no, cg.PK == no.PK, "left")
     .join(fex, cg.PK == fex.PK, "left")
-    .join(oc,  cg.PK == oc.PK,  "left")
+    .join(oc, cg.PK == oc.PK, "left")
     # dim_geih_divipola se une dos veces: una para departamento, otra para municipio
-    .join(geih_div.alias("div_dep"), cg.CODIGO_DPTO == col("div_dep.CODIGO_DEPARTAMENTO"), "left")
-    .join(geih_div.alias("div_mun"), cg.CODIGO_AREA == col("div_mun.CODIGO_AREA_GEIH"),    "left")
+    .join(
+        geih_div.alias("div_dep"),
+        cg.CODIGO_DPTO == col("div_dep.CODIGO_DEPARTAMENTO"),
+        "left",
+    )
+    .join(
+        geih_div.alias("div_mun"),
+        cg.CODIGO_AREA == col("div_mun.CODIGO_AREA_GEIH"),
+        "left",
+    )
     .select(
         cg.PK,
         cg.PERIODO,
@@ -101,19 +116,22 @@ df = (
         factor_expansion_c18(cg.MARCO, cg.FEX, fex["FEX_C18"]).alias("FEX_C18"),
         cg.SEXO,
         cg.EDAD,
-        coalesce(ft["PEA"].cast("int"),        lit(0)).alias("PEA"),
-        coalesce(ft["PEI"].cast("int"),        lit(0)).alias("PEI"),
-        coalesce(ft["PET"].cast("int"),        lit(0)).alias("PET"),
+        coalesce(ft["PEA"].cast("int"), lit(0)).alias("PEA"),
+        coalesce(ft["PEI"].cast("int"), lit(0)).alias("PEI"),
+        coalesce(ft["PET"].cast("int"), lit(0)).alias("PET"),
         coalesce(no["DESOCUPADO"].cast("int"), lit(0)).alias("DESOCUPADO"),
-        coalesce(oc["OCUPADO"].cast("int"),    lit(0)).alias("OCUPADO"),
+        coalesce(oc["OCUPADO"].cast("int"), lit(0)).alias("OCUPADO"),
     )
 )
 
 # G7-B6: ninguna persona puede llegar a oro sin factor; si falla, no se escribe la tabla
 df_sin_fex = personas_sin_factor(df)
 print(
-    df_sin_fex.groupBy("MARCO", "PER").sum("N_PERSONAS", "N_SIN_FEX")
-    .orderBy("PER").toPandas().to_string(index=False)
+    df_sin_fex.groupBy("MARCO", "PER")
+    .sum("N_PERSONAS", "N_SIN_FEX")
+    .orderBy("PER")
+    .toPandas()
+    .to_string(index=False)
 )
 verificar_factor_expansion(df_sin_fex)
 
@@ -123,7 +141,8 @@ escribir_tabla(df, TBL_MERCADO_LABORAL)
 
 # DBTITLE 1,Reconciliación G7-B5 — llaves sin pareja entre módulos
 inactivos = (
-    spark.table(TBL_IN_CAB_MA).select(*CAMPOS_NUCLEO_MARCO_ANTIGUO)
+    spark.table(TBL_IN_CAB_MA)
+    .select(*CAMPOS_NUCLEO_MARCO_ANTIGUO)
     .unionByName(spark.table(TBL_IN_RESTO_MA).select(*CAMPOS_NUCLEO_MARCO_ANTIGUO))
 )
 df_llaves = llaves_sin_pareja(cg, ft, no, oc, fex, inactivos)
@@ -157,8 +176,8 @@ for columna, regla in [
     ("N_OC_Y_DS", "nadie es OC y DS a la vez"),
 ]:
     malos = pdf_reconc[pdf_reconc[columna] > 0]
-    print(f"{'PASS' if malos.empty else 'FAIL'}: {regla} en todos los períodos y dominios")
+    print(
+        f"{'PASS' if malos.empty else 'FAIL'}: {regla} en todos los períodos y dominios"
+    )
     if not malos.empty:
-        print(
-            malos.groupby(["PER", "MES"])[columna].sum().to_string()
-        )
+        print(malos.groupby(["PER", "MES"])[columna].sum().to_string())

@@ -1151,7 +1151,9 @@ rmse_dentro = float(np.sqrt(np.mean((modelo_ganador.Y - modelo_ganador.mu_hat) *
 df_metricas_cv = metricas_validacion_cruzada(
     detalle_cv, rmse_dentro_muestra=rmse_dentro, nivel=VALIDACION_NIVEL_COBERTURA
 )
-df_frecuencia_cv = frecuencia_seleccion(df_seleccion_cv, covars_benchmark, alias=ALIAS_VAL)
+df_frecuencia_cv = frecuencia_seleccion(
+    df_seleccion_cv, covars_benchmark, alias=ALIAS_VAL
+)
 resumen_sel_cv = resumen_seleccion(df_seleccion_cv, covars_benchmark)
 
 print("\nMétricas de predicción fuera de muestra (error = predicción − directa):")
