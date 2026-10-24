@@ -20,11 +20,15 @@ G7-B18 (sensibilidad a dominios individuales, dejar-un-dominio-fuera o LOAO comp
 dejar-uno-fuera de los coeficientes se complementa con (a) un cambio estandarizado
 Δβ/EE(β̂) que no se infla cuando |β̂| es pequeño (el cambio porcentual sí), (b) el dominio que
 produce el mínimo, el máximo y el mayor cambio de cada β_j, y (c) el efecto de cada exclusión en
-las predicciones: EBLUP de los 22 dominios que quedan, predicción sintética del dominio excluido
-(fuera de muestra), predicción sintética de los municipios objetivo, Â y la clase de
-confiabilidad. Es el mismo reajuste completo (incluida Â) de la sensibilidad de Cook de
-`seleccion_modelo.py` y de `extrapolacion.sensibilidad_quitar_dominio`, pero para los 23 dominios
-y con las salidas pedidas por la revisión. Sustento y límites: la distancia de Cook y el
+las predicciones: EBLUP de los 22 dominios que quedan, predicción sintética de los municipios
+objetivo, Â y la clase de confiabilidad. El error de predecir el dominio retirado como si no
+tuviera encuesta se mide una sola vez, contra la directa, en la validación predictiva (G7-B19).
+
+R-39: los 23 reajustes se calculan una sola vez con `reajustes_sin_dominio` y de ellos salen los
+coeficientes (G7-B17/B18), las predicciones (G7-B18), la sensibilidad de B20
+(`extrapolacion.sensibilidad_quitar_dominio`), la fila del dominio de mayor Cook
+(`seleccion_modelo.sensibilidad_cook`) y el ejercicio 1 de G7-B19
+(`validacion_predictiva.loao_covariables_fijas`). Sustento y límites: la distancia de Cook y el
 reajuste sin el dominio influyente son diagnósticos de regresión general (no del libro); el
 LOAO de coeficientes y su efecto en predicciones es un análisis propio. Lo que sí respaldan las
 fuentes es la lectura: en un área fuera de muestra el predictor es solo x'β̂
@@ -36,6 +40,7 @@ import numpy as np
 import pandas as pd
 
 from shared.consolidacion import clasificar_confiabilidad
+from shared.modelo_area_pequena import prediccion_sintetica
 
 # G7-B17: la significancia no es demostración fuerte (mismos 23 dominios filtran, seleccionan,
 # comparan y calculan los p); este texto se imprime en el notebook y acompaña a la estabilidad.
@@ -59,38 +64,93 @@ def _parametros(modelo) -> list:
     return ["Intercepto"] + list(modelo.covars)
 
 
-def _reajustar_sin(modelo, clase_modelo: type, i: int):
-    """Reajusta el modelo completo (incluida Â) sin la fila `i`.
+def reajustes_sin_dominio(
+    clase_modelo: type, covars: list, df: pd.DataFrame, y_col: str, se_col: str
+) -> list:
+    """Reajusta el modelo quitando un dominio cada vez (con Â reestimada): única implementación.
+
+    Es el dejar-un-dominio-fuera (LOAO) del clásico (R-39). Se llama una vez en el notebook y
+    los 23 ajustes se reutilizan en los coeficientes, las predicciones, la sensibilidad de B20,
+    la sensibilidad de Cook y el ejercicio 1 de la validación predictiva.
 
     Args:
-        modelo (ModeloAreaPequena): Benchmark ya ajustado.
         clase_modelo (type): Clase con la que reajustar (`FayHerriotClasico`).
-        i (int): Posición (0 … n−1) del dominio que se retira.
+        covars (list[str]): Covariables de la especificación (vacío = solo intercepto).
+        df (pd.DataFrame): Los n dominios con encuesta, con `covars`, `y_col` y `se_col`.
+        y_col (str): Columna de la estimación directa.
+        se_col (str): Columna del error estándar de la directa.
 
     Returns:
-        ModeloAreaPequena | None: Modelo ajustado con n−1 dominios, o None si el ajuste
-            falla.
+        list[ModeloAreaPequena | None]: n elementos; el i-ésimo es el modelo ajustado sin el
+            dominio de la fila i, o None si ese ajuste falló por una matriz singular
+            (`numpy.linalg.LinAlgError`). Cualquier otra excepción se propaga (R-41): un error
+            de programación no debe quedar oculto como un reajuste fallido.
 
     Example:
-        >>> ajuste = _reajustar_sin(ganador, FayHerriotClasico, 0)
+        >>> reajustes = reajustes_sin_dominio(  # doctest: +SKIP
+        ...     FayHerriotClasico, ganador.covars, ganador.df, "TASA", "SE"
+        ... )
+
+    Casos de uso:
+        - Celda «dejar-un-dominio-fuera» de `fay_herriot.py`, con el benchmark.
+        - Modelo de solo intercepto de la validación predictiva (`covars=[]`).
     """
-    df_sin = modelo.df.drop(index=modelo.df.index[i]).reset_index(drop=True)
-    try:
-        ajuste = clase_modelo(modelo.covars, df_sin, modelo.y_col, modelo.se_col)
-        ajuste.ajustar()
-    except Exception:
-        return None
-    return ajuste
+    reajustes = []
+    for i in range(len(df)):
+        df_sin = df.drop(index=df.index[i]).reset_index(drop=True)
+        try:
+            ajuste = clase_modelo(list(covars), df_sin, y_col, se_col)
+            ajuste.ajustar()
+        except np.linalg.LinAlgError:
+            ajuste = None
+        reajustes.append(ajuste)
+    return reajustes
+
+
+def resumen_ajustes(ajustes: list) -> dict:
+    """Cuenta los ajustes fallidos y los que tienen problemas de convergencia (R-41).
+
+    Args:
+        ajustes (list): Modelos ajustados o None (salida de `reajustes_sin_dominio`, o las
+            réplicas de `bootstrap_dominios`). Los modelos sin `avisos_ajuste` (otras
+            clases) cuentan como sin avisos.
+
+    Returns:
+        dict: `{"total", "fallidos", "sin_convergencia", "A_en_cota", "texto"}`; `texto` es
+            una línea lista para imprimir.
+
+    Example:
+        >>> resumen_ajustes([None, None])["texto"]
+        '2 ajustes: 2 fallidos (matriz singular), 0 sin convergencia, 0 con Â en la cota.'
+
+    Casos de uso:
+        - Aviso de los reajustes dejar-un-dominio-fuera y del bootstrap de dominios.
+    """
+    validos = [a for a in ajustes if a is not None]
+    avisos = [a.avisos_ajuste() if hasattr(a, "avisos_ajuste") else [] for a in validos]
+    sin_conv = sum(any("convergió" in x for x in av) for av in avisos)
+    en_cota = sum(any("cota" in x for x in av) for av in avisos)
+    fallidos = len(ajustes) - len(validos)
+    return {
+        "total": len(ajustes),
+        "fallidos": fallidos,
+        "sin_convergencia": sin_conv,
+        "A_en_cota": en_cota,
+        "texto": (
+            f"{len(ajustes)} ajustes: {fallidos} fallidos (matriz singular), {sin_conv} sin "
+            f"convergencia, {en_cota} con Â en la cota."
+        ),
+    }
 
 
 def dejar_uno_fuera_coeficientes(
-    modelo, clase_modelo: type, nombres_dominio: np.ndarray, alfa: float = 0.05
+    modelo, reajustes: list, nombres_dominio: np.ndarray, alfa: float = 0.05
 ) -> pd.DataFrame:
-    """Reajusta el modelo quitando un dominio cada vez (con Â reestimada).
+    """Coeficientes del modelo al quitar un dominio cada vez (con Â reestimada).
 
     Args:
         modelo (ModeloAreaPequena): Benchmark ya ajustado.
-        clase_modelo (type): Clase con la que reajustar (`FayHerriotClasico`).
+        reajustes (list): Salida de `reajustes_sin_dominio` para ese modelo.
         nombres_dominio (np.ndarray): Nombre de cada dominio, en el orden de las filas.
         alfa (float): Nivel de significancia para marcar la pérdida de significancia.
 
@@ -103,12 +163,14 @@ def dejar_uno_fuera_coeficientes(
             `alfa`). Los dominios cuyo reajuste falla se omiten.
 
     Example:
-        >>> dejar_uno_fuera_coeficientes(ganador, FayHerriotClasico, nombres)
+        >>> dejar_uno_fuera_coeficientes(ganador, reajustes, nombres)  # doctest: +SKIP
+
+    Casos de uso:
+        Estabilidad de coeficientes (G7-B17) y LOAO de coeficientes (G7-B18, `fh_loao_coeficientes`).
     """
     parametros = _parametros(modelo)
     filas = []
-    for i in range(modelo.n):
-        ajuste = _reajustar_sin(modelo, clase_modelo, i)
+    for i, ajuste in enumerate(reajustes):
         if ajuste is None:
             continue
         for j, parametro in enumerate(parametros):
@@ -153,7 +215,7 @@ def resumen_dejar_uno_fuera(detalle: pd.DataFrame, n_dominios: int) -> pd.DataFr
             `N_cambia_signo`, `N_cruza_alfa`, `p_max` y `N_reajustes` (G7-B18).
 
     Example:
-        >>> resumen_dejar_uno_fuera(detalle, 23)
+        >>> resumen_dejar_uno_fuera(detalle, 23)  # doctest: +SKIP
     """
     filas = []
     for parametro, g in detalle.groupby("Parametro", sort=False):
@@ -195,8 +257,10 @@ def bootstrap_dominios(
     """Bootstrap no paramétrico de dominios con la especificación fija.
 
     En cada réplica se remuestrean con reemplazo los n dominios (con su estimación directa,
-    su error estándar y sus covariables) y se reajusta el modelo. Las réplicas cuyo ajuste
-    falla se descartan.
+    su error estándar y sus covariables) y se reajusta el modelo. Las réplicas con matriz
+    singular (`numpy.linalg.LinAlgError`) se descartan y se cuentan; cualquier otra excepción
+    se propaga (R-41). Se imprime cuántas réplicas fallaron, no convergieron o dejaron Â en
+    la cota del optimizador (Â ≈ 0 en un remuestreo).
 
     Args:
         modelo (ModeloAreaPequena): Benchmark ya ajustado.
@@ -205,27 +269,31 @@ def bootstrap_dominios(
         semilla (int): Semilla de `np.random.default_rng`.
 
     Returns:
-        pd.DataFrame: Una fila por réplica válida con `beta_<parámetro>`, `p_<parámetro>`
-            y `A_hat`.
+        pd.DataFrame: Una fila por réplica válida con `beta_<parámetro>`, `p_<parámetro>`,
+            `A_hat` y `A_en_cota`.
 
     Example:
-        >>> bootstrap_dominios(ganador, FayHerriotClasico, replicas=1000, semilla=42)
+        >>> bootstrap_dominios(ganador, FayHerriotClasico, replicas=1000, semilla=42)  # doctest: +SKIP
     """
     rng = np.random.default_rng(semilla)
     parametros = _parametros(modelo)
-    filas = []
+    filas, ajustes = [], []
     for _ in range(replicas):
         idx = rng.integers(0, modelo.n, modelo.n)
         df_b = modelo.df.iloc[idx].reset_index(drop=True)
         try:
             ajuste = clase_modelo(modelo.covars, df_b, modelo.y_col, modelo.se_col)
             ajuste.ajustar()
-        except Exception:
+        except np.linalg.LinAlgError:
+            ajustes.append(None)
             continue
+        ajustes.append(ajuste)
         fila = {f"beta_{p}": float(b) for p, b in zip(parametros, ajuste.beta_hat)}
         fila.update({f"p_{p}": float(v) for p, v in zip(parametros, ajuste.p_vals)})
         fila["A_hat"] = float(ajuste.A_hat)
+        fila["A_en_cota"] = bool(getattr(ajuste, "A_en_cota", False))
         filas.append(fila)
+    print("Bootstrap de dominios: " + resumen_ajustes(ajustes)["texto"])
     return pd.DataFrame(filas)
 
 
@@ -246,7 +314,7 @@ def resumen_bootstrap(
             `Prop_p_menor_alfa`, `N_replicas` y `IC_incluye_cero`.
 
     Example:
-        >>> resumen_bootstrap(ganador, replicas_df)
+        >>> resumen_bootstrap(ganador, replicas_df)  # doctest: +SKIP
     """
     inferior, superior = 100 * (1 - nivel) / 2, 100 * (1 + nivel) / 2
     filas = []
@@ -287,7 +355,7 @@ def tabla_estabilidad(
             (las de bootstrap con sufijo `_boot` donde se repiten).
 
     Example:
-        >>> tabla_estabilidad(resumen_loo, resumen_boot)
+        >>> tabla_estabilidad(resumen_loo, resumen_boot)  # doctest: +SKIP
     """
     return resumen_loo.drop(columns="Beta_completo").merge(
         resumen_boot, on="Parametro", suffixes=("", "_boot")
@@ -304,7 +372,7 @@ def interpretar_estabilidad(tabla: pd.DataFrame) -> str:
         str: Texto con una línea por covariable y la advertencia de selección.
 
     Example:
-        >>> print(interpretar_estabilidad(tabla))
+        >>> print(interpretar_estabilidad(tabla))  # doctest: +SKIP
     """
     lineas = []
     for _, f in tabla[tabla["Parametro"] != "Intercepto"].iterrows():
@@ -325,48 +393,29 @@ def interpretar_estabilidad(tabla: pd.DataFrame) -> str:
 # ── G7-B18: dejar-un-dominio-fuera (LOAO) completo y su efecto en las predicciones ──────────
 
 
-def _cv_sintetico(X: np.ndarray, beta: np.ndarray, cov_beta: np.ndarray, A: float):
-    """Predicción sintética x'β̂, RMSE = sqrt(x'Cov(β̂)x + Â) y CV (%).
-
-    Args:
-        X (np.ndarray): Matriz de diseño (filas = unidades, con intercepto), shape (m, p).
-        beta (np.ndarray): Coeficientes β̂, shape (p,).
-        cov_beta (np.ndarray): Cov(β̂), shape (p, p).
-        A (float): Varianza de los efectos aleatorios Â.
-
-    Returns:
-        tuple[np.ndarray, np.ndarray]: Predicción (m,) y CV en % (m,).
-
-    Example:
-        >>> pred, cv = _cv_sintetico(X_obj, ganador.beta_hat, ganador.cov_beta, ganador.A_hat)
-    """
-    pred = X @ beta
-    rmse = np.sqrt(np.einsum("ij,jk,ik->i", X, cov_beta, X) + A)
-    return pred, 100 * rmse / np.abs(pred)
-
-
 def dejar_uno_fuera_predicciones(
     modelo,
-    clase_modelo: type,
+    reajustes: list,
     nombres_dominio: np.ndarray,
     X_obj: np.ndarray = None,
     nombres_obj: np.ndarray = None,
 ) -> tuple:
     """Efecto de retirar cada dominio en las predicciones y en Â (G7-B18).
 
-    Para cada dominio d se reajusta el modelo completo (incluida Â) sin d y se compara con el
-    modelo con los 23 dominios:
+    Para cada dominio d se toma el modelo completo (incluida Â) reajustado sin d y se compara
+    con el modelo con los 23 dominios:
 
     - **Dominios que quedan** (22): EBLUP completo frente a EBLUP sin d, y su CV.
-    - **Dominio excluido**: su EBLUP completo frente a la predicción sintética fuera de muestra
-      x_d'β̂(-d); es el error que cometería el modelo si d no tuviera encuesta.
     - **Municipios objetivo** (si se pasa `X_obj`): x_m'β̂ frente a x_m'β̂(-d), y su CV
       condicional al modelo (sqrt(x'Cov(β̂)x + Â)).
     - **Â**: varianza de efectos aleatorios con y sin d.
 
+    El dominio retirado no se predice aquí: ese error se mide contra la directa en la validación
+    predictiva (G7-B19, ejercicio 1), con los mismos reajustes (R-39).
+
     Args:
         modelo (ModeloAreaPequena): Benchmark ya ajustado.
-        clase_modelo (type): Clase con la que reajustar (`FayHerriotClasico`).
+        reajustes (list): Salida de `reajustes_sin_dominio` para ese modelo.
         nombres_dominio (np.ndarray): Nombre de cada dominio, en el orden de las filas.
         X_obj (np.ndarray | None): Matriz de diseño (con intercepto) de los municipios
             objetivo, shape (m, p). Si es None no se calcula el nivel municipal.
@@ -374,7 +423,7 @@ def dejar_uno_fuera_predicciones(
 
     Returns:
         tuple[pd.DataFrame, pd.DataFrame]: (`detalle`, `por_dominio`). `detalle` tiene una fila
-            por (dominio excluido, unidad) con `Nivel` (DOMINIO / DOMINIO_EXCLUIDO / MUNICIPIO),
+            por (dominio excluido, unidad) con `Nivel` (DOMINIO / MUNICIPIO),
             `Dominio_excluido`, `Unidad`, `Pred_completo`, `Pred_sin_dominio`, `Cambio_pp`,
             `CV_completo`, `CV_sin_dominio` y `Cambia_confiabilidad` (la clase por CV,
             `clasificar_confiabilidad`, cambia). `por_dominio` tiene una fila por dominio
@@ -382,22 +431,24 @@ def dejar_uno_fuera_predicciones(
             reajuste falla se omiten.
 
     Example:
-        >>> detalle, por_dominio = dejar_uno_fuera_predicciones(
-        ...     ganador, FayHerriotClasico, nombres, X_obj, nombres_municipios
+        >>> detalle, por_dominio = dejar_uno_fuera_predicciones(  # doctest: +SKIP
+        ...     ganador, reajustes, nombres, X_obj, nombres_municipios
         ... )
+
+    Casos de uso:
+        LOAO completo de `fay_herriot.py` (`fh_loao_predicciones`, `fh_loao_dominios`).
     """
     if X_obj is not None:
         X_obj = np.asarray(X_obj, dtype=float)
         nombres_obj = (
             np.arange(len(X_obj)) if nombres_obj is None else np.asarray(nombres_obj)
         )
-        pred_obj0, cv_obj0 = _cv_sintetico(
+        pred_obj0, _, cv_obj0 = prediccion_sintetica(
             X_obj, modelo.beta_hat, modelo.cov_beta, modelo.A_hat
         )
 
     filas, filas_a = [], []
-    for i in range(modelo.n):
-        ajuste = _reajustar_sin(modelo, clase_modelo, i)
+    for i, ajuste in enumerate(reajustes):
         if ajuste is None:
             continue
         excluido = str(nombres_dominio[i])
@@ -417,24 +468,8 @@ def dejar_uno_fuera_predicciones(
                 )
             )
 
-        # Dominio excluido: EBLUP con todos vs. sintético fuera de muestra sin él.
-        pred_i, cv_i = _cv_sintetico(
-            modelo.X[[i]], ajuste.beta_hat, ajuste.cov_beta, ajuste.A_hat
-        )
-        filas.append(
-            (
-                "DOMINIO_EXCLUIDO",
-                excluido,
-                excluido,
-                float(modelo.eblup[i]),
-                float(pred_i[0]),
-                float(modelo.cv[i]),
-                float(cv_i[0]),
-            )
-        )
-
         if X_obj is not None:
-            pred_obj, cv_obj = _cv_sintetico(
+            pred_obj, _, cv_obj = prediccion_sintetica(
                 X_obj, ajuste.beta_hat, ajuste.cov_beta, ajuste.A_hat
             )
             for m in range(len(X_obj)):
@@ -510,15 +545,14 @@ def resumen_influencia_dominios(
             descendente, con `Cambio_en_EE_max_abs` y `Parametro_max` (el coeficiente más
             movido), `N_coef_sobre_umbral`, `N_cambia_signo`, `N_cruza_alfa`,
             `Cambio_EBLUP_max_pp` y `Dominio_EBLUP_max` (entre los que quedan),
-            `N_EBLUP_sobre_umbral`, `Cambio_propio_pp` (sintético sin el dominio − su
-            EBLUP), `Cambio_sintetico_max_pp`, `Cambio_sintetico_medio_pp`, `Municipio_max`,
+            `N_EBLUP_sobre_umbral`, `Cambio_sintetico_max_pp`, `Cambio_sintetico_medio_pp`, `Municipio_max`,
             `N_sintetico_sobre_umbral`, `Cambio_sintetico_max_extrapolan_pp` y
             `Cambio_sintetico_max_no_extrapolan_pp` (si se pasó `municipios_extrapolan`),
             `N_cambia_confiabilidad` (EBLUP + municipios), `A_completo`, `A_sin_dominio` y
             `Cambio_A_pct`.
 
     Example:
-        >>> resumen_influencia_dominios(detalle_coef, detalle_pred, por_dominio)
+        >>> resumen_influencia_dominios(detalle_coef, detalle_pred, por_dominio)  # doctest: +SKIP
     """
     param = detalle_coef[detalle_coef["Parametro"] != "Intercepto"]
     filas = []
@@ -544,9 +578,6 @@ def resumen_influencia_dominios(
             fila["N_EBLUP_sobre_umbral"] = int(
                 (eb["Cambio_pp"].abs() > umbral_pp).sum()
             )
-        propio = p[p["Nivel"] == "DOMINIO_EXCLUIDO"]
-        if len(propio):
-            fila["Cambio_propio_pp"] = float(propio["Cambio_pp"].iloc[0])
         mun = p[p["Nivel"] == "MUNICIPIO"]
         if len(mun):
             k = mun["Cambio_pp"].abs().idxmax()
@@ -589,7 +620,7 @@ def top_dominios_por_parametro(detalle_coef: pd.DataFrame, k: int = 3) -> pd.Dat
             `Cambia_signo` y `Cruza_alfa`.
 
     Example:
-        >>> top_dominios_por_parametro(detalle_coef, k=3)
+        >>> top_dominios_por_parametro(detalle_coef, k=3)  # doctest: +SKIP
     """
     d = detalle_coef[detalle_coef["Parametro"] != "Intercepto"].copy()
     d["_abs"] = d["Cambio_en_EE"].abs()
@@ -627,7 +658,7 @@ def interpretar_influencia(
             advertencia de selección. Sin cifras fijas: todo sale de las tablas.
 
     Example:
-        >>> print(interpretar_influencia(resumen_loo, influencia))
+        >>> print(interpretar_influencia(resumen_loo, influencia))  # doctest: +SKIP
     """
     lineas = []
     for _, f in resumen_loo[resumen_loo["Parametro"] != "Intercepto"].iterrows():
@@ -657,13 +688,6 @@ def interpretar_influencia(
             f"{influencia.loc[i, 'Dominio_excluido']}; "
             f"{int((influencia['N_EBLUP_sobre_umbral'] > 0).sum())} exclusiones mueven algún "
             f"EBLUP más de {umbral_pp:g} pp."
-        )
-    if "Cambio_propio_pp" in influencia:
-        i = influencia["Cambio_propio_pp"].abs().idxmax()
-        lineas.append(
-            f"Predecir un dominio como si no tuviera encuesta (sintético sin él − su EBLUP): "
-            f"el mayor error es {influencia.loc[i, 'Cambio_propio_pp']:+.2f} pp en "
-            f"{influencia.loc[i, 'Dominio_excluido']}."
         )
     if "Cambio_sintetico_max_pp" in influencia:
         i = influencia["Cambio_sintetico_max_pp"].abs().idxmax()
@@ -701,7 +725,7 @@ def figura_influencia(detalle_coef: pd.DataFrame):
             o None si no hay covariables.
 
     Example:
-        >>> fig = figura_influencia(detalle_coef); display(fig); plt.close(fig)
+        >>> fig = figura_influencia(detalle_coef); display(fig); plt.close(fig)  # doctest: +SKIP
     """
     import matplotlib.pyplot as plt
 

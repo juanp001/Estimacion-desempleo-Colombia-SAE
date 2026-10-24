@@ -16,11 +16,22 @@ Por eso la tabla final lleva ``CALIDAD_REPORTADA``: la categoría por CV, más �
 modelo» en todo municipio y «extrapolado» cuando ``ESTADO_EXTRAPOLACION`` (B20,
 ``shared/extrapolacion.py``) no es ``DENTRO_DEL_RANGO``. Todo se calcula con el modelo ganador y
 los umbrales de ``config.py``: si cambian las covariables o los umbrales, la etiqueta cambia sola.
+
+Origen y estado (R-11)
+----------------------
+La tabla final lleva ``MODELO_FUENTE`` (``FH_CLASICO_BENCHMARK_NO_ESPACIAL``) y
+``ESTADO_RESULTADO`` (``PRELIMINAR`` mientras no cierre la comparación con las variantes
+espaciales del objetivo 1), para que nadie la lea como la estimación final del proyecto.
 """
 
 import pandas as pd
 
-from shared.config import CV_ACEPTABLE, CV_CONFIABLE
+from shared.config import (
+    CV_ACEPTABLE,
+    CV_CONFIABLE,
+    ESTADO_RESULTADO_TABLA_FINAL,
+    MODELO_FUENTE_TABLA_FINAL,
+)
 from shared.extrapolacion import ESTADO_COMBINACION, ESTADO_DENTRO, ESTADO_FUERA
 
 
@@ -124,6 +135,8 @@ def construir_tabla_final(
     tabla_municipios: pd.DataFrame,
     dim_dominio: pd.DataFrame,
     dim_divipola: pd.DataFrame,
+    modelo_fuente: str = MODELO_FUENTE_TABLA_FINAL,
+    estado_resultado: str = ESTADO_RESULTADO_TABLA_FINAL,
 ) -> pd.DataFrame:
     """Une las estimaciones de los dominios y de los municipios objetivo en una sola tabla.
 
@@ -154,22 +167,40 @@ def construir_tabla_final(
         dim_dominio (pd.DataFrame): ``dim_dominio_geih`` con CODIGO_DOMINIO y NOMBRE_DOMINIO.
         dim_divipola (pd.DataFrame): Nomenclatura DIVIPOLA con CODIGO_MUNICIPIO, MUNICIPIO y
             DEPARTAMENTO (una fila por municipio).
+        modelo_fuente (str): Modelo del que salen las cifras (R-11); por defecto el clásico,
+            benchmark no espacial.
+        estado_resultado (str): Estado de las cifras (R-11); `PRELIMINAR` hasta cerrar la
+            comparación espacial del objetivo 1.
 
     Returns:
         pd.DataFrame: Una fila por dominio y por municipio objetivo, ordenada por NIVEL y
             CODIGO, con NIVEL, PER, MES, DEPARTAMENTO, CODIGO, NOMBRE, CODIGO_DOMINIO_PADRE,
             TIPO, TASA_DESEMPLEO_PCT, TASA_SIN_AJUSTE_PCT, LAMBDA, CV_PCT, CONFIABILIDAD,
-            BASE_CV, ESTADO_EXTRAPOLACION y CALIDAD_REPORTADA.
+            BASE_CV, ESTADO_EXTRAPOLACION, CALIDAD_REPORTADA, MODELO_FUENTE y
+            ESTADO_RESULTADO.
 
     Raises:
         ValueError: Si falta alguna columna del esquema, algún código no tiene nombre o algún
             estado de extrapolación no tiene etiqueta.
 
     Example:
-        >>> df_final = construir_tabla_final(
-        ...     tabla_dominios, tabla_municipios,
-        ...     spark.table(TBL_DIM_DOMINIO).toPandas(), spark.table(TBL_DIM_DIVIPOLA).toPandas(),
-        ... )
+        >>> base = {"PER": 2018, "MES": 12, "TASA_SIN_AJUSTE_PCT": 10.0, "LAMBDA": 1.0}
+        >>> dom = pd.DataFrame([{**base, "CODIGO": "76001", "TASA_DESEMPLEO_PCT": 10.0,
+        ...                      "CV_PCT": 3.0, "TIPO": "EBLUP_BENCHMARK"}])
+        >>> mun = pd.DataFrame([{**base, "CODIGO": "76892", "TASA_DESEMPLEO_PCT": 9.0,
+        ...                      "CV_PCT": 8.0, "TIPO": "SINTETICO_BENCHMARK",
+        ...                      "CODIGO_DOMINIO_PADRE": "76001",
+        ...                      "ESTADO_EXTRAPOLACION": "DENTRO_DEL_RANGO"}])
+        >>> dim_dom = pd.DataFrame({"CODIGO_DOMINIO": ["76001"], "NOMBRE_DOMINIO": ["Cali A.M."]})
+        >>> dim_div = pd.DataFrame({"CODIGO_MUNICIPIO": ["76001", "76892"],
+        ...                         "MUNICIPIO": ["Cali", "Yumbo"],
+        ...                         "DEPARTAMENTO": ["Valle", "Valle"]})
+        >>> final = construir_tabla_final(dom, mun, dim_dom, dim_div)
+        >>> final[["NIVEL", "NOMBRE", "CALIDAD_REPORTADA", "ESTADO_RESULTADO"]].values.tolist()
+        [['DOMINIO', 'Cali A.M.', 'Confiable', 'PRELIMINAR'], ['MUNICIPIO', 'Yumbo', 'Aceptable · condicional al modelo', 'PRELIMINAR']]
+
+    Casos de uso:
+        Celda 11 de `fay_herriot.py` (`fay_herriot_estimaciones_finales`).
     """
     for nombre, tabla, extra in [
         ("tabla_dominios", tabla_dominios, []),
@@ -224,6 +255,8 @@ def construir_tabla_final(
             ["NIVEL", "CONFIABILIDAD", "ESTADO_EXTRAPOLACION"]
         ].itertuples(index=False)
     ]
+    tabla_final["MODELO_FUENTE"] = modelo_fuente
+    tabla_final["ESTADO_RESULTADO"] = estado_resultado
     orden = [
         "NIVEL",
         "PER",
@@ -241,6 +274,8 @@ def construir_tabla_final(
         "BASE_CV",
         "ESTADO_EXTRAPOLACION",
         "CALIDAD_REPORTADA",
+        "MODELO_FUENTE",
+        "ESTADO_RESULTADO",
     ]
     return (
         tabla_final[orden]

@@ -41,6 +41,7 @@ from shared.benchmarking import factor_razon, promedio_ponderado
 from shared.consolidacion import clasificar_confiabilidad
 from shared.diagnosticos import marca_extrapolacion
 from shared.fay_herriot import FayHerriotClasico
+from shared.modelo_area_pequena import prediccion_sintetica
 from shared.seleccion_modelo import elegir_ganador, todas_significativas
 
 # Factores multiplicativos de ψ_d, simétricos en escala log alrededor de 1.
@@ -314,11 +315,9 @@ def ajustar_escenarios(
         ref.ajustar()
 
         lambda_n1 = factor_razon(ref.eblup, pesos, referencia_n1)
-        pred_mun = X_municipios @ ref.beta_hat
-        var_beta_mun = np.einsum(
-            "ij,jk,ik->i", X_municipios, ref.cov_beta, X_municipios
+        pred_mun, _, cv_mun = prediccion_sintetica(
+            X_municipios, ref.beta_hat, ref.cov_beta, ref.A_hat
         )
-        cv_mun = 100 * np.sqrt(var_beta_mun + ref.A_hat) / np.abs(pred_mun)
         extrapola = marca_extrapolacion(X_municipios, ref)
         confiab = [clasificar_confiabilidad(c) for c in ref.cv]
 

@@ -35,9 +35,6 @@ La tasa publicada no cambia: la predicción acotada es solo un escenario de sens
 Las figuras no llevan título: el contexto lo da el notebook que las muestra.
 """
 
-import contextlib
-import io
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -247,19 +244,20 @@ def estado_extrapolacion(
 
 
 def sensibilidad_quitar_dominio(
-    modelo, clase_modelo: type, X_nuevos, nombres_dominio
+    modelo, reajustes: list, X_nuevos, nombres_dominio
 ) -> tuple:
-    """Reajusta el modelo sin cada dominio y mide cuánto cambian las predicciones sintéticas.
+    """Cuánto cambian las predicciones sintéticas al quitar cada dominio.
 
-    Para cada dominio d se reajusta el modelo completo (Â y β̂) con los otros n − 1 dominios,
-    igual que `seleccion_modelo.sensibilidad_cook` pero para todos los dominios, y se predice
-    x_m'β̂_(−d) en cada municipio. Si la predicción de un municipio cambia mucho al quitar un solo
+    Para cada dominio d se toma el modelo completo (Â y β̂) reajustado con los otros n − 1
+    dominios (`estabilidad_coeficientes.reajustes_sin_dominio`, los mismos reajustes del LOAO,
+    R-39) y se predice x_m'β̂_(−d) en cada municipio. Si la predicción de un municipio cambia mucho al quitar un solo
     dominio, depende de ese dominio, típicamente el que fija el borde del rango de una covariable.
 
     Args:
         modelo (ModeloAreaPequena): Modelo ya ajustado (el ganador), con `df`, `covars`, `y_col`,
             `se_col` y `beta_hat`.
-        clase_modelo (type): Clase con la que reajustar (p. ej. `FayHerriotClasico`).
+        reajustes (list): Salida de `reajustes_sin_dominio` para ese modelo (None = ajuste
+            fallido, se omite).
         X_nuevos (array-like): Matriz de diseño de los municipios (m, p), con intercepto.
         nombres_dominio (array-like): Nombre de cada dominio, en el orden de las filas del modelo.
 
@@ -268,9 +266,15 @@ def sensibilidad_quitar_dominio(
             - por_municipio (m filas, orden de X_nuevos): PRED_BASE, PRED_MIN_SIN_DOMINIO,
               PRED_MAX_SIN_DOMINIO, AMPLITUD_SIN_DOMINIO_PP, CAMBIO_MAX_PP (mayor |cambio|
               frente a la base) y DOMINIO_MAS_INFLUYENTE (el que produce ese cambio).
-            - por_dominio (n filas): DOMINIO_EXCLUIDO, un β̂ por parámetro (Intercepto y cada
-              covariable), A_HAT, CAMBIO_MEDIO_PP y CAMBIO_MAX_PP (|cambio| de las predicciones
-              municipales), ordenado de mayor a menor cambio medio.
+            - por_dominio (una fila por reajuste válido): DOMINIO_EXCLUIDO, un β̂ por
+              parámetro (Intercepto y cada covariable), A_HAT, CAMBIO_MEDIO_PP y
+              CAMBIO_MAX_PP (|cambio| de las predicciones municipales), ordenado de mayor a
+              menor cambio medio.
+
+    Example:
+        >>> sens_mun, sens_dom = sensibilidad_quitar_dominio(  # doctest: +SKIP
+        ...     ganador, reajustes, X_new, nombres
+        ... )
 
     Casos de uso:
         Sensibilidad de B20 en `modelo/fay_herriot.py` (celda 10a), con el ganador.
@@ -280,12 +284,11 @@ def sensibilidad_quitar_dominio(
     base = X_nuevos @ modelo.beta_hat
     parametros = ["Intercepto"] + list(modelo.covars)
 
-    preds, filas = [], []
-    for i in range(len(modelo.df)):
-        df_sin = modelo.df.drop(index=modelo.df.index[i]).reset_index(drop=True)
-        reajuste = clase_modelo(modelo.covars, df_sin, modelo.y_col, modelo.se_col)
-        with contextlib.redirect_stdout(io.StringIO()):
-            reajuste.ajustar()
+    preds, filas, validos = [], [], []
+    for i, reajuste in enumerate(reajustes):
+        if reajuste is None:
+            continue
+        validos.append(i)
         pred = X_nuevos @ reajuste.beta_hat
         cambio = np.abs(pred - base)
         preds.append(pred)
@@ -308,7 +311,9 @@ def sensibilidad_quitar_dominio(
             "PRED_MAX_SIN_DOMINIO": preds.max(axis=1).round(4),
             "AMPLITUD_SIN_DOMINIO_PP": (preds.max(axis=1) - preds.min(axis=1)).round(4),
             "CAMBIO_MAX_PP": cambios.max(axis=1).round(4),
-            "DOMINIO_MAS_INFLUYENTE": nombres[cambios.argmax(axis=1)],
+            "DOMINIO_MAS_INFLUYENTE": nombres[
+                np.asarray(validos)[cambios.argmax(axis=1)]
+            ],
         }
     )
     por_dominio = (
