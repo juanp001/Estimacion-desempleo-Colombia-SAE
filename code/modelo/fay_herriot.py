@@ -375,21 +375,17 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     )
 
     # La comparación MSE_EBLUP frente a Di es descriptiva: g1 = γ·Di < Di por construcción,
-    # de modo que el EBLUP «mejora» casi siempre; lo informativo es cuánto (p. 440).
+    # de modo que el EBLUP «mejora» casi siempre; lo informativo es cuánto (p. 440). Por eso
+    # no se reporta el % de dominios que mejoran ni una prueba de Wilcoxon (R-64).
     validacion = modelo.validar_mse_directo()
     print(
         "\nGANANCIA DE PRECISIÓN (descriptiva: MSE_EBLUP < Di es lo esperado, p. 440):"
     )
-    print(f"  Dominios con MSE_EBLUP < Di: {validacion['dominios_mejoran']*100:.1f}%")
     print(f"  Reducción media del MSE:      {validacion['pct_mejora_mse'].mean():.2f}%")
     print(
         f"  Ratio Di/MSE medio:           {validacion['mse_ratio'].mean():.4f}  (>1 indica ganancia)"
     )
     print(f"  Ratio Di/MSE mediana:         {np.median(validacion['mse_ratio']):.4f}")
-    print(
-        f"  Wilcoxon (Di > MSE_EBLUP):   W={validacion['wil_stat']:.1f}, "
-        f"p={validacion['wil_pval']:.4f}"
-    )
 
     print("\n  Detalle por dominio (Di vs MSE_EBLUP):")
     detail_cols = [
@@ -425,7 +421,7 @@ if len(modelos) > 1:
         "evidencia fuerte en contra con 23 áreas"
     )
     print("  Media_resid: ≈ 0 por construcción del GLS; SD_resid con ddof = 1")
-    print("  Pct_dom_mejoran / Ratio_MSE_medio / Wilcoxon_pval: ganancia de precisión")
+    print("  Ratio_MSE_medio: ganancia de precisión (Di/MSE)")
     print("    del EBLUP frente a la estimación directa (descriptiva, p. 440)")
     print(
         "  Cook_max / N_influyentes: distancia de Cook máxima y dominios que superan 4/n"

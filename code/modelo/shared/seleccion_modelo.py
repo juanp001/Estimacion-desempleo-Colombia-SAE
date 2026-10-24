@@ -133,8 +133,9 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame: Una fila por modelo con R², media/SD (ddof = 1) de residuos, p-valor de
-            Shapiro-Wilk (no demuestra normalidad, ver `diagnosticos.LECTURA_NORMALIDAD`), reducción media de CV, shrinkage promedio, % de dominios que
-            mejoran el MSE, ratio MSE medio, p-valor de Wilcoxon y la correlación entre la
+            Shapiro-Wilk (no demuestra normalidad, ver `diagnosticos.LECTURA_NORMALIDAD`),
+            reducción media de CV, shrinkage promedio, ratio Di/MSE medio (ganancia de
+            precisión descriptiva; sin Wilcoxon, R-64) y la correlación entre la
             estimación directa y la corrección del EBLUP (efecto suavizador) con su p-valor.
 
     Raises:
@@ -160,9 +161,7 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
                 "Gamma_prom": (
                     round(m.gamma_i.mean(), 4) if m.gamma_i is not None else None
                 ),
-                "Pct_dom_mejoran": round(validacion["dominios_mejoran"] * 100, 1),
                 "Ratio_MSE_medio": round(validacion["mse_ratio"].mean(), 4),
-                "Wilcoxon_pval": round(validacion["wil_pval"], 4),
                 "Corr_suavizador": round(float(corr), 4),
                 "Corr_suavizador_pval": round(float(corr_pval), 4),
             }

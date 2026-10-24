@@ -11,7 +11,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 
 def prediccion_sintetica(
@@ -133,30 +132,33 @@ class ModeloAreaPequena(ABC):
         """
 
     def validar_mse_directo(self) -> dict:
-        """Compara el MSE del predictor contra la varianza directa Di.
+        """Ganancia de precisión del predictor frente a la varianza directa Di.
+
+        Es descriptiva: con el EBLUP, MSE < Di casi siempre por construcción (g1 = γ·Di < Di y
+        g2 + 2g3 son pequeños; Morales et al., 2021, p. 440). Por eso no se hace una prueba de
+        Wilcoxon de Di > MSE ni se cuenta el % de dominios que «mejoran» (R-64): no contrastan
+        nada. Lo informativo es cuánto baja el MSE, que dan la razón y la reducción.
 
         Returns:
-            dict: `mse_ratio` (np.ndarray, Di/mse), `pct_mejora_mse`
-                (np.ndarray, % de reducción), `dominios_mejoran` (float,
-                fracción de dominios con mse < Di), `wil_stat` y
-                `wil_pval` (float, test de Wilcoxon Di > mse).
+            dict: `mse_ratio` (np.ndarray, Di/mse) y `pct_mejora_mse` (np.ndarray, % de
+                reducción del MSE frente a Di).
 
         Raises:
             RuntimeError: Si se llama antes de `ajustar()`.
+
+        Example:
+            >>> modelo.validar_mse_directo()["mse_ratio"].mean()  # doctest: +SKIP
+
+        Casos de uso:
+            Columnas RATIO_MSE y MEJORA_MSE_PCT de `tabla_resultados` y Ratio_MSE_medio de
+            `seleccion_modelo.tabla_diagnosticos`.
         """
         if not hasattr(self, "mse"):
             raise RuntimeError("Llama a ajustar() antes de validar_mse_directo().")
 
-        mse_ratio = self.Di / self.mse
-        pct_mejora_mse = 100 * (self.Di - self.mse) / self.Di
-        dominios_mejoran = float(np.mean(self.mse < self.Di))
-        wil_stat, wil_pval = stats.wilcoxon(self.Di - self.mse, alternative="greater")
         return {
-            "mse_ratio": mse_ratio,
-            "pct_mejora_mse": pct_mejora_mse,
-            "dominios_mejoran": dominios_mejoran,
-            "wil_stat": wil_stat,
-            "wil_pval": wil_pval,
+            "mse_ratio": self.Di / self.mse,
+            "pct_mejora_mse": 100 * (self.Di - self.mse) / self.Di,
         }
 
     def tabla_resultados(
