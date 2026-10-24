@@ -132,8 +132,8 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
         nombres_covars (list[list[str]]): Covariables por modelo, mismo orden que `modelos`.
 
     Returns:
-        pd.DataFrame: Una fila por modelo con R², media/SD de residuos, p-valor de
-            Shapiro-Wilk, reducción media de CV, shrinkage promedio, % de dominios que
+        pd.DataFrame: Una fila por modelo con R², media/SD (ddof = 1) de residuos, p-valor de
+            Shapiro-Wilk (no demuestra normalidad, ver `diagnosticos.LECTURA_NORMALIDAD`), reducción media de CV, shrinkage promedio, % de dominios que
             mejoran el MSE, ratio MSE medio, p-valor de Wilcoxon y la correlación entre la
             estimación directa y la corrección del EBLUP (efecto suavizador) con su p-valor.
 
@@ -153,7 +153,8 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
                 "Covariables": " + ".join(nombres_covars[i - 1]),
                 "R2": round(m.r2, 4),
                 "Media_resid": round(m.residuals.mean(), 4),
-                "SD_resid": round(m.residuals.std(), 4),
+                # ddof = 1, como en el notebook y en diagnosticos.py (R-10).
+                "SD_resid": round(m.residuals.std(ddof=1), 4),
                 "SW_pval": round(m.sw_pval, 4),
                 "Delta_CV_pp": round(m.resultados["MEJORA_CV_PCT"].mean(), 2),
                 "Gamma_prom": (

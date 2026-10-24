@@ -145,6 +145,8 @@ from shared.estabilidad_coeficientes import (
     figura_influencia,
 )
 from shared.diagnosticos import (
+    NOTA_MEDIA_RESIDUOS,
+    lectura_normalidad,
     graficar_validacion,
     explicacion_graficas,
     interpretar_validacion,
@@ -346,16 +348,17 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
 
     print("\nDIAGNÓSTICOS:")
     print(f"  R² predictor sintético:       {modelo.r2:.4f}")
+    # R-10 (G7-B22): la media es ≈ 0 por construcción y Shapiro-Wilk con 23 áreas no
+    # demuestra normalidad; solo dice si hay evidencia fuerte en contra.
     print(
-        f"  Media residuos estand.:       {modelo.residuals.mean():.4f}  (esperado ≈ 0)"
+        f"  Media residuos estand.:       {modelo.residuals.mean():.4f}  ({NOTA_MEDIA_RESIDUOS})"
     )
     print(
-        f"  Desv. std residuos estand.:   {modelo.residuals.std(ddof=1):.4f}  (esperado ≈ 1)"
+        f"  Desv. std residuos estand.:   {modelo.residuals.std(ddof=1):.4f}  (≈ 1 si ψ_d y Â son adecuadas)"
     )
-    sw_ok = modelo.sw_pval > 0.05
     print(
-        f"  Shapiro-Wilk: W={modelo.sw_stat:.4f}, p={modelo.sw_pval:.4f}  "
-        + ("✓ normalidad" if sw_ok else "✗ revisar normalidad")
+        f"  Shapiro-Wilk: W={modelo.sw_stat:.4f}, p={modelo.sw_pval:.4f}: "
+        + lectura_normalidad(modelo.sw_pval)
     )
     print(
         f"  Reducción media del CV:       {modelo.resultados['MEJORA_CV_PCT'].mean():.2f} pp"
@@ -417,7 +420,11 @@ if len(modelos) > 1:
     )
 
     display(df_diag_variantes)
-    print("  SW_pval: p-valor Shapiro-Wilk (>0.05 -> normalidad)")
+    print(
+        "  SW_pval: p-valor de Shapiro-Wilk; p > 0.05 no demuestra normalidad, solo que no hay "
+        "evidencia fuerte en contra con 23 áreas"
+    )
+    print("  Media_resid: ≈ 0 por construcción del GLS; SD_resid con ddof = 1")
     print("  Pct_dom_mejoran / Ratio_MSE_medio / Wilcoxon_pval: ganancia de precisión")
     print("    del EBLUP frente a la estimación directa (descriptiva, p. 440)")
     print(
