@@ -351,8 +351,7 @@ modelo/sensibilidad_varianza.py   (G7-B3, fuera de la cadena: no alimenta al mod
 Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LITERATURA`,
 `CATALOGO_EXCLUIDAS`, `resolver_catalogo`), `descriptivos.py` (figuras e interpretaciones),
 `diagnosticos.py` (IC de Fisher, FH univariado con ψ_d y su Cook y dejar-uno-fuera (G7-B8), forma funcional y
-residuos parciales (G7-B13), versiones OLS
-de referencia, VIF, figura de robustez),
+residuos parciales (G7-B13), VIF, figura de robustez; R-31 quitó las versiones OLS),
 `seleccion.py` (`filtrar_por_robustez`, `resolver_redundancia`, `ficha_decision`, `ajustar_por_vif`),
 `ventana_temporal.py` (sensibilidad G7-B2; re-exporta `etiqueta_ventana`, `cierres_trimestrales` y
 `td_dane_ventana`, que viven en `preprocesamiento/shared/ventana.py` porque los usan la estimación directa,

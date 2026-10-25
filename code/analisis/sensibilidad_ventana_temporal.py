@@ -46,11 +46,12 @@
 # MAGIC
 # MAGIC ## PEA = ocupados + desocupados
 # MAGIC
-# MAGIC En `tesis.geih_oro.mercado_laboral` la bandera `PEA` está mal en enero-marzo de 2018: todas las
-# MAGIC personas de 15+ quedan como PEA (la unión con inactivos no encuentra a nadie), lo que subestima
-# MAGIC la tasa de esos meses. Aquí la PEA es `OCUPADO + DESOCUPADO`, que reproduce la cifra del DANE en
-# MAGIC esos meses y coincide con la bandera en los demás; la celda «Reconciliación» lo muestra mes a
-# MAGIC mes. La corrección en la capa plata corresponde a G7-B5.
+# MAGIC En `tesis.geih_oro.mercado_laboral` la bandera `PEA` estaba mal en enero-marzo de 2018: todas las
+# MAGIC personas de 15+ quedaban como PEA (la unión con inactivos no encontraba a nadie), lo que subestimaba
+# MAGIC la tasa de esos meses. G7-B5 lo corrigió (lectura de CSV por nombre de columna) y hoy la bandera
+# MAGIC coincide con `OCUPADO + DESOCUPADO` en los 12 meses. Aquí la PEA se sigue definiendo como
+# MAGIC `OCUPADO + DESOCUPADO`, que no depende de la bandera; la celda «Reconciliación» muestra mes a
+# MAGIC mes que ambas definiciones coinciden.
 # MAGIC
 # MAGIC ## Limitación
 # MAGIC

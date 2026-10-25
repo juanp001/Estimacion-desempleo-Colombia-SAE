@@ -10,10 +10,10 @@ hay pesos, puntajes compuestos ni criterios de información.
                                    enlace completo, todos los pares con |r| ≥ umbral; el
                                    representante es el primer integrante elegible por
                                    orden de Cook, con retroceso)
-      → ficha de decisión         (intervalo de la pendiente del Fay-Herriot univariado,
-                                   que incorpora ψ_d; signo esperado como diagnóstico;
-                                   entre las elegibles, las de mayor asociación hasta la
-                                   cota de parsimonia)
+      → ficha de decisión         (q de Benjamini-Hochberg del p-valor de la pendiente del
+                                   Fay-Herriot univariado, que incorpora ψ_d; signo
+                                   esperado como diagnóstico; entre las elegibles, las de
+                                   mayor asociación hasta la cota de parsimonia)
       → verificación              (multicolinealidad del conjunto elegido)
 
 Por qué no se usa el AIC ni un ranking compuesto
@@ -80,8 +80,8 @@ def filtrar_por_robustez(
 
     Args:
         columnas (list[str]): Covariables candidatas.
-        influencia (pd.DataFrame): Salida de `diagnosticos.influencia_por_covariable()`.
-        estabilidad (pd.DataFrame): Salida de `diagnosticos.estabilidad_loo()`.
+        influencia (pd.DataFrame): Salida de `diagnosticos.influencia_fh()`.
+        estabilidad (pd.DataFrame): Salida de `diagnosticos.estabilidad_fh()`.
         umbral_delta (float): Cambio máximo tolerado en la correlación al excluir un dominio.
         alias (dict | None): Mapa código → alias legible.
 
@@ -147,12 +147,11 @@ def filtrar_por_robustez(
 
 def evaluar_elegibilidad(
     candidatas: list,
-    bivariado: pd.DataFrame,
     ic: pd.DataFrame,
     signo_esperado: dict,
+    fh: pd.DataFrame,
+    q_fdr: float,
     exigir_signo: bool = False,
-    fh: pd.DataFrame = None,
-    q_fdr: float = None,
 ) -> pd.DataFrame:
     """Aplica a cada candidata las reglas de elegibilidad de la ficha de decisión.
 
@@ -160,18 +159,16 @@ def evaluar_elegibilidad(
     separadas para que la resolución de redundancia pueda consultarlas al elegir
     representante (G7-B11) sin duplicar la lógica:
 
-    * el intervalo de la pendiente del **Fay-Herriot univariado** contiene el cero → no
-      elegible (G7-B8). El modelo incorpora la varianza de muestreo ψ_d de cada dominio,
-      que la correlación ignora. El intervalo de Fisher de la correlación se conserva en
-      la salida como descripción. Sin `fh` se aplica la regla anterior (Fisher), que solo
-      sirve para reproducir resultados previos.
-    * Con `q_fdr` (G7-B9), la regla anterior se reemplaza por el control de la tasa de
-      falsos descubrimientos: la candidata es elegible si el p-valor de β1, ajustado por
-      Benjamini-Hochberg sobre todas las candidatas (`q_FH`), es menor o igual que `q_fdr`.
-      Exigir un intervalo al 95 % sin cero en cada una de las candidatas es la misma prueba
-      al 5 % repetida sin corrección por multiplicidad.
+    * la pendiente del **Fay-Herriot univariado** (G7-B8) incorpora la varianza de
+      muestreo ψ_d de cada dominio, que la correlación ignora. El intervalo de Fisher de la
+      correlación se conserva en la salida como descripción.
+    * Decide el control de la tasa de falsos descubrimientos (G7-B9): la candidata es
+      elegible si el p-valor de β1, ajustado por Benjamini-Hochberg sobre todas las
+      candidatas (`q_FH`), es menor o igual que `q_fdr`. Exigir un intervalo al 95 % sin
+      cero en cada una de las candidatas es la misma prueba al 5 % repetida sin corrección
+      por multiplicidad.
 
-    Con `fh`, la medida de asociación (`Medida`, `r_interpretable`) es la **correlación
+    La medida de asociación (`Medida`, `r_interpretable`) es la **correlación
     ponderada del mismo modelo** (G7-B13): la pendiente de β1 en escala de correlación. Así
     el intervalo que decide, el orden de la parsimonia y el signo observado salen de una
     sola medida. Pearson y Spearman quedan en la tabla bivariada como descripción.
@@ -186,14 +183,12 @@ def evaluar_elegibilidad(
 
     Args:
         candidatas (list[str]): Códigos a evaluar.
-        bivariado (pd.DataFrame): Salida de `descriptivos.tabla_bivariada()`.
         ic (pd.DataFrame): Salida de `diagnosticos.tabla_ic_correlacion()`.
         signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
-        exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible.
-        fh (pd.DataFrame | None): Salida de `diagnosticos.fh_univariado()`, opcionalmente
+        fh (pd.DataFrame): Salida de `diagnosticos.fh_univariado()`, opcionalmente
             con la columna `Estabilidad_boot` de `diagnosticos.estabilidad_bootstrap()`.
-        q_fdr (float | None): Tasa de falsos descubrimientos con la que se declara elegible
-            (requiere `fh`). Sin ella decide el intervalo de β1.
+        q_fdr (float): Tasa de falsos descubrimientos con la que se declara elegible.
+        exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible.
 
     Returns:
         pd.DataFrame: Una fila por candidata con `Codigo`, `Medida`, `r_interpretable`,
@@ -204,51 +199,28 @@ def evaluar_elegibilidad(
             `Elegible` (`"sí"`/`"no"`) y `Motivo` (vacío si es elegible).
 
     Example:
-        >>> evaluar_elegibilidad(CANDIDATAS, bivariado, df_ic, SIGNO, fh=df_fh)
+        >>> evaluar_elegibilidad(CANDIDATAS, df_ic, SIGNO, df_fh, Q_FDR_ELEGIBILIDAD)
     """
-    biv = bivariado.set_index("Codigo")
     ic_idx = ic.set_index("Codigo")
-    fh_idx = fh.set_index("Codigo") if fh is not None else None
+    fh_idx = fh.set_index("Codigo")
 
     filas = []
     for codigo in candidatas:
-        if fh_idx is not None:
-            # Una sola medida (G7-B13): la del modelo que decide la elegibilidad.
-            medida = MEDIDA_FH
-            r = float(fh_idx.loc[codigo, "r_ponderada"])
-        else:
-            medida = biv.loc[codigo, "Medida_interpretable"]
-            r = float(
-                biv.loc[codigo, "Spearman_rho"]
-                if medida == "Spearman"
-                else biv.loc[codigo, "Pearson_r"]
-            )
+        # Una sola medida (G7-B13): la del modelo que decide la elegibilidad.
+        medida = MEDIDA_FH
+        r = float(fh_idx.loc[codigo, "r_ponderada"])
         esperado = signo_esperado.get(codigo, "±")
         observado = "+" if r > 0 else "-"
         coherente = (
             "—" if esperado == "±" else ("sí" if observado == esperado else "no")
         )
-        if fh_idx is not None and q_fdr is not None:
-            f = fh_idx.loc[codigo]
-            sin_evidencia = f["q_FH"] > q_fdr
-            texto_evidencia = (
-                f"p-valor de la pendiente del Fay-Herriot univariado ajustado por "
-                f"Benjamini-Hochberg sobre {len(fh_idx)} candidatas: q = {f['q_FH']:.3f} > "
-                f"{q_fdr} (p sin ajustar = {f['p_FH']:.3f})"
-            )
-        elif fh_idx is not None:
-            f = fh_idx.loc[codigo]
-            sin_evidencia = f["IC_FH_contiene_cero"] == "sí"
-            texto_evidencia = (
-                f"el intervalo de la pendiente del Fay-Herriot univariado "
-                f"[{f['IC_FH_inf']:.3g}, {f['IC_FH_sup']:.3g}] contiene el cero"
-            )
-        else:
-            sin_evidencia = ic_idx.loc[codigo, "IC_contiene_cero"] == "sí"
-            texto_evidencia = (
-                f"el intervalo de la correlación [{ic_idx.loc[codigo, 'IC_inf']:.2f}, "
-                f"{ic_idx.loc[codigo, 'IC_sup']:.2f}] contiene el cero"
-            )
+        f = fh_idx.loc[codigo]
+        sin_evidencia = f["q_FH"] > q_fdr
+        texto_evidencia = (
+            f"p-valor de la pendiente del Fay-Herriot univariado ajustado por "
+            f"Benjamini-Hochberg sobre {len(fh_idx)} candidatas: q = {f['q_FH']:.3f} > "
+            f"{q_fdr} (p sin ajustar = {f['p_FH']:.3f})"
+        )
 
         if sin_evidencia:
             motivo = texto_evidencia
@@ -268,10 +240,9 @@ def evaluar_elegibilidad(
             "IC_sup": float(ic_idx.loc[codigo, "IC_sup"]),
             "IC_contiene_cero": ic_idx.loc[codigo, "IC_contiene_cero"],
         }
-        if fh_idx is not None:
-            for columna in COLUMNAS_FH:
-                if columna in fh_idx.columns:
-                    fila[columna] = fh_idx.loc[codigo, columna]
+        for columna in COLUMNAS_FH:
+            if columna in fh_idx.columns:
+                fila[columna] = fh_idx.loc[codigo, columna]
         fila["Elegible"] = "no" if motivo else "sí"
         fila["Motivo"] = motivo
         filas.append(fila)
@@ -388,18 +359,17 @@ def resolver_redundancia(
 
 def ficha_decision(
     candidatas: list,
-    bivariado: pd.DataFrame,
     ic: pd.DataFrame,
     robustez: pd.DataFrame,
     redundancia: pd.DataFrame,
     signo_esperado: dict,
+    fh: pd.DataFrame,
+    q_fdr: float,
     alias: dict = None,
     dimension: dict = None,
     p_maximo: int = 4,
     exigir_signo: bool = False,
-    fh: pd.DataFrame = None,
     forma: pd.DataFrame = None,
-    q_fdr: float = None,
 ) -> tuple:
     """Construye la ficha de decisión de cada candidata y elige el conjunto final.
 
@@ -410,22 +380,19 @@ def ficha_decision(
     2. No es representante de su grupo de redundancia → ``descartada``. Con retroceso
        (G7-B11) el representante ya es el primer integrante elegible del grupo, de modo
        que este paso no elimina una dimensión que tenía una covariable elegible.
-    3. El intervalo de la pendiente del Fay-Herriot univariado, que pesa cada dominio por
-       ``1/(Â + ψ_d)``, contiene el cero → ``no elegible``: la evidencia no determina
-       siquiera el signo de la asociación (G7-B8). El intervalo de Fisher de la correlación
-       queda en la ficha como descripción; sin `fh` decide él, como antes. Con `q_fdr`
-       (G7-B9) la regla es el control de falsos descubrimientos: ``q_FH > q_fdr`` → ``no
-       elegible``, con el p-valor de β1 ajustado por Benjamini-Hochberg sobre todas las
-       candidatas. La ficha muestra además la estabilidad bootstrap si `fh` la trae.
+    3. La pendiente del Fay-Herriot univariado, que pesa cada dominio por ``1/(Â + ψ_d)``
+       (G7-B8), decide con el control de falsos descubrimientos (G7-B9): ``q_FH > q_fdr`` →
+       ``no elegible``, con el p-valor de β1 ajustado por Benjamini-Hochberg sobre todas las
+       candidatas. El intervalo de Fisher de la correlación queda en la ficha como
+       descripción. La ficha muestra además la estabilidad bootstrap si `fh` la trae.
     4. El signo esperado del catálogo es un **diagnóstico, no un filtro** (G7-B12): la
        columna `Signo_coherente` lo registra y, si una covariable elegible tiene signo
        contrario al esperado, su motivo lo advierte para que se interprete en el documento.
        Con `exigir_signo=True` se aplica la regla anterior (signo contrario → ``no
        elegible``), que se usa solo como escenario de sensibilidad.
     5. Entre las ``elegibles`` se seleccionan las `p_maximo` de mayor asociación en valor
-       absoluto. Con `fh`, la asociación es la correlación ponderada del Fay-Herriot
-       univariado, la misma medida que decide la elegibilidad (G7-B13); sin `fh`, el
-       coeficiente que `tabla_bivariada()` declaró interpretable. El resto queda como
+       absoluto. La asociación es la correlación ponderada del Fay-Herriot univariado, la
+       misma medida que decide la elegibilidad (G7-B13). El resto queda como
        ``elegible, no seleccionada por parsimonia``.
     6. La forma funcional es un **diagnóstico** (G7-B13): con `forma`, la ficha registra la
        prueba de curvatura y la comparación con la escala logarítmica, y si una elegible
@@ -433,19 +400,18 @@ def ficha_decision(
 
     Args:
         candidatas (list[str]): Códigos de las candidatas conceptualmente elegibles.
-        bivariado (pd.DataFrame): Salida de `descriptivos.tabla_bivariada()`.
         ic (pd.DataFrame): Salida de `diagnosticos.tabla_ic_correlacion()`.
         robustez (pd.DataFrame): Salida de `filtrar_por_robustez()`.
         redundancia (pd.DataFrame): Salida de `resolver_redundancia()`.
         signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
+        fh (pd.DataFrame): Salida de `diagnosticos.fh_univariado()` (G7-B8).
+        q_fdr (float): Tasa de falsos descubrimientos de la elegibilidad (G7-B9).
         alias (dict | None): Mapa código → alias legible.
         dimension (dict | None): Mapa código → dimensión conceptual.
         p_maximo (int): Número máximo de covariables seleccionadas.
         exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible
             (escenario de sensibilidad de G7-B12).
-        fh (pd.DataFrame | None): Salida de `diagnosticos.fh_univariado()` (G7-B8).
         forma (pd.DataFrame | None): Salida de `diagnosticos.forma_funcional()` (G7-B13).
-        q_fdr (float | None): Tasa de falsos descubrimientos de la elegibilidad (G7-B9).
 
     Returns:
         tuple[list, pd.DataFrame]: (seleccionadas, ficha). `seleccionadas` conserva el orden
@@ -456,8 +422,9 @@ def ficha_decision(
         ValueError: Si ninguna candidata resulta elegible.
 
     Example:
-        >>> seleccionadas, ficha = ficha_decision(CANDIDATAS, bivariado, df_ic, df_robustez,
-        ...                                       df_redundancia, SIGNO, ALIAS, DIMENSION)
+        >>> seleccionadas, ficha = ficha_decision(
+        ...     CANDIDATAS, df_ic, df_robustez, df_redundancia, SIGNO, df_fh,
+        ...     Q_FDR_ELEGIBILIDAD, ALIAS, DIMENSION)
     """
     alias = alias or {}
     dimension = dimension or {}
@@ -466,12 +433,11 @@ def ficha_decision(
     # Mismas reglas que usa resolver_redundancia() para el retroceso (G7-B11).
     eleg = evaluar_elegibilidad(
         candidatas,
-        bivariado,
         ic,
         signo_esperado,
+        fh,
+        q_fdr,
         exigir_signo=exigir_signo,
-        fh=fh,
-        q_fdr=q_fdr,
     ).set_index("Codigo")
     columnas_fh = [c for c in COLUMNAS_FH if c in eleg.columns]
     forma_idx = forma.set_index("Codigo") if forma is not None else None
@@ -546,14 +512,11 @@ def ficha_decision(
                 f"elegible; puesto {i + 1} de {len(elegibles)} por asociación "
                 f"(|{fila['Medida']}| = {fila['abs_r']:.2f}), fuera de la cota de {p_maximo} covariables"
             )
-        if q_fdr is not None and "q_FH" in fila:
+        ficha.loc[idx, "Motivo"] += f"; q de Benjamini-Hochberg = {fila['q_FH']:.3f}"
+        if "Estabilidad_boot" in fila:
             ficha.loc[
                 idx, "Motivo"
-            ] += f"; q de Benjamini-Hochberg = {fila['q_FH']:.3f}"
-            if "Estabilidad_boot" in fila:
-                ficha.loc[
-                    idx, "Motivo"
-                ] += f", estabilidad bootstrap = {fila['Estabilidad_boot']:.2f}"
+            ] += f", estabilidad bootstrap = {fila['Estabilidad_boot']:.2f}"
         if forma_idx is not None and fila["Forma_funcional"] == "revisar":
             ficha.loc[idx, "Motivo"] += (
                 f"; forma funcional a revisar (curvatura p = {fila['p_curvatura']:.3f}, "
@@ -761,13 +724,10 @@ def seleccionar_covariables(
     Example:
         >>> sel, ficha = seleccionar_covariables(df_cand, CANDIDATAS, Y, PSI, nombres, SIGNO)
     """
-    from analisis.shared import descriptivos as desc
-
     alias = alias or {}
     y = np.asarray(y, dtype=float)
     psi = np.asarray(psi, dtype=float)
     with contextlib.redirect_stdout(io.StringIO()):
-        bivariado = desc.tabla_bivariada(df, candidatas, y, alias=alias)
         df_ic = diag.tabla_ic_correlacion(df, candidatas, y, alias=alias, alfa=alfa_ic)
         df_fh = diag.fh_univariado(df, candidatas, y, psi, alias=alias, alfa=alfa_ic)
         influencia = diag.influencia_fh(
@@ -782,7 +742,7 @@ def seleccionar_covariables(
         if not supervivientes:
             return [], pd.DataFrame()
         elegibilidad = evaluar_elegibilidad(
-            candidatas, bivariado, df_ic, signo_esperado, fh=df_fh, q_fdr=q_fdr
+            candidatas, df_ic, signo_esperado, fh=df_fh, q_fdr=q_fdr
         )
         _, redundancia = resolver_redundancia(
             df,
@@ -795,7 +755,6 @@ def seleccionar_covariables(
         try:
             seleccionadas, ficha = ficha_decision(
                 candidatas,
-                bivariado,
                 df_ic,
                 robustez,
                 redundancia,

@@ -122,7 +122,7 @@ estimacion_directa.py                            │
                             │
                             ▼
                   analisis_descriptivo.py — catálogo de literatura + descriptivo
-                  eda_seleccion_covariables.py — selección cualitativa (→ 4)
+                  eda_seleccion_covariables.py — selección cualitativa (→ hasta 4; en 2018, 3)
                             │
                             ▼
                   tesis.preprocesamiento.covariables_seleccionadas

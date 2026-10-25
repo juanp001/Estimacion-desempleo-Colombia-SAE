@@ -1,8 +1,4 @@
 # Databricks notebook source
-# /// script
-# [tool.databricks.environment]
-# environment_version = "5"
-# ///
 # DBTITLE 1,Documentación
 # MAGIC %md
 # MAGIC # Análisis descriptivo de los datos previo al modelamiento
@@ -51,7 +47,8 @@
 # MAGIC ciudades y 7 ciudades con su área metropolitana (Medellín, Cali, Barranquilla, Bucaramanga,
 # MAGIC Manizales, Pereira y Cúcuta A.M.), porque el campo `AREA` de la GEIH no separa los municipios
 # MAGIC del A.M. En esos 7 dominios las covariables son el promedio de los municipios miembro
-# MAGIC ponderado por su población de 15 años y más (`adicion_covariables`). Con
+# MAGIC ponderado con el denominador propio de cada indicador (valor agregado, población
+# MAGIC total, superficie, etc.; G7-B1, `adicion_covariables`). Con
 # MAGIC ese tamaño los estadísticos descriptivos son informativos pero los contrastes de
 # MAGIC hipótesis tienen poca potencia. Por eso esta etapa no ejecuta ninguna prueba formal:
 # MAGIC describe, y deja los diagnósticos que sí tienen consecuencia para la etapa de
@@ -238,10 +235,10 @@ print(desc.interpretar_respuesta(Y, SE, entidades))
 # MAGIC ocupan cada extremo.
 # MAGIC
 # MAGIC Es una **descripción territorial**, no un contraste de dependencia espacial: no evalúa
-# MAGIC si los territorios próximos entre sí tienen tasas parecidas. El modelo Fay-Herriot
-# MAGIC clásico del proyecto supone efectos independientes por dominio y no se ajustan
-# MAGIC variantes espaciales, de modo que ese contraste no tendría consecuencia sobre ninguna
-# MAGIC decisión.
+# MAGIC si los territorios próximos entre sí tienen tasas parecidas. El contraste de
+# MAGIC dependencia espacial (I de Moran) se aplica a los residuos del benchmark y de las
+# MAGIC variantes espaciales en `modelo/fay_herriot_espacial.py`, no a la tasa cruda, que
+# MAGIC hereda la autocorrelación de las covariables.
 
 # COMMAND ----------
 

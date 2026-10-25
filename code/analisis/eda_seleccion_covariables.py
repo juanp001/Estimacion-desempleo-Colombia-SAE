@@ -20,7 +20,7 @@
 # MAGIC |---|---|---|
 # MAGIC | Sensibilidad al umbral de correlación | **No se hace** | Contaría cuántas covariables superan umbrales sobre un conjunto ya recortado por ese mismo umbral. |
 # MAGIC | Shapiro-Wilk sobre las covariables | **No se hace** | El modelo supone normalidad de los efectos aleatorios y de los errores de muestreo, no de las covariables. |
-# MAGIC | Índice de Moran (sobre la respuesta y sobre los residuos) | **No se hace** | El modelo Fay-Herriot clásico supone efectos independientes por dominio y el proyecto no ajusta variantes espaciales, de modo que el contraste no cambia ninguna decisión. |
+# MAGIC | Índice de Moran (sobre la respuesta y sobre los residuos) | **No se hace aquí** | El selector de covariables no lo necesita: el contraste de dependencia espacial se aplica a los residuos del benchmark y de las variantes espaciales en `modelo/fay_herriot_espacial.py`, donde sí informa la comparación entre el Fay-Herriot clásico y el espacial. |
 # MAGIC | Búsqueda exhaustiva de especificaciones por AIC | **No se hace** | Con 23 dominios produciría docenas de especificaciones equivalentes y reutilizaría los datos que ajustan el modelo; la elección entre ellas volvería a ser una regla añadida. La comparación entre especificaciones se hace en el notebook del modelo (significancia de los coeficientes y AIC). |
 # MAGIC | Ranking compuesto C y Q, nivel de respaldo L | **No se usan** | Pesos y topes arbitrarios; el nivel L complicaría el análisis sin decidir nada. |
 # MAGIC | Modelo Fay-Herriot univariado por covariable | **Se hace** | La respuesta tiene error de muestreo de varianza ψ_d distinta en cada dominio; el modelo la incorpora y la correlación no (G7-B8). Su p-valor para la pendiente, ajustado por Benjamini-Hochberg sobre todas las candidatas (G7-B9), decide la elegibilidad; Pearson, Spearman y Fisher quedan como descripción. |
@@ -139,9 +139,9 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # MAGIC cambia de un dominio a otro. Pearson y Spearman dan el mismo peso a todos. Por eso se
 # MAGIC ajusta, para cada covariable, el **Fay-Herriot univariado**
 # MAGIC θ̂_d = β0 + β1·x_d + u_d + e_d, con Var(u_d) = A estimada por REML: la misma estructura
-# MAGIC del modelo final, que pesa cada dominio por 1/(Â + ψ_d). Si el intervalo al 95 % de β1
-# MAGIC contiene el cero, la evidencia no determina siquiera el signo de la asociación y la
-# MAGIC covariable no es elegible. La correlación y su intervalo de Fisher se conservan como
+# MAGIC del modelo final, que pesa cada dominio por 1/(Â + ψ_d). Su intervalo al 95 % de β1 y
+# MAGIC su p-valor describen la asociación; la elegibilidad la decide el q de
+# MAGIC Benjamini-Hochberg (ver «Multiplicidad»). La correlación y su intervalo de Fisher se conservan como
 # MAGIC descripción. La columna `r_ponderada` expresa la pendiente del modelo en escala de
 # MAGIC correlación y `Razon_pesos` (peso máximo / peso mínimo) muestra cuánto se aparta el
 # MAGIC ajuste de uno con pesos iguales.
@@ -167,9 +167,10 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # MAGIC candidatas (`q_FH`): es elegible la que tiene `q_FH ≤ Q_FDR_ELEGIBILIDAD` (0,10), lo que
 # MAGIC controla en 10 % la proporción esperada de falsos descubrimientos entre las elegibles. Es
 # MAGIC un tamizaje previo al modelo; la decisión final sobre los coeficientes la toma el
-# MAGIC notebook del modelo. Como lectura complementaria, que no depende de la aproximación
-# MAGIC normal, se informa la **estabilidad bootstrap**: la proporción de réplicas con
-# MAGIC remuestreo de dominios en que el intervalo de β1 excluye el cero con el mismo signo.
+# MAGIC notebook del modelo. Como lectura descriptiva se informa la **estabilidad
+# MAGIC bootstrap**: la proporción de réplicas válidas con remuestreo de dominios en que el
+# MAGIC intervalo de Wald de β1 excluye el cero con el mismo signo (se omiten y se cuentan en
+# MAGIC `Replicas_omitidas` las réplicas en que la covariable queda constante).
 # MAGIC
 # MAGIC La tabla trae también el **signo esperado** del catálogo. Es un **diagnóstico de
 # MAGIC coherencia sustantiva, no un filtro** (G7-B12): una asociación de signo contrario a la
@@ -349,7 +350,7 @@ cook_por_codigo = df_influencia.set_index("Codigo")["Cook_max"].to_dict()
 # Reglas de elegibilidad de la ficha (q de Benjamini-Hochberg del FH univariado), para el
 # retroceso (G7-B11).
 df_elegibilidad = sel.evaluar_elegibilidad(
-    CANDIDATAS, bivariado, df_ic, SIGNO, fh=df_fh, q_fdr=Q_FDR_ELEGIBILIDAD
+    CANDIDATAS, df_ic, SIGNO, fh=df_fh, q_fdr=Q_FDR_ELEGIBILIDAD
 )
 
 robustas, df_redundancia = sel.resolver_redundancia(
@@ -397,7 +398,6 @@ display(spark.createDataFrame(df_redundancia))
 # DBTITLE 1,Ficha de decisión y conjunto seleccionado
 SELECCIONADAS, df_ficha = sel.ficha_decision(
     CANDIDATAS,
-    bivariado,
     df_ic,
     df_robustez,
     df_redundancia,
@@ -438,6 +438,7 @@ for codigo in SELECCIONADAS:
 # COMMAND ----------
 
 # DBTITLE 1,Multicolinealidad del conjunto elegido
+SELECCIONADAS_PREVIAS = list(SELECCIONADAS)
 SELECCIONADAS, df_vif, sustituciones = sel.ajustar_por_vif(
     df_cand, SELECCIONADAS, ELEGIBLES_RESTANTES, vif_max=VIF_MAXIMO, alias=ALIAS
 )
@@ -447,6 +448,8 @@ if sustituciones:
     # La ficha refleja el conjunto final, no el previo a la verificación.
     for mensaje in sustituciones:
         print(f"  sustitución: {mensaje}")
+    entran_vif = [c for c in SELECCIONADAS if c not in SELECCIONADAS_PREVIAS]
+    salen_vif = [c for c in SELECCIONADAS_PREVIAS if c not in SELECCIONADAS]
     df_ficha["Decision"] = np.where(
         df_ficha["Codigo"].isin(SELECCIONADAS),
         "seleccionada",
@@ -456,11 +459,33 @@ if sustituciones:
             df_ficha["Decision"],
         ),
     )
-    df_ficha["Motivo"] = np.where(
-        df_ficha["Decision"].isin(["seleccionada", "no seleccionada"]),
-        df_ficha["Motivo"] + " (ajustado por multicolinealidad)",
-        df_ficha["Motivo"],
-    )
+
+    # Solo se anotan las que entran o salen por VIF; el resto conserva su motivo. El tramo
+    # «dentro/fuera de la cota» ya no describe a esas dos, así que se reemplaza.
+    def motivo_vif(codigo, motivo):
+        """(str, str) → str: motivo de la ficha con la nota de VIF si entra o sale."""
+        if codigo in salen_vif:
+            return (
+                motivo.replace(
+                    ", dentro de la cota de",
+                    ", fuera del conjunto final tras el VIF; cota de",
+                )
+                + "; sale por multicolinealidad (VIF)"
+            )
+        if codigo in entran_vif:
+            return (
+                motivo.replace(
+                    ", fuera de la cota de",
+                    ", dentro del conjunto final tras el VIF; cota de",
+                )
+                + "; entra por multicolinealidad (VIF)"
+            )
+        return motivo
+
+    df_ficha["Motivo"] = [
+        motivo_vif(codigo, motivo)
+        for codigo, motivo in zip(df_ficha["Codigo"], df_ficha["Motivo"])
+    ]
 
 df_verificacion = df_vif.assign(
     Umbral_VIF=VIF_MAXIMO,
@@ -481,7 +506,6 @@ df_verificacion = df_vif.assign(
 # DBTITLE 1,Sensibilidad: selección sin las covariables de signo inesperado
 df_elegibilidad_signo = sel.evaluar_elegibilidad(
     CANDIDATAS,
-    bivariado,
     df_ic,
     SIGNO,
     exigir_signo=True,
@@ -498,7 +522,6 @@ _, df_redundancia_signo = sel.resolver_redundancia(
 )
 seleccionadas_signo, df_ficha_signo = sel.ficha_decision(
     CANDIDATAS,
-    bivariado,
     df_ic,
     df_robustez,
     df_redundancia_signo,
@@ -590,7 +613,7 @@ for _, entrada in reporte_catalogo.iterrows():
         "Dimension": entrada["Dimension"],
         "Signo_esperado": entrada["Signo_esperado"],
         "Prefiltrado": entrada["Estado"],
-        "Pearson_r": None,
+        "r_ponderada": None,
         "IC_contiene_cero": None,
         "IC_FH_contiene_cero": None,
         "q_FH": None,
@@ -610,7 +633,7 @@ for _, entrada in reporte_catalogo.iterrows():
         filas_traza.append(fila)
         continue
 
-    fila["Pearson_r"] = float(ficha_idx.loc[codigo, "r_interpretable"])
+    fila["r_ponderada"] = float(ficha_idx.loc[codigo, "r_interpretable"])
     fila["IC_contiene_cero"] = ficha_idx.loc[codigo, "IC_contiene_cero"]
     fila["IC_FH_contiene_cero"] = ficha_idx.loc[codigo, "IC_FH_contiene_cero"]
     fila["q_FH"] = float(ficha_idx.loc[codigo, "q_FH"])

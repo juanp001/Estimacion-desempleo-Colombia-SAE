@@ -164,10 +164,11 @@ class FayHerriotClasico(ModeloAreaPequena):
 
     Asume V = diag(Di + A): cada dominio tiene un efecto aleatorio i.i.d.
     con varianza A común, independiente entre dominios. Es el modelo de
-    áreas pequeñas más simple de la familia Fay-Herriot; las variantes
-    espacial (matriz de proximidad) y temporal (AR(1) por dominio) viven
-    en módulos separados que heredan de `ModeloAreaPequena` pero con su
-    propia estructura de V.
+    áreas pequeñas más simple de la familia Fay-Herriot; la variante
+    espacial (matriz de proximidad, `FayHerriotEspacial` en
+    `fay_herriot_espacial.py`) vive en un módulo separado que hereda de
+    `ModeloAreaPequena` pero con su propia estructura de V. No hay variante
+    temporal en el proyecto.
 
     Args / Raises: ver `ModeloAreaPequena`.
 
