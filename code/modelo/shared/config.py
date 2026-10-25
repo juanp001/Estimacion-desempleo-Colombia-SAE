@@ -79,7 +79,7 @@ LOAO_UMBRAL_PRED_PP = 0.5
 # shared/validacion_predictiva.py): covariables del benchmark fijas y procedimiento completo (repite la
 # selección en cada iteración). Para repetir la selección se leen las candidatas pre-filtradas y
 # el diccionario de indicadores; los parámetros de la selección son los de
-# preprocesamiento/shared/config.py (P_MAXIMO, Q_FDR_ELEGIBILIDAD, ...), no se duplican aquí.
+# preprocesamiento/shared/config.py (cota_covariables, Q_FDR_ELEGIBILIDAD, ...), no se duplican aquí.
 TBL_COVARIABLES_PREFILTRADAS = TBL_PREFILTRADAS
 TBL_FH_VALIDACION_CRUZADA = "tesis.modelo.fh_validacion_cruzada"
 TBL_FH_VALIDACION_METRICAS = "tesis.modelo.fh_validacion_cruzada_metricas"

@@ -28,7 +28,7 @@ Tipos de regla
 * ``proxy``: TerriData no publica el denominador exacto y se usa el más cercano disponible (p. ej.
   la población de 15-19 años para la cobertura neta en media, cuyo denominador es la población de
   15-16 años).
-* ``convención``: índices compuestos sin estructura aditiva (desempeño fiscal, IICA), que no tienen
+* ``convención``: índices compuestos sin estructura aditiva (desempeño fiscal), que no tienen
   un valor «de la unión». Se usa el promedio ponderado por población: el valor que en promedio vive
   un habitante del dominio.
 * ``por defecto``: indicadores fuera del catálogo de literatura. Se agregan con la población de 15
@@ -104,7 +104,7 @@ _PORCENTAJE_PERSONAS = (
     "la población (Morales et al., p. 21)."
 )
 
-# Código del catálogo de literatura → regla. Cubre las 19 entradas de CATALOGO_LITERATURA
+# Código del catálogo de literatura → regla. Cubre las 18 entradas de CATALOGO_LITERATURA
 # (analisis/shared/catalogo_literatura.py); adicion_covariables.py falla si falta alguna.
 REGLAS_AGREGACION = {
     # ── Educación ─────────────────────────────────────────────────────────────
@@ -222,14 +222,6 @@ REGLAS_AGREGACION = {
         "sustento": _PER_CAPITA,
     },
     # ── Conflicto y seguridad ─────────────────────────────────────────────────
-    "260020003": {
-        "peso": "POBLACION_TOTAL",
-        "tipo": "convención",
-        "sustento": (
-            "Índice compuesto (DNP) sin estructura aditiva; no tiene un valor de la unión. "
-            "Promedio ponderado por población."
-        ),
-    },
     "060010003": {
         "peso": "POBLACION_TOTAL",
         "tipo": "exacta",

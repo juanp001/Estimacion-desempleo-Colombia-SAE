@@ -24,7 +24,9 @@
 # MAGIC | Búsqueda exhaustiva de especificaciones por AIC | **No se hace** | Con 23 dominios produciría docenas de especificaciones equivalentes y reutilizaría los datos que ajustan el modelo; la elección entre ellas volvería a ser una regla añadida. La comparación entre especificaciones se hace en el notebook del modelo (significancia de los coeficientes y AIC). |
 # MAGIC | Ranking compuesto C y Q, nivel de respaldo L | **No se usan** | Pesos y topes arbitrarios; el nivel L complicaría el análisis sin decidir nada. |
 # MAGIC | Modelo Fay-Herriot univariado por covariable | **Se hace** | La respuesta tiene error de muestreo de varianza ψ_d distinta en cada dominio; el modelo la incorpora y la correlación no (G7-B8). Su p-valor para la pendiente, ajustado por Benjamini-Hochberg sobre todas las candidatas (G7-B9), decide la elegibilidad; Pearson, Spearman y Fisher quedan como descripción. |
-# MAGIC | Influencia y estabilidad | **Se hace** | Distancia de Cook y exclusión de dominios, sobre el mismo Fay-Herriot univariado, como dos evidencias de un único criterio de robustez. |
+# MAGIC | Filtro de robustez (Cook y dejar-uno-fuera) | **No se aplica como filtro (R-03)** | La regla `4/n` sirve para inspeccionar observaciones, no para excluir variables; el umbral de cambio (0,10) queda por debajo del error de muestreo de r con n = 23 y separaba casos casi idénticos. Morales et al. (pp. 453-454) no usan la influencia como criterio de selección. |
+# MAGIC | Influencia y estabilidad | **Se hace, como diagnóstico** | Distancia de Cook y exclusión de dominios, sobre el mismo Fay-Herriot univariado. Se reportan en la ficha (`Robustez`) y su motivo advierte las covariables elegibles que dependen de un dominio; ninguna se descarta. |
+# MAGIC | Soporte en los municipios objetivo | **Se hace, como advertencia (R-02)** | Proporción de los municipios objetivo dentro del rango [mín, máx] de los dominios, sin usar la respuesta. La ficha advierte las que extrapolan (por debajo de `SOPORTE_MINIMO`). Una covariable incompleta en los objetivos no es candidata (condición (iii) del catálogo). |
 # MAGIC | Redundancia | **Se hace** | Un representante por grupo de covariables equivalentes. |
 # MAGIC | Forma funcional | **Se hace** | Curvatura y escala logarítmica en el Fay-Herriot univariado, y residuos parciales del conjunto elegido (G7-B13). Es un diagnóstico: ninguna covariable se transforma, y la ficha advierte las que conviene revisar. |
 # MAGIC | Ficha de decisión | **Se hace** | Reúne por covariable la evidencia descriptiva (signo esperado y observado, intervalo de la correlación), el Fay-Herriot univariado y los diagnósticos, y aplica reglas explícitas. |
@@ -36,19 +38,22 @@
 # MAGIC   → 1. asociación:   correlación con la respuesta y su intervalo (descripción), Fay-Herriot
 # MAGIC                       univariado con ψ_d (decisión y medida única), signo esperado y forma
 # MAGIC                       funcional
-# MAGIC   → 2. robustez:     se descarta lo que depende de un solo dominio (en el Fay-Herriot univariado)
+# MAGIC   → 2. robustez:     diagnóstico de si la asociación depende de un solo dominio (en el
+# MAGIC                       Fay-Herriot univariado); se reporta, no descarta
 # MAGIC   → 3. redundancia:  un representante por grupo de covariables equivalentes (el primer
 # MAGIC                       integrante elegible por orden de Cook: retroceso)
 # MAGIC   → 4. decisión:     elegibles = pendiente del FH univariado con q de Benjamini-Hochberg
 # MAGIC                       ≤ Q_FDR_ELEGIBILIDAD (el signo esperado es diagnóstico);
 # MAGIC                       seleccionadas = las de mayor correlación ponderada hasta la cota de
-# MAGIC                       parsimonia
+# MAGIC                       parsimonia, `cota_covariables(n)` = n // 10 (R-07); el soporte en los
+# MAGIC                       objetivos se advierte
 # MAGIC   → 5. verificación: multicolinealidad y residuos parciales del conjunto elegido
 # MAGIC ```
 # MAGIC
 # MAGIC ## Salidas
 # MAGIC
-# MAGIC * `tesis.preprocesamiento.diagnosticos_covariables` (incluye la decisión de robustez)
+# MAGIC * `tesis.preprocesamiento.diagnosticos_covariables` (incluye la lectura de robustez)
+# MAGIC * `tesis.preprocesamiento.soporte_covariables`
 # MAGIC * `tesis.preprocesamiento.redundancia_covariables`
 # MAGIC * `tesis.preprocesamiento.decision_covariables`
 # MAGIC * `tesis.preprocesamiento.verificacion_seleccion`
@@ -91,7 +96,12 @@ from analisis.shared.datos_analisis import cargar_datos_analisis
 
 # ── Carga (la misma que analisis_descriptivo, R-32) ──────────────────────────
 datos = cargar_datos_analisis(
-    spark, TBL_PREFILTRADAS, TBL_DIM_INDICADORES, METADATA_COLS, VARIABLE_OBJETIVO
+    spark,
+    TBL_PREFILTRADAS,
+    TBL_DIM_INDICADORES,
+    METADATA_COLS,
+    VARIABLE_OBJETIVO,
+    tabla_objetivos=TBL_SIN_ENCUESTA,
 )
 df_full = datos["df_full"]
 indicadores_dict = datos["indicadores_dict"]
@@ -106,6 +116,8 @@ CANDIDATAS, ALIAS, SIGNO, DIMENSION = (
     datos["DIMENSION"],
 )
 df_cand = datos["df_cand"]
+# Municipios objetivo con las candidatas (R-02): mide el soporte y exige completitud.
+df_objetivos = datos["df_objetivos"]
 
 print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDIDATAS)}")
 
@@ -120,26 +132,39 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # COMMAND ----------
 
 # DBTITLE 1,Ejecución de la cadena de selección
-SELECCION = sel.ejecutar_seleccion(
-    df_cand,
-    CANDIDATAS,
-    Y,
-    PSI,
-    entidades,
-    SIGNO,
-    alias=ALIAS,
-    dimension=DIMENSION,
-    p_maximo=P_MAXIMO,
-    q_fdr=Q_FDR_ELEGIBILIDAD,
-    umbral_delta=UMBRAL_DELTA_LOO,
-    umbral_redundancia=UMBRAL_REDUNDANCIA,
-    vif_max=VIF_MAXIMO,
-    alfa_ic=ALFA_IC_CORRELACION,
-    replicas_estabilidad=REPLICAS_ESTABILIDAD,
-    semilla=BOOTSTRAP_SEED,
-    con_forma=True,
-    silencioso=False,
-)
+# Cota de parsimonia calculada desde n (R-07): 23 dominios → 2 covariables.
+P_MAXIMO = cota_covariables(len(Y))
+print(f"Cota de covariables: {P_MAXIMO} ({OBS_POR_PARAMETRO} dominios por covariable)")
+try:
+    SELECCION = sel.ejecutar_seleccion(
+        df_cand,
+        CANDIDATAS,
+        Y,
+        PSI,
+        entidades,
+        SIGNO,
+        alias=ALIAS,
+        dimension=DIMENSION,
+        p_maximo=P_MAXIMO,
+        q_fdr=Q_FDR_ELEGIBILIDAD,
+        umbral_delta=UMBRAL_DELTA_LOO,
+        umbral_redundancia=UMBRAL_REDUNDANCIA,
+        vif_max=VIF_MAXIMO,
+        alfa_ic=ALFA_IC_CORRELACION,
+        df_objetivos=df_objetivos,
+        soporte_minimo=SOPORTE_MINIMO,
+        replicas_estabilidad=REPLICAS_ESTABILIDAD,
+        semilla=BOOTSTRAP_SEED,
+        con_forma=True,
+        silencioso=False,
+    )
+except sel.SeleccionVaciaError as error:
+    # Sin covariables elegibles el modelo sería solo de intercepto (R-01): no se escribe una
+    # tabla de seleccionadas vacía y el job se detiene para que se revise la ficha.
+    raise RuntimeError(
+        "Ninguna candidata resulta elegible; el Fay-Herriot sería un modelo de solo "
+        "intercepto. No se escriben tablas: revisar los diagnósticos y el catálogo."
+    ) from error
 # Fay-Herriot univariado (G7-B8) con la estabilidad bootstrap de dominios (G7-B9, descriptiva).
 df_ic, df_fh, df_forma = (
     SELECCION["df_ic"],
@@ -250,24 +275,55 @@ print(
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ### Soporte en los municipios objetivo (R-02)
+# MAGIC
+# MAGIC El modelo se usa para predecir los municipios sin encuesta con `x'β̂`, pero la asociación se
+# MAGIC mide solo en los 23 dominios urbanos. Para cada candidata se calcula, **sin usar la
+# MAGIC respuesta**, qué proporción de los municipios objetivo cae dentro del rango [mín, máx] de
+# MAGIC los dominios: fuera de él la predicción extrapola y su varianza crece con la distancia a la
+# MAGIC muestra (Morales et al., p. 441), y un buen ajuste dentro de la muestra puede dar
+# MAGIC predicciones absurdas fuera de ella (p. 453). Es una **advertencia, no un filtro**: por
+# MAGIC debajo de `SOPORTE_MINIMO` la ficha lo dice en el motivo de la covariable. La completitud sí
+# MAGIC es condición del catálogo (iii): una candidata con faltantes en los objetivos no entra.
+
+# COMMAND ----------
+
+# DBTITLE 1,Soporte de cada candidata en los municipios objetivo
+df_soporte = SELECCION["soporte"]
+display(spark.createDataFrame(df_soporte))
+con_aviso = df_soporte.loc[df_soporte["Soporte"] == "advertencia", "Alias"].tolist()
+print(
+    f"Soporte ≥ {SOPORTE_MINIMO:.0%} de los objetivos en el rango de los dominios: "
+    f"{len(CANDIDATAS) - len(con_aviso)} de {len(CANDIDATAS)} candidatas; con advertencia: "
+    f"{', '.join(con_aviso) if con_aviso else 'ninguna'}."
+)
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC # 2. Robustez: ¿la asociación depende de un solo dominio?
 # MAGIC
 # MAGIC Con 23 observaciones un único territorio puede determinar la pendiente de una
-# MAGIC regresión. Se combinan dos evidencias que deben cumplirse **a la vez** para descartar,
-# MAGIC ambas sobre el **Fay-Herriot univariado** de la sección 1 (G7-B8):
+# MAGIC regresión. Se calculan dos evidencias sobre el **Fay-Herriot univariado** de la sección 1
+# MAGIC (G7-B8) y se **reportan como diagnóstico (R-03), no como filtro**:
 # MAGIC
 # MAGIC * la distancia de Cook señala que un dominio domina el ajuste (umbral 4/n). Es la
 # MAGIC   misma fórmula que usa el notebook del modelo (`distancia_cook`), con Â fijo;
 # MAGIC * al excluir un dominio y reajustar el modelo, reestimando Â, la correlación ponderada
 # MAGIC   cambia más de `UMBRAL_DELTA_LOO` o la pendiente invierte su signo.
 # MAGIC
-# MAGIC Exigir ambas evita descartar una covariable por tener un valor extremo que, siendo
-# MAGIC grande, no altera la relación. La exclusión recorre los 23 dominios.
+# MAGIC Una covariable «depende de un dominio» si se cumplen ambas (evaluadas sobre cualquier
+# MAGIC dominio). Antes eso la descartaba; con 23 dominios eliminó 12 de 19 candidatas, cuatro
+# MAGIC con q ≤ 0,10. `4/n` es una regla para inspeccionar observaciones, no para excluir variables,
+# MAGIC y el umbral de 0,10 queda por debajo del error de muestreo de r con n = 23. Ahora la
+# MAGIC covariable sigue compitiendo y, si resulta elegible, su motivo en la ficha advierte la
+# MAGIC dependencia para que se interprete en el documento. La exclusión recorre los 23 dominios.
 # MAGIC
 # MAGIC **Ninguna observación se elimina.** Los dominios extremos son territorios reales
 # MAGIC —capitales de gran tamaño, ciudades con historia de conflicto, periferias con baja
-# MAGIC cobertura— y no errores de medición. La consecuencia recae sobre la covariable, que
-# MAGIC deja de considerarse utilizable, no sobre el dato.
+# MAGIC cobertura— y no errores de medición.
+
+# COMMAND ----------
 
 # COMMAND ----------
 
@@ -286,8 +342,9 @@ display(spark.createDataFrame(df_estabilidad))
 # MAGIC distancia de Cook máxima entre los 23 dominios (cuánto domina un solo territorio el
 # MAGIC Fay-Herriot univariado de la tasa sobre esa covariable) y el vertical es cuánto cambia
 # MAGIC la correlación ponderada al excluir el dominio que más la altera. Las líneas grises son los dos
-# MAGIC umbrales. Solo las covariables del cuadrante superior derecho, en rojo, se descartan:
-# MAGIC en ellas un dominio domina la regresión *y* su exclusión cambia la asociación. Una
+# MAGIC umbrales. Las covariables del cuadrante superior derecho, en rojo, «dependen de un
+# MAGIC dominio»: en ellas un dominio domina la regresión *y* su exclusión cambia la asociación
+# MAGIC (o invierte su signo); se reportan, no se descartan. Una
 # MAGIC covariable a la derecha pero abajo tiene un dominio extremo que no altera la relación;
 # MAGIC una arriba pero a la izquierda cambia algo al excluir un dominio sin que ninguno
 # MAGIC domine.
@@ -306,8 +363,8 @@ print(
 
 # COMMAND ----------
 
-# DBTITLE 1,Filtro de robustez
-supervivientes, df_robustez = SELECCION["supervivientes"], SELECCION["df_robustez"]
+# DBTITLE 1,Diagnóstico de robustez
+df_robustez = SELECCION["df_robustez"]
 display(spark.createDataFrame(df_robustez))
 
 # COMMAND ----------
@@ -337,7 +394,7 @@ display(spark.createDataFrame(df_robustez))
 
 # COMMAND ----------
 
-# DBTITLE 1,Resolución de redundancia sobre las covariables robustas
+# DBTITLE 1,Resolución de redundancia sobre las candidatas
 # Con el retroceso (G7-B11) el representante usa las reglas de elegibilidad de la ficha
 # (q de Benjamini-Hochberg del FH univariado), df_elegibilidad.
 df_elegibilidad = SELECCION["df_elegibilidad"]
@@ -351,22 +408,27 @@ display(spark.createDataFrame(df_redundancia))
 # MAGIC
 # MAGIC Una fila por candidata con toda la evidencia reunida: signo esperado y observado,
 # MAGIC coeficiente interpretable, intervalo de la correlación, pendiente del Fay-Herriot
-# MAGIC univariado con su intervalo, resultado de robustez y de redundancia. Sobre ella se aplican, en orden, reglas explícitas:
+# MAGIC univariado con su intervalo, lectura de robustez, soporte en los objetivos y redundancia.
+# MAGIC Sobre ella se aplican, en orden, reglas explícitas:
 # MAGIC
-# MAGIC 1. descartada por robustez → fuera;
+# MAGIC 1. la robustez (R-03) y el soporte (R-02) son **diagnósticos, no filtros**: no descartan,
+# MAGIC    pero el motivo de una covariable elegible advierte si depende de un dominio o extrapola;
 # MAGIC 2. redundante con otra (no representante de su grupo) → fuera; con el retroceso del
 # MAGIC    paso 3 el representante ya es el primer integrante elegible del grupo;
 # MAGIC 3. p-valor de la pendiente del Fay-Herriot univariado (G7-B8) con q de
 # MAGIC    Benjamini-Hochberg mayor que `Q_FDR_ELEGIBILIDAD` → **no elegible**: la evidencia no
-# MAGIC    alcanza para distinguir la asociación del azar entre las 19 candidatas evaluadas
+# MAGIC    alcanza para distinguir la asociación del azar entre las candidatas evaluadas
 # MAGIC    (G7-B9);
-# MAGIC 4. signo observado contrario al mecanismo del catálogo → **se conserva** y su motivo
+# MAGIC 4. signo observado contrario a la asociación del catálogo → **se conserva** y su motivo
 # MAGIC    lo advierte: el signo es un diagnóstico que se interpreta en el documento, no un
 # MAGIC    filtro (G7-B12);
 # MAGIC 5. entre las **elegibles**, se seleccionan las `P_MAXIMO` de mayor correlación
 # MAGIC    ponderada del Fay-Herriot univariado en valor absoluto, la misma medida que decide la
-# MAGIC    elegibilidad (G7-B13). La cota proviene de la parsimonia del proyecto: con 23 dominios
-# MAGIC    el modelo admite del orden de cuatro covariables más el intercepto;
+# MAGIC    elegibilidad (G7-B13). La cota se calcula desde n (R-07): `cota_covariables(n)` =
+# MAGIC    n // 10, es decir 2 con 23 dominios. Es la regla de 10 observaciones por parámetro
+# MAGIC    (convención externa a Morales et al., que piden no sobreparametrizar al predecir fuera
+# MAGIC    de la muestra, p. 453). Con una cota de 2, el modelo compara EC1 con las variantes que
+# MAGIC    quitan una covariable, así que un conjunto de 2 incluye también cada covariable sola;
 # MAGIC 6. forma funcional a revisar → **se conserva** y su motivo lo advierte: la covariable
 # MAGIC    entra en su escala original y la advertencia se resuelve en el documento (G7-B13).
 # MAGIC
@@ -429,26 +491,38 @@ df_verificacion = df_vif.assign(
 
 # DBTITLE 1,Sensibilidad: selección sin las covariables de signo inesperado
 # Reutiliza los diagnósticos de la cadena principal; solo cambia la regla de elegibilidad.
-SELECCION_SIGNO = sel.ejecutar_seleccion(
-    df_cand,
-    CANDIDATAS,
-    Y,
-    PSI,
-    entidades,
-    SIGNO,
-    alias=ALIAS,
-    dimension=DIMENSION,
-    p_maximo=P_MAXIMO,
-    q_fdr=Q_FDR_ELEGIBILIDAD,
-    umbral_delta=UMBRAL_DELTA_LOO,
-    umbral_redundancia=UMBRAL_REDUNDANCIA,
-    vif_max=VIF_MAXIMO,
-    alfa_ic=ALFA_IC_CORRELACION,
-    exigir_signo=True,
-    diagnosticos=SELECCION,
-)
-df_ficha_signo = SELECCION_SIGNO["ficha"]
-seleccionadas_signo = SELECCION_SIGNO["seleccionadas"]
+try:
+    SELECCION_SIGNO = sel.ejecutar_seleccion(
+        df_cand,
+        CANDIDATAS,
+        Y,
+        PSI,
+        entidades,
+        SIGNO,
+        alias=ALIAS,
+        dimension=DIMENSION,
+        p_maximo=P_MAXIMO,
+        q_fdr=Q_FDR_ELEGIBILIDAD,
+        umbral_delta=UMBRAL_DELTA_LOO,
+        umbral_redundancia=UMBRAL_REDUNDANCIA,
+        vif_max=VIF_MAXIMO,
+        alfa_ic=ALFA_IC_CORRELACION,
+        exigir_signo=True,
+        diagnosticos=SELECCION,
+    )
+    df_ficha_signo = SELECCION_SIGNO["ficha"]
+    seleccionadas_signo = SELECCION_SIGNO["seleccionadas"]
+except sel.SeleccionVaciaError:
+    # Si todas las elegibles tienen el signo contrario al esperado, exigirlo no deja ninguna: el
+    # resultado de la sensibilidad es el conjunto vacío, no un error del notebook.
+    seleccionadas_signo = []
+    df_ficha_signo = df_ficha.assign(
+        Decision=np.where(
+            df_ficha["Decision"].isin(["seleccionada", "no seleccionada"]),
+            "no elegible",
+            df_ficha["Decision"],
+        )
+    )
 df_sensibilidad_signo = sel.sensibilidad_signo(
     df_ficha, SELECCIONADAS, df_ficha_signo, seleccionadas_signo, alias=ALIAS
 )
@@ -527,6 +601,8 @@ for _, entrada in reporte_catalogo.iterrows():
         "Cook_max": None,
         "Delta_LOO_max": None,
         "Robustez": None,
+        "Prop_objetivos_en_rango": None,
+        "Soporte": None,
         "Grupo_redundancia": None,
         "Representante": None,
         "Decision_final": None,
@@ -547,6 +623,8 @@ for _, entrada in reporte_catalogo.iterrows():
     fila["Cook_max"] = float(influencia_idx.loc[codigo, "Cook_max"])
     fila["Delta_LOO_max"] = float(estabilidad_idx.loc[codigo, "Delta_max_abs"])
     fila["Robustez"] = ficha_idx.loc[codigo, "Robustez"]
+    fila["Prop_objetivos_en_rango"] = ficha_idx.loc[codigo, "Prop_objetivos_en_rango"]
+    fila["Soporte"] = ficha_idx.loc[codigo, "Soporte"]
     if codigo in redundancia_idx.index:
         fila["Grupo_redundancia"] = int(redundancia_idx.loc[codigo, "Grupo"])
         fila["Representante"] = redundancia_idx.loc[codigo, "Representante"]
@@ -567,11 +645,11 @@ df_diagnosticos = (
     .merge(df_forma.drop(columns=["Alias"]), on="Codigo")
     .merge(df_influencia.drop(columns=["Alias"]), on="Codigo")
     .merge(df_estabilidad.drop(columns=["Alias"]), on="Codigo")
-    # R-63: la decisión de robustez va aquí en lugar de una tabla aparte que repetía
+    # R-63: la lectura de robustez va aquí en lugar de una tabla aparte que repetía
     # Cook_max, Delta_LOO_max e Invierte_signo.
     .merge(
-        df_robustez[["Codigo", "Decision", "Motivo"]].rename(
-            columns={"Decision": "Robustez_decision", "Motivo": "Robustez_motivo"}
+        df_robustez[["Codigo", "Lectura", "Motivo"]].rename(
+            columns={"Lectura": "Robustez_lectura", "Motivo": "Robustez_nota"}
         ),
         on="Codigo",
     )
@@ -580,6 +658,7 @@ df_diagnosticos = (
 for tabla, destino in [
     (df_diagnosticos, TBL_DIAGNOSTICOS),
     (df_redundancia, TBL_REDUNDANCIA),
+    (df_soporte, TBL_SOPORTE),
     (df_ficha, TBL_DECISION),
     (df_verificacion, TBL_VERIFICACION),
     (df_trazabilidad, TBL_TRAZABILIDAD),

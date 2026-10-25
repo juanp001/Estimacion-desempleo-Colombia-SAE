@@ -93,7 +93,12 @@ from analisis.shared.datos_analisis import cargar_datos_analisis
 
 # ── Carga (la misma que eda_seleccion_covariables, R-32) ─────────────────────
 datos = cargar_datos_analisis(
-    spark, TBL_PREFILTRADAS, TBL_DIM_INDICADORES, METADATA_COLS, VARIABLE_OBJETIVO
+    spark,
+    TBL_PREFILTRADAS,
+    TBL_DIM_INDICADORES,
+    METADATA_COLS,
+    VARIABLE_OBJETIVO,
+    tabla_objetivos=TBL_SIN_ENCUESTA,
 )
 df_full = datos["df_full"]
 indicadores_dict = datos["indicadores_dict"]

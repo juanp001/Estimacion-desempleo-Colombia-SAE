@@ -163,7 +163,7 @@ preprocesamiento/adicion_covariables.py
     municipios miembro, con z = **denominador propio de cada indicador** (shared/reglas_agregacion.py,
     G7-B1): valor agregado para % VA por sector, superficie implícita (pob/densidad) para la densidad,
     población total 010010009 para per cápita, IPM, % urbana, % jóvenes, homicidios, banda ancha
-    (exactas), acueducto (proxy) e IDF/IICA (convención: índices); población 10-14 / 15-19 para
+    (exactas), acueducto (proxy) e IDF (convención: índice); población 10-14 / 15-19 para
     coberturas netas, tránsito y Saber 11 (proxy). Fuera del catálogo: PET (15+, EXPR_PESO_POBLACION).
     Toda variable del catálogo debe tener regla (si no, error). NULL si a un miembro le falta el dato;
     error si a un miembro le falta un peso usado. Sustento: Morales p. 425 (x_d = valor del área) y
@@ -202,15 +202,28 @@ analisis/eda_seleccion_covariables.py
     Wald de β1; G7-B13: la misma medida, r ponderada del FH, ordena y fija el signo, y Spearman es solo
     descripción; forma funcional como diagnóstico, diag.forma_funcional: curvatura x² y log vs x por AIC
     ML, sin transformar; la ficha advierte «revisar»)
-  → 2 robustez (sobre el FH univariado, G7-B8: Cook 4/n con la fórmula de distancia_cook, Â fijo, y
-    dejar-uno-fuera reajustando Â sobre la correlación ponderada por 1/(Â+ψ_d)): se descarta solo si
-    Cook > 4/n y el cambio dejar-uno-fuera supera UMBRAL_DELTA_LOO (0.10) o invierte el signo
+  → 2 robustez como **diagnóstico, no filtro** (R-03; sobre el FH univariado, G7-B8: Cook 4/n con la
+    fórmula de distancia_cook, Â fijo, y dejar-uno-fuera reajustando Â sobre la correlación ponderada por
+    1/(Â+ψ_d)): `seleccion.diagnosticar_robustez` lee «depende de un dominio» si Cook > 4/n y el cambio
+    dejar-uno-fuera supera UMBRAL_DELTA_LOO (0.10) o invierte el signo; la ficha lo advierte en el motivo
+    de las elegibles y NO descarta (antes descartaba 12 de 19 candidatas, 4 con q ≤ 0.10). 4/n es una
+    regla para inspeccionar observaciones, no para excluir variables; Morales (pp. 453-454) no usa la
+    influencia para seleccionar
+  → 2b soporte en los municipios objetivo (R-02, `analisis/shared/soporte_objetivos.py`, sin usar la
+    respuesta): proporción de los objetivos dentro de [mín, máx] de los dominios (`Prop_objetivos_en_rango`,
+    `Soporte` en la ficha y tabla soporte_covariables); **advertencia**, no filtro, por debajo de
+    SOPORTE_MINIMO (0.80, convención propia). La completitud sí es condición del catálogo (iii): una
+    candidata con faltantes en `municipios_sin_encuesta` no entra («incompleta en los municipios objetivo»)
   → 3 redundancia (enlace completo: todos los pares del grupo con |r| ≥ 0.80, G7-B10; representante = primer integrante elegible (q de BH del FH ≤ 0.10) por menor Cook máx, con retroceso, G7-B11)
-  → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = q de Benjamini-Hochberg del p de β1 del FH, sobre las 19
-      candidatas, ≤ Q_FDR_ELEGIBILIDAD (0.10), G7-B9; estabilidad bootstrap de dominios descriptiva
+  → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = q de Benjamini-Hochberg del p de β1 del FH, sobre las
+      candidatas (18 activas), ≤ Q_FDR_ELEGIBILIDAD (0.10), G7-B9; estabilidad bootstrap de dominios descriptiva
       (REPLICAS_ESTABILIDAD); el signo
       esperado es diagnóstico, no filtro (columna Signo_coherente, G7-B12); seleccionadas = las
-      P_MAXIMO (4) de mayor |r ponderada|
+      `cota_covariables(n)` = n // 10 (R-07: 2 con 23 dominios; regla de 10 observaciones por parámetro,
+      convención externa a Morales, que pide no sobreparametrizar al predecir fuera de muestra, p. 453)
+      de mayor |r ponderada|. Si no queda ninguna elegible, `ejecutar_seleccion` lanza
+      `SeleccionVaciaError`: el notebook se detiene (modelo solo de intercepto) y la validación cruzada
+      del modelo lo trata como un modelo sin covariables
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
       conjunto (diag.figura_residuos_parciales, G7-B13) y sensibilidad al signo
       (selección repetida exigiendo el signo → sensibilidad_signo_covariables)
@@ -282,7 +295,7 @@ modelo/fay_herriot.py
     (1) **Covariables del benchmark fijas** (solo reajusta β̂ y Â; optimista, la selección vio al dominio
     retirado) y (2) **procedimiento completo**: en cada iteración repite la selección de covariables
     (`analisis/shared/seleccion.seleccionar_covariables`, mismos pasos que `eda_seleccion_covariables`: FH
-    univariado con ψ_d, BH, robustez, redundancia, parsimonia, VIF; sobre las 19 candidatas de
+    univariado con ψ_d, BH, redundancia, parsimonia con la cota calculada desde n, VIF; sobre las 18 candidatas de
     `covariables_prefiltradas`) y la elección del benchmark (`ajustar_benchmark`: conjunto +
     dejar-una-fuera + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
     reproducen EC1 y el benchmark. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
@@ -356,7 +369,7 @@ Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LI
 `CATALOGO_EXCLUIDAS`, `resolver_catalogo`), `descriptivos.py` (figuras e interpretaciones),
 `diagnosticos.py` (IC de Fisher, FH univariado con ψ_d y su Cook y dejar-uno-fuera (G7-B8), forma funcional y
 residuos parciales (G7-B13), VIF, figura de robustez; R-31 quitó las versiones OLS),
-`seleccion.py` (`filtrar_por_robustez`, `resolver_redundancia`, `ficha_decision`, `ajustar_por_vif`),
+`seleccion.py` (`diagnosticar_robustez`, `resolver_redundancia`, `ficha_decision`, `ajustar_por_vif`),
 `ventana_temporal.py` (sensibilidad G7-B2; re-exporta `etiqueta_ventana`, `cierres_trimestrales` y
 `td_dane_ventana`, que viven en `preprocesamiento/shared/ventana.py` porque los usan la estimación directa,
 la auditoría y el modelo).
@@ -471,11 +484,14 @@ Reglas del flujo de selección:
   literatura del proyecto (`compass_artifact_*.md`), resueltas a su código en `tesis.terridata.terridata_bronce`,
   con dato 2018, que superen el pre-filtrado y estén completas en los municipios objetivo. Cada entrada
   trae `signo_esperado` y `referencia`; **no existe nivel de respaldo L**. Las variables del documento sin
-  dato utilizable quedan en `CATALOGO_EXCLUIDAS` con su motivo (hoy 5; los motivos son distintos: sin dato en
-  los dominios con encuesta, serie terminada en 2016, solo departamental, ausente en los municipios objetivo
-  o solo 2022-2023). El catálogo activo tiene 19 entradas. IICA es el proxy documentado de
-  «víctimas/desplazamiento», pero **no es obligatoria**: puede salir del catálogo si no se sostiene. La tasa
-  de tránsito a educación superior se conserva por decisión del proyecto.
+  dato utilizable quedan en `CATALOGO_EXCLUIDAS` con su motivo (hoy 6; los motivos son distintos: sin dato en
+  los dominios con encuesta, serie terminada en 2016, solo departamental, ausente en los municipios objetivo,
+  solo 2022-2023 y el IICA). El catálogo activo tiene 18 entradas. **El IICA (260020003) salió del catálogo
+  (R-01)**: mide la incidencia del conflicto en el propio municipio, no la recepción de desplazados del
+  argumento de Ibáñez (2008); r = 0.92 con homicidios, 13 valores distintos por redondeo y fuera de rango en
+  33 de 83 objetivos. No se sustituyó por otra covariable (`020100002`, migrantes internos, queda como
+  posibilidad no adoptada). Las justificaciones usan lenguaje de asociación, no causal (R-35; Díaz 2016,
+  p. 155). La tasa de tránsito a educación superior se conserva por decisión del proyecto.
 - **Moran y AIC permitidos**: el índice de Moran (sobre residuos del benchmark y de las variantes espaciales)
   y el AIC pueden usarse donde corresponda, incluido el EDA. La comparación entre especificaciones del
   clásico se hace en `modelo/fay_herriot.py`.
@@ -494,7 +510,7 @@ Reglas del flujo de selección:
   sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
 - Parámetros en `preprocesamiento/shared/config.py` (`BOOTSTRAP_REPLICAS`/`BOOTSTRAP_SEED`, umbrales de CV,
   `CV_MINIMO`, `PROP_MODAL_MAXIMA`, `UMBRAL_DUPLICADO`, `UMBRAL_REDUNDANCIA`, `UMBRAL_DELTA_LOO`,
-  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `REPLICAS_ESTABILIDAD`, `P_MAXIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
+  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `REPLICAS_ESTABILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
   (tablas, `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`).
 - **Dominio = ciudad o ciudad A.M.** en preprocesamiento, análisis y modelo (`CODIGO_DOMINIO`,
   `NOMBRE_DOMINIO`, `TIPO_DOMINIO`); `CODIGO_MUNICIPIO`/`MUNICIPIO` solo existen en las tablas de municipios
@@ -510,7 +526,7 @@ Reglas del flujo de selección:
   `VOLUMEN_FIGURAS_MODELO` = `/Volumes/tesis/modelo/figuras` (prefijos `fh_` clásico y `fhe_` espacial,
   `shared/figuras.guardar_figura`).
 - **Advertencia al cambiar la ventana de tiempo** (`anio_estimacion` / `mes_estimacion` / `n_meses_ventana`):
-  si cambia el número de dominios, hay que revisar `P_MAXIMO = 4` a mano, porque asume 23 dominios (n/5). Los
+  si cambia el número de dominios, la cota de covariables se recalcula sola (`cota_covariables(n)` = n // 10). Los
   textos de los notebooks dicen "23 dominios" y la exclusión "sin dato para 2018" del catálogo también es del
   cierre 2018. La ventana anual (12) exige `mes_estimacion = 12`; con el trimestre (3) y otro cierre, la unión
   con TerriData por (ANO, MES) puede quedar vacía porque los indicadores tienen corte a diciembre.

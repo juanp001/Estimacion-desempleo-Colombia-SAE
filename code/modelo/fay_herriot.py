@@ -1022,7 +1022,7 @@ pendientes.agregar(df_influencia, TBL_FH_LOAO_DOMINIOS, PER_MES)
 # COMMAND ----------
 
 # DBTITLE 1,10a-ter. Validación predictiva: covariables fijas y procedimiento completo (G7-B19)
-# Candidatas del catálogo con sus códigos: la selección completa trabaja sobre las 19, no solo
+# Candidatas del catálogo con sus códigos: la selección completa trabaja sobre las 18, no solo
 # sobre las covariables que ya quedaron en el benchmark.
 indicadores_dict = {
     fila["CODIGO_INDICADOR"]: fila["INDICADOR"]

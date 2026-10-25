@@ -215,14 +215,15 @@ conceptuales y los 23 dominios:
    muestreo ψ_d de cada dominio (G7-B8). Su correlación ponderada es la única medida que ordena y fija el
    signo (G7-B13); signo esperado; forma funcional (curvatura y escala logarítmica) como diagnóstico, sin
    transformar covariables.
-2. **Robustez**: sobre el mismo modelo univariado, distancia de Cook (4/n) y exclusión de cada dominio,
-   uno a uno.
+2. **Robustez y soporte** (diagnósticos que se reportan, no filtros; R-03, R-02): sobre el mismo modelo
+   univariado, distancia de Cook (4/n) y exclusión de cada dominio, uno a uno; y la proporción de los
+   municipios objetivo dentro del rango de los dominios. La ficha los advierte sin descartar.
 3. **Redundancia**: grupos por enlace completo, en los que todos los pares tienen |r| ≥ 0.80 (G7-B10); un representante por grupo: el primer integrante elegible en orden de menor Cook máximo, con retroceso (G7-B11).
 4. **Ficha de decisión** (`shared/seleccion.py`): elegible = p-valor de la pendiente del Fay-Herriot
    univariado con q de Benjamini-Hochberg ≤ 0.10 sobre todas las candidatas (G7-B9), con la estabilidad
    bootstrap como lectura complementaria; el signo esperado es un
    diagnóstico, no un filtro (G7-B12), y se reporta la selección con y sin las covariables de signo
-   inesperado; seleccionadas = las `P_MAXIMO` (4) de mayor |r ponderada|.
+   inesperado; seleccionadas = las `cota_covariables(n)` (n // 10 = 2 con 23 dominios, R-07) de mayor |r ponderada|.
 5. **Verificación de multicolinealidad** (VIF ≤ `VIF_MAXIMO`): si falla, se sustituye por la siguiente
    elegible. Residuos parciales del conjunto elegido (G7-B13).
 

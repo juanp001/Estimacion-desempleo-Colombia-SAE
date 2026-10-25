@@ -693,9 +693,10 @@ def figura_robustez(
     """Sitúa cada covariable frente a los dos criterios de robustez, en un solo gráfico.
 
     El eje horizontal es la distancia de Cook máxima y el vertical el cambio máximo en la
-    correlación al excluir un dominio. Las líneas marcan los umbrales: solo las covariables
-    que quedan simultáneamente a la derecha y por encima se descartan, porque solo en ese
-    cuadrante un dominio domina la regresión *y* su exclusión altera la asociación.
+    correlación al excluir un dominio. Las líneas marcan los umbrales: las covariables que
+    quedan simultáneamente a la derecha y por encima (o con inversión de signo) se leen como
+    «depende de un dominio» (R-03): es un diagnóstico, ninguna covariable se descarta por él.
+    La clasificación es la misma de `seleccion.diagnosticar_robustez`.
 
     Args:
         influencia (pd.DataFrame): Salida de `influencia_fh()`.
@@ -715,7 +716,7 @@ def figura_robustez(
 
     fig, ax = plt.subplots(figsize=(8.5, 6))
     descartadas = (unido["Cook_max"] > umbral_cook) & (
-        unido["Delta_max_abs"] > umbral_delta
+        (unido["Delta_max_abs"] > umbral_delta) | (unido["Invierte_signo"] != "—")
     )
 
     ax.scatter(
@@ -725,7 +726,7 @@ def figura_robustez(
         color="steelblue",
         edgecolors="white",
         zorder=3,
-        label="No supera ambos umbrales",
+        label="Estable",
     )
     ax.scatter(
         unido.loc[descartadas, "Cook_max"],
@@ -734,7 +735,7 @@ def figura_robustez(
         color="firebrick",
         edgecolors="white",
         zorder=3,
-        label="Supera ambos umbrales",
+        label="Depende de un dominio",
     )
 
     for _, fila in unido.iterrows():
@@ -816,12 +817,13 @@ def interpretar_robustez(
         f"  Dominios que más veces resultan influyentes: {frecuentes}",
         f"  Covariables cuya correlación cambia más de {umbral_delta} o invierte el signo al excluir un dominio: "
         f"{len(inestables)}",
-        f"  Covariables que cumplen ambas condiciones y se descartan: {len(ambas)}"
+        f"  Covariables que cumplen ambas condiciones («depende de un dominio»; se reportan, "
+        f"no se descartan): {len(ambas)}"
         + (f" ({', '.join(ambas['Alias'])})" if len(ambas) else ""),
     ]
     if len(apalancadas) and not len(ambas):
         lineas.append(
-            "  Lectura: hay dominios extremos, pero ninguno altera por sí solo la asociación; las "
-            "covariables se conservan porque la relación no depende de un único territorio."
+            "  Lectura: hay dominios extremos, pero ninguno altera por sí solo la asociación; la "
+            "relación no depende de un único territorio."
         )
     return "\n".join(lineas)

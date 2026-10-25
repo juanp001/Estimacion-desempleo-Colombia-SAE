@@ -6,7 +6,14 @@ separación de metadatos y la resolución del catálogo de literatura. Esta func
 implementación: un cambio en cómo se leen o resuelven las candidatas se aplica a ambos.
 """
 
-from analisis.shared.catalogo_literatura import mapas_catalogo, resolver_catalogo
+import pandas as pd
+
+from analisis.shared.catalogo_literatura import (
+    CATALOGO_LITERATURA,
+    mapas_catalogo,
+    resolver_catalogo,
+)
+from analisis.shared.soporte_objetivos import columnas_incompletas
 
 
 def cargar_datos_analisis(
@@ -15,6 +22,7 @@ def cargar_datos_analisis(
     tabla_dim_indicadores: str,
     metadata_cols: list,
     variable_objetivo: str,
+    tabla_objetivos: str = None,
 ) -> dict:
     """Lee las covariables pre-filtradas y resuelve el catálogo de candidatas.
 
@@ -29,13 +37,18 @@ def cargar_datos_analisis(
         tabla_dim_indicadores (str): Diccionario código → nombre descriptivo del indicador.
         metadata_cols (list[str]): Columnas de metadatos de la tabla (no son covariables).
         variable_objetivo (str): Columna con la tasa de desempleo directa.
+        tabla_objetivos (str | None): Tabla de los municipios objetivo sin encuesta, con las
+            mismas covariables a nivel municipal (`municipios_sin_encuesta`). Con ella, una
+            candidata incompleta en los objetivos no entra al catálogo activo (condición (iii))
+            y se devuelve `df_objetivos` para medir el soporte (R-02).
 
     Returns:
         dict: Con las claves `df_full` (Spark, tabla pre-filtrada completa),
             `indicadores_dict` (código → nombre), `df_meta` y `df_pd` (pandas: metadatos y
             covariables), `Y`, `SE`, `PSI` y `entidades` (arreglos por dominio),
             `catalogo_activo`, `reporte_catalogo`, `CANDIDATAS`, `ALIAS`, `SIGNO`,
-            `DIMENSION` y `df_cand` (solo las candidatas, en pandas).
+            `DIMENSION`, `df_cand` (solo las candidatas, en pandas) y `df_objetivos` (los
+            municipios objetivo con las candidatas en numérico; None sin `tabla_objetivos`).
 
     Example:
         >>> datos = cargar_datos_analisis(
@@ -68,10 +81,25 @@ def cargar_datos_analisis(
     # Etiqueta de cada dominio: la ciudad o la ciudad con su área metropolitana («Cali A.M.»).
     entidades = df_meta["NOMBRE_DOMINIO"].values
 
+    df_objetivos_crudo, incompletas = None, None
+    if tabla_objetivos is not None:
+        df_objetivos_crudo = spark.table(tabla_objetivos).toPandas()
+        # Solo se revisan las columnas del catálogo que sobrevivieron al pre-filtrado; las demás
+        # columnas pre-filtradas no son candidatas.
+        del_catalogo = [
+            e["codigo"] for e in CATALOGO_LITERATURA if e["codigo"] in df_pd.columns
+        ]
+        incompletas = columnas_incompletas(df_objetivos_crudo, del_catalogo)
+
     catalogo_activo, reporte_catalogo = resolver_catalogo(
-        indicadores_dict, list(df_pd.columns)
+        indicadores_dict, list(df_pd.columns), incompletas_objetivos=incompletas
     )
     CANDIDATAS, ALIAS, SIGNO, DIMENSION = mapas_catalogo(catalogo_activo)
+    df_objetivos = None
+    if df_objetivos_crudo is not None:
+        df_objetivos = df_objetivos_crudo[CANDIDATAS].apply(
+            pd.to_numeric, errors="coerce"
+        )
     return {
         "df_full": df_full,
         "indicadores_dict": indicadores_dict,
@@ -88,4 +116,5 @@ def cargar_datos_analisis(
         "SIGNO": SIGNO,
         "DIMENSION": DIMENSION,
         "df_cand": df_pd[CANDIDATAS].copy(),
+        "df_objetivos": df_objetivos,
     }
