@@ -6,7 +6,8 @@ fallo de unión. Este módulo da dos controles:
 
 * ``llaves_sin_pareja``: por período y módulo, cuántas llaves no encuentran pareja en la tabla
   de referencia (características generales, o fuerza de trabajo para inactivos) y cuántas
-  están duplicadas.
+  están duplicadas. Revisa las uniones en las dos direcciones (R-17): también los factores de
+  ``dim_fex`` sin persona y las personas de 15 años y más que faltan en fuerza de trabajo.
 * ``reconciliar_fuerza_trabajo``: por período y dominio, conteos de PET, PEA, PEI, OC y DS, y
   las personas que rompen las identidades PEA = OC + DS y PET = PEA + PEI.
 """
@@ -63,9 +64,23 @@ def llaves_sin_pareja(
     de donde sale su ``FEX_C18`` (en el marco nuevo el factor viene en el archivo, G7-B6); una
     persona sin factor detiene ``geih_oro`` antes de escribir la tabla.
 
+    Las uniones también se revisan en la dirección contraria (R-17), porque el LEFT JOIN de
+    ``geih_oro`` no las ve:
+
+    * ``FEX_SIN_CG``: registros de ``dim_fex`` sin persona en características generales del
+      marco antiguo. No cambian la estimación (oro parte de características generales), pero
+      muestran si el archivo de factores trae viviendas que la base no tiene. En 2018 son 9.866
+      (unas 280 viviendas por mes, ``DIRECTORIO`` 4518316-4804436, ≈ 41 mil personas
+      expandidas por mes), probablemente San Andrés, que la GEIH publica aparte (DANE,
+      Metodología GEIH 2016, p. 10).
+    * ``PET_SIN_FT``: personas de 15 años y más de características generales que no están en
+      fuerza de trabajo. El LEFT JOIN de ``geih_oro`` les daría PET = 0 y PEA = 0 sin aviso, y
+      ``reconciliar_fuerza_trabajo`` no las ve porque filtra ``PET = 1``. Se usa 15 años porque
+      es la PET del marco nuevo y está contenida en la del antiguo (10 y 12 años).
+
     Args:
         cg (DataFrame): ``caracteristicas_generales_consolidado`` (``PK``, ``PER``, ``MES``,
-            ``MARCO``).
+            ``MARCO``, ``EDAD``).
         ft (DataFrame): ``fuerza_trabajo_consolidado``.
         no (DataFrame): ``no_ocupados_consolidado``.
         oc (DataFrame): ``ocupados_consolidado``.
@@ -91,6 +106,13 @@ def llaves_sin_pareja(
         _resumen_llaves(
             "CG_SIN_FEX", cg.filter(F.col("MARCO") == "ANTIGUO"), fex
         ).withColumn("REFERENCIA", F.lit("FEX")),
+        # R-17: las mismas uniones vistas desde el otro lado
+        _resumen_llaves(
+            "FEX_SIN_CG", fex, cg.filter(F.col("MARCO") == "ANTIGUO")
+        ).withColumn("REFERENCIA", F.lit("CG")),
+        _resumen_llaves("PET_SIN_FT", cg.filter(F.col("EDAD") >= 15), ft).withColumn(
+            "REFERENCIA", F.lit("FT")
+        ),
     ]
     return (
         reduce(lambda a, b: a.unionByName(b), partes)

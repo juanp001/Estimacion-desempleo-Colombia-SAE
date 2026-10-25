@@ -27,6 +27,12 @@
 # MAGIC Después de escribir la tabla se verifican, solo con PASS/FAIL (no detienen el notebook):
 # MAGIC * `llaves_sin_pareja`: % de llaves de cada módulo sin pareja en características generales
 # MAGIC   (inactivos frente a fuerza de trabajo, porque esa unión define la PEA del marco antiguo).
+# MAGIC   Desde R-17 también en la dirección contraria:
+# MAGIC   * `PET_SIN_FT`: personas de 15 años y más sin registro en fuerza de trabajo (el LEFT JOIN
+# MAGIC     les daría PET = 0 y PEA = 0 sin aviso). PASS/FAIL.
+# MAGIC   * `FEX_SIN_CG`: registros de `dim_fex` sin persona en características generales. Solo AVISO,
+# MAGIC     porque no cambian la estimación: en 2018 son 9.866 (≈ 280 viviendas por mes,
+# MAGIC     `DIRECTORIO` 4518316-4804436), probablemente San Andrés, que la GEIH publica aparte.
 # MAGIC * `reconciliacion_fuerza_trabajo`: por período y dominio, PET, PEA, PEI, OC y DS, y las
 # MAGIC   personas que rompen PEA = OC + DS o PET = PEA + PEI.
 # MAGIC
@@ -155,9 +161,15 @@ print(
     .assign(PCT_SIN_PAREJA=lambda d: (100 * d.N_SIN_PAREJA / d.N_LLAVES).round(4))
     .to_string()
 )
+# R-17: FEX_SIN_CG solo avisa; los factores sin persona no entran a oro (parte de CG)
+SOLO_AVISO = {"FEX_SIN_CG"}
 for modulo, g in pdf_llaves.groupby("MODULO"):
     ok = g.N_SIN_PAREJA.sum() == 0 and g.N_DUPLICADAS.sum() == 0
-    print(f"{'PASS' if ok else 'FAIL'}: {modulo} sin llaves huérfanas ni duplicadas")
+    if ok:
+        print(f"PASS: {modulo} sin llaves huérfanas ni duplicadas")
+    else:
+        estado = "AVISO" if modulo in SOLO_AVISO else "FAIL"
+        print(f"{estado}: {modulo} tiene llaves huérfanas o duplicadas")
     if not ok:
         print(g[(g.N_SIN_PAREJA > 0) | (g.N_DUPLICADAS > 0)].to_string(index=False))
 
