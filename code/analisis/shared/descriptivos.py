@@ -28,6 +28,14 @@ matplotlib.rcParams["axes.grid"] = True
 matplotlib.rcParams["grid.linestyle"] = ":"
 matplotlib.rcParams["grid.alpha"] = 0.4
 
+# Matplotlib 3.9 renombró `labels` a `tick_labels` en `Axes.boxplot` (R-34); el job corre en
+# un entorno cuya versión puede ser anterior, así que se elige el nombre según la versión.
+_ARG_ETIQUETAS_BOXPLOT = (
+    "tick_labels"
+    if tuple(int(v) for v in matplotlib.__version__.split(".")[:2]) >= (3, 9)
+    else "labels"
+)
+
 
 def guardar_figura(fig, nombre: str, directorio: str = None) -> str:
     """Guarda una figura en el directorio de salida y devuelve su ruta.
@@ -248,9 +256,9 @@ def figura_territorial(
     """Distribución territorial de la variable respuesta, ordenada por magnitud.
 
     Descripción territorial, no contraste espacial: muestra qué dominios se sitúan en cada
-    extremo, sin evaluar hipótesis alguna sobre dependencia entre vecinos. El modelo
-    Fay-Herriot clásico del proyecto supone efectos independientes por dominio, de modo que
-    no se realiza ningún contraste de autocorrelación espacial.
+    extremo, sin evaluar hipótesis alguna sobre dependencia entre vecinos. El contraste de
+    autocorrelación espacial (I de Moran) se hace sobre los residuos de los modelos en
+    `modelo/fay_herriot_espacial.py`, no sobre la tasa cruda.
 
     Args:
         y (np.ndarray): Estimación directa por dominio.
@@ -311,7 +319,7 @@ def figura_panel_boxplots(df: pd.DataFrame, columnas: list, alias: dict = None):
         datos,
         vert=False,
         patch_artist=True,
-        labels=etiquetas,
+        **{_ARG_ETIQUETAS_BOXPLOT: etiquetas},
         boxprops=dict(facecolor="lightsteelblue", color="steelblue"),
         medianprops=dict(color="navy", linewidth=2),
         flierprops=dict(

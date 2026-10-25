@@ -8,12 +8,12 @@ sigue saliendo de `preprocesamiento/estimacion_directa.py`.
 
 Dos decisiones de construcción:
 
-- **PEA = OCUPADO + DESOCUPADO.** En `tesis.geih_oro.mercado_laboral` la bandera `PEA` está mal
-  en enero-marzo de 2018 (todas las personas de 15+ quedan como PEA porque la unión con inactivos
-  no encuentra a nadie y `PET` trae códigos de departamento), lo que baja la tasa de esos meses
-  entre 3 y 8 puntos. La identidad PEA = ocupados + desocupados reproduce exactamente la cifra
-  del DANE en Ene-Mar 2018 y coincide con la bandera en los demás meses, así que se usa aquí;
-  `reconciliacion_pea` deja la diferencia a la vista. La corrección de fondo corresponde a G7-B5.
+- **PEA = OCUPADO + DESOCUPADO.** En `tesis.geih_oro.mercado_laboral` la bandera `PEA` estaba
+  mal en enero-marzo de 2018 (todas las personas de 15+ quedaban como PEA porque la unión con
+  inactivos no encontraba a nadie), lo que bajaba la tasa de esos meses entre 3 y 8 puntos.
+  G7-B5 lo corrigió y hoy la bandera coincide con la identidad PEA = ocupados + desocupados en
+  los 12 meses. Se conserva esta definición, que no depende de la bandera; `reconciliacion_pea`
+  deja la diferencia a la vista (hoy cero).
 - **TD anual oficial reconstruida.** El anexo DANE no publica la TD anual por ciudad. Como las
   cifras trimestrales son promedios de tres meses, la TD anual es la razón de las sumas de los
   cuatro trimestres que no se pisan: TD = Σ_q DS_q / Σ_q PEA_q. `validar_formula_anual` comprueba
@@ -169,8 +169,9 @@ def reconciliacion_pea(spark, meses: list) -> pd.DataFrame:
             (tasas expandidas de los dominios GEIH con cada definición de PEA).
 
     Casos de uso:
-        Evidencia para G7-B5: en Ene-Mar 2018 `N_DIFERENCIA` es igual a los inactivos y la tasa
-        con la bandera queda subestimada; en los meses sanos la diferencia es cero.
+        Comprobación posterior a G7-B5: antes de la corrección, en Ene-Mar 2018
+        `N_DIFERENCIA` era igual a los inactivos y la tasa con la bandera quedaba subestimada;
+        hoy la diferencia es cero en los 12 meses.
     """
     dominios_capital = (
         spark.table(TBL_DIM_DOMINIO)

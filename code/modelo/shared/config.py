@@ -79,7 +79,7 @@ LOAO_UMBRAL_PRED_PP = 0.5
 # shared/validacion_predictiva.py): covariables del benchmark fijas y procedimiento completo (repite la
 # selección en cada iteración). Para repetir la selección se leen las candidatas pre-filtradas y
 # el diccionario de indicadores; los parámetros de la selección son los de
-# preprocesamiento/shared/config.py (P_MAXIMO, Q_FDR_ELEGIBILIDAD, ...), no se duplican aquí.
+# preprocesamiento/shared/config.py (cota_covariables, Q_FDR_ELEGIBILIDAD, ...), no se duplican aquí.
 TBL_COVARIABLES_PREFILTRADAS = TBL_PREFILTRADAS
 TBL_FH_VALIDACION_CRUZADA = "tesis.modelo.fh_validacion_cruzada"
 TBL_FH_VALIDACION_METRICAS = "tesis.modelo.fh_validacion_cruzada_metricas"
@@ -197,10 +197,37 @@ TBL_FHE_PERFIL_RHO = "tesis.modelo.fhe_perfil_rho"
 TBL_FHE_VALIDACION = "tesis.modelo.fhe_validacion_cruzada"
 TBL_FHE_COEFICIENTES = "tesis.modelo.fhe_coeficientes"
 TBL_FHE_PREDICCION_OBJETIVO = "tesis.modelo.fhe_prediccion_objetivo"
+# R-16: β̂, EE y p del clásico y del espacial lado a lado, por escenario y estructura.
+TBL_FHE_COEFICIENTES_COMPARACION = "tesis.modelo.fhe_coeficientes_comparacion"
+# R-42: sensibilidad al centroide del nodo de cada A.M. (capital frente a media de miembros).
+TBL_FHE_SENSIBILIDAD_CENTROIDE = "tesis.modelo.fhe_sensibilidad_centroide"
+# R-13: ρ̂ de la estructura completa según qué objetivos entran como nodos sin dato.
+TBL_FHE_SENSIBILIDAD_RHO = "tesis.modelo.fhe_sensibilidad_rho_objetivos"
 
+# R-45: las figuras del modelo (clásico, prefijo fh_, y espacial, prefijo fhe_) se muestran y se
+# guardan en este volumen del esquema modelo. El bundle no crea volúmenes: debe existir antes
+# de correr el job.
+VOLUMEN_FIGURAS_MODELO = "/Volumes/tesis/modelo/figuras"
+
+# R-13: la estructura "completa" impone el SAR sobre dominios + objetivos y evalúa la
+# verosimilitud marginal de los dominios (MML de Benedetti et al., 2024, ecs. 18-20; no es el
+# estimador de Saei y Chambers, que el artículo distingue en la p. 148). La "muestra" es W solo
+# entre dominios con encuesta (Petrucci y Salvati). Los códigos internos no cambian; estos son
+# los nombres para el texto.
+ETIQUETA_ESTRUCTURA = {
+    "completa": "MML (Benedetti et al., 2024)",
+    "muestra": "Muestra (Petrucci-Salvati)",
+}
 # Escenarios de la matriz de proximidad W: (nombre, tipo, parámetro). `knn` = k vecinos más
 # cercanos (parámetro k); `inversa` = peso 1/d^potencia (parámetro potencia). Se comparan varios
 # porque con 23 dominios dispersos la elección de W puede cambiar la conclusión.
+# Criterio de los valores (R-42; no hay un valor "correcto" que los datos identifiquen):
+#  · k = 3 es la conectividad mínima con la que ninguna ciudad queda aislada tras simetrizar y
+#    cada nodo informa a al menos tres vecinos; k = 5 suaviza más y acerca W a la distancia
+#    inversa. Con k > 5, con 23 nodos, W deja de ser local.
+#  · potencia 1 decae lento (una ciudad lejana sigue pesando); potencia 2 es el decaimiento de
+#    gravedad, que concentra el peso en los vecinos cercanos. Los cuatro escenarios acotan ese
+#    rango y la conclusión se reporta sobre todos, no sobre uno elegido por los datos.
 ESCENARIOS_W = [
     ("knn3", "knn", 3),
     ("knn5", "knn", 5),
@@ -215,6 +242,8 @@ N_PERMUTACIONES_MORAN = 9999
 # Réplicas del bootstrap paramétrico del MSE espacial (Morales et al., §18.2.3).
 BOOTSTRAP_ESPACIAL_REPLICAS = 500
 SEMILLA_ESPACIAL = 42
-# Criterio para preferir el modelo espacial al clásico: ΔAIC (clásico − espacial) mayor que
-# DELTA_AIC_EQUIVALENTE (2) y prueba de razón de verosimilitudes de ρ = 0 con p < ALFA_LRT.
+# Criterio para preferir el modelo espacial al clásico (R-43): prueba de razón de verosimilitudes
+# de ρ = 0 con p < ALFA_LRT, en la estructura "muestra" (R-13). El ΔAIC (clásico − espacial) se
+# reporta como descripción: con un parámetro de diferencia, ΔAIC = LRT − 2 de forma exacta, así
+# que "ΔAIC > 2" y "p(LRT) < 0.05" son el mismo estadístico y no son dos respaldos.
 ALFA_LRT = 0.05

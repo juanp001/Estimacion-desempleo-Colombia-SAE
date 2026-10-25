@@ -142,6 +142,96 @@ def estandarizar_filas(proximidad: np.ndarray) -> np.ndarray:
     return proximidad / suma
 
 
+def proximidad_escenario(distancias: np.ndarray, tipo: str, parametro) -> np.ndarray:
+    """Proximidad cruda (sin estandarizar) de un escenario de W.
+
+    Args:
+        distancias (np.ndarray): Matriz (m, m) de distancias en km.
+        tipo (str): ``"knn"`` (k vecinos más cercanos) o ``"inversa"`` (peso 1/d^potencia).
+        parametro (float): k (knn) o potencia (inversa).
+
+    Returns:
+        np.ndarray: Proximidad cruda simétrica con diagonal nula.
+
+    Raises:
+        ValueError: Si `tipo` no es válido.
+
+    Example:
+        >>> proximidad_escenario(np.array([[0.0, 1, 5], [1, 0, 2], [5, 2, 0]]), "knn", 1).tolist()
+        [[0.0, 1.0, 0.0], [1.0, 0.0, 1.0], [0.0, 1.0, 0.0]]
+    """
+    if tipo == "knn":
+        return proximidad_knn(distancias, int(parametro))
+    if tipo == "inversa":
+        return proximidad_inversa(distancias, float(parametro))
+    raise ValueError(f"Tipo de W desconocido: {tipo}")
+
+
+def proximidad_total(
+    distancias: np.ndarray, n: int, tipo: str, parametro, estructura: str
+) -> np.ndarray:
+    """Proximidad de todas las unidades para un escenario y una estructura.
+
+    Con la estructura ``"muestra"`` el bloque de los `n` dominios con encuesta se reconstruye
+    solo con las distancias entre ellos (los k vecinos se buscan únicamente entre dominios con
+    encuesta); el resto de la matriz no se usa.
+
+    Args:
+        distancias (np.ndarray): Matriz (n + r, n + r) en el orden [dominios, objetivos].
+        n (int): Número de dominios con encuesta.
+        tipo (str): ``"knn"`` o ``"inversa"``.
+        parametro (float): k o potencia.
+        estructura (str): ``"completa"`` o ``"muestra"``.
+
+    Returns:
+        np.ndarray: Matriz (n + r, n + r).
+
+    Example:
+        >>> P = proximidad_total(D_km, 23, "knn", 3, "muestra")  # doctest: +SKIP
+    """
+    P = proximidad_escenario(distancias, tipo, parametro)
+    if estructura == "muestra":
+        P = P.copy()
+        P[:n, :n] = proximidad_escenario(distancias[:n, :n], tipo, parametro)
+    return P
+
+
+def filas_moran(
+    escenario: str,
+    variables: dict,
+    W: np.ndarray,
+    n_perm: int = 9999,
+    semilla: int = 42,
+    **extra,
+) -> list:
+    """I de Moran de varias variables sobre la misma W, una fila por variable.
+
+    Args:
+        escenario (str): Nombre del escenario de W.
+        variables (dict[str, np.ndarray]): Etiqueta → valores por dominio (residuos, tasa).
+        W (np.ndarray): Matriz estandarizada por filas entre los dominios con encuesta.
+        n_perm (int): Permutaciones de `moran_i`.
+        semilla (int): Semilla de las permutaciones.
+        **extra: Columnas adicionales constantes de cada fila (p. ej. ``estructura="muestra"``).
+
+    Returns:
+        list[dict]: Filas con `escenario`, `variable`, las columnas extra y las de `moran_i`.
+
+    Example:
+        >>> filas_moran("knn3", {"tasa": y}, W, n_perm=99)[0]["variable"]  # doctest: +SKIP
+        'tasa'
+    """
+    return [
+        {
+            "escenario": escenario,
+            "variable": etiqueta,
+            **extra,
+            **moran_i(v, W, n_perm, semilla),
+        }
+        for etiqueta, v in variables.items()
+    ]
+
+
 def moran_i(valores: np.ndarray, W: np.ndarray, n_perm: int = 9999, semilla: int = 42):
     """I de Moran con p-valor por permutaciones.
 

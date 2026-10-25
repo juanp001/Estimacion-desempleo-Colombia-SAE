@@ -91,7 +91,8 @@ class FayHerriotEspacial(ModeloAreaPequena):
         Tras `ajustar()`: los del contrato de `ModeloAreaPequena` (sin `gamma_i`, que en el caso
         espacial no es un escalar por dominio) más `rho_hat`, `theta_hat`, `loglik_ml`,
         `mse_aprox`, `pred_objetivo`, `sintetico_objetivo`, `mse_objetivo`,
-        `mse_sintetico_objetivo`, `n_bootstrap_validas` y `perfil_rho_` (si se llama).
+        `mse_sintetico_objetivo`, `mse_aprox_objetivo` (g1 + g2 del predictor con efecto de cada
+        objetivo, solo estructura completa), `n_bootstrap_validas` y `perfil_rho_` (si se llama).
 
     Raises:
         ValueError: Si `proximidad` no tiene el tamaño esperado, `estructura` no es válida o
@@ -381,6 +382,15 @@ class FayHerriotEspacial(ModeloAreaPequena):
         if self.r and self.estructura == "completa":
             self.pred_objetivo = aj["pred"][n:]
             self.sintetico_objetivo = self.X_obj @ self.beta_hat
+            # MSE de primer orden del predictor con efecto de cada objetivo: g1 + g2 (no incluye
+            # la incertidumbre de σ²_u y ρ, que sí recoge el bootstrap).
+            G_os = aj["G"][n:, :n]
+            A_obj = self.X_obj - G_os @ aj["Vi"] @ self.X
+            g1_obj = np.diag(aj["G"][n:, n:]) - np.einsum(
+                "ij,jk,ik->i", G_os, aj["Vi"], G_os
+            )
+            g2_obj = np.einsum("ij,jk,ik->i", A_obj, self.cov_beta, A_obj)
+            self.mse_aprox_objetivo = g1_obj + g2_obj
         elif self.r:
             self.pred_objetivo = None
             self.sintetico_objetivo = self.X_obj @ self.beta_hat
@@ -460,7 +470,9 @@ def validacion_dejar_uno_fuera(
 
     Returns:
         pd.DataFrame: Una fila por dominio con `y`, `D`, `pred_clasico`, `pred_sint_esp`,
-            `pred_espacial`, `rho_hat` y `A_hat` del ajuste sin ese dominio.
+            `pred_espacial`, `pred_nulo` (solo intercepto), la varianza de cada predictor
+            (`var_pred_*`, sin el ruido de la directa) y `rho_hat` y `A_hat` del ajuste sin
+            ese dominio.
 
     Example:
         >>> cv = validacion_dejar_uno_fuera(cov, df, "TASA", "SE", P, df_obj)
@@ -479,11 +491,15 @@ def validacion_dejar_uno_fuera(
         clasico = FayHerriotClasico(covars, df_tr, y_col, se_col)
         clasico.ajustar()
         x_d = np.concatenate([[1.0], df.iloc[d][covars].values.astype(float)])
+        # Modelo de solo intercepto: la referencia de la habilidad predictiva (R-15).
+        nulo = FayHerriotClasico([], df_tr, y_col, se_col)
+        nulo.ajustar()
 
         esp = FayHerriotEspacial(
             covars, df_tr, y_col, se_col, P, df_obj_d, estructura=estructura
         )
         esp.ajustar()
+        x_esp = esp.X_obj[0]
         filas.append(
             {
                 "indice": d,
@@ -496,6 +512,17 @@ def validacion_dejar_uno_fuera(
                     if esp.pred_objetivo is not None
                     else np.nan
                 ),
+                "pred_nulo": float(nulo.beta_hat[0]),
+                # Varianza del predictor (sin el ruido de la directa): x'Cov(β̂)x + Â para los
+                # sintéticos (Morales et al., p. 441) y g1 + g2 para el predictor con efecto.
+                "var_pred_clasico": float(x_d @ clasico.cov_beta @ x_d + clasico.A_hat),
+                "var_pred_sint_esp": float(x_esp @ esp.cov_beta @ x_esp + esp.A_hat),
+                "var_pred_espacial": (
+                    float(esp.mse_aprox_objetivo[0])
+                    if esp.pred_objetivo is not None
+                    else np.nan
+                ),
+                "var_pred_nulo": float(nulo.cov_beta[0, 0] + nulo.A_hat),
                 "rho_hat": esp.rho_hat,
                 "A_hat": esp.A_hat,
             }
@@ -503,29 +530,48 @@ def validacion_dejar_uno_fuera(
     return pd.DataFrame(filas)
 
 
-def metricas_validacion(cv: pd.DataFrame) -> pd.DataFrame:
-    """Resume la validación dejar-uno-fuera: RMSE, MAE y RMSE corregido por el ruido de y_d.
+NOTA_VALIDACION_OPTIMISTA = (
+    "La validación deja un dominio fuera pero conserva las covariables del benchmark, que la "
+    "selección eligió viendo a ese dominio: es optimista. Con el procedimiento completo, el "
+    "clásico pasa de RMSE 2.08 a 3.08 (frente a 2.77 del modelo de solo intercepto), así que "
+    "las diferencias entre predictores deben leerse como orden de magnitud con n = 23."
+)
+
+
+def metricas_validacion(cv: pd.DataFrame, nivel: float = 0.95) -> pd.DataFrame:
+    """Resume la validación dejar-uno-fuera: error, errores estandarizados, cobertura y habilidad.
 
     El referente y_d es una estimación con varianza D_d, así que el error cuadrático observado
     sobrestima el verdadero en promedio D_d; el RMSE corregido resta ese ruido
-    (sqrt(media(e² − D)), NaN si la media es negativa).
+    (sqrt(media(e² − D)), NaN si la media es negativa). Las mismas métricas que el clásico
+    (`validacion_predictiva.metricas_validacion_cruzada`, R-15): `Z_psi = e/√D`,
+    `Z_pred = e/√(D + var_pred)` (media, desviación, cuadrado medio), `Cobertura` (proporción
+    con |Z_pred| ≤ cuantil normal de `nivel`) y `Habilidad_vs_nulo = 1 − MSE/MSE_nulo` frente
+    al modelo de solo intercepto evaluado igual (positiva si mejora). Con covariables fijas la
+    validación es optimista (`NOTA_VALIDACION_OPTIMISTA`).
 
     Args:
         cv (pd.DataFrame): Salida de `validacion_dejar_uno_fuera`.
+        nivel (float): Nivel nominal de la cobertura de `Z_pred`.
 
     Returns:
         pd.DataFrame: Una fila por predictor (`pred_clasico`, `pred_sint_esp`, `pred_espacial`)
-            con `RMSE`, `MAE`, `RMSE_corregido` y `sesgo_medio`.
+            con `RMSE`, `MAE`, `RMSE_corregido`, `sesgo_medio`, `Z_psi_media`, `Z_psi_sd`,
+            `Z_pred_media`, `Z_pred_sd`, `Cobertura`, `Nivel_nominal` y `Habilidad_vs_nulo`.
 
     Example:
-        >>> metricas_validacion(cv)
+        >>> metricas_validacion(cv)  # doctest: +SKIP
     """
+    corte = float(stats.norm.ppf(0.5 + nivel / 2))
+    mse_nulo = float(np.mean((cv["pred_nulo"] - cv["y"]) ** 2))
     filas = []
     for col in ["pred_clasico", "pred_sint_esp", "pred_espacial"]:
         e = cv[col] - cv["y"]
         if e.isna().all():
             continue
         corregido = float(np.mean(e**2 - cv["D"]))
+        z_psi = e / np.sqrt(cv["D"])
+        z_pred = e / np.sqrt(cv["D"] + cv["var_pred" + col[4:]])
         filas.append(
             {
                 "predictor": col,
@@ -535,6 +581,13 @@ def metricas_validacion(cv: pd.DataFrame) -> pd.DataFrame:
                     float(np.sqrt(corregido)) if corregido > 0 else np.nan
                 ),
                 "sesgo_medio": float(e.mean()),
+                "Z_psi_media": float(z_psi.mean()),
+                "Z_psi_sd": float(z_psi.std(ddof=1)),
+                "Z_pred_media": float(z_pred.mean()),
+                "Z_pred_sd": float(z_pred.std(ddof=1)),
+                "Cobertura": float((z_pred.abs() <= corte).mean()),
+                "Nivel_nominal": nivel,
+                "Habilidad_vs_nulo": float(1 - np.mean(e**2) / mse_nulo),
             }
         )
     return pd.DataFrame(filas)

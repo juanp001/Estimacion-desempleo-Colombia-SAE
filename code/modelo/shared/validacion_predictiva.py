@@ -135,7 +135,7 @@ def crear_selector(
         signo_esperado (dict): Código → signo esperado.
         alias (dict): Código → alias legible.
         dimension (dict): Código → dimensión conceptual.
-        cfg_pre (module): `preprocesamiento.shared.config` (P_MAXIMO, Q_FDR_ELEGIBILIDAD,
+        cfg_pre (module): `preprocesamiento.shared.config` (cota_covariables, Q_FDR_ELEGIBILIDAD,
             UMBRAL_DELTA_LOO, UMBRAL_REDUNDANCIA, VIF_MAXIMO, ALFA_IC_CORRELACION).
         y_col (str): Columna de la estimación directa.
         se_col (str): Columna del error estándar de la directa (ψ_d = SE²).
@@ -174,7 +174,7 @@ def crear_selector(
             signo_esperado,
             alias=alias,
             dimension=dimension,
-            p_maximo=cfg_pre.P_MAXIMO,
+            p_maximo=cfg_pre.cota_covariables(len(df_entrenamiento)),
             q_fdr=cfg_pre.Q_FDR_ELEGIBILIDAD,
             umbral_delta=cfg_pre.UMBRAL_DELTA_LOO,
             umbral_redundancia=cfg_pre.UMBRAL_REDUNDANCIA,

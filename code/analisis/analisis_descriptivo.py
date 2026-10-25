@@ -1,8 +1,4 @@
 # Databricks notebook source
-# /// script
-# [tool.databricks.environment]
-# environment_version = "5"
-# ///
 # DBTITLE 1,Documentación
 # MAGIC %md
 # MAGIC # Análisis descriptivo de los datos previo al modelamiento
@@ -51,7 +47,8 @@
 # MAGIC ciudades y 7 ciudades con su área metropolitana (Medellín, Cali, Barranquilla, Bucaramanga,
 # MAGIC Manizales, Pereira y Cúcuta A.M.), porque el campo `AREA` de la GEIH no separa los municipios
 # MAGIC del A.M. En esos 7 dominios las covariables son el promedio de los municipios miembro
-# MAGIC ponderado por su población de 15 años y más (`adicion_covariables`). Con
+# MAGIC ponderado con el denominador propio de cada indicador (valor agregado, población
+# MAGIC total, superficie, etc.; G7-B1, `adicion_covariables`). Con
 # MAGIC ese tamaño los estadísticos descriptivos son informativos pero los contrastes de
 # MAGIC hipótesis tienen poca potencia. Por eso esta etapa no ejecuta ninguna prueba formal:
 # MAGIC describe, y deja los diagnósticos que sí tienen consecuencia para la etapa de
@@ -92,32 +89,22 @@ if CODE_DIR not in sys.path:
 
 from preprocesamiento.shared.config import *
 from analisis.shared import descriptivos as desc
-from analisis.shared.catalogo_literatura import resolver_catalogo, mapas_catalogo
+from analisis.shared.datos_analisis import cargar_datos_analisis
 
-# ── Carga ─────────────────────────────────────────────────────────────────────
-df_full = spark.table(TBL_PREFILTRADAS)
-indicadores_dict = {
-    fila["CODIGO_INDICADOR"]: fila["INDICADOR"]
-    for fila in spark.table(TBL_DIM_INDICADORES)
-    .select("CODIGO_INDICADOR", "INDICADOR")
-    .collect()
-}
-
-cols_covariables = [c for c in df_full.columns if c not in METADATA_COLS]
-df_cov_spark = df_full.select(cols_covariables)
-for nombre in [
-    f.name for f in df_cov_spark.schema.fields if str(f.dataType) == "StringType()"
-]:
-    df_cov_spark = df_cov_spark.withColumn(nombre, F.col(nombre).cast("double"))
-
-df_meta = df_full.select(METADATA_COLS).toPandas()
-df_pd = df_cov_spark.toPandas()
-
-Y = df_meta[VARIABLE_OBJETIVO].values
-SE = df_meta["SE_BOOTSTRAP_PCT"].values
-PSI = SE**2  # varianza de muestreo que el modelo toma como conocida
-# Etiqueta de cada dominio: la ciudad o la ciudad con su área metropolitana («Cali A.M.»).
-entidades = df_meta["NOMBRE_DOMINIO"].values
+# ── Carga (la misma que eda_seleccion_covariables, R-32) ─────────────────────
+datos = cargar_datos_analisis(
+    spark,
+    TBL_PREFILTRADAS,
+    TBL_DIM_INDICADORES,
+    METADATA_COLS,
+    VARIABLE_OBJETIVO,
+    tabla_objetivos=TBL_SIN_ENCUESTA,
+)
+df_full = datos["df_full"]
+indicadores_dict = datos["indicadores_dict"]
+df_meta, df_pd = datos["df_meta"], datos["df_pd"]
+# PSI = SE²: varianza de muestreo que el modelo toma como conocida.
+Y, SE, PSI, entidades = datos["Y"], datos["SE"], datos["PSI"], datos["entidades"]
 
 df_meta["VARIANZA_MUESTREO"] = PSI
 
@@ -149,12 +136,15 @@ print(f"Covariables pre-filtradas: {df_pd.shape[1]}")
 # COMMAND ----------
 
 # DBTITLE 1,Resolución del catálogo de elegibilidad conceptual
-catalogo_activo, reporte_catalogo = resolver_catalogo(
-    indicadores_dict, list(df_pd.columns)
+reporte_catalogo = datos["reporte_catalogo"]
+CANDIDATAS, ALIAS, SIGNO, DIMENSION = (
+    datos["CANDIDATAS"],
+    datos["ALIAS"],
+    datos["SIGNO"],
+    datos["DIMENSION"],
 )
-CANDIDATAS, ALIAS, SIGNO, DIMENSION = mapas_catalogo(catalogo_activo)
 
-df_cand = df_pd[CANDIDATAS].copy()
+df_cand = datos["df_cand"]
 NOMBRES = {c: indicadores_dict.get(c, c) for c in CANDIDATAS}
 
 display(spark.createDataFrame(reporte_catalogo))
@@ -238,10 +228,10 @@ print(desc.interpretar_respuesta(Y, SE, entidades))
 # MAGIC ocupan cada extremo.
 # MAGIC
 # MAGIC Es una **descripción territorial**, no un contraste de dependencia espacial: no evalúa
-# MAGIC si los territorios próximos entre sí tienen tasas parecidas. El modelo Fay-Herriot
-# MAGIC clásico del proyecto supone efectos independientes por dominio y no se ajustan
-# MAGIC variantes espaciales, de modo que ese contraste no tendría consecuencia sobre ninguna
-# MAGIC decisión.
+# MAGIC si los territorios próximos entre sí tienen tasas parecidas. El contraste de
+# MAGIC dependencia espacial (I de Moran) se aplica a los residuos del benchmark y de las
+# MAGIC variantes espaciales en `modelo/fay_herriot_espacial.py`, no a la tasa cruda, que
+# MAGIC hereda la autocorrelación de las covariables.
 
 # COMMAND ----------
 

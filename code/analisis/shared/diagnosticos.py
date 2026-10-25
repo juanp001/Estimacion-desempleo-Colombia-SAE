@@ -11,9 +11,7 @@ este módulo produce evidencia destinada a una decisión concreta:
   todas las candidatas decide la elegibilidad (G7-B9); `estabilidad_bootstrap()` la
   acompaña como lectura descriptiva.
 * `influencia_fh()` y `estabilidad_fh()` determinan, sobre ese mismo modelo, si la
-  asociación depende de un único dominio. `influencia_por_covariable()` y
-  `estabilidad_loo()` son sus versiones por mínimos cuadrados ordinarios, sin ψ_d, que se
-  conservan como referencia.
+  asociación depende de un único dominio.
 * `forma_funcional()` y `figura_residuos_parciales()` examinan si la forma lineal es
   adecuada antes de fijar el predictor (G7-B13): curvatura, escala logarítmica y residuos
   parciales del conjunto elegido. Son diagnósticos; no transforman covariables.
@@ -30,19 +28,19 @@ estructura del modelo que después se ajusta. Así la decisión se alinea con el
 correlaciones quedan como descripción.
 
 Todos son diagnósticos de estadística básica, elegidos porque su lectura es directa y se
-sostiene con 23 dominios. No se calcula el índice de Moran: el modelo Fay-Herriot clásico
-supone efectos aleatorios independientes por dominio y el proyecto no ajusta variantes
-espaciales, de modo que el contraste no tiene consecuencia sobre ninguna decisión. Tampoco
-se contrasta la normalidad de las covariables, que el modelo no supone.
+sostiene con 23 dominios. El índice de Moran no se calcula aquí, sobre las covariables ni
+sobre la respuesta: el proyecto sí admite el contraste, pero se aplica a los residuos del
+benchmark y de las variantes espaciales en `modelo/fay_herriot_espacial.py`, donde informa
+la decisión entre el Fay-Herriot clásico y el espacial. Tampoco se contrasta la normalidad
+de las covariables, que el modelo no supone.
 """
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 from scipy.optimize import minimize_scalar
-from statsmodels.regression.linear_model import OLS
 from statsmodels.stats.multitest import multipletests
-from statsmodels.stats.outliers_influence import OLSInfluence, variance_inflation_factor
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools import add_constant
 
 
@@ -120,129 +118,6 @@ def tabla_ic_correlacion(
             }
         )
     return pd.DataFrame(filas).sort_values("Pearson_r", key=abs, ascending=False)
-
-
-def influencia_por_covariable(
-    df: pd.DataFrame,
-    columnas: list,
-    y: np.ndarray,
-    etiquetas_dominio: np.ndarray,
-    alias: dict = None,
-) -> pd.DataFrame:
-    """Distancia de Cook de cada dominio en la regresión simple covariable → respuesta.
-
-    Mide cuánto cambia el vector de coeficientes al eliminar un dominio. Con 23
-    observaciones un solo punto puede determinar la pendiente, de modo que este diagnóstico
-    distingue una asociación sostenida por el conjunto de los dominios de una sostenida por
-    uno solo. Se usa el umbral convencional ``D > 4/n``.
-
-    Superar el umbral **no justifica eliminar el dominio**: los valores extremos observados
-    corresponden a territorios reales, no a errores de medición. La consecuencia es sobre la
-    covariable, no sobre la observación.
-
-    Args:
-        df (pd.DataFrame): Datos con una fila por dominio.
-        columnas (list[str]): Covariables a evaluar.
-        y (np.ndarray): Variable respuesta.
-        etiquetas_dominio (np.ndarray): Nombre de cada dominio.
-        alias (dict | None): Mapa columna → alias legible.
-
-    Returns:
-        pd.DataFrame: Una fila por covariable con la distancia de Cook máxima, el número de
-            dominios que superan el umbral y su identificación.
-
-    Example:
-        >>> influencia_por_covariable(df_cand, codigos, Y, entidades, alias)
-    """
-    alias = alias or {}
-    umbral = 4 / len(y)
-    filas = []
-
-    for col in columnas:
-        x = pd.to_numeric(df[col], errors="coerce").values.reshape(-1, 1)
-        modelo = OLS(y, add_constant(x)).fit()
-        cook = OLSInfluence(modelo).cooks_distance[0]
-        influyentes = [
-            f"{etiquetas_dominio[i]} ({cook[i]:.3f})"
-            for i in np.where(cook > umbral)[0]
-        ]
-        filas.append(
-            {
-                "Alias": alias.get(col, col),
-                "Codigo": col,
-                "Cook_max": round(float(cook.max()), 4),
-                "Umbral": round(umbral, 4),
-                "N_influyentes": len(influyentes),
-                "Dominios_influyentes": "; ".join(influyentes) if influyentes else "—",
-            }
-        )
-
-    return pd.DataFrame(filas)
-
-
-def estabilidad_loo(
-    df: pd.DataFrame,
-    columnas: list,
-    y: np.ndarray,
-    etiquetas_dominio: np.ndarray,
-    alias: dict = None,
-) -> pd.DataFrame:
-    """Cambio en la correlación con la respuesta al excluir cada dominio, uno a uno.
-
-    Recorre **todos** los dominios, no un subconjunto elegido a mano: evaluar solo unos
-    pocos territorios elegidos por inspección de los diagramas de caja introduciría una
-    decisión manual difícil de reproducir y dependería de un cotejo de nombres propenso a
-    fallar. Recorrer los 23 dominios cuesta lo mismo y elimina ambos problemas.
-
-    Args:
-        df (pd.DataFrame): Datos con una fila por dominio.
-        columnas (list[str]): Covariables a evaluar.
-        y (np.ndarray): Variable respuesta.
-        etiquetas_dominio (np.ndarray): Nombre de cada dominio.
-        alias (dict | None): Mapa columna → alias legible.
-
-    Returns:
-        pd.DataFrame: Una fila por covariable con la correlación completa, el cambio máximo
-            en valor absoluto, el dominio responsable y si la exclusión de algún dominio
-            invierte el signo de la asociación.
-
-    Example:
-        >>> estabilidad_loo(df_cand, codigos, Y, entidades, alias)
-    """
-    alias = alias or {}
-    n = len(y)
-    filas = []
-
-    for col in columnas:
-        x = pd.to_numeric(df[col], errors="coerce").values
-        r_completo = float(stats.pearsonr(x, y)[0])
-
-        deltas = np.empty(n)
-        signos_invertidos = []
-        for i in range(n):
-            mascara = np.ones(n, dtype=bool)
-            mascara[i] = False
-            r_loo = float(stats.pearsonr(x[mascara], y[mascara])[0])
-            deltas[i] = r_loo - r_completo
-            if np.sign(r_loo) != np.sign(r_completo):
-                signos_invertidos.append(etiquetas_dominio[i])
-
-        idx_max = int(np.argmax(np.abs(deltas)))
-        filas.append(
-            {
-                "Alias": alias.get(col, col),
-                "Codigo": col,
-                "r_completo": round(r_completo, 3),
-                "Delta_max": round(float(deltas[idx_max]), 3),
-                "Delta_max_abs": round(float(np.abs(deltas).max()), 3),
-                "Dominio_critico": etiquetas_dominio[idx_max],
-                "Invierte_signo": (
-                    ", ".join(signos_invertidos) if signos_invertidos else "—"
-                ),
-            }
-        )
-
-    return pd.DataFrame(filas)
 
 
 def _ajuste_fh(x: np.ndarray, y: np.ndarray, psi: np.ndarray) -> tuple:
@@ -433,10 +308,15 @@ def estabilidad_bootstrap(
     En cada réplica se toman 23 dominios con reemplazo, cada uno con su ψ_d, se reajusta el
     Fay-Herriot univariado y se registra si el intervalo al ``1 - alfa`` de β1 excluye el cero
     **con el mismo signo** que en la muestra completa. La proporción de réplicas es la
-    estabilidad. Todas las covariables usan las mismas réplicas.
+    estabilidad. Todas las covariables usan las mismas réplicas. Las réplicas en que la
+    covariable queda constante no permiten ajustar la pendiente: se omiten, la proporción
+    se calcula sobre las réplicas válidas y `Replicas_omitidas` informa cuántas fueron
+    (R-36).
 
-    Complementa el control de falsos descubrimientos con una lectura que no depende de la
-    aproximación normal: una covariable elegible con estabilidad baja depende de qué dominios
+    Complementa el control de falsos descubrimientos con una lectura que remuestrea los
+    dominios en lugar de apoyarse solo en el p-valor de la muestra completa. No es una
+    lectura libre de la aproximación normal: cada réplica usa un intervalo de Wald normal
+    sin corrección. Una covariable elegible con estabilidad baja depende de qué dominios
     entren a la muestra. No decide; la ficha la reporta.
 
     Args:
@@ -450,7 +330,9 @@ def estabilidad_bootstrap(
         alfa (float): Nivel del intervalo en cada réplica.
 
     Returns:
-        pd.DataFrame: Una fila por covariable con `Estabilidad_boot` (entre 0 y 1).
+        pd.DataFrame: Una fila por covariable con `Estabilidad_boot` (entre 0 y 1, sobre las
+            réplicas válidas; NaN si ninguna lo fue) y `Replicas_omitidas` (réplicas en que
+            la covariable quedó constante).
 
     Example:
         >>> estabilidad_bootstrap(df_cand, codigos, Y, PSI, alias, replicas=1000)
@@ -466,9 +348,11 @@ def estabilidad_bootstrap(
         x = pd.to_numeric(df[col], errors="coerce").to_numpy(dtype=float)
         _, beta, _ = _ajuste_fh(x, y, psi)
         exitos = 0
+        validas = 0
         for idx in muestras:
             if np.ptp(x[idx]) == 0:
                 continue
+            validas += 1
             _, b, cov_b = _ajuste_fh(x[idx], y[idx], psi[idx])
             exitos += bool(
                 abs(b[1]) > z * np.sqrt(cov_b[1, 1])
@@ -478,7 +362,10 @@ def estabilidad_bootstrap(
             {
                 "Alias": alias.get(col, col),
                 "Codigo": col,
-                "Estabilidad_boot": round(exitos / replicas, 3),
+                "Estabilidad_boot": (
+                    round(exitos / validas, 3) if validas else float("nan")
+                ),
+                "Replicas_omitidas": replicas - validas,
             }
         )
     return pd.DataFrame(filas)
@@ -499,8 +386,8 @@ def influencia_fh(
     ``r_d = (θ̂_d - x_d'β̂)/√(Â + ψ_d)`` y el apalancamiento ``h_dd = x_d'Cov(β̂)x_d/(Â + ψ_d)``,
     manteniendo ``Â`` fijo. Umbral convencional ``D > 4/n``.
 
-    Igual que la versión por mínimos cuadrados ordinarios, superar el umbral **no justifica
-    eliminar el dominio**: la consecuencia recae sobre la covariable.
+    Superar el umbral **no justifica eliminar el dominio**: la consecuencia recae sobre la
+    covariable.
 
     Args:
         df (pd.DataFrame): Datos con una fila por dominio.
@@ -511,8 +398,8 @@ def influencia_fh(
         alias (dict | None): Mapa columna → alias legible.
 
     Returns:
-        pd.DataFrame: Mismo formato que `influencia_por_covariable()`: `Cook_max`, `Umbral`,
-            `N_influyentes` y `Dominios_influyentes`.
+        pd.DataFrame: Una fila por covariable con `Cook_max`, `Umbral`, `N_influyentes` y
+            `Dominios_influyentes`.
 
     Example:
         >>> influencia_fh(df_cand, codigos, Y, PSI, entidades, alias)
@@ -571,8 +458,8 @@ def estabilidad_fh(
         alias (dict | None): Mapa columna → alias legible.
 
     Returns:
-        pd.DataFrame: Mismo formato que `estabilidad_loo()`: `r_completo` (correlación
-            ponderada), `Delta_max`, `Delta_max_abs`, `Dominio_critico` e `Invierte_signo`.
+        pd.DataFrame: Una fila por covariable con `r_completo` (correlación ponderada),
+            `Delta_max`, `Delta_max_abs`, `Dominio_critico` e `Invierte_signo`.
 
     Example:
         >>> estabilidad_fh(df_cand, codigos, Y, PSI, entidades, alias)
@@ -806,13 +693,14 @@ def figura_robustez(
     """Sitúa cada covariable frente a los dos criterios de robustez, en un solo gráfico.
 
     El eje horizontal es la distancia de Cook máxima y el vertical el cambio máximo en la
-    correlación al excluir un dominio. Las líneas marcan los umbrales: solo las covariables
-    que quedan simultáneamente a la derecha y por encima se descartan, porque solo en ese
-    cuadrante un dominio domina la regresión *y* su exclusión altera la asociación.
+    correlación al excluir un dominio. Las líneas marcan los umbrales: las covariables que
+    quedan simultáneamente a la derecha y por encima (o con inversión de signo) se leen como
+    «depende de un dominio» (R-03): es un diagnóstico, ninguna covariable se descarta por él.
+    La clasificación es la misma de `seleccion.diagnosticar_robustez`.
 
     Args:
-        influencia (pd.DataFrame): Salida de `influencia_por_covariable()`.
-        estabilidad (pd.DataFrame): Salida de `estabilidad_loo()`.
+        influencia (pd.DataFrame): Salida de `influencia_fh()`.
+        estabilidad (pd.DataFrame): Salida de `estabilidad_fh()`.
         umbral_delta (float): Umbral del eje vertical.
 
     Returns:
@@ -828,7 +716,7 @@ def figura_robustez(
 
     fig, ax = plt.subplots(figsize=(8.5, 6))
     descartadas = (unido["Cook_max"] > umbral_cook) & (
-        unido["Delta_max_abs"] > umbral_delta
+        (unido["Delta_max_abs"] > umbral_delta) | (unido["Invierte_signo"] != "—")
     )
 
     ax.scatter(
@@ -838,7 +726,7 @@ def figura_robustez(
         color="steelblue",
         edgecolors="white",
         zorder=3,
-        label="No supera ambos umbrales",
+        label="Estable",
     )
     ax.scatter(
         unido.loc[descartadas, "Cook_max"],
@@ -847,7 +735,7 @@ def figura_robustez(
         color="firebrick",
         edgecolors="white",
         zorder=3,
-        label="Supera ambos umbrales",
+        label="Depende de un dominio",
     )
 
     for _, fila in unido.iterrows():
@@ -887,8 +775,8 @@ def interpretar_robustez(
     """Lectura textual del plano de robustez, calculada desde las tablas de diagnóstico.
 
     Args:
-        influencia (pd.DataFrame): Salida de `influencia_por_covariable()`.
-        estabilidad (pd.DataFrame): Salida de `estabilidad_loo()`.
+        influencia (pd.DataFrame): Salida de `influencia_fh()`.
+        estabilidad (pd.DataFrame): Salida de `estabilidad_fh()`.
         umbral_delta (float): Umbral del cambio en la correlación.
 
     Returns:
@@ -929,12 +817,13 @@ def interpretar_robustez(
         f"  Dominios que más veces resultan influyentes: {frecuentes}",
         f"  Covariables cuya correlación cambia más de {umbral_delta} o invierte el signo al excluir un dominio: "
         f"{len(inestables)}",
-        f"  Covariables que cumplen ambas condiciones y se descartan: {len(ambas)}"
+        f"  Covariables que cumplen ambas condiciones («depende de un dominio»; se reportan, "
+        f"no se descartan): {len(ambas)}"
         + (f" ({', '.join(ambas['Alias'])})" if len(ambas) else ""),
     ]
     if len(apalancadas) and not len(ambas):
         lineas.append(
-            "  Lectura: hay dominios extremos, pero ninguno altera por sí solo la asociación; las "
-            "covariables se conservan porque la relación no depende de un único territorio."
+            "  Lectura: hay dominios extremos, pero ninguno altera por sí solo la asociación; la "
+            "relación no depende de un único territorio."
         )
     return "\n".join(lineas)

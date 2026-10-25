@@ -98,8 +98,56 @@ def construir_cuadro_comparativo(
                 "Veredicto": (
                     "Preferido al clásico"
                     if fila["espacial_preferido"]
-                    else "No preferido (ΔAIC ≤ 2 o p(LRT) ≥ 0.05)"
+                    else "No preferido (p(LRT) ≥ 0.05)"
                 ),
             }
         )
+    return pd.DataFrame(filas)
+
+
+def construir_cuadro_coeficientes(
+    clasico, modelos_esp: dict, covars: list
+) -> pd.DataFrame:
+    """Coeficientes del clásico y del espacial lado a lado, por escenario y estructura (R-16).
+
+    Responde cuánto cambia la lectura de cada covariable al agregar la dependencia espacial:
+    la misma especificación, con β̂, error estándar y p del clásico y de cada SEBLUP, el cambio
+    absoluto y el cambio medido en errores estándar del clásico (Δβ/EE). Los p-valores son
+    descriptivos: las covariables y el conjunto salen de una selección sobre los mismos 23
+    dominios (advertencia post-selección, G7-B17).
+
+    Args:
+        clasico: `FayHerriotClasico` ajustado (usa `beta_hat`, `se_beta`, `p_vals`).
+        modelos_esp (dict): ``{(escenario, estructura): FayHerriotEspacial ajustado}``.
+        covars (list[str]): Covariables comunes (sin intercepto).
+
+    Returns:
+        pd.DataFrame: Una fila por (escenario, estructura, parámetro) con `beta_clasico`,
+            `EE_clasico`, `p_clasico`, `beta_espacial`, `EE_espacial`, `p_espacial`,
+            `Delta_beta`, `Delta_beta_sobre_EE_clasico` y `rho_hat`.
+
+    Example:
+        >>> construir_cuadro_coeficientes(clasico, modelos_esp, covars)  # doctest: +SKIP
+    """
+    parametros = ["Intercepto"] + list(covars)
+    filas = []
+    for (escenario, estructura), modelo in modelos_esp.items():
+        for j, parametro in enumerate(parametros):
+            delta = float(modelo.beta_hat[j] - clasico.beta_hat[j])
+            filas.append(
+                {
+                    "escenario": escenario,
+                    "estructura": estructura,
+                    "Parametro": parametro,
+                    "beta_clasico": float(clasico.beta_hat[j]),
+                    "EE_clasico": float(clasico.se_beta[j]),
+                    "p_clasico": float(clasico.p_vals[j]),
+                    "beta_espacial": float(modelo.beta_hat[j]),
+                    "EE_espacial": float(modelo.se_beta[j]),
+                    "p_espacial": float(modelo.p_vals[j]),
+                    "Delta_beta": delta,
+                    "Delta_beta_sobre_EE_clasico": delta / float(clasico.se_beta[j]),
+                    "rho_hat": float(modelo.rho_hat),
+                }
+            )
     return pd.DataFrame(filas)

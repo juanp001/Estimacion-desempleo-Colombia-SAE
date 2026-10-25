@@ -1,16 +1,23 @@
 """Catálogo de elegibilidad conceptual de las covariables auxiliares.
 
-Define qué indicadores de TerriData tienen un mecanismo documentado en la literatura que
-los vincula con el desempleo municipal. El catálogo es **independiente de la variable
-respuesta**: se fija antes de calcular cualquier métrica empírica, de modo que el criterio
-conceptual no pueda acomodarse a lo que digan los datos.
+Define qué indicadores de TerriData tienen una asociación documentada en la literatura con
+el desempleo municipal. El catálogo es **independiente de la variable respuesta**: se fija
+antes de calcular cualquier métrica empírica, de modo que el criterio conceptual no pueda
+acomodarse a lo que digan los datos.
+
+Lectura de las justificaciones (R-35). Las justificaciones recogen el argumento de cada
+referencia, pero el uso que aquí se les da es **predictivo**: con 23 dominios, una selección
+guiada por los datos y relaciones ecológicas entre territorios, el modelo estima asociaciones
+que sirven para predecir, no efectos causales. Díaz (2016, p. 155) advierte que relaciones de
+este tipo deben leerse como predictivas y no causales. Por eso los textos hablan de «se
+asocia con» y no de «genera» o «reduce».
 
 Fuente del catálogo
 -------------------
 Las entradas provienen de la revisión de literatura del proyecto (documento *Covariables de
 TerriData para un estimador sintético de la tasa de desempleo, corte 2018*), que propone
 diecisiete covariables con referencia bibliográfica verificable; resueltas contra TerriData
-dan 24 indicadores (19 en `CATALOGO_LITERATURA` y 5 en `CATALOGO_EXCLUIDAS`). Cada entrada
+dan 24 indicadores (18 en `CATALOGO_LITERATURA` y 6 en `CATALOGO_EXCLUIDAS`). Cada entrada
 conserva la cita tal como aparece en esa revisión, en el campo `referencia`, y describe el
 mecanismo en `justificacion`. Solo se incluyen variables con ese respaldo; no se admite ninguna por
 plausibilidad sin fuente.
@@ -28,10 +35,12 @@ trazabilidad del documento sea completa.
 
 Dos decisiones del proyecto se documentan explícitamente:
 
-* El Índice de Incidencia del Conflicto Armado (IICA) sustituye a «víctimas de
-  desplazamiento forzado», que en TerriData solo existe para 2022-2023. Es un proxy de la
-  misma dimensión y se justifica con la misma referencia.
-* La tasa de tránsito inmediato a la educación superior se conserva bajo el mecanismo de
+* El Índice de Incidencia del Conflicto Armado (IICA) se evaluó como proxy de «víctimas de
+  desplazamiento forzado» (que en TerriData solo existe para 2022-2023) y se **excluyó**
+  (R-01): mide la incidencia del conflicto en el propio municipio, no la recepción de
+  desplazados que exige el argumento de Ibáñez (2008). No se sustituyó por otra covariable.
+  Los motivos están en `CATALOGO_EXCLUIDAS`.
+* La tasa de tránsito inmediato a la educación superior se conserva bajo el argumento de
   capital humano del documento, por decisión del equipo del proyecto.
 
 No existe un «nivel de respaldo» numérico: asignar un valor L de 1 a 3 por entrada resultaría
@@ -40,7 +49,7 @@ arbitrario y complicaría el análisis sin aportar una decisión.
 
 import pandas as pd
 
-# Signo esperado del coeficiente sobre la tasa de desempleo, según el mecanismo declarado:
+# Signo esperado del coeficiente sobre la tasa de desempleo, según la asociación documentada:
 #   "+"  la covariable se asocia con mayor desempleo
 #   "-"  la covariable se asocia con menor desempleo
 #   "±"  la literatura no fija una dirección única
@@ -58,10 +67,10 @@ CATALOGO_LITERATURA = [
             "11(1), 101-127. DOI: 10.14718/revfinanzpolitecon.2019.11.1.7"
         ),
         "justificacion": (
-            "El capital humano determina la empleabilidad. La cobertura neta en educación "
+            "El capital humano se asocia con la empleabilidad. La cobertura neta en educación "
             "media mide la proporción de jóvenes en edad de cursar los últimos grados que "
-            "efectivamente lo hacen; su déficit alimenta el desajuste de competencias que "
-            "los autores identifican como factor principal del desempleo juvenil."
+            "efectivamente lo hacen; su déficit se asocia con el desajuste de competencias "
+            "que los autores identifican con el desempleo juvenil."
         ),
     },
     {
@@ -77,8 +86,8 @@ CATALOGO_LITERATURA = [
         ),
         "justificacion": (
             "La cobertura neta en secundaria es la base del sistema educativo local. Una "
-            "baja cobertura limita la formación mínima para acceder al mercado laboral "
-            "formal; el documento la propone junto a la cobertura en media."
+            "baja cobertura se asocia con menor formación mínima para acceder al mercado "
+            "laboral formal; el documento la propone junto a la cobertura en media."
         ),
     },
     {
@@ -92,8 +101,8 @@ CATALOGO_LITERATURA = [
             "Política Económica, 11(1), 101-127."
         ),
         "justificacion": (
-            "La calidad educativa, y no solo la cobertura, incide en la productividad y la "
-            "empleabilidad. La brecha de competencias es determinante del desempleo "
+            "La calidad educativa, y no solo la cobertura, se asocia con la productividad y "
+            "la empleabilidad. La brecha de competencias se asocia con el desempleo "
             "estructural juvenil."
         ),
     },
@@ -124,9 +133,9 @@ CATALOGO_LITERATURA = [
             "Conservada por decisión del equipo del proyecto."
         ),
         "justificacion": (
-            "Mide la proporción de bachilleres que continúan al nivel terciario, predictor "
-            "del capital humano futuro del territorio. Mayor formación acorta la búsqueda "
-            "de empleo y reduce el desempleo friccional."
+            "Mide la proporción de bachilleres que continúan al nivel terciario, indicador "
+            "del capital humano futuro del territorio. Mayor formación se asocia con "
+            "búsquedas de empleo más cortas y menor desempleo friccional."
         ),
     },
     # ── ECONOMÍA ──────────────────────────────────────────────────────────────
@@ -142,8 +151,9 @@ CATALOGO_LITERATURA = [
         ),
         "justificacion": (
             "El valor agregado per cápita se asocia negativamente con el desempleo: mayor "
-            "actividad económica genera demanda laboral. En el panel latinoamericano de "
-            "los autores, el desempleo disminuye al incrementar el producto per cápita."
+            "actividad económica va de la mano de mayor demanda laboral. En el panel "
+            "latinoamericano de los autores, el desempleo es menor donde el producto per "
+            "cápita es mayor."
         ),
     },
     {
@@ -158,8 +168,8 @@ CATALOGO_LITERATURA = [
             "Colombia», DTSERU No. 62."
         ),
         "justificacion": (
-            "La composición sectorial determina la absorción de empleo: los cambios "
-            "sectoriales son determinante de la tasa de desempleo estructural. Un "
+            "La composición sectorial se asocia con la absorción de empleo: los cambios "
+            "sectoriales se relacionan con la tasa de desempleo estructural. Un "
             "predominio agrícola se asocia a dinámicas de desempleo distintas."
         ),
     },
@@ -254,8 +264,9 @@ CATALOGO_LITERATURA = [
             "DOI: 10.32468/be.491"
         ),
         "justificacion": (
-            "La participación de jóvenes en la fuerza laboral es determinante central de "
-            "la tasa natural de desempleo, junto con los costos laborales no salariales."
+            "La participación de jóvenes en la fuerza laboral es una de las variables "
+            "asociadas a la tasa natural de desempleo, junto con los costos laborales no "
+            "salariales."
         ),
     },
     # ── FINANZAS PÚBLICAS ─────────────────────────────────────────────────────
@@ -270,8 +281,8 @@ CATALOGO_LITERATURA = [
             "fortalecimiento de las finanzas territoriales»."
         ),
         "justificacion": (
-            "La capacidad fiscal y la inversión pública dinamizan el empleo local; el IDF "
-            "sintetiza autofinanciación, deuda, dependencia de transferencias, recursos "
+            "La capacidad fiscal y la inversión pública se asocian con el empleo local; el "
+            "IDF sintetiza autofinanciación, deuda, dependencia de transferencias, recursos "
             "propios, magnitud de la inversión y ahorro."
         ),
     },
@@ -286,29 +297,12 @@ CATALOGO_LITERATURA = [
             "y departamentos» (con datos de TerriData-DNP)."
         ),
         "justificacion": (
-            "Mayor recaudo financia infraestructura y empleo, incluido el empleo público "
-            "de emergencia, reduciendo el desempleo local."
+            "Mayor recaudo se asocia con mayor capacidad de financiar infraestructura y "
+            "empleo, incluido el empleo público de emergencia, y con menor desempleo "
+            "local."
         ),
     },
     # ── CONFLICTO ARMADO Y SEGURIDAD CIUDADANA ────────────────────────────────
-    {
-        "codigo": "260020003",
-        "alias": "IICA_CONFLICTO",
-        "dimension": "Conflicto armado y seguridad ciudadana",
-        "indicador": "Índice de Incidencia del Conflicto Armado - IICA",
-        "signo_esperado": "+",
-        "referencia": (
-            "Ibáñez, A. M. (2008). El desplazamiento forzoso en Colombia: un camino sin "
-            "retorno hacia la pobreza, Universidad de los Andes. Proxy: la serie de "
-            "víctimas de desplazamiento de TerriData solo existe para 2022-2023."
-        ),
-        "justificacion": (
-            "El conflicto armado genera desplazamiento forzado, que produce un choque de "
-            "oferta laboral y una integración económica fallida que eleva el desempleo y "
-            "el subempleo en los municipios receptores. El IICA mide la exposición del "
-            "territorio a ese conflicto."
-        ),
-    },
     {
         "codigo": "060010003",
         "alias": "TASA_HOMICIDIOS",
@@ -320,9 +314,9 @@ CATALOGO_LITERATURA = [
             "Cali 2015-2024, Revista Panamericana de Salud Pública (2024)."
         ),
         "justificacion": (
-            "La inseguridad deteriora la inversión y la actividad económica local, con "
-            "efectos indirectos sobre el empleo; se usa como covariable en análisis "
-            "ecológicos territoriales junto al IPM y la escolaridad."
+            "La inseguridad se asocia con menor inversión y actividad económica local, y "
+            "por esa vía con el empleo; se usa como covariable en análisis ecológicos "
+            "territoriales junto al IPM y la escolaridad."
         ),
     },
     # ── VIVIENDA Y ACCESO A SERVICIOS PÚBLICOS ────────────────────────────────
@@ -337,8 +331,8 @@ CATALOGO_LITERATURA = [
             "dimensión Vivienda y Acceso a Servicios Públicos."
         ),
         "justificacion": (
-            "La infraestructura básica es proxy del desarrollo local y facilita la "
-            "actividad productiva; el DNP la emplea como indicador territorial de "
+            "La infraestructura básica es un indicador del desarrollo local y se asocia con "
+            "la actividad productiva; el DNP la emplea como indicador territorial de "
             "bienestar."
         ),
     },
@@ -353,7 +347,7 @@ CATALOGO_LITERATURA = [
             "dimensión Vivienda y Acceso a Servicios Públicos."
         ),
         "justificacion": (
-            "La conectividad facilita la actividad productiva y el emparejamiento "
+            "La conectividad se asocia con la actividad productiva y con el emparejamiento "
             "laboral (búsqueda y publicación de vacantes)."
         ),
     },
@@ -399,12 +393,35 @@ CATALOGO_EXCLUIDAS = [
         "alias": "VICTIMAS_DESPLAZAMIENTO",
         "dimension": "Conflicto armado y seguridad ciudadana",
         "indicador": "Víctimas de Desplazamiento Forzado ubicadas",
-        "motivo": "solo existe para 2022-2023; se sustituye por el IICA como proxy",
+        "motivo": (
+            "solo existe para 2022-2023; el IICA se evaluó como proxy y se excluyó "
+            "(ver IICA_CONFLICTO), así que no tiene sustituto"
+        ),
+    },
+    {
+        "codigo": "260020003",
+        "alias": "IICA_CONFLICTO",
+        "dimension": "Conflicto armado y seguridad ciudadana",
+        "indicador": "Índice de Incidencia del Conflicto Armado - IICA",
+        "prefijo_estado": "excluida del catálogo (R-01)",
+        "motivo": (
+            "mide la incidencia del conflicto en el propio municipio (expulsión, presencia "
+            "armada), no la recepción de desplazados del argumento de Ibáñez (2008); en los 23 "
+            "dominios es casi la tasa de homicidios (r = 0.92), solo toma 13 valores "
+            "distintos por redondeo y Quibdó aporta cerca de la mitad de su suma de "
+            "cuadrados; en los 83 municipios objetivo llega a 0.8 frente a un máximo de 0.1 "
+            "en los dominios, donde la relación estimada en capitales urbanas no aplica "
+            "(Morales et al., p. 454)"
+        ),
     },
 ]
 
 
-def resolver_catalogo(indicadores_dict: dict, columnas_disponibles: list) -> tuple:
+def resolver_catalogo(
+    indicadores_dict: dict,
+    columnas_disponibles: list,
+    incompletas_objetivos: list = None,
+) -> tuple:
     """Resuelve cada entrada del catálogo contra el diccionario y el conjunto pre-filtrado.
 
     Una entrada se considera activa si su código existe en el diccionario de indicadores
@@ -415,20 +432,24 @@ def resolver_catalogo(indicadores_dict: dict, columnas_disponibles: list) -> tup
     Args:
         indicadores_dict (dict): Mapa código → nombre del indicador (`dim_indicadores`).
         columnas_disponibles (list[str]): Códigos presentes en el conjunto pre-filtrado.
+        incompletas_objetivos (list[str] | None): Códigos con algún faltante en los municipios
+            objetivo (`soporte_objetivos.columnas_incompletas`). Incumplen la condición (iii)
+            del catálogo y no son candidatas (R-02). Con None no se revisa.
 
     Returns:
         tuple[list, pd.DataFrame]: (catalogo_activo, reporte). `catalogo_activo` son las
             entradas activas (dicts del catálogo); `reporte` tiene una fila por variable de
             la revisión de literatura con columnas `Alias`, `Dimension`, `Codigo`, `Nombre`,
             `Signo_esperado`, `Referencia` y `Estado`, donde `Estado` es `activa`,
-            `no está en el diccionario`, `no superó el pre-filtrado` o
-            `sin dato utilizable: <motivo>`.
+            `no está en el diccionario`, `no superó el pre-filtrado`, `incompleta en los municipios objetivo`,
+            `sin dato utilizable: <motivo>` o `excluida del catálogo (R-01): <motivo>`.
 
     Example:
         >>> catalogo_activo, reporte = resolver_catalogo(indicadores_dict, list(df_pd.columns))
         >>> reporte["Estado"].value_counts()
     """
     disponibles = set(columnas_disponibles)
+    incompletas = set(incompletas_objetivos or [])
     filas, catalogo_activo = [], []
 
     for entrada in CATALOGO_LITERATURA:
@@ -437,6 +458,8 @@ def resolver_catalogo(indicadores_dict: dict, columnas_disponibles: list) -> tup
             estado = "no está en el diccionario"
         elif codigo not in disponibles:
             estado = "no superó el pre-filtrado"
+        elif codigo in incompletas:
+            estado = "incompleta en los municipios objetivo"
         else:
             estado = "activa"
             catalogo_activo.append(dict(entrada))
@@ -462,7 +485,10 @@ def resolver_catalogo(indicadores_dict: dict, columnas_disponibles: list) -> tup
                 "Nombre": indicadores_dict.get(entrada["codigo"], entrada["indicador"]),
                 "Signo_esperado": "—",
                 "Referencia": "—",
-                "Estado": f"sin dato utilizable: {entrada['motivo']}",
+                "Estado": (
+                    f"{entrada.get('prefijo_estado', 'sin dato utilizable')}: "
+                    f"{entrada['motivo']}"
+                ),
             }
         )
 
@@ -470,7 +496,7 @@ def resolver_catalogo(indicadores_dict: dict, columnas_disponibles: list) -> tup
     print(
         f"Catálogo de elegibilidad conceptual: {len(catalogo_activo)} de "
         f"{len(CATALOGO_LITERATURA)} entradas activas "
-        f"({len(CATALOGO_EXCLUIDAS)} variables de la literatura sin dato utilizable)"
+        f"({len(CATALOGO_EXCLUIDAS)} variables de la literatura excluidas o sin dato utilizable)"
     )
     for estado, n in reporte["Estado"].value_counts().items():
         print(f"  · {estado}: {n}")

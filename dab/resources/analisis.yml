@@ -21,7 +21,7 @@ resources:
           environment_key: serverless
           notebook_task:
             notebook_path: ../../code/analisis/eda_seleccion_covariables.py
-        - task_key: sensibilidad_ventana_temporal
-          environment_key: serverless
-          notebook_task:
-            notebook_path: ../../code/analisis/sensibilidad_ventana_temporal.py
+        # R-37: code/analisis/sensibilidad_ventana_temporal.py (G7-B2) ya no corre en el job. Sus
+        # tablas (sensibilidad_ventana_temporal, resumen_ventana_temporal y
+        # validacion_anual_totales) quedan como evidencia de la decisión de la ventana anual;
+        # para regenerarlas se ejecuta el notebook a mano.

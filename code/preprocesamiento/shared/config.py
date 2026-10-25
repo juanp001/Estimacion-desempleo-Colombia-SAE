@@ -56,12 +56,12 @@ TBL_CATALOGO = "tesis.preprocesamiento.catalogo_literatura"
 TBL_DESCRIPTIVO_UNI = "tesis.preprocesamiento.descriptivo_univariado"
 TBL_DESCRIPTIVO_BI = "tesis.preprocesamiento.descriptivo_bivariado"
 TBL_DIAGNOSTICOS = "tesis.preprocesamiento.diagnosticos_covariables"
-TBL_ROBUSTEZ = "tesis.preprocesamiento.robustez_covariables"
 TBL_REDUNDANCIA = "tesis.preprocesamiento.redundancia_covariables"
 TBL_DECISION = "tesis.preprocesamiento.decision_covariables"
+# R-02: soporte de cada candidata en los municipios objetivo.
+TBL_SOPORTE = "tesis.preprocesamiento.soporte_covariables"
 TBL_VERIFICACION = "tesis.preprocesamiento.verificacion_seleccion"
 TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables"
-TBL_CANDIDATAS = "tesis.preprocesamiento.covariables_candidatas"
 TBL_SELECCIONADAS = "tesis.preprocesamiento.covariables_seleccionadas"
 # G7-B12: selección con y sin las covariables de signo contrario al esperado.
 TBL_SENSIBILIDAD_SIGNO = "tesis.preprocesamiento.sensibilidad_signo_covariables"
@@ -341,8 +341,41 @@ UMBRAL_DUPLICADO = 0.999
 UMBRAL_REDUNDANCIA = 0.80
 # Cambio máximo tolerado en la correlación con la respuesta al excluir un dominio.
 UMBRAL_DELTA_LOO = 0.10
-# Número máximo de covariables por parsimonia: n/5 con n = 23 dominios.
-P_MAXIMO = 4
+# Cota de parsimonia (R-07): observaciones por parámetro. Con 23 dominios, la regla habitual de
+# regresión de 10 a 20 observaciones por parámetro da 1 o 2 covariables, y Morales et al. (2021,
+# p. 453) piden no sobreparametrizar cuando se predice fuera de la muestra, como aquí. El 10 es el
+# extremo permisivo de esa regla: es una convención externa al libro, no un valor que él fije.
+OBS_POR_PARAMETRO = 10
+
+
+def cota_covariables(
+    n_dominios: int, obs_por_parametro: int = OBS_POR_PARAMETRO
+) -> int:
+    """Número máximo de covariables que admite un conjunto de `n_dominios` dominios.
+
+    Se calcula desde n en lugar de fijarse (antes ``P_MAXIMO = 4``, «n/5» sin referencia): con 23
+    dominios da 2 y con 22 (un dominio retirado en la validación cruzada) también 2. Siempre se
+    admite al menos una.
+
+    Args:
+        n_dominios (int): Número de dominios con estimación directa.
+        obs_por_parametro (int): Observaciones exigidas por covariable.
+
+    Returns:
+        int: ``max(1, n_dominios // obs_por_parametro)``.
+
+    Example:
+        >>> cota_covariables(23), cota_covariables(22), cota_covariables(5)
+        (2, 2, 1)
+    """
+    return max(1, int(n_dominios) // int(obs_por_parametro))
+
+
+# Soporte en los municipios objetivo (R-02): proporción mínima de objetivos dentro del rango
+# [mín, máx] de los dominios por debajo de la cual la ficha advierte que usar la covariable
+# obliga a extrapolar. Convención del proyecto (Morales et al., pp. 441 y 453, solo motivan la
+# revisión); es advertencia, no filtro.
+SOPORTE_MINIMO = 0.80
 # Umbral de multicolinealidad para el conjunto finalmente seleccionado.
 VIF_MAXIMO = 5.0
 # Nivel de confianza del intervalo de Fisher para la correlación con la respuesta.
