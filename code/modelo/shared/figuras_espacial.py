@@ -62,7 +62,7 @@ def figura_validacion(cv: pd.DataFrame, columnas: dict) -> plt.Figure:
         ax.scatter(cv["y"], cv[col], s=22)
         ax.plot(lim, lim, color="gray", lw=0.8)
         ax.set_xlabel("Estimación directa")
-        ax.set_title(etiqueta, fontsize=10)
+        ax.text(0.03, 0.96, etiqueta, transform=ax.transAxes, fontsize=10, va="top")
         ax.grid(alpha=0.3)
     ejes[0].set_ylabel("Predicción dejando el dominio fuera")
     fig.tight_layout()
@@ -134,4 +134,55 @@ def figura_mapa_prediccion(
     ax.set_ylabel("Latitud")
     ax.grid(alpha=0.3)
     fig.tight_layout()
+    return fig
+
+
+def figura_mapa_residuos(dominios: pd.DataFrame, residuos: dict) -> plt.Figure:
+    """Residuos estandarizados por dominio sobre longitud/latitud, un panel por modelo (R-12).
+
+    Todos los paneles comparten la escala de color, simétrica alrededor de cero, para que los
+    residuos del clásico y del espacial sean comparables a simple vista. Una agrupación de
+    colores iguales entre dominios próximos indicaría dependencia espacial no modelada.
+
+    Args:
+        dominios (pd.DataFrame): Dominios con encuesta, con `LONGITUD`, `LATITUD` y `NOMBRE`.
+        residuos (dict[str, np.ndarray]): Etiqueta del panel → residuos estandarizados por
+            dominio, en el orden de `dominios`.
+
+    Returns:
+        plt.Figure: Figura con un panel por entrada de `residuos`.
+
+    Example:
+        >>> figura_mapa_residuos(dom, {"Clásico": r_clasico, "Espacial": r_espacial})  # doctest: +SKIP
+    """
+    limite = max(float(np.abs(np.asarray(r)).max()) for r in residuos.values())
+    fig, ejes = plt.subplots(1, len(residuos), figsize=(5.2 * len(residuos), 6.2))
+    ejes = np.atleast_1d(ejes)
+    for ax, (etiqueta, valores) in zip(ejes, residuos.items()):
+        sc = ax.scatter(
+            dominios["LONGITUD"],
+            dominios["LATITUD"],
+            c=np.asarray(valores),
+            s=90,
+            cmap="coolwarm",
+            vmin=-limite,
+            vmax=limite,
+            edgecolor="black",
+        )
+        for nombre, lon, lat, v in zip(
+            dominios["NOMBRE"], dominios["LONGITUD"], dominios["LATITUD"], valores
+        ):
+            if abs(v) >= 1.0:
+                ax.annotate(
+                    nombre,
+                    (lon, lat),
+                    fontsize=7,
+                    xytext=(4, 4),
+                    textcoords="offset points",
+                )
+        ax.set_xlabel("Longitud")
+        ax.text(0.03, 0.96, etiqueta, transform=ax.transAxes, fontsize=10, va="top")
+        ax.grid(alpha=0.3)
+    ejes[0].set_ylabel("Latitud")
+    fig.colorbar(sc, ax=list(ejes), label="Residuo estandarizado", shrink=0.8)
     return fig

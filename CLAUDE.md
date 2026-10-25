@@ -402,18 +402,35 @@ modelo/fay_herriot_espacial.py   (corre después de fay_herriot.py: lee tesis.mo
   → mismas covariables que el benchmark clásico seleccionado; SEBLUP con efectos SAR u = ρWu + v (Morales et al.,
     §18.2, pp. 490-494); W por DISTANCIA entre centroides (kNN k=3/5 o distancia inversa 1/2), nunca por
     contigüidad: los 23 dominios son ciudades dispersas y los objetivos no son contiguos a ellas
-  → ρ se estima solo con los 23 dominios; W (estructura "completa") cubre dominios + objetivos
-    (Saei-Chambers; Benedetti 2024, pp. 146-149); estructura "muestra" = W solo entre dominios
-  → diagnósticos: I de Moran de los residuos del clásico, LRT de ρ=0, ΔAIC, perfil de verosimilitud de ρ,
-    validación dejar-un-dominio-fuera; MSE por bootstrap paramétrico (500 réplicas, p. 494)
-  → criterio: espacial preferido solo si ΔAIC > 2 y p(LRT) < 0.05; un ρ̂ en la cota (0.99) no es referencia
-  → tesis.modelo.fhe_* (moran, vecindad, comparacion_modelos, perfil_rho, validacion_cruzada[_metricas],
-    coeficientes, prediccion_objetivo) y figuras fhe_*.png en el volumen figuras_eda
+  → ρ se estima solo con los 23 dominios; W (estructura "completa") cubre dominios + objetivos y evalúa la
+    verosimilitud marginal de los dominios (MML de Benedetti 2024, pp. 146-149, ecs. 18-20; NO es el
+    estimador de Saei-Chambers); estructura "muestra" = W solo entre dominios. R-13: la prueba principal de ρ
+    es la de "muestra"; el ρ̂ de "completa" es condicional al conjunto de nodos sin dato (tabla
+    fhe_sensibilidad_rho_objetivos) y no se interpreta su signo
+  → R-14: los municipios de un dominio A.M. (Cali, Yumbo; CODIGO_DOMINIO_PADRE) NO son nodos de W: se
+    predicen como subáreas del nodo, x'β̂ + û_D (shared/prediccion_espacial.py), y pasan por benchmark_nivel1
+    (los EBLUP del espacial) y benchmark_nivel2 (mismos pesos de PET que el clásico). Se predicen los mismos 83
+    municipios del clásico (81 nodos con MSE bootstrap + 2 subáreas con MSE del sintético)
+  → diagnósticos: I de Moran de los residuos del clásico y del SEBLUP con la misma estandarización (R-12; mapa
+    de residuos), LRT de ρ=0, ΔAIC, perfil de verosimilitud de ρ, validación dejar-un-dominio-fuera con las
+    mismas métricas del clásico (Z_psi, Z_pred, cobertura, habilidad frente al modelo nulo; es optimista con
+    covariables fijas, R-15); B20 con la Cov(β̂) del espacial (ESTADO_EXTRAPOLACION) y B21 (etiqueta_calidad);
+    MSE por bootstrap paramétrico (500 réplicas, p. 494)
+  → criterio (R-43): espacial preferido solo si p(LRT) < 0.05 en la estructura "muestra"; ΔAIC = LRT − 2 es el
+    mismo estadístico (se reporta, no es otro respaldo); un ρ̂ en la cota (0.99) no es referencia
+  → R-42: el nodo de un A.M. se ubica en su capital; fhe_sensibilidad_centroide compara con la media de sus
+    municipios miembro. k y la potencia de ESCENARIOS_W se justifican en config.py
+  → tesis.modelo.fhe_* (moran, vecindad, comparacion_modelos, cuadro_comparativo, perfil_rho,
+    validacion_cruzada[_metricas], coeficientes, coeficientes_comparacion [R-16], sensibilidad_centroide,
+    sensibilidad_rho_objetivos, prediccion_objetivo) y figuras fhe_*.png en VOLUMEN_FIGURAS_MODELO
+    (/Volumes/tesis/modelo/figuras, R-45)
 ```
 
 Lógica en `modelo/shared/`: `matriz_proximidad.py` (Haversine, kNN, distancia inversa, estandarización por
-filas, `moran_i`), `fay_herriot_espacial.py` (`FayHerriotEspacial`, hija de `ModeloAreaPequena`;
-`validacion_dejar_uno_fuera`), `figuras_espacial.py`; parámetros en `config.py` (`ESCENARIOS_W`,
+filas, `moran_i`, `proximidad_total`, `filas_moran`), `fay_herriot_espacial.py` (`FayHerriotEspacial`, hija
+de `ModeloAreaPequena`; `validacion_dejar_uno_fuera`), `figuras_espacial.py`, `figuras.py` (guardado común
+del clásico `fh_*` y del espacial `fhe_*`), `prediccion_espacial.py`, `sensibilidad_espacial.py`,
+`cuadro_comparativo.py` (también `construir_cuadro_coeficientes`); parámetros en `config.py` (`ESCENARIOS_W`,
 `RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018 (corrida de `test-2`,
 23 dominios, 82 objetivos): **sin evidencia de dependencia espacial** — Moran de los residuos p entre 0.82 y
 0.91; ρ̂ entre 0.11 y 0.39 (completa) sin significancia (LRT p ≥ 0.60); ΔAIC entre −1.09 y −2.00 (el clásico
@@ -421,9 +438,11 @@ tiene menor AIC en los 8 casos); perfil de ρ plano (ganancia ≤ 0.22); RMSE de
 2.084 frente a 2.115-2.440 del espacial con efecto. El efecto espacial en los objetivos es casi nulo (media
 absoluta 0.05 pp) y 74 de 82 objetivos extrapolan. El modelo recomendado sigue siendo el clásico (benchmark);
 detalle, tablas, comparación con el cierre anterior y limitaciones en `docs/fay_herriot_espacial.md`.
-Ojo: en `municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; el notebook espacial
-la excluye de los objetivos (quedan 82). `marca_extrapolacion` (B20) recibe la matriz de diseño de los
-objetivos (`X_obj`), no `x'Cov(β̂)x`.
+Las cifras de este párrafo son del cierre previo a los cambios del bloque 05 (R-12…R-16, R-42, R-43, R-45):
+quedan pendientes de la nueva corrida (R-44). Ojo: en `municipios_sin_encuesta` figura Cali (76001), que ya
+es dominio con encuesta; desde R-14 el notebook espacial ya no la excluye: Cali y Yumbo son subáreas del nodo
+Cali A.M. y los objetivos son los mismos 83 del clásico. `marca_extrapolacion` (B20) recibe la matriz de
+diseño de los objetivos (`X_obj`), no `x'Cov(β̂)x`.
 
 ### Flujo de tablas Unity Catalog (resumen end-to-end)
 
@@ -487,7 +506,9 @@ Reglas del flujo de selección:
   desde dónde se ejecute. `estimacion_directa.py` también (antes usaba la forma corta). `modelo/fay_herriot.py`
   usa la forma corta para `modelo/shared` y la completa para `preprocesamiento.shared.ventana`.
 - Las figuras del análisis van al volumen `/Volumes/tesis/preprocesamiento/figuras_eda`
-  (prefijos `desc_`, `eda_`); las del modelo no se guardan.
+  (prefijos `desc_`, `eda_`). Las del modelo (R-45) se muestran y se guardan en
+  `VOLUMEN_FIGURAS_MODELO` = `/Volumes/tesis/modelo/figuras` (prefijos `fh_` clásico y `fhe_` espacial,
+  `shared/figuras.guardar_figura`).
 - **Advertencia al cambiar la ventana de tiempo** (`anio_estimacion` / `mes_estimacion` / `n_meses_ventana`):
   si cambia el número de dominios, hay que revisar `P_MAXIMO = 4` a mano, porque asume 23 dominios (n/5). Los
   textos de los notebooks dicen "23 dominios" y la exclusión "sin dato para 2018" del catálogo también es del
@@ -517,7 +538,8 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
   `estimacion_directa` y `dominios_sin_encuesta`; `resolver_ventana` lee la ventana solo en
   `estimacion_directa`, y de ahí viaja en la columna `N_MESES_VENTANA`. Ejemplo (trimestre Abr-Jun 2024):
   `databricks bundle run preprocesamiento -t dev --params anio_estimacion=2024,mes_estimacion=6,n_meses_ventana=3`.
-- El bundle no crea volúmenes: `/Volumes/tesis/preprocesamiento/figuras_eda` debe existir antes de `analisis`.
+- El bundle no crea volúmenes: `/Volumes/tesis/preprocesamiento/figuras_eda` debe existir antes de `analisis` y
+  `/Volumes/tesis/modelo/figuras` antes de `modelo` (si falta, las figuras se muestran pero no se guardan).
 - `sync.exclude` omite `data/`, `code/ingesta_datos/censo_nal/`, `code/analisis/renombrar_geih.py` y los
   `*.txt`, `*.xlsx`, `*.pdf` (archivos de trabajo de la raíz; `TerriData.txt` de ~3 GB rompía el despliegue).
 - Para correr una sola tarea: `databricks bundle run <job> -t dev --only <task_key>`.

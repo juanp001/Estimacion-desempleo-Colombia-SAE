@@ -177,6 +177,7 @@ from shared.consolidacion import (
 from shared.datos_modelo import alias_desde_catalogo, periodo_unico, preparar_municipios
 from shared.modelo_area_pequena import prediccion_sintetica
 from shared.escritura import EscrituraDiferida
+from shared.figuras import guardar_figura as guardar_png
 
 # G7-B19: la validación predictiva repite la selección de covariables del análisis. Se importa
 # por ruta completa (`shared` aquí es modelo/shared) y el config del preprocesamiento como
@@ -209,6 +210,20 @@ from shared.benchmarking import (
 )
 
 import warnings
+
+
+def guardar_figura(fig, nombre: str) -> None:
+    """Guarda una figura en el volumen de figuras del modelo con el prefijo `fh_` (R-45).
+
+    Misma regla que el Fay-Herriot espacial: cada figura se muestra en el notebook y se guarda en
+    `VOLUMEN_FIGURAS_MODELO`; si el volumen no existe solo avisa.
+
+    Args:
+        fig (matplotlib.figure.Figure): Figura a guardar.
+        nombre (str): Nombre del archivo sin extensión (se antepone `fh_`).
+    """
+    guardar_png(fig, nombre, "fh_", VOLUMEN_FIGURAS_MODELO)
+
 
 warnings.filterwarnings("ignore")
 
@@ -307,7 +322,8 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     print("=" * 65)
     print(explicacion_graficas())
 
-    for fig in graficar_validacion(modelo):
+    for k, fig in enumerate(graficar_validacion(modelo), 1):
+        guardar_figura(fig, f"validacion_{etiqueta_especificacion(i)}_{k}")
         display(fig)
         plt.close(fig)
 
@@ -540,6 +556,7 @@ if modelo_ganador.avisos_ajuste():
 
 # DBTITLE 1,Figura: CV directo vs CV EBLUP del benchmark
 fig = figura_cv_directo_vs_eblup(modelo_ganador, nombres_dominio)
+guardar_figura(fig, "cv_directo_vs_eblup")
 display(fig)
 plt.close(fig)
 print(interpretar_cv(modelo_ganador))
@@ -565,6 +582,7 @@ print(interpretar_cv(modelo_ganador))
 
 # DBTITLE 1,Figura y tabla: distancia de Cook y sensibilidad del benchmark
 fig = figura_cook([modelo_ganador], [modelo_ganador.covars], nombres_dominio)
+guardar_figura(fig, "cook")
 display(fig)
 plt.close(fig)
 
@@ -824,6 +842,7 @@ display(rangos)
 
 fig = figura_rangos(modelo_ganador.X, X_new, covars_ganador)
 if fig is not None:
+    guardar_figura(fig, "rangos_covariables")
     plt.show()
 
 sens_mun, sens_dom = sensibilidad_quitar_dominio(
@@ -868,6 +887,7 @@ display(
 max_directa = float(df[Y_COL].max())
 fig = figura_sensibilidad(df_sens, max_directa)
 if fig is not None:
+    guardar_figura(fig, "sensibilidad_extrapolacion")
     plt.show()
 
 print(interpretar_extrapolacion(rangos, df_sens, sens_dom, max_directa))
@@ -953,6 +973,7 @@ display(top_dominios_por_parametro(detalle_loo, k=3).round(4))
 
 fig = figura_influencia(detalle_loo)
 if fig is not None:
+    guardar_figura(fig, "influencia_dominios")
     display(fig)
     plt.close(fig)
 
@@ -1129,6 +1150,7 @@ display(
 )
 
 fig = figura_validacion(detalle_cv[detalle_cv["Ejercicio"] != EJERCICIO_NULO])
+guardar_figura(fig, "validacion_cruzada")
 display(fig)
 plt.close(fig)
 print(interpretar_validacion_cruzada(df_metricas_cv, detalle_cv, resumen_sel_cv))

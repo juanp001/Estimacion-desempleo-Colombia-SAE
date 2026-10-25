@@ -10,6 +10,21 @@ diciembre de 2018 (23 dominios con encuesta, 82 municipios objetivo). Todas las 
 tablas `tesis.modelo.fh_*` y `fhe_*` de esa corrida. La versión anterior del documento describía una
 corrida con los datos previos a la integración de `test-2` (ver §2).
 
+> **Cambios posteriores a esa corrida (bloque 05 de la revisión; cifras pendientes de la nueva corrida,
+> R-44).** El código ya no coincide con todo lo que sigue: (R-14) Cali y Yumbo no son nodos de W sino
+> subáreas del nodo «Cali A.M.» con benchmarking de nivel 2, y se predicen los mismos 83 municipios del
+> clásico; (R-13) la prueba principal de ρ es la de la estructura `muestra`, y el ρ̂ de la `completa` es
+> condicional al conjunto de nodos sin dato (no se interpreta su signo; tabla
+> `fhe_sensibilidad_rho_objetivos`); la estructura `completa` es la verosimilitud marginal (MML) de
+> Benedetti et al. (2024, ecs. 18-20), no el estimador de Saei y Chambers; (R-43) el criterio es
+> `p(LRT) < 0.05`, porque ΔAIC = LRT − 2 es el mismo estadístico; (R-12) hay I de Moran de los residuos
+> del SEBLUP con la misma estandarización que el clásico y un mapa de residuos; (R-15) la validación
+> dejar-uno-fuera trae `Z_psi`, `Z_pred`, cobertura y habilidad frente al modelo nulo, y la
+> extrapolación (B20) y la calidad reportada (B21) se calculan con el espacial; (R-16) cuadro de
+> coeficientes clásico frente a espacial (`fhe_coeficientes_comparacion`); (R-42) sensibilidad al
+> centroide del A.M. (`fhe_sensibilidad_centroide`) y justificación de k y la potencia en `config.py`;
+> (R-45) las figuras `fhe_*` y las del clásico `fh_*` se guardan en `/Volumes/tesis/modelo/figuras`.
+
 ## 1. Conclusión
 
 Con los datos disponibles **no hay evidencia de dependencia espacial** en los efectos aleatorios del
@@ -74,7 +89,8 @@ Orden cronológico de los cambios que llevan a esta corrida; los commits están 
    → `preprocesamiento` → `analisis` → `modelo`. El job `modelo` terminó con éxito
    (`fay_herriot`, `sensibilidad_varianza`, `fay_herriot_espacial`).
 7. **Este documento** se reescribió con las cifras de las tablas de esa corrida y se regeneraron las
-   cuatro figuras `fhe_*.png` desde el volumen `/Volumes/tesis/preprocesamiento/figuras_eda`.
+   cuatro figuras `fhe_*.png` desde el volumen `/Volumes/tesis/preprocesamiento/figuras_eda` (hoy se
+   guardan en `/Volumes/tesis/modelo/figuras`, R-45).
 
 Diferencia de datos entre la corrida anterior y esta: `test-2` trabaja con dominios que pueden ser una
 ciudad o su área metropolitana («Cali A.M.»), con covariables agregadas por el denominador de cada
@@ -116,7 +132,8 @@ Decisiones:
 
 1. **ρ se estima solo con los dominios con encuesta**: son los únicos con dato.
 2. **W se define sobre todas las unidades** (23 con encuesta + 82 objetivo = 105) en la estructura
-   `completa` (Saei y Chambers, 2005; Benedetti et al., 2024, pp. 146-149). La verosimilitud se evalúa
+   `completa` (verosimilitud marginal, MML, de Benedetti et al., 2024, pp. 146-149; no es el estimador de
+   Saei y Chambers, 2005, que el artículo distingue). La verosimilitud se evalúa
    sobre el bloque de los dominios con encuesta (verosimilitud marginal). Así un municipio sin encuesta
    recibe `x'β̂ + û_r`, con `û_r = G_rs V⁻¹ (y − Xβ̂)` calculado a partir de los dominios cercanos. La
    estructura `muestra` (Petrucci y Salvati, 2006) define W solo entre dominios con encuesta y deja a los
@@ -163,8 +180,10 @@ trata como dominio sin encuesta y se predice con (a) el sintético clásico, (b)
 espacial y (c) el predictor espacial con efecto. El referente es la estimación directa, que tiene ruido
 `D_d`; por eso también se reporta el RMSE corregido por ese ruido. Con n = 23 es evidencia modesta.
 
-**Criterio de decisión**: el espacial es preferido solo si `ΔAIC > 2` (AIC clásico − AIC espacial) y la
-prueba de razón de verosimilitudes de ρ = 0 tiene p < 0.05. Un escenario con ρ̂ pegado a la cota
+**Criterio de decisión** (R-43, R-13): el espacial es preferido solo si la prueba de razón de
+verosimilitudes de ρ = 0 tiene p < 0.05 en la estructura `muestra` del escenario de referencia. El
+`ΔAIC` (AIC clásico − AIC espacial) se reporta, pero es el mismo estadístico, `ΔAIC = LRT − 2`, y no un
+segundo respaldo. Un escenario con ρ̂ pegado a la cota
 (|ρ̂| = 0.99) no se usa como referencia: es un artefacto de una verosimilitud plana. En esta corrida
 ningún escenario llegó a la cota. Ni el LRT ni el AIC respaldan la preferencia por el espacial.
 
@@ -342,7 +361,7 @@ databricks bundle run modelo -t dev --profile tesis
 El job `modelo` ejecuta `fay_herriot`, `sensibilidad_varianza` (independiente) y `fay_herriot_espacial`
 (tarea que depende de `fay_herriot`, definida en `dab/resources/modelo.yml`). El notebook lee
 `fh_coeficientes` (benchmark clásico), por lo que debe correr después de `fay_herriot.py`. Escribe
-`tesis.modelo.fhe_*` con `overwrite` y las figuras `fhe_*.png` en `/Volumes/tesis/preprocesamiento/figuras_eda`.
+`tesis.modelo.fhe_*` con `overwrite` y las figuras `fhe_*.png` en `/Volumes/tesis/modelo/figuras`.
 Parámetros (escenarios de W, `RHO_LIMITE`, permutaciones, réplicas, semilla, `ALFA_LRT`) en
 `code/modelo/shared/config.py`.
 
