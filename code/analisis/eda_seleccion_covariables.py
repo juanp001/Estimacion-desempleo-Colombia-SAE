@@ -48,14 +48,12 @@
 # MAGIC
 # MAGIC ## Salidas
 # MAGIC
-# MAGIC * `tesis.preprocesamiento.diagnosticos_covariables`
-# MAGIC * `tesis.preprocesamiento.robustez_covariables`
+# MAGIC * `tesis.preprocesamiento.diagnosticos_covariables` (incluye la decisión de robustez)
 # MAGIC * `tesis.preprocesamiento.redundancia_covariables`
 # MAGIC * `tesis.preprocesamiento.decision_covariables`
 # MAGIC * `tesis.preprocesamiento.verificacion_seleccion`
 # MAGIC * `tesis.preprocesamiento.trazabilidad_covariables`
 # MAGIC * `tesis.preprocesamiento.sensibilidad_signo_covariables`
-# MAGIC * `tesis.preprocesamiento.covariables_candidatas` (elegibles)
 # MAGIC * `tesis.preprocesamiento.covariables_seleccionadas`
 # MAGIC * Figuras en el volumen `figuras_eda`, con prefijo `eda_`.
 
@@ -89,41 +87,69 @@ from preprocesamiento.shared.config import *
 from analisis.shared import descriptivos as desc
 from analisis.shared import diagnosticos as diag
 from analisis.shared import seleccion as sel
-from analisis.shared.catalogo_literatura import resolver_catalogo, mapas_catalogo
+from analisis.shared.datos_analisis import cargar_datos_analisis
 
-# ── Carga ─────────────────────────────────────────────────────────────────────
-df_full = spark.table(TBL_PREFILTRADAS)
-indicadores_dict = {
-    fila["CODIGO_INDICADOR"]: fila["INDICADOR"]
-    for fila in spark.table(TBL_DIM_INDICADORES)
-    .select("CODIGO_INDICADOR", "INDICADOR")
-    .collect()
-}
-
-cols_covariables = [c for c in df_full.columns if c not in METADATA_COLS]
-df_cov_spark = df_full.select(cols_covariables)
-for nombre in [
-    f.name for f in df_cov_spark.schema.fields if str(f.dataType) == "StringType()"
-]:
-    df_cov_spark = df_cov_spark.withColumn(nombre, F.col(nombre).cast("double"))
-
-df_meta = df_full.select(METADATA_COLS).toPandas()
-df_pd = df_cov_spark.toPandas()
-
-Y = df_meta[VARIABLE_OBJETIVO].values
-# Varianza de muestreo de la estimación directa de cada dominio, ψ_d = SE² (G7-B8): la misma
-# que usa el modelo Fay-Herriot.
-PSI = df_meta["SE_BOOTSTRAP_PCT"].astype(float).values ** 2
-# Etiqueta de cada dominio: la ciudad o la ciudad con su área metropolitana («Cali A.M.»).
-entidades = df_meta["NOMBRE_DOMINIO"].values
-
-catalogo_activo, reporte_catalogo = resolver_catalogo(
-    indicadores_dict, list(df_pd.columns)
+# ── Carga (la misma que analisis_descriptivo, R-32) ──────────────────────────
+datos = cargar_datos_analisis(
+    spark, TBL_PREFILTRADAS, TBL_DIM_INDICADORES, METADATA_COLS, VARIABLE_OBJETIVO
 )
-CANDIDATAS, ALIAS, SIGNO, DIMENSION = mapas_catalogo(catalogo_activo)
-df_cand = df_pd[CANDIDATAS].copy()
+df_full = datos["df_full"]
+indicadores_dict = datos["indicadores_dict"]
+df_meta, df_pd = datos["df_meta"], datos["df_pd"]
+# PSI = ψ_d = SE² (G7-B8): la misma varianza de muestreo que usa el modelo Fay-Herriot.
+Y, PSI, entidades = datos["Y"], datos["PSI"], datos["entidades"]
+reporte_catalogo = datos["reporte_catalogo"]
+CANDIDATAS, ALIAS, SIGNO, DIMENSION = (
+    datos["CANDIDATAS"],
+    datos["ALIAS"],
+    datos["SIGNO"],
+    datos["DIMENSION"],
+)
+df_cand = datos["df_cand"]
 
 print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDIDATAS)}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **Una sola cadena (R-32).** Los pasos de selección (Fay-Herriot univariado, robustez,
+# MAGIC redundancia, ficha de decisión y verificación de multicolinealidad) se ejecutan con
+# MAGIC `sel.ejecutar_seleccion`, la misma función que repite el notebook del modelo dentro de
+# MAGIC su validación cruzada. Las secciones siguientes muestran el resultado de cada paso.
+
+# COMMAND ----------
+
+# DBTITLE 1,Ejecución de la cadena de selección
+SELECCION = sel.ejecutar_seleccion(
+    df_cand,
+    CANDIDATAS,
+    Y,
+    PSI,
+    entidades,
+    SIGNO,
+    alias=ALIAS,
+    dimension=DIMENSION,
+    p_maximo=P_MAXIMO,
+    q_fdr=Q_FDR_ELEGIBILIDAD,
+    umbral_delta=UMBRAL_DELTA_LOO,
+    umbral_redundancia=UMBRAL_REDUNDANCIA,
+    vif_max=VIF_MAXIMO,
+    alfa_ic=ALFA_IC_CORRELACION,
+    replicas_estabilidad=REPLICAS_ESTABILIDAD,
+    semilla=BOOTSTRAP_SEED,
+    con_forma=True,
+    silencioso=False,
+)
+# Fay-Herriot univariado (G7-B8) con la estabilidad bootstrap de dominios (G7-B9, descriptiva).
+df_ic, df_fh, df_forma = (
+    SELECCION["df_ic"],
+    SELECCION["df_fh"],
+    SELECCION["df_forma"],
+)
+df_influencia, df_estabilidad = (
+    SELECCION["df_influencia"],
+    SELECCION["df_estabilidad"],
+)
 
 # COMMAND ----------
 
@@ -182,27 +208,6 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 
 # DBTITLE 1,Correlación con la respuesta, intervalo de Fisher y signo esperado
 bivariado = desc.tabla_bivariada(df_cand, CANDIDATAS, Y, alias=ALIAS)
-df_ic = diag.tabla_ic_correlacion(
-    df_cand, CANDIDATAS, Y, alias=ALIAS, alfa=ALFA_IC_CORRELACION
-)
-# Fay-Herriot univariado por covariable, con ψ_d (G7-B8): decide la elegibilidad.
-df_fh = diag.fh_univariado(
-    df_cand, CANDIDATAS, Y, PSI, alias=ALIAS, alfa=ALFA_IC_CORRELACION
-)
-# Estabilidad de la elegibilidad ante el remuestreo de dominios (G7-B9, descriptiva).
-df_fh = df_fh.merge(
-    diag.estabilidad_bootstrap(
-        df_cand,
-        CANDIDATAS,
-        Y,
-        PSI,
-        alias=ALIAS,
-        replicas=REPLICAS_ESTABILIDAD,
-        semilla=BOOTSTRAP_SEED,
-        alfa=ALFA_IC_CORRELACION,
-    ).drop(columns=["Alias"]),
-    on="Codigo",
-)
 
 df_asociacion = (
     df_ic.merge(bivariado.drop(columns=["Alias", "Pearson_r"]), on="Codigo")
@@ -234,9 +239,6 @@ print(
 
 # DBTITLE 1,Forma funcional en el Fay-Herriot univariado
 # Curvatura y escala logarítmica (G7-B13): diagnóstico, no transformación.
-df_forma = diag.forma_funcional(
-    df_cand, CANDIDATAS, Y, PSI, alias=ALIAS, alfa=ALFA_IC_CORRELACION
-)
 display(spark.createDataFrame(df_forma))
 
 a_revisar = df_forma.loc[df_forma["Forma_funcional"] == "revisar", "Alias"].tolist()
@@ -270,15 +272,11 @@ print(
 # COMMAND ----------
 
 # DBTITLE 1,Influencia por dominio (distancia de Cook en el Fay-Herriot univariado)
-df_influencia = diag.influencia_fh(df_cand, CANDIDATAS, Y, PSI, entidades, alias=ALIAS)
 display(spark.createDataFrame(df_influencia))
 
 # COMMAND ----------
 
 # DBTITLE 1,Estabilidad de la asociación al excluir cada dominio (Fay-Herriot univariado)
-df_estabilidad = diag.estabilidad_fh(
-    df_cand, CANDIDATAS, Y, PSI, entidades, alias=ALIAS
-)
 display(spark.createDataFrame(df_estabilidad))
 
 # COMMAND ----------
@@ -309,13 +307,7 @@ print(
 # COMMAND ----------
 
 # DBTITLE 1,Filtro de robustez
-supervivientes, df_robustez = sel.filtrar_por_robustez(
-    CANDIDATAS,
-    df_influencia,
-    df_estabilidad,
-    umbral_delta=UMBRAL_DELTA_LOO,
-    alias=ALIAS,
-)
+supervivientes, df_robustez = SELECCION["supervivientes"], SELECCION["df_robustez"]
 display(spark.createDataFrame(df_robustez))
 
 # COMMAND ----------
@@ -346,21 +338,10 @@ display(spark.createDataFrame(df_robustez))
 # COMMAND ----------
 
 # DBTITLE 1,Resolución de redundancia sobre las covariables robustas
-cook_por_codigo = df_influencia.set_index("Codigo")["Cook_max"].to_dict()
-# Reglas de elegibilidad de la ficha (q de Benjamini-Hochberg del FH univariado), para el
-# retroceso (G7-B11).
-df_elegibilidad = sel.evaluar_elegibilidad(
-    CANDIDATAS, df_ic, SIGNO, fh=df_fh, q_fdr=Q_FDR_ELEGIBILIDAD
-)
-
-robustas, df_redundancia = sel.resolver_redundancia(
-    df_cand,
-    supervivientes,
-    influencia=cook_por_codigo,
-    alias=ALIAS,
-    umbral=UMBRAL_REDUNDANCIA,
-    elegibilidad=df_elegibilidad,
-)
+# Con el retroceso (G7-B11) el representante usa las reglas de elegibilidad de la ficha
+# (q de Benjamini-Hochberg del FH univariado), df_elegibilidad.
+df_elegibilidad = SELECCION["df_elegibilidad"]
+df_redundancia = SELECCION["df_redundancia"]
 display(spark.createDataFrame(df_redundancia))
 
 # COMMAND ----------
@@ -396,24 +377,11 @@ display(spark.createDataFrame(df_redundancia))
 # COMMAND ----------
 
 # DBTITLE 1,Ficha de decisión y conjunto seleccionado
-SELECCIONADAS, df_ficha = sel.ficha_decision(
-    CANDIDATAS,
-    df_ic,
-    df_robustez,
-    df_redundancia,
-    signo_esperado=SIGNO,
-    alias=ALIAS,
-    dimension=DIMENSION,
-    p_maximo=P_MAXIMO,
-    fh=df_fh,
-    forma=df_forma,
-    q_fdr=Q_FDR_ELEGIBILIDAD,
-)
+# La ficha ya refleja el conjunto final, tras la verificación de multicolinealidad de la
+# sección 5 (las que entran o salen por VIF llevan la nota en su motivo).
+df_ficha = SELECCION["ficha"]
+SELECCIONADAS = SELECCION["seleccionadas"]
 display(spark.createDataFrame(df_ficha))
-
-ELEGIBLES_RESTANTES = df_ficha.loc[
-    df_ficha["Decision"] == "no seleccionada", "Codigo"
-].tolist()
 
 print("\nCovariables seleccionadas:")
 for codigo in SELECCIONADAS:
@@ -438,54 +406,10 @@ for codigo in SELECCIONADAS:
 # COMMAND ----------
 
 # DBTITLE 1,Multicolinealidad del conjunto elegido
-SELECCIONADAS_PREVIAS = list(SELECCIONADAS)
-SELECCIONADAS, df_vif, sustituciones = sel.ajustar_por_vif(
-    df_cand, SELECCIONADAS, ELEGIBLES_RESTANTES, vif_max=VIF_MAXIMO, alias=ALIAS
-)
+df_vif, sustituciones = SELECCION["df_vif"], SELECCION["sustituciones"]
 display(spark.createDataFrame(df_vif))
-
-if sustituciones:
-    # La ficha refleja el conjunto final, no el previo a la verificación.
-    for mensaje in sustituciones:
-        print(f"  sustitución: {mensaje}")
-    entran_vif = [c for c in SELECCIONADAS if c not in SELECCIONADAS_PREVIAS]
-    salen_vif = [c for c in SELECCIONADAS_PREVIAS if c not in SELECCIONADAS]
-    df_ficha["Decision"] = np.where(
-        df_ficha["Codigo"].isin(SELECCIONADAS),
-        "seleccionada",
-        np.where(
-            df_ficha["Decision"] == "seleccionada",
-            "no seleccionada",
-            df_ficha["Decision"],
-        ),
-    )
-
-    # Solo se anotan las que entran o salen por VIF; el resto conserva su motivo. El tramo
-    # «dentro/fuera de la cota» ya no describe a esas dos, así que se reemplaza.
-    def motivo_vif(codigo, motivo):
-        """(str, str) → str: motivo de la ficha con la nota de VIF si entra o sale."""
-        if codigo in salen_vif:
-            return (
-                motivo.replace(
-                    ", dentro de la cota de",
-                    ", fuera del conjunto final tras el VIF; cota de",
-                )
-                + "; sale por multicolinealidad (VIF)"
-            )
-        if codigo in entran_vif:
-            return (
-                motivo.replace(
-                    ", fuera de la cota de",
-                    ", dentro del conjunto final tras el VIF; cota de",
-                )
-                + "; entra por multicolinealidad (VIF)"
-            )
-        return motivo
-
-    df_ficha["Motivo"] = [
-        motivo_vif(codigo, motivo)
-        for codigo, motivo in zip(df_ficha["Codigo"], df_ficha["Motivo"])
-    ]
+for mensaje in sustituciones:
+    print(f"  sustitución: {mensaje}")
 
 df_verificacion = df_vif.assign(
     Umbral_VIF=VIF_MAXIMO,
@@ -504,45 +428,27 @@ df_verificacion = df_vif.assign(
 # COMMAND ----------
 
 # DBTITLE 1,Sensibilidad: selección sin las covariables de signo inesperado
-df_elegibilidad_signo = sel.evaluar_elegibilidad(
-    CANDIDATAS,
-    df_ic,
-    SIGNO,
-    exigir_signo=True,
-    fh=df_fh,
-    q_fdr=Q_FDR_ELEGIBILIDAD,
-)
-_, df_redundancia_signo = sel.resolver_redundancia(
+# Reutiliza los diagnósticos de la cadena principal; solo cambia la regla de elegibilidad.
+SELECCION_SIGNO = sel.ejecutar_seleccion(
     df_cand,
-    supervivientes,
-    influencia=cook_por_codigo,
-    alias=ALIAS,
-    umbral=UMBRAL_REDUNDANCIA,
-    elegibilidad=df_elegibilidad_signo,
-)
-seleccionadas_signo, df_ficha_signo = sel.ficha_decision(
     CANDIDATAS,
-    df_ic,
-    df_robustez,
-    df_redundancia_signo,
-    signo_esperado=SIGNO,
+    Y,
+    PSI,
+    entidades,
+    SIGNO,
     alias=ALIAS,
     dimension=DIMENSION,
     p_maximo=P_MAXIMO,
-    exigir_signo=True,
-    fh=df_fh,
-    forma=df_forma,
     q_fdr=Q_FDR_ELEGIBILIDAD,
-)
-seleccionadas_signo, _, _ = sel.ajustar_por_vif(
-    df_cand,
-    seleccionadas_signo,
-    df_ficha_signo.loc[
-        df_ficha_signo["Decision"] == "no seleccionada", "Codigo"
-    ].tolist(),
+    umbral_delta=UMBRAL_DELTA_LOO,
+    umbral_redundancia=UMBRAL_REDUNDANCIA,
     vif_max=VIF_MAXIMO,
-    alias=ALIAS,
+    alfa_ic=ALFA_IC_CORRELACION,
+    exigir_signo=True,
+    diagnosticos=SELECCION,
 )
+df_ficha_signo = SELECCION_SIGNO["ficha"]
+seleccionadas_signo = SELECCION_SIGNO["seleccionadas"]
 df_sensibilidad_signo = sel.sensibilidad_signo(
     df_ficha, SELECCIONADAS, df_ficha_signo, seleccionadas_signo, alias=ALIAS
 )
@@ -661,11 +567,18 @@ df_diagnosticos = (
     .merge(df_forma.drop(columns=["Alias"]), on="Codigo")
     .merge(df_influencia.drop(columns=["Alias"]), on="Codigo")
     .merge(df_estabilidad.drop(columns=["Alias"]), on="Codigo")
+    # R-63: la decisión de robustez va aquí en lugar de una tabla aparte que repetía
+    # Cook_max, Delta_LOO_max e Invierte_signo.
+    .merge(
+        df_robustez[["Codigo", "Decision", "Motivo"]].rename(
+            columns={"Decision": "Robustez_decision", "Motivo": "Robustez_motivo"}
+        ),
+        on="Codigo",
+    )
 )
 
 for tabla, destino in [
     (df_diagnosticos, TBL_DIAGNOSTICOS),
-    (df_robustez, TBL_ROBUSTEZ),
     (df_redundancia, TBL_REDUNDANCIA),
     (df_ficha, TBL_DECISION),
     (df_verificacion, TBL_VERIFICACION),
@@ -682,15 +595,10 @@ for tabla, destino in [
 
 # COMMAND ----------
 
-# DBTITLE 1,Escritura de las bases de candidatas y de covariables seleccionadas
-# Se escriben dos tablas con propósitos distintos:
-#  · candidatas: todas las covariables elegibles (seleccionadas o no), por si el número de
-#    dominios con encuesta aumenta o se quiere ajustar una especificación alternativa.
-#  · seleccionadas: únicamente las covariables del conjunto elegido, que es la entrada del
-#    notebook del modelo.
-ELEGIBLES = df_ficha.loc[
-    df_ficha["Decision"].isin(["seleccionada", "no seleccionada"]), "Codigo"
-].tolist()
+# DBTITLE 1,Escritura de la base de covariables seleccionadas
+# Solo las covariables del conjunto elegido, que es la entrada del notebook del modelo. Las
+# elegibles que quedaron fuera por la cota se consultan en `decision_covariables`
+# (Decision = «no seleccionada»); ya no se escribe una tabla aparte de candidatas (R-63).
 
 
 def escribir_base(codigos, destino):
@@ -712,5 +620,4 @@ def escribir_base(codigos, destino):
     return base
 
 
-escribir_base(ELEGIBLES, TBL_CANDIDATAS)
 display(escribir_base(SELECCIONADAS, TBL_SELECCIONADAS))

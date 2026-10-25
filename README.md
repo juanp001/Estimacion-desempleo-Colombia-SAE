@@ -228,7 +228,7 @@ conceptuales y los 23 dominios:
 
 El índice de Moran se reserva para los residuos del benchmark y de las variantes
 espaciales. Resultado: `tesis.preprocesamiento.covariables_seleccionadas`, junto con
-`decision_covariables`, `trazabilidad_covariables`, `covariables_candidatas` y las tablas de diagnóstico.
+`decision_covariables`, `trazabilidad_covariables` y las tablas de diagnóstico.
 
 ### 5. Modelo Fay-Herriot (`code/modelo/fay_herriot.py`)
 

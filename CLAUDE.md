@@ -214,9 +214,13 @@ analisis/eda_seleccion_covariables.py
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
       conjunto (diag.figura_residuos_parciales, G7-B13) y sensibilidad al signo
       (selección repetida exigiendo el signo → sensibilidad_signo_covariables)
-  → diagnosticos_covariables, robustez_covariables, redundancia_covariables, decision_covariables,
-    verificacion_seleccion, trazabilidad_covariables, covariables_candidatas (elegibles),
-    covariables_seleccionadas
+  → (R-32) toda la cadena de pasos 1-5 vive en `analisis/shared/seleccion.ejecutar_seleccion`, que usan
+    el notebook y, vía `seleccionar_covariables`, la validación cruzada del modelo; la carga común está
+    en `analisis/shared/datos_analisis.cargar_datos_analisis`
+  → diagnosticos_covariables (incluye la decisión de robustez, R-63), redundancia_covariables,
+    decision_covariables, verificacion_seleccion, trazabilidad_covariables, covariables_seleccionadas
+    (ya no se escribe covariables_candidatas ni robustez_covariables; las elegibles no seleccionadas se
+    leen en decision_covariables)
         ↓
 modelo/fay_herriot.py
   → FayHerriotClasico (shared/fay_herriot.py), MSE de Prasad-Rao con g3 = D²/(D+Â)³·avar(Â)
@@ -502,7 +506,7 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
 | `ingesta_geih` | `geih_bronce` → `geih_plata` → `geih_oro`; `datos_publicados` (independiente) |
 | `ingesta_terridata` | `terridata_bronce` → `terridata_plata` |
 | `preprocesamiento` | `estimacion_directa` → `adicion_covariables` → `pre_filtrado_covariables` → `dominios_sin_encuesta` |
-| `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables`; `sensibilidad_ventana_temporal` (independiente) |
+| `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables` (R-37: `sensibilidad_ventana_temporal` salió del job; se corre a mano) |
 | `modelo` | `fay_herriot` → `fay_herriot_espacial`; `sensibilidad_varianza` (independiente) |
 
 - Entre jobs no hay dependencias en el YAML; el orden real es `dimensiones` → `ingesta_geih` /

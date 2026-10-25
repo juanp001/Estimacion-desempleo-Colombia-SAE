@@ -63,6 +63,7 @@ for _ruta in (CODE_DIR, os.path.join(CODE_DIR, "modelo")):
         sys.path.insert(0, _ruta)
 
 from shared.config import *
+from shared.datos_modelo import alias_desde_catalogo
 from shared.fay_herriot import FayHerriotClasico
 from shared.cuadro_comparativo import construir_cuadro_comparativo
 from shared.fay_herriot_espacial import (
@@ -144,10 +145,9 @@ def guardar_figura(fig, nombre: str) -> None:
 
 # COMMAND ----------
 
-mapa_alias = {
-    fila["Codigo"]: fila["Alias"]
-    for fila in spark.table(TBL_TRAZABILIDAD).select("Codigo", "Alias").collect()
-}
+# Mapa código → alias desde el catálogo de literatura (R-63), como en fay_herriot.py, en lugar
+# de la tabla de documentación `trazabilidad_covariables`.
+mapa_alias = alias_desde_catalogo()
 alias_a_codigo = {alias: codigo for codigo, alias in mapa_alias.items()}
 
 # Covariables del ganador clásico (todas las filas de Parametro salvo el intercepto).

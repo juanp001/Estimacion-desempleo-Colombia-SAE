@@ -89,32 +89,17 @@ if CODE_DIR not in sys.path:
 
 from preprocesamiento.shared.config import *
 from analisis.shared import descriptivos as desc
-from analisis.shared.catalogo_literatura import resolver_catalogo, mapas_catalogo
+from analisis.shared.datos_analisis import cargar_datos_analisis
 
-# ── Carga ─────────────────────────────────────────────────────────────────────
-df_full = spark.table(TBL_PREFILTRADAS)
-indicadores_dict = {
-    fila["CODIGO_INDICADOR"]: fila["INDICADOR"]
-    for fila in spark.table(TBL_DIM_INDICADORES)
-    .select("CODIGO_INDICADOR", "INDICADOR")
-    .collect()
-}
-
-cols_covariables = [c for c in df_full.columns if c not in METADATA_COLS]
-df_cov_spark = df_full.select(cols_covariables)
-for nombre in [
-    f.name for f in df_cov_spark.schema.fields if str(f.dataType) == "StringType()"
-]:
-    df_cov_spark = df_cov_spark.withColumn(nombre, F.col(nombre).cast("double"))
-
-df_meta = df_full.select(METADATA_COLS).toPandas()
-df_pd = df_cov_spark.toPandas()
-
-Y = df_meta[VARIABLE_OBJETIVO].values
-SE = df_meta["SE_BOOTSTRAP_PCT"].values
-PSI = SE**2  # varianza de muestreo que el modelo toma como conocida
-# Etiqueta de cada dominio: la ciudad o la ciudad con su área metropolitana («Cali A.M.»).
-entidades = df_meta["NOMBRE_DOMINIO"].values
+# ── Carga (la misma que eda_seleccion_covariables, R-32) ─────────────────────
+datos = cargar_datos_analisis(
+    spark, TBL_PREFILTRADAS, TBL_DIM_INDICADORES, METADATA_COLS, VARIABLE_OBJETIVO
+)
+df_full = datos["df_full"]
+indicadores_dict = datos["indicadores_dict"]
+df_meta, df_pd = datos["df_meta"], datos["df_pd"]
+# PSI = SE²: varianza de muestreo que el modelo toma como conocida.
+Y, SE, PSI, entidades = datos["Y"], datos["SE"], datos["PSI"], datos["entidades"]
 
 df_meta["VARIANZA_MUESTREO"] = PSI
 
@@ -146,12 +131,15 @@ print(f"Covariables pre-filtradas: {df_pd.shape[1]}")
 # COMMAND ----------
 
 # DBTITLE 1,Resolución del catálogo de elegibilidad conceptual
-catalogo_activo, reporte_catalogo = resolver_catalogo(
-    indicadores_dict, list(df_pd.columns)
+reporte_catalogo = datos["reporte_catalogo"]
+CANDIDATAS, ALIAS, SIGNO, DIMENSION = (
+    datos["CANDIDATAS"],
+    datos["ALIAS"],
+    datos["SIGNO"],
+    datos["DIMENSION"],
 )
-CANDIDATAS, ALIAS, SIGNO, DIMENSION = mapas_catalogo(catalogo_activo)
 
-df_cand = df_pd[CANDIDATAS].copy()
+df_cand = datos["df_cand"]
 NOMBRES = {c: indicadores_dict.get(c, c) for c in CANDIDATAS}
 
 display(spark.createDataFrame(reporte_catalogo))
