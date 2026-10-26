@@ -3,7 +3,7 @@
 # MAGIC %md
 # MAGIC # Ingesta de Datos TerriData - Capa Bronce
 # MAGIC
-# MAGIC Este notebook realiza la ingesta y carga inicial de los datos de **TerriData** en la capa bronce del lakehouse, aplicando transformaciones básicas de normalización de texto.
+# MAGIC Este notebook realiza la ingesta y carga inicial de los datos de **TerriData** en la capa bronce del lakehouse, seleccionando los campos que usan las etapas siguientes.
 # MAGIC
 # MAGIC ## ¿Qué es TerriData?
 # MAGIC
@@ -12,7 +12,7 @@
 # MAGIC ## Proceso
 # MAGIC
 # MAGIC 1. Lee archivos Parquet consolidados desde `/Volumes/tesis/terridata/terridata_archivos/consolidado/`
-# MAGIC 2. Aplica normalización de texto: elimina tildes y convierte a mayúsculas en los campos geográficos
+# MAGIC 2. Selecciona los campos de `CAMPOS_BRONCE` (R-52: sin columnas `*_NORMALIZADO`, que nadie usaba)
 # MAGIC 3. Guarda la tabla resultante en `tesis.terridata.terridata_bronce`
 # MAGIC
 # MAGIC ## Tabla de salida: `tesis.terridata.terridata_bronce`
@@ -21,10 +21,8 @@
 # MAGIC |-------|-------------|
 # MAGIC | `CODIGO_DEPARTAMENTO` | Código DIVIPOLA del departamento |
 # MAGIC | `DEPARTAMENTO` | Nombre original con tildes |
-# MAGIC | `DEPARTAMENTO_NORMALIZADO` | Nombre sin tildes, en mayúsculas (para joins/filtros) |
 # MAGIC | `CODIGO_ENTIDAD` | Código del municipio o entidad |
 # MAGIC | `ENTIDAD` | Nombre original con tildes |
-# MAGIC | `ENTIDAD_NORMALIZADO` | Nombre sin tildes, en mayúsculas (para joins/filtros) |
 # MAGIC | `DIMENSION` | Categoría temática del indicador |
 # MAGIC | `SUBCATEGORIA` | Subcategoría dentro de la dimensión |
 # MAGIC | `INDICADOR` | Nombre descriptivo del indicador |

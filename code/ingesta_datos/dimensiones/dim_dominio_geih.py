@@ -46,6 +46,9 @@
 # MAGIC * `CODIGO_MUNICIPIO`, `MUNICIPIO`, `CODIGO_DEPARTAMENTO`, `DEPARTAMENTO`: municipio miembro
 # MAGIC * `ES_CAPITAL`: `True` en la fila de la capital
 # MAGIC
+# MAGIC `DOMINIOS_GEIH` es la **única** lista de las 32 capitales del proyecto (R-24):
+# MAGIC `dim_geih_divipola` toma de esta tabla las filas `ES_CAPITAL`.
+# MAGIC
 # MAGIC ## Limitación conocida
 # MAGIC
 # MAGIC En el marco 2005 el `AREA` solo aparece en los registros de cabecera (CLASE = 1): los dominios de
@@ -58,6 +61,8 @@
 # DBTITLE 1,Importación de librerías
 from pyspark.sql import Row
 from pyspark.sql.functions import col
+
+from shared.config.dim_config import TBL_DIM_DIVIPOLA, TBL_DIM_DOMINIO
 
 # COMMAND ----------
 
@@ -150,7 +155,7 @@ duplicados = sorted({c for c in codigos if codigos.count(c) > 1})
 if duplicados:
     raise ValueError(f"Municipios asignados a más de un dominio: {duplicados}")
 
-df_divipola = spark.table("tesis.dim.dim_divipola").select(
+df_divipola = spark.table(TBL_DIM_DIVIPOLA).select(
     "CODIGO_DEPARTAMENTO", "DEPARTAMENTO", "CODIGO_MUNICIPIO", "MUNICIPIO"
 )
 
@@ -196,6 +201,6 @@ display(
 
 # DBTITLE 1,Guardar tabla dimensional
 df_dominio.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    "tesis.dim.dim_dominio_geih"
+    TBL_DIM_DOMINIO
 )
-print("Tabla escrita: tesis.dim.dim_dominio_geih")
+print(f"Tabla escrita: {TBL_DIM_DOMINIO}")

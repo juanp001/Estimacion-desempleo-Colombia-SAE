@@ -274,10 +274,15 @@ METADATA_COLS = [
     # G7-B3: control analítico de la varianza y número de viviendas (conglomerados del bootstrap)
     "SE_TAYLOR_PCT",
     "N_VIVIENDAS",
+    # R-58: TD del DANE de la misma ventana y diferencia con la directa (las calcula
+    # estimacion_directa; NULL si el anexo no cubre el período)
+    "TD_DANE_PCT",
+    "DIF_TD_PP",
 ]
 
 # Columnas a excluir de TerriData al hacer el join: las de identificación ya existen en las
-# estimaciones y las de texto normalizado no son indicadores (no se pueden agregar al dominio).
+# estimaciones o no son indicadores (no se pueden agregar al dominio). Las *_NORMALIZADO salieron
+# de TerriData en R-52.
 COLUMNAS_EXCLUIR_JOIN = [
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
@@ -285,8 +290,6 @@ COLUMNAS_EXCLUIR_JOIN = [
     "ENTIDAD",
     "ANO",
     "MES",
-    "DEPARTAMENTO_NORMALIZADO",
-    "ENTIDAD_NORMALIZADO",
 ]
 
 # Variable respuesta

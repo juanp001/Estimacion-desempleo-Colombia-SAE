@@ -24,7 +24,9 @@
 # MAGIC
 # MAGIC 1. **Preparar datos base**: unificar `DATO_NUMERICO` y `DATO_CUALITATIVO` → campo `VALOR`
 # MAGIC 2. **Clasificar indicadores**: `numerico` si ≥ 95 % de valores vienen de `DATO_NUMERICO`, si no `cualitativo`
-# MAGIC 3. **Pivot dinámico**: `groupBy + pivot + agg(max)` sobre ~1,582 indicadores
+# MAGIC 3. **Pivot dinámico**: `groupBy + pivot + agg(max)` sobre ~1,582 indicadores. Antes se
+# MAGIC    exige que (entidad, año, mes, indicador) sea única en bronce (R-20): `max` sobre texto
+# MAGIC    elegiría mal si hubiera dos filas; con la llave única solo hay un valor que tomar.
 # MAGIC 4. **Aplicar tipos**: `try_cast` a `double` para numéricos; mantener `string` para cualitativos
 # MAGIC 5. **Guardar tabla pivoteada** y **tabla dimensional** de metadatos
 # MAGIC 6. **Verificaciones de integridad** sobre las tablas Delta ya escritas
@@ -53,6 +55,7 @@ from shared.utils.spark_utils import escribir_tabla
 from shared.utils.verification_utils import (
     verificar_conservacion_registros,
     verificar_duplicados,
+    verificar_llave_unica_bronce,
     verificar_integridad_muestra,
     verificar_calidad_casteo,
     verificar_reclasificacion_indicadores,
@@ -83,10 +86,8 @@ df_datos_unificados = df_datos_unificados.filter(
 df_datos_unificados = df_datos_unificados.select(
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
-    "DEPARTAMENTO_NORMALIZADO",
     "CODIGO_ENTIDAD",
     "ENTIDAD",
-    "ENTIDAD_NORMALIZADO",
     col("ANO").cast("int").alias("ANO"),
     col("MES").cast("int").alias("MES"),
     "CODIGO_INDICADOR",
@@ -178,6 +179,9 @@ print(f"Total de indicadores a pivotar: {len(indicadores)}")
 print(f"Pivotando {len(indicadores)} indicadores...")
 print("Este proceso puede tomar varios minutos...")
 
+# R-20: con la llave única en bronce, max(VALOR) toma el único valor de cada celda
+verificar_llave_unica_bronce(df_datos_unificados)
+
 df_pivoteado = (
     df_datos_unificados.groupBy(*COLUMNAS_ID)
     .pivot("CODIGO_INDICADOR", indicadores)
@@ -228,7 +232,10 @@ print("=" * 60)
 print(f"\nTabla: {TBL_PLATA}")
 print(f"\nESTADÍSTICAS:")
 print(f"  - Filas:    {n_filas:,}")
-print(f"  - Columnas: {n_cols}  (8 de identificación + {n_cols - 8} indicadores)")
+n_id = len(COLUMNAS_ID)
+print(
+    f"  - Columnas: {n_cols}  ({n_id} de identificación + {n_cols - n_id} indicadores)"
+)
 
 # COMMAND ----------
 

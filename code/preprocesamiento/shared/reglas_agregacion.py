@@ -280,6 +280,47 @@ def regla_de(codigo: str) -> dict:
     return REGLAS_AGREGACION.get(codigo, REGLA_POR_DEFECTO)
 
 
+# Matices de la definición de algunas covariables que la tabla de covariables debe mostrar (R-06).
+NOTAS_COVARIABLES = {
+    "030010003": (
+        "Trimestral: se usa el corte de diciembre (cuarto trimestre) frente a una tasa de "
+        "desempleo que promedia los 12 meses."
+    ),
+    "040010010": (
+        "Se mide por la sede del colegio: la matrícula se asigna al municipio donde estudia "
+        "el alumno, no donde vive."
+    ),
+    "040010009": (
+        "Se mide por la sede del colegio: la matrícula se asigna al municipio donde estudia "
+        "el alumno, no donde vive."
+    ),
+}
+
+# Geografía de toda covariable: TerriData publica el municipio completo (cabecera y resto),
+# mientras que la tasa del dominio es de cabeceras (ver dim_dominio_geih).
+GEOGRAFIA_COVARIABLE = (
+    "Municipio completo (cabecera y resto); en los dominios A.M. se agrega con PESO"
+)
+
+
+def periodicidad(meses: list) -> str:
+    """Periodicidad de un indicador según los meses con dato en un año (R-06).
+
+    Args:
+        meses (list[int]): Meses (1-12) en que el indicador tiene dato ese año.
+
+    Returns:
+        str: ``anual``, ``semestral``, ``trimestral``, ``mensual`` o ``irregular``.
+
+    Example:
+        >>> periodicidad([12]), periodicidad([3, 6, 9, 12]), periodicidad([11])
+        ('anual', 'trimestral', 'anual')
+    """
+    return {1: "anual", 2: "semestral", 4: "trimestral", 12: "mensual"}.get(
+        len(set(meses)), "irregular"
+    )
+
+
 def tabla_reglas(codigos: list, indicadores_dict: dict) -> pd.DataFrame:
     """Tabla de trazabilidad de la regla de agregación de cada indicador.
 
@@ -289,7 +330,9 @@ def tabla_reglas(codigos: list, indicadores_dict: dict) -> pd.DataFrame:
 
     Returns:
         pd.DataFrame: Una fila por código con ``CODIGO_INDICADOR``, ``INDICADOR``, ``PESO``,
-            ``DESCRIPCION_PESO``, ``EXPRESION_PESO``, ``TIPO`` y ``SUSTENTO``.
+            ``DESCRIPCION_PESO``, ``EXPRESION_PESO``, ``TIPO``, ``SUSTENTO``, ``GEOGRAFIA`` y
+            ``NOTA`` (R-06). La unidad, la fuente y el corte se agregan en
+            ``adicion_covariables.py`` desde ``terridata_bronce``.
 
     Casos de uso:
         Persistir en ``tesis.preprocesamiento.reglas_agregacion_covariables`` la regla con la que
@@ -312,6 +355,8 @@ def tabla_reglas(codigos: list, indicadores_dict: dict) -> pd.DataFrame:
                 "EXPRESION_PESO": peso["expresion"],
                 "TIPO": regla["tipo"],
                 "SUSTENTO": regla["sustento"],
+                "GEOGRAFIA": GEOGRAFIA_COVARIABLE,
+                "NOTA": NOTAS_COVARIABLES.get(codigo, ""),
             }
         )
     return pd.DataFrame(filas)

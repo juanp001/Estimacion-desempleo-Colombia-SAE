@@ -41,6 +41,12 @@
 # MAGIC
 # MAGIC Las covariables son las del municipio (sin agregar): el modelo predice con x_m'β̂.
 # MAGIC
+# MAGIC ## Período (R-26)
+# MAGIC
+# MAGIC El año y el mes salen de `covariables_prefiltradas`, que trae el período de la estimación
+# MAGIC directa. Los widgets `anio_estimacion` / `mes_estimacion` solo se comparan con él: si no
+# MAGIC coinciden, el notebook se detiene en vez de escribir objetivos de otro período.
+# MAGIC
 # MAGIC ## Salida
 # MAGIC
 # MAGIC * `tesis.preprocesamiento.municipios_sin_encuesta`
@@ -69,16 +75,42 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config import *
+# R-61: nombres explícitos en vez de «import *»
+from preprocesamiento.shared.config import (
+    DEPARTAMENTOS_OBJETIVO,
+    METADATA_COLS,
+    TBL_DIM_DOMINIO,
+    TBL_PREFILTRADAS,
+    TBL_SIN_ENCUESTA,
+    TBL_TERRIDATA,
+    resolver_periodo,
+)
 
-# Período a estimar: widgets anio_estimacion / mes_estimacion (parámetros del job).
-PER_ESTIMACION, MES_ESTIMACION = resolver_periodo(dbutils)
+# Período del widget / parámetro del job; abajo se compara con el de las estimaciones (R-26).
+PER_WIDGET, MES_WIDGET = resolver_periodo(dbutils)
 
 # COMMAND ----------
 
 # DBTITLE 1,Covariables que superaron el pre-filtrado y dominios con encuesta
 df_prefiltradas = spark.table(TBL_PREFILTRADAS)
 codigos_prefiltrados = [c for c in df_prefiltradas.columns if c not in METADATA_COLS]
+
+# R-26: el período sale de las estimaciones (covariables_prefiltradas trae PER/MES de la
+# estimación directa), no del widget. Si se corre a mano con el valor por defecto (2018-12)
+# después de estimar otro período, los objetivos quedarían de otro año: se detiene.
+periodos = df_prefiltradas.select("PER", "MES").distinct().collect()
+if len(periodos) != 1:
+    raise ValueError(
+        f"{TBL_PREFILTRADAS} debe tener un solo período y tiene {len(periodos)}: {periodos}"
+    )
+PER_ESTIMACION, MES_ESTIMACION = int(periodos[0]["PER"]), int(periodos[0]["MES"])
+if (PER_WIDGET, MES_WIDGET) != (PER_ESTIMACION, MES_ESTIMACION):
+    raise ValueError(
+        f"El período del widget ({PER_WIDGET}-{MES_WIDGET:02d}) no coincide con el de las "
+        f"estimaciones ({PER_ESTIMACION}-{MES_ESTIMACION:02d}). Corra con el mismo período o "
+        "vuelva a correr estimacion_directa y el pre-filtrado."
+    )
+print(f"Período de las estimaciones: {PER_ESTIMACION}-{MES_ESTIMACION:02d}")
 
 dominios_con_encuesta = {
     fila["CODIGO_DOMINIO"]

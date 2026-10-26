@@ -12,9 +12,10 @@
 # MAGIC NULLs en indicadores laborales se reemplazan con 0 via `coalesce`.
 # MAGIC
 # MAGIC ## Dimensiones y factor de expansión
-# MAGIC * Geografía: se une dos veces a `tesis.dim.dim_geih_divipola` (no a `dim_divipola`): por
-# MAGIC   `CODIGO_DPTO` (departamento) y por `CODIGO_AREA` (municipio). Fuera de las 32 áreas de esa
-# MAGIC   tabla, `MUNICIPIO` queda en NULL.
+# MAGIC * Geografía (R-24): el nombre del departamento sale de `tesis.dim.dim_divipola` por
+# MAGIC   `CODIGO_DPTO`, así que no queda NULL en departamentos sin capital GEIH (p. ej. Cundinamarca,
+# MAGIC   25); el municipio sale de `tesis.dim.dim_geih_divipola` por `CODIGO_AREA`. Fuera de las 32
+# MAGIC   áreas de esa tabla, `MUNICIPIO` queda en NULL.
 # MAGIC * `FEX_C18` (G7-B6, `shared/transformations/factor_expansion.py`): en el marco nuevo es el `FEX`
 # MAGIC   del archivo (ya calibrado con el CNPV 2018); en el marco antiguo sale de `tesis.geih_plata.dim_fex`.
 # MAGIC   Un factor faltante ya no se imputa con 0 ni con `FEX_C_2011` (censo 2005): si alguna persona queda
@@ -27,15 +28,29 @@
 # MAGIC Después de escribir la tabla se verifican, solo con PASS/FAIL (no detienen el notebook):
 # MAGIC * `llaves_sin_pareja`: % de llaves de cada módulo sin pareja en características generales
 # MAGIC   (inactivos frente a fuerza de trabajo, porque esa unión define la PEA del marco antiguo).
+# MAGIC   Desde R-17 también en la dirección contraria:
+# MAGIC   * `PET_SIN_FT`: personas de 15 años y más sin registro en fuerza de trabajo (el LEFT JOIN
+# MAGIC     les daría PET = 0 y PEA = 0 sin aviso). PASS/FAIL.
+# MAGIC   * `FEX_SIN_CG`: registros de `dim_fex` sin persona en características generales. Solo AVISO,
+# MAGIC     porque no cambian la estimación: en 2018 son 9.866 (≈ 280 viviendas por mes,
+# MAGIC     `DIRECTORIO` 4518316-4804436), probablemente San Andrés, que la GEIH publica aparte.
 # MAGIC * `reconciliacion_fuerza_trabajo`: por período y dominio, PET, PEA, PEI, OC y DS, y las
-# MAGIC   personas que rompen PEA = OC + DS o PET = PEA + PEI.
+# MAGIC   personas que rompen PEA = OC + DS o PET = PEA + PEI. Las identidades se revisan sobre
+# MAGIC   toda la PET de la fuente; las columnas `*_15` y `TD_15_PCT` (R-53) dan la versión de 15
+# MAGIC   años y más, la comparable con el anexo DANE y con `estimacion_directa`.
+# MAGIC
+# MAGIC ## PET: 15 años y más (R-53)
+# MAGIC En el marco antiguo la bandera `PET` es la de la fuente: 12+ urbana y 10+ rural. La serie
+# MAGIC recalibrada con el CNPV 2018 y la estimación directa usan 15+, así que toda tasa que se compare
+# MAGIC con ellas debe filtrar `EDAD >= 15` (en 2018 la PET de la fuente trae 40.403 registros de
+# MAGIC 10-14 años; en el marco nuevo la PET ya es 15+).
 # MAGIC
 # MAGIC ## Ejemplo de uso
 # MAGIC ```sql
 # MAGIC SELECT PERIODO, DEPARTAMENTO,
 # MAGIC        SUM(DESOCUPADO * FEX_C18) / SUM(PEA * FEX_C18) * 100 AS tasa_desempleo
 # MAGIC FROM tesis.geih_oro.mercado_laboral
-# MAGIC WHERE PEA = 1
+# MAGIC WHERE PEA = 1 AND EDAD >= 15
 # MAGIC GROUP BY PERIODO, DEPARTAMENTO
 # MAGIC ```
 
@@ -51,6 +66,7 @@ from shared.config.geih_config import (
     TBL_OC_PLATA,
     TBL_FEX_PLATA,
     TBL_DIM_DIVIPOLA,
+    TBL_DIM_GEIH_DIVIPOLA,
     TBL_MERCADO_LABORAL,
     TBL_IN_CAB_MA,
     TBL_IN_RESTO_MA,
@@ -78,7 +94,13 @@ ft = spark.table(TBL_FT_PLATA)
 no = spark.table(TBL_NO_PLATA)
 oc = spark.table(TBL_OC_PLATA)
 fex = spark.table(TBL_FEX_PLATA)
-geih_div = spark.table(TBL_DIM_DIVIPOLA)
+geih_div = spark.table(TBL_DIM_GEIH_DIVIPOLA)
+# R-24: un nombre por departamento, de la DIVIPOLA completa
+departamentos = (
+    spark.table(TBL_DIM_DIVIPOLA)
+    .select("CODIGO_DEPARTAMENTO", "DEPARTAMENTO")
+    .distinct()
+)
 
 # COMMAND ----------
 
@@ -88,9 +110,9 @@ df = (
     .join(no, cg.PK == no.PK, "left")
     .join(fex, cg.PK == fex.PK, "left")
     .join(oc, cg.PK == oc.PK, "left")
-    # dim_geih_divipola se une dos veces: una para departamento, otra para municipio
+    # Departamento desde dim_divipola; municipio desde dim_geih_divipola (32 capitales)
     .join(
-        geih_div.alias("div_dep"),
+        departamentos.alias("div_dep"),
         cg.CODIGO_DPTO == col("div_dep.CODIGO_DEPARTAMENTO"),
         "left",
     )
@@ -110,6 +132,8 @@ df = (
         cg.CODIGO_DPTO.alias("CODIGO_DEPARTAMENTO"),
         col("div_dep.DEPARTAMENTO"),
         col("div_mun.CODIGO_MUNICIPIO"),
+        # R-52: MUNICIPIO, FEX y SEXO no los lee ninguna etapa siguiente, pero se conservan a
+        # propósito: MUNICIPIO y SEXO para consultar la tabla, FEX para auditar FEX_C18 (G7-B6)
         col("div_mun.MUNICIPIO"),
         cg.MARCO,
         cg.FEX,
@@ -155,9 +179,15 @@ print(
     .assign(PCT_SIN_PAREJA=lambda d: (100 * d.N_SIN_PAREJA / d.N_LLAVES).round(4))
     .to_string()
 )
+# R-17: FEX_SIN_CG solo avisa; los factores sin persona no entran a oro (parte de CG)
+SOLO_AVISO = {"FEX_SIN_CG"}
 for modulo, g in pdf_llaves.groupby("MODULO"):
     ok = g.N_SIN_PAREJA.sum() == 0 and g.N_DUPLICADAS.sum() == 0
-    print(f"{'PASS' if ok else 'FAIL'}: {modulo} sin llaves huérfanas ni duplicadas")
+    if ok:
+        print(f"PASS: {modulo} sin llaves huérfanas ni duplicadas")
+    else:
+        estado = "AVISO" if modulo in SOLO_AVISO else "FAIL"
+        print(f"{estado}: {modulo} tiene llaves huérfanas o duplicadas")
     if not ok:
         print(g[(g.N_SIN_PAREJA > 0) | (g.N_DUPLICADAS > 0)].to_string(index=False))
 

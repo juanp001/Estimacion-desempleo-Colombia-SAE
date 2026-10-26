@@ -61,15 +61,16 @@
 # MAGIC * **Permitir agregaciones** por departamento o municipio
 # MAGIC
 # MAGIC ### Ejemplo de Join:
-# MAGIC `geih_oro` no une esta tabla directamente: usa `tesis.dim.dim_geih_divipola` (derivada de esta,
-# MAGIC ver `dim_geih_divipola.py`), que es la que trae `CODIGO_AREA_GEIH`. El join se hace dos veces:
+# MAGIC `geih_oro` la usa para el nombre del departamento y usa `tesis.dim.dim_geih_divipola`
+# MAGIC (derivada de esta, ver `dim_geih_divipola.py`) para el municipio, porque esa trae
+# MAGIC `CODIGO_AREA_GEIH`:
 # MAGIC ```python
-# MAGIC # En geih_oro, con dim_geih_divipola (no con dim_divipola):
-# MAGIC # 1. Para obtener nombre del departamento
-# MAGIC .join(geih_div.alias("div_dep"),
+# MAGIC # En geih_oro:
+# MAGIC # 1. Nombre del departamento, desde esta tabla (R-24: todos los departamentos)
+# MAGIC .join(departamentos.alias("div_dep"),
 # MAGIC       col("CODIGO_DPTO") == col("div_dep.CODIGO_DEPARTAMENTO"))
 # MAGIC
-# MAGIC # 2. Para obtener nombre del municipio
+# MAGIC # 2. Municipio, desde dim_geih_divipola (solo las 32 capitales)
 # MAGIC .join(geih_div.alias("div_mun"),
 # MAGIC       col("CODIGO_AREA") == col("div_mun.CODIGO_AREA_GEIH"))
 # MAGIC ```
@@ -90,6 +91,8 @@ from pyspark.sql.functions import (
     col,  # Referenciar columnas para renombrado y transformaciones
     regexp_replace,  # Reemplazar patrones de texto (comas por puntos en coordenadas)
 )
+
+from shared.config.dim_config import RUTA_DIVIPOLA_CSV, TBL_DIM_DIVIPOLA
 
 # COMMAND ----------
 
@@ -126,11 +129,7 @@ col_map = {
 # - header="true": Primera fila contiene nombres de columnas
 # - delimiter=",": Archivo separado por comas
 # - /*.csv: Lee todos los archivos CSV en el directorio
-df = (
-    spark.read.option("header", "true")
-    .option("delimiter", ",")
-    .csv("/Volumes/tesis/dim/divipola/*.csv")
-)
+df = spark.read.option("header", "true").option("delimiter", ",").csv(RUTA_DIVIPOLA_CSV)
 
 # --- PASO 2: RENOMBRAR COLUMNAS ---
 # Crear lista de expresiones para renombrar todas las columnas
@@ -164,5 +163,5 @@ df_select = (
 # Resultado: Tabla dimensional lista para joins con tablas de hechos (GEIH)
 
 df_select.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    "tesis.dim.dim_divipola"
+    TBL_DIM_DIVIPOLA
 )

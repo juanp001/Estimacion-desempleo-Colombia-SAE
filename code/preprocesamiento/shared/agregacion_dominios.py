@@ -126,7 +126,10 @@ def agregar_covariables_dominio(
     if sin_peso:
         raise ValueError(
             f"Municipios miembro sin peso válido en TerriData para ANO={anio}, MES={mes} "
-            f"(municipio, peso): {sorted(sin_peso)}. Sin peso no se puede agregar su dominio."
+            f"(municipio, peso): {sorted(sin_peso)}. Sin peso no se puede agregar su dominio. "
+            # R-19: la causa habitual es que TerriData no tiene ese corte (ANO, MES)
+            "Si el período no es diciembre, revise que TerriData tenga ese corte: la mayoría de "
+            "indicadores solo se publica con corte anual (MES = 12)."
         )
 
     agregaciones = []
