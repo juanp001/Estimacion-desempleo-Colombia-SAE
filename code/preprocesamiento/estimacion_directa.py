@@ -253,19 +253,34 @@ df_desempleo.groupBy("PER", "MES").count().orderBy("PER", "MES").show(N_MESES)
 meses_presentes = {
     (r["PER"], r["MES"]) for r in df_desempleo.select("PER", "MES").distinct().collect()
 }
+# R-27: cada dominio debe tener todos los meses de la ventana; si falta uno, la tasa no es la
+# del período que dice la etiqueta (antes solo se avisaba si faltaba en todos los dominios)
+meses_por_dominio = (
+    df_desempleo.groupBy("CODIGO_DOMINIO", "NOMBRE_DOMINIO")
+    .agg(F.countDistinct("PER", "MES").alias("N_MESES_CON_DATOS"))
+    .toPandas()
+)
+incompletos = meses_por_dominio[meses_por_dominio["N_MESES_CON_DATOS"] < len(MESES)]
 faltantes = set(MESES) - meses_presentes
-if faltantes:
-    print(f"⚠ Sin datos en GEIH para: {sorted(faltantes)}")
+if faltantes or not incompletos.empty:
+    raise ValueError(
+        f"Ventana {PERIODO} incompleta. Meses sin datos en GEIH: {sorted(faltantes)}. "
+        f"Dominios sin todos los meses:\n{incompletos.to_string(index=False)}"
+    )
+print(
+    f"✔ Los {len(meses_por_dominio)} dominios tienen los {len(MESES)} meses de la ventana"
+)
 
 # Por dominio: PEA promedio mensual de la ventana que representa la muestra (peso del benchmarking
-# de nivel 1 en el modelo; se divide entre los meses con datos) y conteos muestrales de la PEA y
-# de los desocupados (G7-B2: tamaño de muestra que respalda cada tasa).
+# de nivel 1 en el modelo; R-27: se divide entre los meses con datos de cada dominio, no los
+# globales) y conteos muestrales de la PEA y de los desocupados (G7-B2: tamaño de muestra que
+# respalda cada tasa).
 df_pea_expandida = (
     df_desempleo.groupBy("CODIGO_DOMINIO")
     .agg(
         F.count("*").alias("N_PEA"),
         F.sum("DESOCUPADO").cast("long").alias("N_DESOCUPADOS"),
-        (F.sum("FEX") / len(meses_presentes)).alias("PEA_EXPANDIDA"),
+        (F.sum("FEX") / F.countDistinct("PER", "MES")).alias("PEA_EXPANDIDA"),
     )
     .join(n_municipios_dominio, on="CODIGO_DOMINIO", how="left")
     .toPandas()

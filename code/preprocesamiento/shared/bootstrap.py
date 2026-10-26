@@ -69,7 +69,15 @@ def totales_por_conglomerado(
         1  x  2  5.0  5.0           1
         >>> len(totales_por_conglomerado(df, ["D"], None))
         3
+
+    Raises:
+        ValueError: Si alguna columna de `grupo_cols` o el conglomerado tiene nulos (R-27):
+            pandas descarta esas claves al agrupar y el dominio desaparecería sin aviso.
     """
+    claves = grupo_cols + ([col_conglomerado] if col_conglomerado else [])
+    nulos = {c: int(n) for c, n in df[claves].isna().sum().items() if n}
+    if nulos:
+        raise ValueError(f"Claves nulas en el dominio o el conglomerado: {nulos}")
     tmp = df[grupo_cols].copy()
     tmp["A"] = (df[col_peso] * df[col_y]).to_numpy(dtype=float)
     tmp["B"] = df[col_peso].to_numpy(dtype=float)
@@ -181,7 +189,11 @@ def varianza_por_dominio(
     Returns:
         pd.DataFrame: `grupo_cols` más `TASA_DESEMPLEO` (proporción), `MEDIA_BOOTSTRAP`,
             `VAR_BOOTSTRAP`, `SE_BOOTSTRAP`, `IC_INF_2.5`, `IC_SUP_97.5`, `VAR_TAYLOR`,
-            `SE_TAYLOR` y `N_CONGLOMERADOS`.
+            `SE_TAYLOR`, `N_CONGLOMERADOS` y `N_PERSONAS` (personas que vio el remuestreo).
+
+    Raises:
+        ValueError: Si un dominio tiene menos de 2 conglomerados (R-27): la varianza de Taylor
+            divide por n − 1 y el bootstrap no tendría variación.
 
     Casos de uso:
         `EstimacionDirecta` lo usa con `ID_VIVIENDA` (varianza del modelo) y la sensibilidad
@@ -192,8 +204,8 @@ def varianza_por_dominio(
         >>> df = pd.DataFrame({"D": ["x"] * 400, "V": np.repeat(np.arange(200), 2),
         ...                    "FEX": 1.0, "DESOCUPADO": rng.integers(0, 2, 400)})
         >>> r = varianza_por_dominio(df, ["D"], "V", 500, 42)
-        >>> int(r["N_CONGLOMERADOS"].iloc[0])
-        200
+        >>> int(r["N_CONGLOMERADOS"].iloc[0]), int(r["N_PERSONAS"].iloc[0])
+        (200, 400)
         >>> bool(abs(r["SE_BOOTSTRAP"].iloc[0] / r["SE_TAYLOR"].iloc[0] - 1) < 0.15)
         True
     """
@@ -205,6 +217,10 @@ def varianza_por_dominio(
     for clave, g in totales.groupby(grupo_cols, sort=True):
         a = g["A"].to_numpy()
         b = g["B"].to_numpy()
+        if len(a) < 2:
+            raise ValueError(
+                f"El dominio {clave} tiene {len(a)} conglomerado(s): no se puede estimar su varianza"
+            )
         replicas = replicas_razon(a, b, num_replicas, rng)
         var_taylor = varianza_taylor_razon(a, b)
         clave = clave if isinstance(clave, tuple) else (clave,)
@@ -220,6 +236,7 @@ def varianza_por_dominio(
                 "VAR_TAYLOR": var_taylor,
                 "SE_TAYLOR": np.sqrt(var_taylor),
                 "N_CONGLOMERADOS": len(a),
+                "N_PERSONAS": int(g["N_PERSONAS"].sum()),
             }
         )
         filas.append(fila)

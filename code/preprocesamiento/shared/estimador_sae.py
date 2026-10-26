@@ -183,7 +183,8 @@ class EstimacionDirecta(EstimadorSAE):
                 SE_TAYLOR_PCT y, si hay conglomerado, N_VIVIENDAS.
 
         Raises:
-            ValueError: Si faltan columnas requeridas en el dataframe.
+            ValueError: Si faltan columnas requeridas, si el remuestreo no usó todas las
+                personas o si algún dominio queda con tasa o SE igual a 0 (R-27).
 
         Example:
             >>> resultado = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"])
@@ -210,6 +211,21 @@ class EstimacionDirecta(EstimadorSAE):
         resultado = varianza_por_dominio(
             df_pd, grupo_cols_final, col_conglomerado, self.num_replicas, self.seed
         )
+        # R-27: el remuestreo debe ver a todas las personas, y ninguna tasa ni SE puede ser 0
+        # (ψ_d = 0 y CV infinito harían que el modelo tome la directa como exacta sin aviso)
+        n_personas = int(resultado["N_PERSONAS"].sum())
+        if n_personas != len(df_pd):
+            raise ValueError(
+                f"El bootstrap usó {n_personas:,} de {len(df_pd):,} personas"
+            )
+        degenerados = resultado[
+            (resultado["TASA_DESEMPLEO"] == 0) | (resultado["SE_BOOTSTRAP"] == 0)
+        ]
+        if not degenerados.empty:
+            raise ValueError(
+                "Dominios con tasa o SE igual a 0:\n"
+                + degenerados[grupo_cols_final].to_string(index=False)
+            )
         resultado["TASA_DESEMPLEO_PCT"] = resultado["TASA_DESEMPLEO"] * 100
         resultado["SE_BOOTSTRAP_PCT"] = resultado["SE_BOOTSTRAP"] * 100
         resultado["IC_INF_PCT"] = resultado["IC_INF_2.5"] * 100
