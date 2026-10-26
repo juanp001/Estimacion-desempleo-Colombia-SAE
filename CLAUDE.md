@@ -92,11 +92,12 @@ la transformación a ancho).
 ### Dimensiones — `code/ingesta_datos/dimensiones/`
 
 - `dim_divipola.py`: nomenclatura DIVIPOLA de los municipios de Colombia (`tesis.dim.dim_divipola`).
-- `dim_geih_divipola.py`: filtra `dim_divipola` a una lista fija de 32 áreas GEIH (capital de cada
-  departamento incluido; Bogotá D.C. como `11001`) y agrega `CODIGO_AREA_GEIH`, que es solo el
-  `CODIGO_DEPARTAMENTO` (no un mapeo real de áreas) → `tesis.dim.dim_geih_divipola`. `geih_oro` usa esta
-  tabla (constante `TBL_DIM_DIVIPOLA`), no `dim_divipola`; fuera de esas 32 áreas `MUNICIPIO` y
-  `DEPARTAMENTO` quedan NULL.
+- `dim_geih_divipola.py`: toma las 32 capitales (`ES_CAPITAL`) de `dim_dominio_geih`, única lista
+  de capitales (R-24), les agrega coordenadas de `dim_divipola` y el `CODIGO_AREA_GEIH`, que es el
+  `CODIGO_DEPARTAMENTO` de la capital: el `AREA` de la GEIH es el código de departamento de la ciudad,
+  así que el mapeo es correcto → `tesis.dim.dim_geih_divipola`. `geih_oro` la usa para el municipio
+  (constante `TBL_DIM_DIVIPOLA`; fuera de esas 32 áreas `MUNICIPIO` queda NULL) y toma el nombre del
+  departamento de `dim_divipola` (`TBL_DIVIPOLA_COMPLETA`).
 - `dim_dominio_geih.py`: **dominio de estimación** de cada municipio → `tesis.dim.dim_dominio_geih` (52
   filas: una por municipio miembro). El `AREA` de la GEIH identifica la ciudad **con su área
   metropolitana**, no el municipio, así que la tasa directa de «Cali» es la de **Cali A.M.** (coincide con

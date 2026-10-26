@@ -12,9 +12,10 @@
 # MAGIC NULLs en indicadores laborales se reemplazan con 0 via `coalesce`.
 # MAGIC
 # MAGIC ## Dimensiones y factor de expansión
-# MAGIC * Geografía: se une dos veces a `tesis.dim.dim_geih_divipola` (no a `dim_divipola`): por
-# MAGIC   `CODIGO_DPTO` (departamento) y por `CODIGO_AREA` (municipio). Fuera de las 32 áreas de esa
-# MAGIC   tabla, `MUNICIPIO` queda en NULL.
+# MAGIC * Geografía (R-24): el nombre del departamento sale de `tesis.dim.dim_divipola` por
+# MAGIC   `CODIGO_DPTO`, así que no queda NULL en departamentos sin capital GEIH (p. ej. Cundinamarca,
+# MAGIC   25); el municipio sale de `tesis.dim.dim_geih_divipola` por `CODIGO_AREA`. Fuera de las 32
+# MAGIC   áreas de esa tabla, `MUNICIPIO` queda en NULL.
 # MAGIC * `FEX_C18` (G7-B6, `shared/transformations/factor_expansion.py`): en el marco nuevo es el `FEX`
 # MAGIC   del archivo (ya calibrado con el CNPV 2018); en el marco antiguo sale de `tesis.geih_plata.dim_fex`.
 # MAGIC   Un factor faltante ya no se imputa con 0 ni con `FEX_C_2011` (censo 2005): si alguna persona queda
@@ -65,6 +66,7 @@ from shared.config.geih_config import (
     TBL_OC_PLATA,
     TBL_FEX_PLATA,
     TBL_DIM_DIVIPOLA,
+    TBL_DIVIPOLA_COMPLETA,
     TBL_MERCADO_LABORAL,
     TBL_IN_CAB_MA,
     TBL_IN_RESTO_MA,
@@ -93,6 +95,12 @@ no = spark.table(TBL_NO_PLATA)
 oc = spark.table(TBL_OC_PLATA)
 fex = spark.table(TBL_FEX_PLATA)
 geih_div = spark.table(TBL_DIM_DIVIPOLA)
+# R-24: un nombre por departamento, de la DIVIPOLA completa
+departamentos = (
+    spark.table(TBL_DIVIPOLA_COMPLETA)
+    .select("CODIGO_DEPARTAMENTO", "DEPARTAMENTO")
+    .distinct()
+)
 
 # COMMAND ----------
 
@@ -102,9 +110,9 @@ df = (
     .join(no, cg.PK == no.PK, "left")
     .join(fex, cg.PK == fex.PK, "left")
     .join(oc, cg.PK == oc.PK, "left")
-    # dim_geih_divipola se une dos veces: una para departamento, otra para municipio
+    # Departamento desde dim_divipola; municipio desde dim_geih_divipola (32 capitales)
     .join(
-        geih_div.alias("div_dep"),
+        departamentos.alias("div_dep"),
         cg.CODIGO_DPTO == col("div_dep.CODIGO_DEPARTAMENTO"),
         "left",
     )

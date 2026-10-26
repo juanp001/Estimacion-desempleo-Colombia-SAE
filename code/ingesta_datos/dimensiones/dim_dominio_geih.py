@@ -46,6 +46,9 @@
 # MAGIC * `CODIGO_MUNICIPIO`, `MUNICIPIO`, `CODIGO_DEPARTAMENTO`, `DEPARTAMENTO`: municipio miembro
 # MAGIC * `ES_CAPITAL`: `True` en la fila de la capital
 # MAGIC
+# MAGIC `DOMINIOS_GEIH` es la **única** lista de las 32 capitales del proyecto (R-24):
+# MAGIC `dim_geih_divipola` toma de esta tabla las filas `ES_CAPITAL`.
+# MAGIC
 # MAGIC ## Limitación conocida
 # MAGIC
 # MAGIC En el marco 2005 el `AREA` solo aparece en los registros de cabecera (CLASE = 1): los dominios de
