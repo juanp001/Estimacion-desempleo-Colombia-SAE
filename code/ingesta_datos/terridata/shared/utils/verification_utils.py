@@ -55,6 +55,42 @@ def verificar_conservacion_registros(df_bronce: DataFrame, n_filas_plata: int) -
         return False
 
 
+def verificar_llave_unica_bronce(df_valores: DataFrame) -> None:
+    """Exige una sola fila con valor por entidad, año, mes e indicador antes del pivote (R-20).
+
+    El pivote de ``terridata_plata`` agrega con ``max`` sobre ``VALOR``, que es texto: si una
+    llave tuviera dos filas (p. ej. dos fuentes) elegiría el máximo lexicográfico ('9.5' >
+    '10.2'), no el valor correcto. ``verificar_duplicados`` revisa la plata ya pivoteada y no
+    ve ese caso. Con la llave única, ``max`` solo toma el único valor.
+
+    Args:
+        df_valores (DataFrame): Bronce ya filtrado a filas con valor (``CODIGO_ENTIDAD``,
+            ``ANO``, ``MES``, ``CODIGO_INDICADOR``).
+
+    Raises:
+        ValueError: Si alguna llave tiene más de una fila; el mensaje trae hasta 5 ejemplos.
+
+    Example:
+        >>> verificar_llave_unica_bronce(df_datos_unificados)
+    """
+    llave = ["CODIGO_ENTIDAD", "ANO", "MES", "CODIGO_INDICADOR"]
+    repetidas = df_valores.groupBy(*llave).count().filter(col("count") > 1)
+    ejemplos = repetidas.limit(5).collect()
+    if ejemplos:
+        n = repetidas.count()
+        detalle = ", ".join(
+            f"{r.CODIGO_ENTIDAD}/{r.ANO}-{r.MES}/{r.CODIGO_INDICADOR} ({r['count']} filas)"
+            for r in ejemplos
+        )
+        raise ValueError(
+            f"{n:,} llaves (entidad, año, mes, indicador) con más de una fila en bronce; "
+            f"el pivote con max elegiría mal. Ejemplos: {detalle}"
+        )
+    print(
+        "✅ Llave (entidad, año, mes, indicador) única en bronce: el pivote es inequívoco"
+    )
+
+
 def verificar_duplicados(df_plata: DataFrame, n_filas: int) -> bool:
     """Verifica que la clave (departamento, entidad, año, mes) sea única en plata.
 
