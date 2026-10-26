@@ -2,14 +2,39 @@ from pyspark.sql.functions import col, concat, lit, regexp_extract, regexp_repla
 
 from shared.config.geih_config import PATRON_ANIO_ARCHIVO
 
+
+def llave_persona(periodo, directorio, secuencia_p, orden):
+    """Llave de persona ``PERIODO_DIRECTORIO_SECUENCIA_P_ORDEN`` (R-22).
+
+    Con separador la llave no depende de que DIRECTORIO tenga 7 dígitos y SECUENCIA_P 1. Se arma
+    con ``concat`` y no con ``concat_ws`` para conservar su comportamiento: si falta una parte la
+    llave queda nula (no empareja) en vez de quedar a medias.
+
+    Args:
+        periodo (Column): Período ``AAAAMM`` (``PERIODO`` o ``TIME_FEXC`` en ``dim_fex``).
+        directorio (Column): ``DIRECTORIO`` (vivienda).
+        secuencia_p (Column): ``SECUENCIA_P`` (hogar).
+        orden (Column): ``ORDEN`` (persona).
+
+    Returns:
+        Column: La llave como texto.
+
+    Example:
+        >>> df.select(llave_persona(col("PERIODO"), col("DIRECTORIO"),
+        ...                         col("SECUENCIA_P"), col("ORDEN")).alias("PK"))
+    """
+    sep = lit("_")
+    return concat(periodo, sep, directorio, sep, secuencia_p, sep, orden)
+
+
 # Campos núcleo para marco nuevo.
 # El marco nuevo entrega PERIODO, MES y FEX_C18 directamente en las tablas bronce.
 # MARCO identifica el origen de cada fila en plata: geih_oro lo usa para elegir el factor de
 # expansión (G7-B6), porque en el marco nuevo FEX ya es el factor calibrado con el CNPV 2018.
 CAMPOS_NUCLEO_MARCO_NUEVO = [
-    concat(col("PERIODO"), col("DIRECTORIO"), col("SECUENCIA_P"), col("ORDEN")).alias(
-        "PK"
-    ),
+    llave_persona(
+        col("PERIODO"), col("DIRECTORIO"), col("SECUENCIA_P"), col("ORDEN")
+    ).alias("PK"),
     col("PERIODO"),
     col("PER").cast("int").alias("PER"),
     col("MES").cast("int").alias("MES"),
@@ -19,7 +44,8 @@ CAMPOS_NUCLEO_MARCO_NUEVO = [
     col("HOGAR"),
     col("REGIS"),
     trim(col("AREA")).alias("CODIGO_AREA"),
-    col("FEX_C18").alias("FEX"),
+    # R-22: cast explícito (antes el double salía de la coerción implícita de la unión)
+    regexp_replace(col("FEX_C18"), ",", ".").cast("double").alias("FEX"),
     trim(col("DPTO")).alias("CODIGO_DPTO"),
     lit("NUEVO").alias("MARCO"),
 ]
@@ -32,9 +58,8 @@ CAMPOS_NUCLEO_MARCO_NUEVO = [
 _ANIO_ARCHIVO = regexp_extract(col("archivo_origen"), PATRON_ANIO_ARCHIVO, 1)
 
 CAMPOS_NUCLEO_MARCO_ANTIGUO = [
-    concat(
-        _ANIO_ARCHIVO,
-        col("MES"),
+    llave_persona(
+        concat(_ANIO_ARCHIVO, col("MES")),
         col("DIRECTORIO"),
         col("SECUENCIA_P"),
         col("ORDEN"),

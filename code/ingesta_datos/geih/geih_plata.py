@@ -20,6 +20,13 @@
 # MAGIC * **Marco antiguo**: PERIODO y PER se extraen del nombre de archivo con regex;
 # MAGIC   FEX_C_2011 requiere reemplazar comas por puntos.
 # MAGIC
+# MAGIC ## Uniones y llave (R-22)
+# MAGIC * Marco nuevo y antiguo se unen por nombre (`unionByName`), no por posición: reordenar
+# MAGIC   `CAMPOS_NUCLEO_*` ya no puede correr columnas sin error.
+# MAGIC * `FEX` se castea a double en los dos marcos y `FEX_C18` de `dim_fex` recibe el mismo
+# MAGIC   reemplazo de comas.
+# MAGIC * `PK` = `PERIODO_DIRECTORIO_SECUENCIA_P_ORDEN` (con separador), igual en `dim_fex`.
+# MAGIC
 # MAGIC ## Lógica especial — fuerza de trabajo marco antiguo
 # MAGIC LEFT JOIN entre fuerza_trabajo e inactivos: PEA = 1 si la persona no aparece
 # MAGIC en la tabla de inactivos (PEI es NULL o vacío).
@@ -28,7 +35,7 @@
 
 # DBTITLE 1,Importación de librerías
 
-from pyspark.sql.functions import col, when, concat, expr
+from pyspark.sql.functions import col, when, expr, regexp_replace
 
 from shared.config.geih_config import (
     TBL_CG_BRONCE,
@@ -55,6 +62,7 @@ from shared.config.geih_config import (
 from shared.transformations.campos_nucleo import (
     CAMPOS_NUCLEO_MARCO_NUEVO,
     CAMPOS_NUCLEO_MARCO_ANTIGUO,
+    llave_persona,
 )
 from shared.utils.spark_utils import escribir_tabla
 
@@ -98,7 +106,9 @@ df_cg_resto_plata = spark.table(TBL_CG_RESTO_MA).select(
 )
 
 # Marco antiguo: solo cabecera y resto (R-21: la sección área no se carga en bronce)
-df_cg_consolidado = df_cg_plata.union(df_cg_cabecera_plata).union(df_cg_resto_plata)
+df_cg_consolidado = df_cg_plata.unionByName(df_cg_cabecera_plata).unionByName(
+    df_cg_resto_plata
+)
 escribir_tabla(df_cg_consolidado, TBL_CG_PLATA)
 
 # COMMAND ----------
@@ -141,8 +151,8 @@ df_i_resto = spark.table(TBL_IN_RESTO_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("INI").alias("PEI")
 )
 
-df_ft_ma = df_ft_cabecera.unionAll(df_ft_resto)
-df_i_ma = df_i_cabecera.unionAll(df_i_resto)
+df_ft_ma = df_ft_cabecera.unionByName(df_ft_resto)
+df_i_ma = df_i_cabecera.unionByName(df_i_resto)
 
 # COMMAND ----------
 
@@ -181,7 +191,7 @@ df_no_resto_plata = spark.table(TBL_NO_RESTO_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("DSI").alias("DESOCUPADO")
 )
 
-df_no_consolidado = df_no_plata.unionAll(df_no_cabecera_plata).unionAll(
+df_no_consolidado = df_no_plata.unionByName(df_no_cabecera_plata).unionByName(
     df_no_resto_plata
 )
 escribir_tabla(df_no_consolidado, TBL_NO_PLATA)
@@ -210,7 +220,7 @@ df_oc_resto_plata = spark.table(TBL_OC_RESTO_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("OCI").alias("OCUPADO")
 )
 
-df_oc_consolidado = df_oc_plata.unionAll(df_oc_cabecera_plata).unionAll(
+df_oc_consolidado = df_oc_plata.unionByName(df_oc_cabecera_plata).unionByName(
     df_oc_resto_plata
 )
 escribir_tabla(df_oc_consolidado, TBL_OC_PLATA)
@@ -224,15 +234,16 @@ escribir_tabla(df_oc_consolidado, TBL_OC_PLATA)
 
 # DBTITLE 1,FEX — corrección y tipado
 df_fex = spark.table(TBL_FEX_BRONCE).select(
-    concat(col("TIME_FEXC"), col("DIRECTORIO"), col("SECUENCIA_P"), col("ORDEN")).alias(
-        "PK"
-    ),
+    # R-22: misma llave que características generales (TIME_FEXC es el PERIODO AAAAMM)
+    llave_persona(
+        col("TIME_FEXC"), col("DIRECTORIO"), col("SECUENCIA_P"), col("ORDEN")
+    ).alias("PK"),
     "DIRECTORIO",
     "SECUENCIA_P",
     "ORDEN",
     col("Ano").cast("int").alias("ANO"),
     col("Mes").cast("int").alias("MES"),
-    col("FEX_C18").cast("double").alias("FEX_C18"),
+    regexp_replace(col("FEX_C18"), ",", ".").cast("double").alias("FEX_C18"),
 )
 
 escribir_tabla(df_fex, TBL_FEX_PLATA)
