@@ -188,6 +188,7 @@ from preprocesamiento.shared.estimador_sae import EstimacionDirecta
 from preprocesamiento.shared.ventana import (
     TOLERANCIA_PP,
     etiqueta_ventana,
+    preparar_datos_ventana,
     td_dane_ventana,
 )
 
@@ -203,88 +204,45 @@ print(
 # COMMAND ----------
 
 # DBTITLE 1,Cargar y filtrar datos GEIH
-# Peso: FEX_C18 (factor de expansión 2018). EstimacionDirecta lee la columna "FEX", por eso se
-# sobrescribe con FEX_C18. Población: personas de 15 años o más (EDAD >= EDAD_MINIMA) en la PEA.
-EDAD_MINIMA = 15
-
-# Ventana que cierra en (PER_ESTIMACION, MES_ESTIMACION): se agrupan las observaciones de sus meses y
-# PER/MES se reescriben con el año/mes de cierre, de modo que GRUPO_COLS arma un dominio por ciudad
-# (o ciudad A.M.) y ventana (y el esquema de salida no cambia).
+# Base de la estimación (shared/ventana.py, R-37): personas de 15+ con PEA == 1 en los meses de la
+# ventana que cierra en (PER_ESTIMACION, MES_ESTIMACION), con su dominio (fila de la capital en
+# dim_dominio_geih; el INNER JOIN descarta los registros sin AREA) y FEX := FEX_C18. PER/MES ya
+# vienen reescritos con el cierre, de modo que GRUPO_COLS arma un dominio por ciudad (o ciudad
+# A.M.) y ventana. La misma función alimenta modelo/sensibilidad_varianza.py.
 MESES = meses_ventana(PER_ESTIMACION, MES_ESTIMACION, N_MESES)
 print("Meses de la ventana:", ", ".join(f"{a}-{m:02d}" for a, m in MESES))
 
-cond_ventana = None
-for anio, mes in MESES:
-    cond_mes = (F.col("PER") == anio) & (F.col("MES") == mes)
-    cond_ventana = cond_mes if cond_ventana is None else (cond_ventana | cond_mes)
-
-# Dominio de cada registro: geih_oro trae en CODIGO_MUNICIPIO el código de la capital del AREA
-# (ciudad con su A.M.); la fila de la capital en dim_dominio_geih da el dominio. El INNER JOIN
-# descarta los registros sin AREA (resto de cabeceras y zona rural), que no forman dominio.
-df_dominios_capital = (
-    spark.table(TBL_DIM_DOMINIO)
-    .filter(F.col("ES_CAPITAL"))
-    .select("CODIGO_MUNICIPIO", "CODIGO_DOMINIO", "NOMBRE_DOMINIO", "TIPO_DOMINIO")
+df_desempleo, conteos, meses_presentes = preparar_datos_ventana(
+    spark, PER_ESTIMACION, MES_ESTIMACION, N_MESES
 )
+
+# R-27: cada dominio debe tener todos los meses de la ventana; si falta uno, la tasa no es la
+# del período que dice la etiqueta (antes solo se avisaba si faltaba en todos los dominios)
+incompletos = conteos[conteos["N_MESES"] < len(MESES)]
+faltantes = set(MESES) - set(meses_presentes)
+if faltantes or not incompletos.empty:
+    raise ValueError(
+        f"Ventana {PERIODO} incompleta. Meses sin datos en GEIH: {sorted(faltantes)}. "
+        f"Dominios sin todos los meses:\n"
+        f"{incompletos[['CODIGO_DOMINIO', 'NOMBRE_DOMINIO', 'N_MESES']].to_string(index=False)}"
+    )
+print(f"✔ Los {len(conteos)} dominios tienen los {len(MESES)} meses de la ventana")
+
+# Por dominio: PEA promedio mensual de la ventana que representa la muestra (peso del benchmarking
+# de nivel 1 en el modelo; R-27: se divide entre los meses con datos de cada dominio) y conteos
+# muestrales de la PEA y de los desocupados (G7-B2: tamaño de muestra que respalda cada tasa).
 n_municipios_dominio = (
     spark.table(TBL_DIM_DOMINIO)
     .groupBy("CODIGO_DOMINIO")
     .agg(F.count("*").alias("N_MUNICIPIOS"))
-)
-
-df_desempleo = (
-    spark.table(TBL_MERCADO_LABORAL)
-    .filter((F.col("PEA") == 1) & (F.col("EDAD") >= EDAD_MINIMA) & cond_ventana)
-    .join(df_dominios_capital, on="CODIGO_MUNICIPIO", how="inner")
-    .withColumn("FEX", F.col("FEX_C18"))
-)
-
-print("Observaciones PEA por mes de la ventana:")
-df_desempleo.groupBy("PER", "MES").count().orderBy("PER", "MES").show(N_MESES)
-meses_presentes = {
-    (r["PER"], r["MES"]) for r in df_desempleo.select("PER", "MES").distinct().collect()
-}
-# R-27: cada dominio debe tener todos los meses de la ventana; si falta uno, la tasa no es la
-# del período que dice la etiqueta (antes solo se avisaba si faltaba en todos los dominios)
-meses_por_dominio = (
-    df_desempleo.groupBy("CODIGO_DOMINIO", "NOMBRE_DOMINIO")
-    .agg(F.countDistinct("PER", "MES").alias("N_MESES_CON_DATOS"))
     .toPandas()
 )
-incompletos = meses_por_dominio[meses_por_dominio["N_MESES_CON_DATOS"] < len(MESES)]
-faltantes = set(MESES) - meses_presentes
-if faltantes or not incompletos.empty:
-    raise ValueError(
-        f"Ventana {PERIODO} incompleta. Meses sin datos en GEIH: {sorted(faltantes)}. "
-        f"Dominios sin todos los meses:\n{incompletos.to_string(index=False)}"
-    )
-print(
-    f"✔ Los {len(meses_por_dominio)} dominios tienen los {len(MESES)} meses de la ventana"
-)
+df_pea_expandida = conteos[
+    ["CODIGO_DOMINIO", "N_PEA", "N_DESOCUPADOS", "PEA_EXPANDIDA"]
+].merge(n_municipios_dominio, on="CODIGO_DOMINIO", how="left", validate="one_to_one")
 
-# Por dominio: PEA promedio mensual de la ventana que representa la muestra (peso del benchmarking
-# de nivel 1 en el modelo; R-27: se divide entre los meses con datos de cada dominio, no los
-# globales) y conteos muestrales de la PEA y de los desocupados (G7-B2: tamaño de muestra que
-# respalda cada tasa).
-df_pea_expandida = (
-    df_desempleo.groupBy("CODIGO_DOMINIO")
-    .agg(
-        F.count("*").alias("N_PEA"),
-        F.sum("DESOCUPADO").cast("long").alias("N_DESOCUPADOS"),
-        (F.sum("FEX") / F.countDistinct("PER", "MES")).alias("PEA_EXPANDIDA"),
-    )
-    .join(n_municipios_dominio, on="CODIGO_DOMINIO", how="left")
-    .toPandas()
-)
-
-df_desempleo = df_desempleo.withColumn("PER", F.lit(PER_ESTIMACION)).withColumn(
-    "MES", F.lit(MES_ESTIMACION)
-)
-
-print(f"Observaciones PEA: {df_desempleo.count():,}")
-print(
-    f"Dominios con muestra: {df_desempleo.select('CODIGO_DOMINIO').distinct().count()}"
-)
+print(f"Observaciones PEA: {int(conteos['N_PEA'].sum()):,}")
+print(f"Dominios con muestra: {len(conteos)}")
 
 # COMMAND ----------
 
