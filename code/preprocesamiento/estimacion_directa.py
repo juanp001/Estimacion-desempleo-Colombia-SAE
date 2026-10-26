@@ -183,7 +183,22 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config import *
+# R-61: nombres explícitos en vez de «import *»
+from preprocesamiento.shared.config import (
+    BOOTSTRAP_REPLICAS,
+    BOOTSTRAP_SEED,
+    CV_ACEPTABLE,
+    CV_CONFIABLE,
+    GRUPO_COLS,
+    NOMBRE_TOTAL_23,
+    TBL_DATOS_MUNICIPALES,
+    TBL_DIM_DOMINIO,
+    TBL_ESTIMACION_DIRECTA,
+    TBL_MERCADO_LABORAL,
+    meses_ventana,
+    resolver_periodo,
+    resolver_ventana,
+)
 from preprocesamiento.shared.estimador_sae import EstimacionDirecta
 from preprocesamiento.shared.ventana import (
     TOLERANCIA_PP,

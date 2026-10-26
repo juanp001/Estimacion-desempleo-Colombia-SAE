@@ -75,7 +75,16 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config import *
+# R-61: nombres explícitos en vez de «import *»
+from preprocesamiento.shared.config import (
+    DEPARTAMENTOS_OBJETIVO,
+    METADATA_COLS,
+    TBL_DIM_DOMINIO,
+    TBL_PREFILTRADAS,
+    TBL_SIN_ENCUESTA,
+    TBL_TERRIDATA,
+    resolver_periodo,
+)
 
 # Período del widget / parámetro del job; abajo se compara con el de las estimaciones (R-26).
 PER_WIDGET, MES_WIDGET = resolver_periodo(dbutils)

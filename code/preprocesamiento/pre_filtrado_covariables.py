@@ -62,7 +62,17 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config import *
+# R-61: nombres explícitos en vez de «import *»
+from preprocesamiento.shared.config import (
+    CV_MINIMO,
+    METADATA_COLS,
+    PROP_MODAL_MAXIMA,
+    TBL_CASCADA,
+    TBL_COVARIABLES,
+    TBL_PREFILTRADAS,
+    TBL_SENSIBILIDAD,
+    UMBRAL_DUPLICADO,
+)
 from preprocesamiento.shared.feature_selection import (
     filtrar_columnas_sin_na,
     filtrar_variabilidad,

@@ -119,7 +119,20 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config import *
+# R-61: nombres explícitos en vez de «import *»
+from preprocesamiento.shared.config import (
+    COLUMNAS_EXCLUIR_JOIN,
+    METADATA_COLS,
+    TBL_AUDITORIA_DOMINIOS,
+    TBL_COVARIABLES,
+    TBL_DIM_DOMINIO,
+    TBL_DIM_GEIH_DIVIPOLA,
+    TBL_DIM_INDICADORES,
+    TBL_ESTIMACION_DIRECTA,
+    TBL_REGLAS_AGREGACION,
+    TBL_TERRIDATA,
+    TBL_TERRIDATA_BRONCE,
+)
 from preprocesamiento.shared.agregacion_dominios import agregar_covariables_dominio
 from preprocesamiento.shared.auditoria_dominios import tabla_auditoria_dominios
 from preprocesamiento.shared.reglas_agregacion import (
@@ -129,6 +142,9 @@ from preprocesamiento.shared.reglas_agregacion import (
     regla_de,
     tabla_reglas,
 )
+
+# R-61: preprocesamiento depende aquí de analisis (etapa posterior); mover el catálogo a un
+# módulo común se acuerda con Samuel, dueño de catalogo_literatura.py.
 from analisis.shared.catalogo_literatura import CATALOGO_LITERATURA
 
 # COMMAND ----------
