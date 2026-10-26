@@ -96,8 +96,9 @@ la transformación a ancho).
   de capitales (R-24), les agrega coordenadas de `dim_divipola` y el `CODIGO_AREA_GEIH`, que es el
   `CODIGO_DEPARTAMENTO` de la capital: el `AREA` de la GEIH es el código de departamento de la ciudad,
   así que el mapeo es correcto → `tesis.dim.dim_geih_divipola`. `geih_oro` la usa para el municipio
-  (constante `TBL_DIM_DIVIPOLA`; fuera de esas 32 áreas `MUNICIPIO` queda NULL) y toma el nombre del
-  departamento de `dim_divipola` (`TBL_DIVIPOLA_COMPLETA`).
+  (constante `TBL_DIM_GEIH_DIVIPOLA`; fuera de esas 32 áreas `MUNICIPIO` queda NULL) y toma el nombre del
+  departamento de `dim_divipola` (`TBL_DIM_DIVIPOLA`). Los nombres de tabla del job están en
+  `dimensiones/shared/config/dim_config.py` (R-54).
 - `dim_dominio_geih.py`: **dominio de estimación** de cada municipio → `tesis.dim.dim_dominio_geih` (52
   filas: una por municipio miembro). El `AREA` de la GEIH identifica la ciudad **con su área
   metropolitana**, no el municipio, así que la tasa directa de «Cali» es la de **Cali A.M.** (coincide con

@@ -66,7 +66,7 @@ from shared.config.geih_config import (
     TBL_OC_PLATA,
     TBL_FEX_PLATA,
     TBL_DIM_DIVIPOLA,
-    TBL_DIVIPOLA_COMPLETA,
+    TBL_DIM_GEIH_DIVIPOLA,
     TBL_MERCADO_LABORAL,
     TBL_IN_CAB_MA,
     TBL_IN_RESTO_MA,
@@ -94,10 +94,10 @@ ft = spark.table(TBL_FT_PLATA)
 no = spark.table(TBL_NO_PLATA)
 oc = spark.table(TBL_OC_PLATA)
 fex = spark.table(TBL_FEX_PLATA)
-geih_div = spark.table(TBL_DIM_DIVIPOLA)
+geih_div = spark.table(TBL_DIM_GEIH_DIVIPOLA)
 # R-24: un nombre por departamento, de la DIVIPOLA completa
 departamentos = (
-    spark.table(TBL_DIVIPOLA_COMPLETA)
+    spark.table(TBL_DIM_DIVIPOLA)
     .select("CODIGO_DEPARTAMENTO", "DEPARTAMENTO")
     .distinct()
 )

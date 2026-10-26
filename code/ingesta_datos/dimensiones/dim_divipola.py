@@ -92,6 +92,8 @@ from pyspark.sql.functions import (
     regexp_replace,  # Reemplazar patrones de texto (comas por puntos en coordenadas)
 )
 
+from shared.config.dim_config import RUTA_DIVIPOLA_CSV, TBL_DIM_DIVIPOLA
+
 # COMMAND ----------
 
 # DBTITLE 1,Map de columnas
@@ -127,11 +129,7 @@ col_map = {
 # - header="true": Primera fila contiene nombres de columnas
 # - delimiter=",": Archivo separado por comas
 # - /*.csv: Lee todos los archivos CSV en el directorio
-df = (
-    spark.read.option("header", "true")
-    .option("delimiter", ",")
-    .csv("/Volumes/tesis/dim/divipola/*.csv")
-)
+df = spark.read.option("header", "true").option("delimiter", ",").csv(RUTA_DIVIPOLA_CSV)
 
 # --- PASO 2: RENOMBRAR COLUMNAS ---
 # Crear lista de expresiones para renombrar todas las columnas
@@ -165,5 +163,5 @@ df_select = (
 # Resultado: Tabla dimensional lista para joins con tablas de hechos (GEIH)
 
 df_select.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    "tesis.dim.dim_divipola"
+    TBL_DIM_DIVIPOLA
 )

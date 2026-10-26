@@ -33,7 +33,7 @@
 # MAGIC
 # MAGIC ## Uso
 # MAGIC `geih_oro` la une por `CODIGO_AREA` para asignar `CODIGO_MUNICIPIO` y `MUNICIPIO` (constante
-# MAGIC `TBL_DIM_DIVIPOLA`). Fuera de estas 32 áreas `MUNICIPIO` queda NULL. El nombre del departamento
+# MAGIC `TBL_DIM_GEIH_DIVIPOLA`). Fuera de estas 32 áreas `MUNICIPIO` queda NULL. El nombre del departamento
 # MAGIC ya no sale de aquí sino de `dim_divipola` (R-24), así que no queda NULL en departamentos sin
 # MAGIC capital en la lista (p. ej. Cundinamarca, 25). `preprocesamiento` la usa para traer el código
 # MAGIC de área de cada dominio.
@@ -43,19 +43,23 @@
 # DBTITLE 1,Importación de librerías
 from pyspark.sql.functions import col
 
+from shared.config.dim_config import (
+    TBL_DIM_DIVIPOLA,
+    TBL_DIM_DOMINIO,
+    TBL_DIM_GEIH_DIVIPOLA,
+)
+
 # COMMAND ----------
 
 # DBTITLE 1,Crear tabla dimensional GEIH
 N_CAPITALES = 32
 
 capitales = (
-    spark.table("tesis.dim.dim_dominio_geih")
-    .filter(col("ES_CAPITAL"))
-    .select("CODIGO_MUNICIPIO")
+    spark.table(TBL_DIM_DOMINIO).filter(col("ES_CAPITAL")).select("CODIGO_MUNICIPIO")
 )
 
 df_geih_divipola = (
-    spark.table("tesis.dim.dim_divipola")
+    spark.table(TBL_DIM_DIVIPOLA)
     .join(capitales, "CODIGO_MUNICIPIO", "inner")
     .select(
         "CODIGO_DEPARTAMENTO",
@@ -82,6 +86,6 @@ print(f"Capitales GEIH: {n_filas}  |  códigos de área distintos: {n_areas}")
 
 # DBTITLE 1,Guardar tabla dimensional
 df_geih_divipola.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    "tesis.dim.dim_geih_divipola"
+    TBL_DIM_GEIH_DIVIPOLA
 )
-print("Tabla escrita: tesis.dim.dim_geih_divipola")
+print(f"Tabla escrita: {TBL_DIM_GEIH_DIVIPOLA}")
