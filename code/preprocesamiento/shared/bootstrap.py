@@ -69,6 +69,10 @@ def totales_por_conglomerado(
         1  x  2  5.0  5.0           1
         >>> len(totales_por_conglomerado(df, ["D"], None))
         3
+        >>> desordenado = df.iloc[[2, 0, 1]].reset_index(drop=True)
+        >>> totales_por_conglomerado(desordenado, ["D"], None).equals(
+        ...     totales_por_conglomerado(df, ["D"], None))
+        True
 
     Raises:
         ValueError: Si alguna columna de `grupo_cols` o el conglomerado tiene nulos (R-27):
@@ -83,7 +87,12 @@ def totales_por_conglomerado(
     tmp["B"] = df[col_peso].to_numpy(dtype=float)
     tmp["N_PERSONAS"] = 1
     if col_conglomerado is None:
-        return tmp.reset_index(drop=True)
+        # Orden fijo: el remuestreo de personas no puede depender del orden en que Spark entrega
+        # las filas (antes cambiaba al reescribir mercado_laboral). Las filas que empatan tienen
+        # los mismos A y B, así que da igual cuál queda primero.
+        return tmp.sort_values(grupo_cols + ["B", "A"], kind="mergesort").reset_index(
+            drop=True
+        )
     tmp[col_conglomerado] = df[col_conglomerado].to_numpy()
     return tmp.groupby(grupo_cols + [col_conglomerado], as_index=False, sort=True)[
         ["A", "B", "N_PERSONAS"]
