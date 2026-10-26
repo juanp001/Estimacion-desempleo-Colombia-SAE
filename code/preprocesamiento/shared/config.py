@@ -281,7 +281,8 @@ METADATA_COLS = [
 ]
 
 # Columnas a excluir de TerriData al hacer el join: las de identificación ya existen en las
-# estimaciones y las de texto normalizado no son indicadores (no se pueden agregar al dominio).
+# estimaciones o no son indicadores (no se pueden agregar al dominio). Las *_NORMALIZADO salieron
+# de TerriData en R-52.
 COLUMNAS_EXCLUIR_JOIN = [
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
@@ -289,8 +290,6 @@ COLUMNAS_EXCLUIR_JOIN = [
     "ENTIDAD",
     "ANO",
     "MES",
-    "DEPARTAMENTO_NORMALIZADO",
-    "ENTIDAD_NORMALIZADO",
 ]
 
 # Variable respuesta

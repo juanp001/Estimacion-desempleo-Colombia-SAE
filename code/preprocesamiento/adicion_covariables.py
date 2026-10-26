@@ -75,9 +75,8 @@
 # MAGIC
 # MAGIC ## Columnas excluidas de TerriData
 # MAGIC
-# MAGIC Se descartan las que ya existen en las estimaciones o que no son indicadores:
-# MAGIC `CODIGO_DEPARTAMENTO`, `DEPARTAMENTO`, `CODIGO_ENTIDAD`, `ENTIDAD`, `ANO`, `MES` y las columnas
-# MAGIC `*_NORMALIZADO`.
+# MAGIC Se descartan las de identificación, que ya existen en las estimaciones o no son indicadores:
+# MAGIC `CODIGO_DEPARTAMENTO`, `DEPARTAMENTO`, `CODIGO_ENTIDAD`, `ENTIDAD`, `ANO` y `MES`.
 # MAGIC
 # MAGIC ## Interpretación del CV (columna heredada de estimación directa)
 # MAGIC
@@ -184,8 +183,7 @@ if sin_cobertura:
 # COMMAND ----------
 
 # DBTITLE 1,Preparar columnas de TerriData
-# Solo columnas de indicadores: se excluyen las de identificación (ya existen en las estimaciones) y
-# las de texto normalizado, que no son covariables.
+# Solo columnas de indicadores: se excluyen las de identificación (ya existen en las estimaciones).
 columnas_indicadores = [
     c
     for c in df_terridata.columns
