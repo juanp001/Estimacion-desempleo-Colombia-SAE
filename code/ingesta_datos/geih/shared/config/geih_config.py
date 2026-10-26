@@ -8,7 +8,7 @@ SCHEMA_ORO = "geih_oro"
 VOLUME_BASE = f"/Volumes/{CATALOG}/{SCHEMA_BRONCE}"
 
 # Nombre de los CSV del marco antiguo (R-23): <seccion>_<modulo>_<MM>_<AAAA>.csv, p. ej.
-# resto_fuerza_de_trabajo_01_2018.csv. Lo produce code/analisis/renombrar_geih.py a partir de
+# resto_fuerza_de_trabajo_01_2018.csv. Lo produce code/ingesta_datos/geih/renombrar_geih.py a partir de
 # las carpetas del DANE (GEIH/<año>/<Mes>/). El año y, en fuerza de trabajo, el mes salen de
 # este nombre; geih_bronce falla si no cumple el patrón o quedan fuera de rango.
 PATRON_ANIO_ARCHIVO = r"_\d{2}_(\d{4})\.csv$"

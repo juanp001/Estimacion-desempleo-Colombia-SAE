@@ -22,7 +22,7 @@
 # MAGIC
 # MAGIC ## Período del marco antiguo (R-23)
 # MAGIC El año (y el mes en fuerza de trabajo) sale del nombre del archivo,
-# MAGIC `<seccion>_<modulo>_<MM>_<AAAA>.csv`, que produce `code/analisis/renombrar_geih.py`. Antes de
+# MAGIC `<seccion>_<modulo>_<MM>_<AAAA>.csv`, que produce `renombrar_geih.py` (en esta carpeta). Antes de
 # MAGIC escribir cada tabla se verifica que todo archivo cumpla el patrón, que el año esté entre
 # MAGIC `ANIO_MIN_MARCO_ANTIGUO` y `ANIO_MAX_MARCO_ANTIGUO`, que `MES` esté entre 01 y 12 y que
 # MAGIC coincida con el mes del nombre; si no, el notebook se detiene (antes quedaban PER y PK
