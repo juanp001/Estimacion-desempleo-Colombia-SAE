@@ -1,3 +1,12 @@
+"""Estimadores de áreas pequeñas: interfaz común y estimador directo de Hájek.
+
+``EstimadorSAE`` define la validación de columnas y la exportación a Unity Catalog;
+``EstimacionDirecta`` calcula la tasa de desempleo por dominio con la varianza bootstrap de
+``shared/bootstrap.py`` (vivienda como conglomerado dentro del dominio, G7-B3). Lo usan
+``estimacion_directa.py`` (tabla ``tasa_desempleo_municipal``),
+``analisis/sensibilidad_ventana_temporal.py`` y ``modelo/sensibilidad_varianza.py``.
+"""
+
 from abc import ABC, abstractmethod
 
 import pandas as pd
@@ -73,8 +82,9 @@ class EstimadorSAE(ABC):
         tabla_destino: str,
         tabla_origen=None,
         modo: str = "overwrite",
+        resultado: pd.DataFrame | None = None,
     ) -> None:
-        """Exporta el último resultado calculado a una tabla de Unity Catalog.
+        """Exporta un resultado a una tabla de Unity Catalog.
 
         Usa un crossJoin con la(s) tabla(s) origen para registrar el lineage
         en Unity Catalog: al incluirlas en el plan de ejecución, UC detecta
@@ -85,9 +95,14 @@ class EstimadorSAE(ABC):
                 (ej. "tesis.preprocesamiento.tasa_desempleo_municipal").
             tabla_origen (str | list[str] | None): Tabla(s) fuente para lineage.
             modo (str): Modo de escritura Spark ("overwrite", "append", etc.).
+            resultado (pd.DataFrame | None): Tabla a exportar. Por defecto el último resultado
+                de estimar(); el notebook pasa el resultado con sus columnas adicionales (R-28:
+                antes escribía el atributo privado ``_resultado``).
 
         Raises:
-            RuntimeError: Si se llama antes de ejecutar estimar().
+            RuntimeError: Si no hay resultado (no se ha llamado estimar()).
+            ValueError: Si una tabla origen está vacía: el crossJoin del linaje escribiría
+                0 filas sin error (R-28).
 
         Example:
             >>> estimador.exportar(
@@ -95,11 +110,13 @@ class EstimadorSAE(ABC):
             ...     tabla_origen="tesis.geih_oro.mercado_laboral",
             ... )
         """
-        if self._resultado is None:
+        if resultado is None:
+            resultado = self._resultado
+        if resultado is None:
             raise RuntimeError("Ejecuta estimar() antes de exportar.")
 
-        print(f"Exportando {len(self._resultado)} filas a {tabla_destino}...")
-        resultado_spark = self.spark.createDataFrame(self._resultado)
+        print(f"Exportando {len(resultado)} filas a {tabla_destino}...")
+        resultado_spark = self.spark.createDataFrame(resultado)
 
         if tabla_origen:
             tablas = (
@@ -117,7 +134,10 @@ class EstimadorSAE(ABC):
                     .limit(1)
                     .select(F.lit(1).alias("_lineage_marker"))
                 )
-            resultado_spark = resultado_spark.crossJoin(df_marker.limit(1)).drop(
+            df_marker = df_marker.limit(1)
+            if df_marker.count() != 1:
+                raise ValueError(f"Tabla(s) origen vacía(s) para el linaje: {tablas}")
+            resultado_spark = resultado_spark.crossJoin(df_marker).drop(
                 "_lineage_marker"
             )
 
@@ -130,9 +150,6 @@ class EstimadorSAE(ABC):
     def resultado(self) -> pd.DataFrame | None:
         """Último resultado calculado (None si no se ha llamado estimar())."""
         return self._resultado
-
-
-# COMMAND ----------
 
 
 class EstimacionDirecta(EstimadorSAE):
@@ -162,7 +179,6 @@ class EstimacionDirecta(EstimadorSAE):
         self,
         dataframe,
         grupo_cols: list,
-        agregacion_anual: bool = False,
         col_conglomerado: str | None = "ID_VIVIENDA",
     ) -> pd.DataFrame:
         """Calcula la estimación directa y su varianza bootstrap por dominio.
@@ -171,8 +187,7 @@ class EstimacionDirecta(EstimadorSAE):
             dataframe: DataFrame de Spark con columnas FEX, DESOCUPADO, las listadas en
                 grupo_cols y, si se usa, col_conglomerado.
             grupo_cols (list[str]): Columnas que definen los dominios (estratos del remuestreo).
-            agregacion_anual (bool): Si True, elimina "MES" de grupo_cols
-                para producir estimaciones anuales (más muestra → menor CV).
+                Para una ventana de varios meses, el notebook reescribe PER/MES con el cierre.
             col_conglomerado (str | None): Conglomerado que se remuestrea. Por defecto la
                 vivienda (`ID_VIVIENDA` de `tesis.geih_oro.mercado_laboral`); con `None` se
                 remuestrean personas (solo para comparar, en la sensibilidad del modelo).
@@ -190,7 +205,7 @@ class EstimacionDirecta(EstimadorSAE):
             >>> resultado = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"])
             >>> por_personas = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"], col_conglomerado=None)
         """
-        grupo_cols_final = self._ajustar_grupo_cols(grupo_cols, agregacion_anual)
+        grupo_cols_final = list(grupo_cols)
         columnas = list(
             dict.fromkeys(
                 grupo_cols_final
@@ -264,22 +279,3 @@ class EstimacionDirecta(EstimadorSAE):
             "segmento de la GEIH (G7-B3)."
         )
         return self._resultado
-
-    # ------------------------------------------------------------------
-    # Métodos privados
-    # ------------------------------------------------------------------
-
-    def _ajustar_grupo_cols(self, grupo_cols: list, agregacion_anual: bool) -> list:
-        """Elimina MES de grupo_cols cuando se solicita agregación anual.
-
-        Args:
-            grupo_cols (list[str]): Lista original de columnas.
-            agregacion_anual (bool): Si True, remueve "MES".
-
-        Returns:
-            list[str]: Lista ajustada (copia, no modifica el original).
-        """
-        if agregacion_anual and "MES" in grupo_cols:
-            print("Agregación anual: removiendo MES de la agrupación.")
-            return [c for c in grupo_cols if c != "MES"]
-        return grupo_cols.copy()

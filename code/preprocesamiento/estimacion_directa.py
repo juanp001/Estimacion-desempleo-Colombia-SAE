@@ -305,19 +305,17 @@ estimador = EstimacionDirecta(
 resultado = estimador.estimar(
     dataframe=df_desempleo,
     grupo_cols=GRUPO_COLS,
-    agregacion_anual=False,
 )
 
 # Etiqueta y longitud de la ventana junto a PER/MES (que ya son el año y mes de cierre): viajan en
 # los datos para que la auditoría, la sensibilidad y el modelo sepan contra qué cifra del DANE
 # validar. Se agregan la PEA expandida, los conteos muestrales y el número de municipios de cada
-# dominio. Se asigna a estimador._resultado para que `exportar` lo incluya en la tabla destino.
+# dominio. La celda de exportación pasa este resultado a `exportar` (R-28).
 resultado.insert(2, "PERIODO", PERIODO)
 resultado.insert(3, "N_MESES_VENTANA", N_MESES)
 resultado = resultado.merge(
     df_pea_expandida, on="CODIGO_DOMINIO", how="left", validate="one_to_one"
 )
-estimador._resultado = resultado
 
 # COMMAND ----------
 
@@ -421,4 +419,5 @@ else:
 estimador.exportar(
     tabla_destino=TBL_ESTIMACION_DIRECTA,
     tabla_origen=TBL_MERCADO_LABORAL,
+    resultado=resultado,
 )
