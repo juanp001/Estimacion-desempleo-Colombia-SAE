@@ -13,14 +13,26 @@ anuales publicados (`analisis/shared/ventana_temporal.validar_formula_anual`, �
 Lo usan `estimacion_directa.py` y `adicion_covariables.py` (validación y auditoría), el benchmarking
 de nivel 1 de `modelo/fay_herriot.py` (Total 23 de la ventana) y la sensibilidad de
 `analisis/sensibilidad_ventana_temporal.py`.
+
+`preparar_datos_ventana` arma la base de la estimación directa (la PEA de 15+ de los dominios en
+la ventana) para `estimacion_directa.py`, `modelo/sensibilidad_varianza.py` y la sensibilidad de
+la ventana (R-37: antes cada uno tenía su propio filtro, con dos definiciones de PEA).
 """
 
 import pandas as pd
 
-from preprocesamiento.shared.config import MESES_TRIMESTRE, meses_ventana
+from preprocesamiento.shared.config import (
+    MESES_TRIMESTRE,
+    TBL_DIM_DOMINIO,
+    TBL_MERCADO_LABORAL,
+    meses_ventana,
+)
 
 # Diferencia máxima, en puntos porcentuales, para dar por reproducida una cifra del DANE.
 TOLERANCIA_PP = 0.01
+
+# Edad mínima de la población en edad de trabajar: la PET de la serie CNPV 2018 es de 15 años y más.
+EDAD_MINIMA = 15
 
 
 def etiqueta_ventana(per: int, mes: int, n_meses: int) -> str:
@@ -135,3 +147,74 @@ def td_dane_ventana(
     return pd.DataFrame(
         {"CIUDAD": suma.index, "TD_DANE": 100 * suma["DS"] / suma["PEA"]}
     ).reset_index(drop=True)
+
+
+def preparar_datos_ventana(spark, per: int, mes: int, n_meses: int) -> tuple:
+    """Filtra la GEIH a una ventana y arma la PEA por dominio y sus conteos muestrales.
+
+    Es la base de la estimación directa (R-37): personas de 15+ de `mercado_laboral` en los meses
+    de la ventana, unidas por `CODIGO_MUNICIPIO` a la fila de la capital de `dim_dominio_geih`
+    (el INNER JOIN descarta los registros sin AREA), con `FEX := FEX_C18`. La PEA es la bandera
+    `PEA == 1`, la misma de `estimacion_directa.py`; hoy coincide con `OCUPADO + DESOCUPADO == 1`
+    en todos los meses (G7-B5, `tesis.geih_oro.reconciliacion_fuerza_trabajo`).
+
+    Args:
+        spark: SparkSession activa.
+        per (int): Año del mes de cierre.
+        mes (int): Mes de cierre, entre 1 y 12.
+        n_meses (int): Número de meses de la ventana (1, 3 o 12).
+
+    Returns:
+        tuple: `(df_pea, conteos, meses_presentes)` donde
+            - `df_pea` (pyspark DataFrame): personas de la PEA con `FEX`, `DESOCUPADO`,
+              `ID_VIVIENDA`, las columnas de dominio y `PER`/`MES` reescritos con el cierre;
+              entrada de `EstimacionDirecta.estimar`.
+            - `conteos` (pd.DataFrame): por `CODIGO_DOMINIO`, `NOMBRE_DOMINIO`,
+              `N_PERSONAS_15MAS`, `N_PEA`, `N_DESOCUPADOS`, `N_MESES` (meses con datos del
+              dominio) y `PEA_EXPANDIDA` (Σ FEX de la PEA / meses con datos del dominio, R-27).
+            - `meses_presentes` (list[tuple[int, int]]): meses de la ventana con datos.
+
+    Casos de uso:
+        `df_pea, conteos, meses = preparar_datos_ventana(spark, 2018, 12, 12)` para el año 2018.
+    """
+    # Importación local: el resto del módulo es pandas y sus doctests corren sin Spark
+    from pyspark.sql import functions as F
+
+    meses = meses_ventana(per, mes, n_meses)
+    condicion = None
+    for anio, m in meses:
+        c = (F.col("PER") == anio) & (F.col("MES") == m)
+        condicion = c if condicion is None else (condicion | c)
+
+    dominios_capital = (
+        spark.table(TBL_DIM_DOMINIO)
+        .filter(F.col("ES_CAPITAL"))
+        .select("CODIGO_MUNICIPIO", "CODIGO_DOMINIO", "NOMBRE_DOMINIO", "TIPO_DOMINIO")
+    )
+    base = (
+        spark.table(TBL_MERCADO_LABORAL)
+        .filter((F.col("EDAD") >= EDAD_MINIMA) & condicion)
+        .join(dominios_capital, on="CODIGO_MUNICIPIO", how="inner")
+        .withColumn("FEX", F.col("FEX_C18"))
+    )
+    meses_presentes = sorted(
+        (r["PER"], r["MES"]) for r in base.select("PER", "MES").distinct().collect()
+    )
+    en_pea = F.col("PEA") == 1
+    conteos = (
+        base.groupBy("CODIGO_DOMINIO", "NOMBRE_DOMINIO")
+        .agg(
+            F.count("*").alias("N_PERSONAS_15MAS"),
+            F.count_if(en_pea).alias("N_PEA"),
+            F.count_if(en_pea & (F.col("DESOCUPADO") == 1)).alias("N_DESOCUPADOS"),
+            F.countDistinct("PER", "MES").alias("N_MESES"),
+            (F.sum(F.when(en_pea, F.col("FEX"))) / F.countDistinct("PER", "MES")).alias(
+                "PEA_EXPANDIDA"
+            ),
+        )
+        .toPandas()
+    )
+    df_pea = (
+        base.filter(en_pea).withColumn("PER", F.lit(per)).withColumn("MES", F.lit(mes))
+    )
+    return df_pea, conteos, meses_presentes

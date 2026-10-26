@@ -1,3 +1,12 @@
+"""Estimadores de áreas pequeñas: interfaz común y estimador directo de Hájek.
+
+``EstimadorSAE`` define la validación de columnas y la exportación a Unity Catalog;
+``EstimacionDirecta`` calcula la tasa de desempleo por dominio con la varianza bootstrap de
+``shared/bootstrap.py`` (vivienda como conglomerado dentro del dominio, G7-B3). Lo usan
+``estimacion_directa.py`` (tabla ``tasa_desempleo_municipal``),
+``analisis/sensibilidad_ventana_temporal.py`` y ``modelo/sensibilidad_varianza.py``.
+"""
+
 from abc import ABC, abstractmethod
 
 import pandas as pd
@@ -73,8 +82,9 @@ class EstimadorSAE(ABC):
         tabla_destino: str,
         tabla_origen=None,
         modo: str = "overwrite",
+        resultado: pd.DataFrame | None = None,
     ) -> None:
-        """Exporta el último resultado calculado a una tabla de Unity Catalog.
+        """Exporta un resultado a una tabla de Unity Catalog.
 
         Usa un crossJoin con la(s) tabla(s) origen para registrar el lineage
         en Unity Catalog: al incluirlas en el plan de ejecución, UC detecta
@@ -85,9 +95,14 @@ class EstimadorSAE(ABC):
                 (ej. "tesis.preprocesamiento.tasa_desempleo_municipal").
             tabla_origen (str | list[str] | None): Tabla(s) fuente para lineage.
             modo (str): Modo de escritura Spark ("overwrite", "append", etc.).
+            resultado (pd.DataFrame | None): Tabla a exportar. Por defecto el último resultado
+                de estimar(); el notebook pasa el resultado con sus columnas adicionales (R-28:
+                antes escribía el atributo privado ``_resultado``).
 
         Raises:
-            RuntimeError: Si se llama antes de ejecutar estimar().
+            RuntimeError: Si no hay resultado (no se ha llamado estimar()).
+            ValueError: Si una tabla origen está vacía: el crossJoin del linaje escribiría
+                0 filas sin error (R-28).
 
         Example:
             >>> estimador.exportar(
@@ -95,11 +110,13 @@ class EstimadorSAE(ABC):
             ...     tabla_origen="tesis.geih_oro.mercado_laboral",
             ... )
         """
-        if self._resultado is None:
+        if resultado is None:
+            resultado = self._resultado
+        if resultado is None:
             raise RuntimeError("Ejecuta estimar() antes de exportar.")
 
-        print(f"Exportando {len(self._resultado)} filas a {tabla_destino}...")
-        resultado_spark = self.spark.createDataFrame(self._resultado)
+        print(f"Exportando {len(resultado)} filas a {tabla_destino}...")
+        resultado_spark = self.spark.createDataFrame(resultado)
 
         if tabla_origen:
             tablas = (
@@ -117,7 +134,10 @@ class EstimadorSAE(ABC):
                     .limit(1)
                     .select(F.lit(1).alias("_lineage_marker"))
                 )
-            resultado_spark = resultado_spark.crossJoin(df_marker.limit(1)).drop(
+            df_marker = df_marker.limit(1)
+            if df_marker.count() != 1:
+                raise ValueError(f"Tabla(s) origen vacía(s) para el linaje: {tablas}")
+            resultado_spark = resultado_spark.crossJoin(df_marker).drop(
                 "_lineage_marker"
             )
 
@@ -132,9 +152,6 @@ class EstimadorSAE(ABC):
         return self._resultado
 
 
-# COMMAND ----------
-
-
 class EstimacionDirecta(EstimadorSAE):
     """Estimador directo de Hájek con varianza bootstrap por conglomerados dentro del dominio.
 
@@ -145,9 +162,10 @@ class EstimacionDirecta(EstimadorSAE):
     unidades (ver `shared/bootstrap.py`).
 
     Warning:
-        Los microdatos no traen el estrato interno ni el segmento de la GEIH, así que la
-        varianza es una aproximación a la del diseño: no se sabe si esta es mayor o menor, ni
-        por cuánto. No publicar como error de muestreo oficial.
+        Los microdatos no traen el estrato interno ni el segmento de la GEIH, y los pesos no
+        se recalibran en cada réplica como hace el DANE con el FEX (calibración por sexo y edad,
+        GEIH v9, PDF 13-14; R-25). La varianza es una aproximación a la del diseño: no se sabe
+        si esta es mayor o menor, ni por cuánto. No publicar como error de muestreo oficial.
 
     Example:
         >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)
@@ -162,7 +180,6 @@ class EstimacionDirecta(EstimadorSAE):
         self,
         dataframe,
         grupo_cols: list,
-        agregacion_anual: bool = False,
         col_conglomerado: str | None = "ID_VIVIENDA",
     ) -> pd.DataFrame:
         """Calcula la estimación directa y su varianza bootstrap por dominio.
@@ -171,8 +188,7 @@ class EstimacionDirecta(EstimadorSAE):
             dataframe: DataFrame de Spark con columnas FEX, DESOCUPADO, las listadas en
                 grupo_cols y, si se usa, col_conglomerado.
             grupo_cols (list[str]): Columnas que definen los dominios (estratos del remuestreo).
-            agregacion_anual (bool): Si True, elimina "MES" de grupo_cols
-                para producir estimaciones anuales (más muestra → menor CV).
+                Para una ventana de varios meses, el notebook reescribe PER/MES con el cierre.
             col_conglomerado (str | None): Conglomerado que se remuestrea. Por defecto la
                 vivienda (`ID_VIVIENDA` de `tesis.geih_oro.mercado_laboral`); con `None` se
                 remuestrean personas (solo para comparar, en la sensibilidad del modelo).
@@ -183,13 +199,14 @@ class EstimacionDirecta(EstimadorSAE):
                 SE_TAYLOR_PCT y, si hay conglomerado, N_VIVIENDAS.
 
         Raises:
-            ValueError: Si faltan columnas requeridas en el dataframe.
+            ValueError: Si faltan columnas requeridas, si el remuestreo no usó todas las
+                personas o si algún dominio queda con tasa o SE igual a 0 (R-27).
 
         Example:
             >>> resultado = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"])
             >>> por_personas = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"], col_conglomerado=None)
         """
-        grupo_cols_final = self._ajustar_grupo_cols(grupo_cols, agregacion_anual)
+        grupo_cols_final = list(grupo_cols)
         columnas = list(
             dict.fromkeys(
                 grupo_cols_final
@@ -210,6 +227,21 @@ class EstimacionDirecta(EstimadorSAE):
         resultado = varianza_por_dominio(
             df_pd, grupo_cols_final, col_conglomerado, self.num_replicas, self.seed
         )
+        # R-27: el remuestreo debe ver a todas las personas, y ninguna tasa ni SE puede ser 0
+        # (ψ_d = 0 y CV infinito harían que el modelo tome la directa como exacta sin aviso)
+        n_personas = int(resultado["N_PERSONAS"].sum())
+        if n_personas != len(df_pd):
+            raise ValueError(
+                f"El bootstrap usó {n_personas:,} de {len(df_pd):,} personas"
+            )
+        degenerados = resultado[
+            (resultado["TASA_DESEMPLEO"] == 0) | (resultado["SE_BOOTSTRAP"] == 0)
+        ]
+        if not degenerados.empty:
+            raise ValueError(
+                "Dominios con tasa o SE igual a 0:\n"
+                + degenerados[grupo_cols_final].to_string(index=False)
+            )
         resultado["TASA_DESEMPLEO_PCT"] = resultado["TASA_DESEMPLEO"] * 100
         resultado["SE_BOOTSTRAP_PCT"] = resultado["SE_BOOTSTRAP"] * 100
         resultado["IC_INF_PCT"] = resultado["IC_INF_2.5"] * 100
@@ -244,26 +276,7 @@ class EstimacionDirecta(EstimadorSAE):
             f"{len(self._resultado)} dominios estimados"
         )
         print(
-            "Aproximación a la varianza del diseño: no reproduce el estrato interno ni el "
-            "segmento de la GEIH (G7-B3)."
+            "Aproximación a la varianza del diseño: no reproduce el estrato interno, el "
+            "segmento ni la calibración del FEX de la GEIH (G7-B3, R-25)."
         )
         return self._resultado
-
-    # ------------------------------------------------------------------
-    # Métodos privados
-    # ------------------------------------------------------------------
-
-    def _ajustar_grupo_cols(self, grupo_cols: list, agregacion_anual: bool) -> list:
-        """Elimina MES de grupo_cols cuando se solicita agregación anual.
-
-        Args:
-            grupo_cols (list[str]): Lista original de columnas.
-            agregacion_anual (bool): Si True, remueve "MES".
-
-        Returns:
-            list[str]: Lista ajustada (copia, no modifica el original).
-        """
-        if agregacion_anual and "MES" in grupo_cols:
-            print("Agregación anual: removiendo MES de la agrupación.")
-            return [c for c in grupo_cols if c != "MES"]
-        return grupo_cols.copy()

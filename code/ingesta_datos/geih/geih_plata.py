@@ -9,7 +9,7 @@
 # MAGIC ## Tablas generadas
 # MAGIC | Tabla | Campos específicos |
 # MAGIC |---|---|
-# MAGIC | `caracteristicas_generales_consolidado` | SEXO, EDAD, ANO_NACIMIENTO, MES_NACIMIENTO |
+# MAGIC | `caracteristicas_generales_consolidado` | SEXO, EDAD |
 # MAGIC | `fuerza_trabajo_consolidado` | PEA, PEI, PET |
 # MAGIC | `no_ocupados_consolidado` | DESOCUPADO |
 # MAGIC | `ocupados_consolidado` | OCUPADO |
@@ -20,6 +20,13 @@
 # MAGIC * **Marco antiguo**: PERIODO y PER se extraen del nombre de archivo con regex;
 # MAGIC   FEX_C_2011 requiere reemplazar comas por puntos.
 # MAGIC
+# MAGIC ## Uniones y llave (R-22)
+# MAGIC * Marco nuevo y antiguo se unen por nombre (`unionByName`), no por posición: reordenar
+# MAGIC   `CAMPOS_NUCLEO_*` ya no puede correr columnas sin error.
+# MAGIC * `FEX` se castea a double en los dos marcos y `FEX_C18` de `dim_fex` recibe el mismo
+# MAGIC   reemplazo de comas.
+# MAGIC * `PK` = `PERIODO_DIRECTORIO_SECUENCIA_P_ORDEN` (con separador), igual en `dim_fex`.
+# MAGIC
 # MAGIC ## Lógica especial — fuerza de trabajo marco antiguo
 # MAGIC LEFT JOIN entre fuerza_trabajo e inactivos: PEA = 1 si la persona no aparece
 # MAGIC en la tabla de inactivos (PEI es NULL o vacío).
@@ -28,7 +35,7 @@
 
 # DBTITLE 1,Importación de librerías
 
-from pyspark.sql.functions import col, when, concat, expr, lit, trim
+from pyspark.sql.functions import col, when, expr, regexp_replace
 
 from shared.config.geih_config import (
     TBL_CG_BRONCE,
@@ -36,16 +43,12 @@ from shared.config.geih_config import (
     TBL_NO_BRONCE,
     TBL_OC_BRONCE,
     TBL_FEX_BRONCE,
-    TBL_CG_AREA_MA,
     TBL_CG_CAB_MA,
     TBL_CG_RESTO_MA,
-    TBL_FT_AREA_MA,
     TBL_FT_CAB_MA,
     TBL_FT_RESTO_MA,
-    TBL_IN_AREA_MA,
     TBL_IN_CAB_MA,
     TBL_IN_RESTO_MA,
-    TBL_NO_AREA_MA,
     TBL_NO_CAB_MA,
     TBL_NO_RESTO_MA,
     TBL_OC_CAB_MA,
@@ -59,6 +62,7 @@ from shared.config.geih_config import (
 from shared.transformations.campos_nucleo import (
     CAMPOS_NUCLEO_MARCO_NUEVO,
     CAMPOS_NUCLEO_MARCO_ANTIGUO,
+    llave_persona,
 )
 from shared.utils.spark_utils import escribir_tabla
 
@@ -76,8 +80,7 @@ df_cg_plata = spark.table(TBL_CG_BRONCE).select(
     .when(col("P3271") == 2, "FEMENINO")
     .alias("SEXO"),
     col("P6040").cast("int").alias("EDAD"),
-    col("P6030S3").cast("int").alias("ANO_NACIMIENTO"),
-    col("P6030S1").cast("int").alias("MES_NACIMIENTO"),
+    # R-52: sin ANO_NACIMIENTO ni MES_NACIMIENTO, que no llegaban a oro
 )
 
 # COMMAND ----------
@@ -90,8 +93,6 @@ select_fields_cg_antiguo = [
     .when(col("P6020") == "2", "FEMENINO")
     .alias("SEXO"),
     expr("try_cast(P6040 as int)").alias("EDAD"),
-    expr("try_cast(P6030S3 as int)").alias("ANO_NACIMIENTO"),
-    expr("try_cast(P6030S1 as int)").alias("MES_NACIMIENTO"),
 ]
 
 df_cg_cabecera_plata = spark.table(TBL_CG_CAB_MA).select(
@@ -101,9 +102,10 @@ df_cg_resto_plata = spark.table(TBL_CG_RESTO_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, *select_fields_cg_antiguo
 )
 
-# df_cg_area (marco antiguo) se omite porque es un consolidado de cabecera + resto,
-# incluirlo generaría duplicados en el resultado final
-df_cg_consolidado = df_cg_plata.union(df_cg_cabecera_plata).union(df_cg_resto_plata)
+# Marco antiguo: solo cabecera y resto (R-21: la sección área no se carga en bronce)
+df_cg_consolidado = df_cg_plata.unionByName(df_cg_cabecera_plata).unionByName(
+    df_cg_resto_plata
+)
 escribir_tabla(df_cg_consolidado, TBL_CG_PLATA)
 
 # COMMAND ----------
@@ -124,28 +126,21 @@ df_ft_plata = spark.table(TBL_FT_BRONCE).select(
 # COMMAND ----------
 
 # DBTITLE 1,Fuerza de trabajo — marco antiguo
-# En cabecera y resto el campo FT viene vacío para personas en PET;
-# se normaliza a "1" para homologar con el marco nuevo
-_ft_pet_select = [
-    when(trim(col("FT")) == "", lit("1").cast("string"))
-    .otherwise(col("FT"))
-    .alias("PET")
-]
-
-# Área trae FT directamente sin necesidad de normalización
-df_ft_area = spark.table(TBL_FT_AREA_MA).select(
+# El módulo FT solo trae personas de la PET: FT = "1" en todas las filas (en resto lo fija
+# geih_bronce). R-21: en vez de normalizar "" → "1", se verifica que así sea.
+df_ft_cabecera = spark.table(TBL_FT_CAB_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("FT").alias("PET")
 )
-df_ft_cabecera = spark.table(TBL_FT_CAB_MA).select(
-    *CAMPOS_NUCLEO_MARCO_ANTIGUO, *_ft_pet_select
-)
 df_ft_resto = spark.table(TBL_FT_RESTO_MA).select(
-    *CAMPOS_NUCLEO_MARCO_ANTIGUO, *_ft_pet_select
+    *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("FT").alias("PET")
 )
+for nombre, df_ft in [("cabecera", df_ft_cabecera), ("resto", df_ft_resto)]:
+    n_sin_pet = df_ft.filter(~col("PET").eqNullSafe("1")).count()
+    if n_sin_pet:
+        raise ValueError(
+            f"Fuerza de trabajo {nombre}: {n_sin_pet} filas con FT distinto de '1'"
+        )
 
-df_i_area = spark.table(TBL_IN_AREA_MA).select(
-    *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("INI").alias("PEI")
-)
 df_i_cabecera = spark.table(TBL_IN_CAB_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("INI").alias("PEI")
 )
@@ -153,8 +148,8 @@ df_i_resto = spark.table(TBL_IN_RESTO_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("INI").alias("PEI")
 )
 
-df_ft_ma = df_ft_cabecera.unionAll(df_ft_resto)
-df_i_ma = df_i_cabecera.unionAll(df_i_resto)
+df_ft_ma = df_ft_cabecera.unionByName(df_ft_resto)
+df_i_ma = df_i_cabecera.unionByName(df_i_resto)
 
 # COMMAND ----------
 
@@ -186,9 +181,6 @@ df_no_plata = spark.table(TBL_NO_BRONCE).select(
 # COMMAND ----------
 
 # DBTITLE 1,No ocupados — marco antiguo
-df_no_area_plata = spark.table(TBL_NO_AREA_MA).select(
-    *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("DSI").alias("DESOCUPADO")
-)
 df_no_cabecera_plata = spark.table(TBL_NO_CAB_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("DSI").alias("DESOCUPADO")
 )
@@ -196,7 +188,7 @@ df_no_resto_plata = spark.table(TBL_NO_RESTO_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("DSI").alias("DESOCUPADO")
 )
 
-df_no_consolidado = df_no_plata.unionAll(df_no_cabecera_plata).unionAll(
+df_no_consolidado = df_no_plata.unionByName(df_no_cabecera_plata).unionByName(
     df_no_resto_plata
 )
 escribir_tabla(df_no_consolidado, TBL_NO_PLATA)
@@ -217,7 +209,7 @@ df_oc_plata = spark.table(TBL_OC_BRONCE).select(
 # COMMAND ----------
 
 # DBTITLE 1,Ocupados — marco antiguo
-# El marco antiguo de ocupados solo tiene cabecera y resto (no tiene sección área)
+# Marco antiguo: solo cabecera y resto (R-21: la sección área no se carga en bronce)
 df_oc_cabecera_plata = spark.table(TBL_OC_CAB_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("OCI").alias("OCUPADO")
 )
@@ -225,7 +217,7 @@ df_oc_resto_plata = spark.table(TBL_OC_RESTO_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("OCI").alias("OCUPADO")
 )
 
-df_oc_consolidado = df_oc_plata.unionAll(df_oc_cabecera_plata).unionAll(
+df_oc_consolidado = df_oc_plata.unionByName(df_oc_cabecera_plata).unionByName(
     df_oc_resto_plata
 )
 escribir_tabla(df_oc_consolidado, TBL_OC_PLATA)
@@ -239,15 +231,16 @@ escribir_tabla(df_oc_consolidado, TBL_OC_PLATA)
 
 # DBTITLE 1,FEX — corrección y tipado
 df_fex = spark.table(TBL_FEX_BRONCE).select(
-    concat(col("TIME_FEXC"), col("DIRECTORIO"), col("SECUENCIA_P"), col("ORDEN")).alias(
-        "PK"
-    ),
+    # R-22: misma llave que características generales (TIME_FEXC es el PERIODO AAAAMM)
+    llave_persona(
+        col("TIME_FEXC"), col("DIRECTORIO"), col("SECUENCIA_P"), col("ORDEN")
+    ).alias("PK"),
     "DIRECTORIO",
     "SECUENCIA_P",
     "ORDEN",
     col("Ano").cast("int").alias("ANO"),
     col("Mes").cast("int").alias("MES"),
-    col("FEX_C18").cast("double").alias("FEX_C18"),
+    regexp_replace(col("FEX_C18"), ",", ".").cast("double").alias("FEX_C18"),
 )
 
 escribir_tabla(df_fex, TBL_FEX_PLATA)

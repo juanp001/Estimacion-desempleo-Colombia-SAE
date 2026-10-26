@@ -1,3 +1,4 @@
+import math
 from functools import reduce
 from operator import add
 
@@ -13,6 +14,11 @@ from shared.config.terridata_config import (
 
 def verificar_conservacion_registros(df_bronce: DataFrame, n_filas_plata: int) -> bool:
     """Verifica que plata conserve una fila por combinación única de la clave de bronce.
+
+    Solo cuenta las filas de bronce con valor (``DATO_NUMERICO`` o ``DATO_CUALITATIVO`` no
+    nulo), que son las que pivotea ``terridata_plata`` (R-18). Antes contaba todas y daba FAIL
+    en cada corrida (149.767 claves frente a 147.026 filas) aunque el pivote era correcto: las
+    2.741 claves de diferencia solo tienen filas sin valor.
 
     Args:
         df_bronce (DataFrame): Tabla bronce en formato largo; requiere las columnas
@@ -30,13 +36,16 @@ def verificar_conservacion_registros(df_bronce: DataFrame, n_filas_plata: int) -
     print("=" * 60)
 
     count_largo = (
-        df_bronce.select("CODIGO_DEPARTAMENTO", "CODIGO_ENTIDAD", "ANO", "MES")
+        df_bronce.filter(
+            col("DATO_NUMERICO").isNotNull() | col("DATO_CUALITATIVO").isNotNull()
+        )
+        .select("CODIGO_DEPARTAMENTO", "CODIGO_ENTIDAD", "ANO", "MES")
         .distinct()
         .count()
     )
 
-    print(f"Combinaciones únicas en BRONCE: {count_largo:,}")
-    print(f"Filas en PLATA:                 {n_filas_plata:,}")
+    print(f"Combinaciones únicas con valor en BRONCE: {count_largo:,}")
+    print(f"Filas en PLATA:                           {n_filas_plata:,}")
 
     if count_largo == n_filas_plata:
         print("✅ CORRECTO: El número de registros se conservó")
@@ -44,6 +53,42 @@ def verificar_conservacion_registros(df_bronce: DataFrame, n_filas_plata: int) -
     else:
         print(f"❌ ERROR: Diferencia de {abs(count_largo - n_filas_plata):,} registros")
         return False
+
+
+def verificar_llave_unica_bronce(df_valores: DataFrame) -> None:
+    """Exige una sola fila con valor por entidad, año, mes e indicador antes del pivote (R-20).
+
+    El pivote de ``terridata_plata`` agrega con ``max`` sobre ``VALOR``, que es texto: si una
+    llave tuviera dos filas (p. ej. dos fuentes) elegiría el máximo lexicográfico ('9.5' >
+    '10.2'), no el valor correcto. ``verificar_duplicados`` revisa la plata ya pivoteada y no
+    ve ese caso. Con la llave única, ``max`` solo toma el único valor.
+
+    Args:
+        df_valores (DataFrame): Bronce ya filtrado a filas con valor (``CODIGO_ENTIDAD``,
+            ``ANO``, ``MES``, ``CODIGO_INDICADOR``).
+
+    Raises:
+        ValueError: Si alguna llave tiene más de una fila; el mensaje trae hasta 5 ejemplos.
+
+    Example:
+        >>> verificar_llave_unica_bronce(df_datos_unificados)
+    """
+    llave = ["CODIGO_ENTIDAD", "ANO", "MES", "CODIGO_INDICADOR"]
+    repetidas = df_valores.groupBy(*llave).count().filter(col("count") > 1)
+    ejemplos = repetidas.limit(5).collect()
+    if ejemplos:
+        n = repetidas.count()
+        detalle = ", ".join(
+            f"{r.CODIGO_ENTIDAD}/{r.ANO}-{r.MES}/{r.CODIGO_INDICADOR} ({r['count']} filas)"
+            for r in ejemplos
+        )
+        raise ValueError(
+            f"{n:,} llaves (entidad, año, mes, indicador) con más de una fila en bronce; "
+            f"el pivote con max elegiría mal. Ejemplos: {detalle}"
+        )
+    print(
+        "✅ Llave (entidad, año, mes, indicador) única en bronce: el pivote es inequívoco"
+    )
 
 
 def verificar_duplicados(df_plata: DataFrame, n_filas: int) -> bool:
@@ -87,19 +132,29 @@ def verificar_duplicados(df_plata: DataFrame, n_filas: int) -> bool:
 
 
 def verificar_integridad_muestra(
-    df_bronce: DataFrame, df_plata: DataFrame, n_muestras: int = 10
+    df_bronce: DataFrame,
+    df_plata: DataFrame,
+    n_muestras: int = 10,
+    tolerancia_relativa: float = 1e-9,
 ) -> bool:
     """Compara una muestra aleatoria de valores de bronce contra su celda en plata.
+
+    Los valores numéricos se comparan como números, con ``tolerancia_relativa`` (R-18): antes
+    se comparaba ``str(float)`` de Python con el texto de Spark, que usa notación científica
+    para |x| >= 1e7 o < 1e-3, y un dato idéntico podía dar FAIL. Los cualitativos se comparan
+    como texto. La muestra usa semilla fija, y si sale vacía la verificación falla en vez de
+    darse por buena.
 
     Args:
         df_bronce (DataFrame): Tabla bronce en formato largo (`DATO_NUMERICO`,
             `DATO_CUALITATIVO`, `CODIGO_INDICADOR`, `CODIGO_ENTIDAD`, `ANO`, `MES`).
         df_plata (DataFrame): Tabla plata en formato ancho (una columna por indicador).
         n_muestras (int): Máximo de combinaciones a verificar (por defecto 10).
+        tolerancia_relativa (float): Diferencia relativa aceptada entre valores numéricos.
 
     Returns:
-        bool: True si todas las muestras coinciden o si no se pudo extraer ninguna
-        (verificación omitida); False si alguna difiere.
+        bool: True si todas las muestras coinciden; False si alguna difiere o si no se pudo
+        extraer ninguna.
 
     Example:
         >>> verificar_integridad_muestra(df_bronce, df_plata, n_muestras=20)
@@ -120,14 +175,16 @@ def verificar_integridad_muestra(
             "DATO_NUMERICO",
             "DATO_CUALITATIVO",
         )
-        .sample(False, 0.0001)
+        .sample(False, 0.001, seed=42)
         .limit(n_muestras)
         .collect()
     )
 
     if not muestras:
-        print("⚠️  No se pudieron obtener muestras. Verificación omitida.")
-        return True
+        print(
+            "❌ ERROR: No se pudieron obtener muestras; la verificación no comprobó nada."
+        )
+        return False
 
     print(f"Verificando {len(muestras)} combinaciones aleatorias...\n")
     errores = 0
@@ -138,25 +195,28 @@ def verificar_integridad_muestra(
         mes = int(row.MES)
         indicador = row.CODIGO_INDICADOR
 
-        valor_esperado = (
-            str(row.DATO_NUMERICO)
-            if row.DATO_NUMERICO is not None
-            else row.DATO_CUALITATIVO
-        )
-
         fila_plata = (
             df_plata.filter(
                 (col("CODIGO_ENTIDAD") == entidad)
                 & (col("ANO") == ano)
                 & (col("MES") == mes)
             )
-            .select(col(f"`{indicador}`").cast("string"))
+            .select(col(f"`{indicador}`"))
             .first()
         )
-
         valor_plata = fila_plata[0] if fila_plata else None
 
-        if valor_esperado != valor_plata:
+        if row.DATO_NUMERICO is not None:
+            valor_esperado = float(row.DATO_NUMERICO)
+            # En plata el indicador es double (numérico) o texto (cualitativo)
+            coincide = valor_plata is not None and math.isclose(
+                valor_esperado, float(valor_plata), rel_tol=tolerancia_relativa
+            )
+        else:
+            valor_esperado = row.DATO_CUALITATIVO
+            coincide = valor_esperado == valor_plata
+
+        if not coincide:
             print(
                 f"  ❌ Entidad {entidad}, Año {ano}, Mes {mes}, Indicador {indicador}"
             )

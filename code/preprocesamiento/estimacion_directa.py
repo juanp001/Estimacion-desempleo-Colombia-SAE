@@ -23,33 +23,13 @@
 # MAGIC * **Inferencia estadística**: bootstrap por viviendas dentro del dominio (2000 réplicas, semilla 42)
 # MAGIC   y, como control, linealización de Taylor con las mismas unidades
 # MAGIC
-# MAGIC ## ¿Qué es Estimación Directa?
+# MAGIC ## Estimación directa en este proyecto
 # MAGIC
-# MAGIC La **estimación directa** usa **solo los datos de la muestra del dominio de interés** (en este caso, la ciudad o ciudad A.M.) para calcular la estimación, sin "pedir prestada" información de otros dominios.
-# MAGIC
-# MAGIC ### Ventajas:
-# MAGIC ✅ **Simple y transparente**: Usa solo datos locales
-# MAGIC ✅ **Sin supuestos de modelo**: No asume relaciones con covariables
-# MAGIC ✅ **Fácil de interpretar**: Es el estimador "natural"
-# MAGIC
-# MAGIC ### Desventajas:
-# MAGIC ❌ **Alta variabilidad en áreas pequeñas**: Muestras chicas → errores grandes
-# MAGIC ❌ **Intervalos de confianza amplios**: Poca precisión para municipios pequeños
-# MAGIC ❌ **Coeficientes de variación altos**: CV ≥ 20% son comunes en municipios pequeños
-# MAGIC ❌ **Imposible estimar dominios con muestra cero**: Sin observaciones → sin estimación
-# MAGIC
-# MAGIC ### ¿Cuándo usar estimación directa?
-# MAGIC
-# MAGIC **Usar cuando**:
-# MAGIC * El dominio tiene **muestra suficiente** (n ≥ 30 típicamente)
-# MAGIC * El **CV es aceptable** (< 5% confiable, < 20% aceptable)
-# MAGIC * Se requiere **transparencia metodológica**
-# MAGIC * Es el **baseline** para comparar con métodos SAE
-# MAGIC
-# MAGIC **NO usar cuando**:
-# MAGIC * El dominio tiene muestra muy pequeña (n < 10)
-# MAGIC * El CV es muy alto (≥ 20%)
-# MAGIC * Se requieren estimaciones para **todos** los municipios (incluso sin muestra)
+# MAGIC La **estimación directa** usa solo la muestra del dominio (la ciudad o ciudad A.M.), sin tomar
+# MAGIC información de otros dominios. Aquí los dominios son ciudades con muestra grande: en 2018 cada
+# MAGIC uno tiene entre 8.997 y 21.615 personas en la PEA y al menos 5.176 viviendas, y su CV va de 2,0 %
+# MAGIC a 3,2 %, así que la directa es confiable en los 23. El modelo de área hace falta para los
+# MAGIC municipios **sin muestra**, donde no hay estimación directa (`dominios_sin_encuesta`).
 # MAGIC
 # MAGIC ## Periodicidad: año calendario (trimestre móvil opcional)
 # MAGIC
@@ -80,8 +60,9 @@
 # MAGIC * `w_i`: Peso de expansión `FEX_C18` (factor 2018) de la observación i; solo personas de 15 años o más
 # MAGIC * `y_i`: Variable binaria (1 = desocupado, 0 = ocupado)
 # MAGIC
-# MAGIC Para muestras grandes es aproximadamente insesgado, consistente y asintóticamente normal.
-# MAGIC Para muestras pequeñas (áreas pequeñas) puede tener alta variabilidad.
+# MAGIC Es una razón de dos totales estimados: si ambos son consistentes, θ̂ es aproximadamente
+# MAGIC insesgado y, con muestra grande, su varianza se aproxima por linealización de Taylor (Morales
+# MAGIC et al., 2021, pp. 21-22, Prop. 2.4).
 # MAGIC
 # MAGIC ## Bootstrap por viviendas dentro del dominio (G7-B3)
 # MAGIC
@@ -99,16 +80,24 @@
 # MAGIC tamaño de muestra queda fijo en cada réplica.
 # MAGIC
 # MAGIC **Control.** `SE_TAYLOR_PCT` es la varianza por linealización de Taylor de la razón con las
-# MAGIC mismas unidades (conglomerados últimos, PDF 15). Con miles de viviendas por dominio ambas
+# MAGIC mismas unidades: una adaptación de la fórmula de la GEIH (PDF 15), que usa los segmentos dentro
+# MAGIC de cada estrato, con la vivienda como conglomerado. Con miles de viviendas por dominio ambas
 # MAGIC deben coincidir.
 # MAGIC
-# MAGIC **Limitación.** Los microdatos no traen el estrato interno ni el segmento (~10 viviendas
-# MAGIC contiguas) de la GEIH, que son las unidades de la varianza oficial (PDF 14-15). La varianza es
-# MAGIC una aproximación: no se sabe si la del diseño es mayor o menor, ni por cuánto. El notebook
-# MAGIC `modelo/sensibilidad_varianza.py` muestra cómo responde el modelo si se equivoca.
+# MAGIC **Limitación.** La varianza oficial depende de rasgos del diseño que aquí no se reproducen:
+# MAGIC * el estrato interno y el segmento (~10 viviendas contiguas), que son las unidades de la fórmula
+# MAGIC   oficial y no vienen en los microdatos (PDF 14-15);
+# MAGIC * la calibración del factor de expansión: el DANE ajusta el FEX por regresión generalizada
+# MAGIC   (CLAN 97) a las proyecciones de población por sexo y edad (PDF 13-14), y la varianza oficial
+# MAGIC   tiene en cuenta ese ajuste. Aquí los pesos quedan fijos en cada réplica, mientras que en los
+# MAGIC   métodos de remuestreo para encuestas de fuerza laboral cada réplica se recalibra igual que la
+# MAGIC   muestra (Morales et al., 2021, p. 61) (R-25).
 # MAGIC
-# MAGIC **Número de réplicas**: B = 2000 (ver `shared/config.py`).
-# MAGIC Literatura recomienda B ≥ 500 para SE y B ≥ 1000 para IC.
+# MAGIC La varianza es una aproximación: no se sabe si la del diseño es mayor o menor, ni por cuánto.
+# MAGIC El notebook `modelo/sensibilidad_varianza.py` muestra cómo responde el modelo si se equivoca.
+# MAGIC
+# MAGIC **Número de réplicas**: B = 2000 (ver `shared/config.py`). Con esa B el error Monte Carlo de
+# MAGIC la varianza bootstrap es de ≈ √(2/B) ≈ 3 %; la celda de control lo compara con Taylor.
 # MAGIC
 # MAGIC ## Parámetros Configurables
 # MAGIC
@@ -158,11 +147,13 @@
 # MAGIC
 # MAGIC ## Referencias
 # MAGIC
-# MAGIC * Hájek, J. (1971). "Comment on 'An essay on the logical foundations of survey sampling'".
-# MAGIC * Efron, B. & Tibshirani, R. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.
-# MAGIC * Morales, D. et al. (2021). *A Course on Small Area Estimation and Mixed Models*. Springer (p. 61).
-# MAGIC * DANE (2016). Metodología General GEIH v9 (PDF 11-15: diseño y estimación de la varianza).
-# MAGIC * DANE (2020). "Guía de calidad de estimaciones para encuestas de hogares".
+# MAGIC * Morales, D. et al. (2021). *A Course on Small Area Estimation and Mixed Models*. Springer
+# MAGIC   (pp. 21-22: estimador de razón; p. 61: remuestreo en encuestas de fuerza laboral).
+# MAGIC * DANE (2016). Metodología General GEIH v9 (PDF 9: dominios; PDF 11-15: diseño, calibración y
+# MAGIC   varianza).
+# MAGIC * Molina, I. (2019). *Desagregación de datos en encuestas de hogares: metodologías de estimación
+# MAGIC   en áreas pequeñas*. CEPAL, Serie Estudios Estadísticos 97 (PDF 16-17: CV; PDF 26: benchmarking
+# MAGIC   de los directos).
 
 # COMMAND ----------
 
@@ -192,11 +183,27 @@ CODE_DIR = _directorio_codigo()
 if CODE_DIR not in sys.path:
     sys.path.insert(0, CODE_DIR)
 
-from preprocesamiento.shared.config import *
+# R-61: nombres explícitos en vez de «import *»
+from preprocesamiento.shared.config import (
+    BOOTSTRAP_REPLICAS,
+    BOOTSTRAP_SEED,
+    CV_ACEPTABLE,
+    CV_CONFIABLE,
+    GRUPO_COLS,
+    NOMBRE_TOTAL_23,
+    TBL_DATOS_MUNICIPALES,
+    TBL_DIM_DOMINIO,
+    TBL_ESTIMACION_DIRECTA,
+    TBL_MERCADO_LABORAL,
+    meses_ventana,
+    resolver_periodo,
+    resolver_ventana,
+)
 from preprocesamiento.shared.estimador_sae import EstimacionDirecta
 from preprocesamiento.shared.ventana import (
     TOLERANCIA_PP,
     etiqueta_ventana,
+    preparar_datos_ventana,
     td_dane_ventana,
 )
 
@@ -212,73 +219,45 @@ print(
 # COMMAND ----------
 
 # DBTITLE 1,Cargar y filtrar datos GEIH
-# Peso: FEX_C18 (factor de expansión 2018). EstimacionDirecta lee la columna "FEX", por eso se
-# sobrescribe con FEX_C18. Población: personas de 15 años o más (EDAD >= EDAD_MINIMA) en la PEA.
-EDAD_MINIMA = 15
-
-# Ventana que cierra en (PER_ESTIMACION, MES_ESTIMACION): se agrupan las observaciones de sus meses y
-# PER/MES se reescriben con el año/mes de cierre, de modo que GRUPO_COLS arma un dominio por ciudad
-# (o ciudad A.M.) y ventana (y el esquema de salida no cambia).
+# Base de la estimación (shared/ventana.py, R-37): personas de 15+ con PEA == 1 en los meses de la
+# ventana que cierra en (PER_ESTIMACION, MES_ESTIMACION), con su dominio (fila de la capital en
+# dim_dominio_geih; el INNER JOIN descarta los registros sin AREA) y FEX := FEX_C18. PER/MES ya
+# vienen reescritos con el cierre, de modo que GRUPO_COLS arma un dominio por ciudad (o ciudad
+# A.M.) y ventana. La misma función alimenta modelo/sensibilidad_varianza.py.
 MESES = meses_ventana(PER_ESTIMACION, MES_ESTIMACION, N_MESES)
 print("Meses de la ventana:", ", ".join(f"{a}-{m:02d}" for a, m in MESES))
 
-cond_ventana = None
-for anio, mes in MESES:
-    cond_mes = (F.col("PER") == anio) & (F.col("MES") == mes)
-    cond_ventana = cond_mes if cond_ventana is None else (cond_ventana | cond_mes)
-
-# Dominio de cada registro: geih_oro trae en CODIGO_MUNICIPIO el código de la capital del AREA
-# (ciudad con su A.M.); la fila de la capital en dim_dominio_geih da el dominio. El INNER JOIN
-# descarta los registros sin AREA (resto de cabeceras y zona rural), que no forman dominio.
-df_dominios_capital = (
-    spark.table(TBL_DIM_DOMINIO)
-    .filter(F.col("ES_CAPITAL"))
-    .select("CODIGO_MUNICIPIO", "CODIGO_DOMINIO", "NOMBRE_DOMINIO", "TIPO_DOMINIO")
+df_desempleo, conteos, meses_presentes = preparar_datos_ventana(
+    spark, PER_ESTIMACION, MES_ESTIMACION, N_MESES
 )
+
+# R-27: cada dominio debe tener todos los meses de la ventana; si falta uno, la tasa no es la
+# del período que dice la etiqueta (antes solo se avisaba si faltaba en todos los dominios)
+incompletos = conteos[conteos["N_MESES"] < len(MESES)]
+faltantes = set(MESES) - set(meses_presentes)
+if faltantes or not incompletos.empty:
+    raise ValueError(
+        f"Ventana {PERIODO} incompleta. Meses sin datos en GEIH: {sorted(faltantes)}. "
+        f"Dominios sin todos los meses:\n"
+        f"{incompletos[['CODIGO_DOMINIO', 'NOMBRE_DOMINIO', 'N_MESES']].to_string(index=False)}"
+    )
+print(f"✔ Los {len(conteos)} dominios tienen los {len(MESES)} meses de la ventana")
+
+# Por dominio: PEA promedio mensual de la ventana que representa la muestra (peso del benchmarking
+# de nivel 1 en el modelo; R-27: se divide entre los meses con datos de cada dominio) y conteos
+# muestrales de la PEA y de los desocupados (G7-B2: tamaño de muestra que respalda cada tasa).
 n_municipios_dominio = (
     spark.table(TBL_DIM_DOMINIO)
     .groupBy("CODIGO_DOMINIO")
     .agg(F.count("*").alias("N_MUNICIPIOS"))
-)
-
-df_desempleo = (
-    spark.table(TBL_MERCADO_LABORAL)
-    .filter((F.col("PEA") == 1) & (F.col("EDAD") >= EDAD_MINIMA) & cond_ventana)
-    .join(df_dominios_capital, on="CODIGO_MUNICIPIO", how="inner")
-    .withColumn("FEX", F.col("FEX_C18"))
-)
-
-print("Observaciones PEA por mes de la ventana:")
-df_desempleo.groupBy("PER", "MES").count().orderBy("PER", "MES").show(N_MESES)
-meses_presentes = {
-    (r["PER"], r["MES"]) for r in df_desempleo.select("PER", "MES").distinct().collect()
-}
-faltantes = set(MESES) - meses_presentes
-if faltantes:
-    print(f"⚠ Sin datos en GEIH para: {sorted(faltantes)}")
-
-# Por dominio: PEA promedio mensual de la ventana que representa la muestra (peso del benchmarking
-# de nivel 1 en el modelo; se divide entre los meses con datos) y conteos muestrales de la PEA y
-# de los desocupados (G7-B2: tamaño de muestra que respalda cada tasa).
-df_pea_expandida = (
-    df_desempleo.groupBy("CODIGO_DOMINIO")
-    .agg(
-        F.count("*").alias("N_PEA"),
-        F.sum("DESOCUPADO").cast("long").alias("N_DESOCUPADOS"),
-        (F.sum("FEX") / len(meses_presentes)).alias("PEA_EXPANDIDA"),
-    )
-    .join(n_municipios_dominio, on="CODIGO_DOMINIO", how="left")
     .toPandas()
 )
+df_pea_expandida = conteos[
+    ["CODIGO_DOMINIO", "N_PEA", "N_DESOCUPADOS", "PEA_EXPANDIDA"]
+].merge(n_municipios_dominio, on="CODIGO_DOMINIO", how="left", validate="one_to_one")
 
-df_desempleo = df_desempleo.withColumn("PER", F.lit(PER_ESTIMACION)).withColumn(
-    "MES", F.lit(MES_ESTIMACION)
-)
-
-print(f"Observaciones PEA: {df_desempleo.count():,}")
-print(
-    f"Dominios con muestra: {df_desempleo.select('CODIGO_DOMINIO').distinct().count()}"
-)
+print(f"Observaciones PEA: {int(conteos['N_PEA'].sum()):,}")
+print(f"Dominios con muestra: {len(conteos)}")
 
 # COMMAND ----------
 
@@ -290,19 +269,17 @@ estimador = EstimacionDirecta(
 resultado = estimador.estimar(
     dataframe=df_desempleo,
     grupo_cols=GRUPO_COLS,
-    agregacion_anual=False,
 )
 
 # Etiqueta y longitud de la ventana junto a PER/MES (que ya son el año y mes de cierre): viajan en
 # los datos para que la auditoría, la sensibilidad y el modelo sepan contra qué cifra del DANE
 # validar. Se agregan la PEA expandida, los conteos muestrales y el número de municipios de cada
-# dominio. Se asigna a estimador._resultado para que `exportar` lo incluya en la tabla destino.
+# dominio. La celda de exportación pasa este resultado a `exportar` (R-28).
 resultado.insert(2, "PERIODO", PERIODO)
 resultado.insert(3, "N_MESES_VENTANA", N_MESES)
 resultado = resultado.merge(
     df_pea_expandida, on="CODIGO_DOMINIO", how="left", validate="one_to_one"
 )
-estimador._resultado = resultado
 
 # COMMAND ----------
 
@@ -367,16 +344,26 @@ df_publicados = td_dane_ventana(
     N_MESES,
 )
 
+# R-58: TD_DANE_PCT y DIF_TD_PP se calculan solo aquí y se guardan en la tabla; la auditoría
+# de adicion_covariables las lee (antes repetía la comparación). NULL si no hay cifra oficial.
+resultado = resultado.merge(
+    df_publicados.rename(
+        columns={"CIUDAD": "NOMBRE_DOMINIO", "TD_DANE": "TD_DANE_PCT"}
+    ),
+    on="NOMBRE_DOMINIO",
+    how="left",
+    validate="one_to_one",
+)
+resultado["TD_DANE_PCT"] = resultado["TD_DANE_PCT"].astype(float)
+resultado["DIF_TD_PP"] = resultado["TASA_DESEMPLEO_PCT"] - resultado["TD_DANE_PCT"]
+
 if df_publicados.empty:
     print(f"Sin cifras oficiales para {PERIODO}: no se valida.")
 else:
-    comparacion = resultado[["NOMBRE_DOMINIO", "TASA_DESEMPLEO_PCT"]].merge(
-        df_publicados.rename(columns={"CIUDAD": "NOMBRE_DOMINIO"}),
-        on="NOMBRE_DOMINIO",
-        how="left",
-    )
-    comparacion["DIF_PP"] = comparacion["TASA_DESEMPLEO_PCT"] - comparacion["TD_DANE"]
-    ok = comparacion["DIF_PP"].abs() <= TOLERANCIA_PP
+    comparacion = resultado[
+        ["NOMBRE_DOMINIO", "TASA_DESEMPLEO_PCT", "TD_DANE_PCT", "DIF_TD_PP"]
+    ]
+    ok = comparacion["DIF_TD_PP"].abs() <= TOLERANCIA_PP
     print(
         f"[{'PASS' if ok.all() else 'FAIL'}] {int(ok.sum())} de {len(comparacion)} dominios "
         f"coinciden con el DANE en {PERIODO} (tolerancia {TOLERANCIA_PP} pp)"
@@ -406,4 +393,5 @@ else:
 estimador.exportar(
     tabla_destino=TBL_ESTIMACION_DIRECTA,
     tabla_origen=TBL_MERCADO_LABORAL,
+    resultado=resultado,
 )

@@ -57,7 +57,6 @@ def resumen_pesos(pesos_catalogo: dict) -> str:
 def tabla_auditoria_dominios(
     df_miembros: pd.DataFrame,
     df_estimaciones: pd.DataFrame,
-    df_publicados: pd.DataFrame,
     pesos_catalogo: dict,
 ) -> pd.DataFrame:
     """Construye la tabla de auditoría de la correspondencia geográfica de cada dominio.
@@ -68,10 +67,10 @@ def tabla_auditoria_dominios(
             ``ES_CAPITAL`` y ``CODIGO_AREA_GEIH`` (``AREA`` de la capital; NULL en los demás
             miembros). Sale de ``dim_dominio_geih`` unida a ``dim_geih_divipola``.
         df_estimaciones (pd.DataFrame): Estimación directa por dominio con ``PER``, ``MES``,
-            ``PERIODO``, ``N_MESES_VENTANA``, ``CODIGO_DOMINIO`` y ``TASA_DESEMPLEO_PCT``.
-        df_publicados (pd.DataFrame): Cifras DANE de la misma ventana con ``CIUDAD`` y
-            ``TASA_DESEMPLEO`` (``td_dane_ventana``: publicada si es trimestre, reconstruida con
-            los 4 trimestres si es el año; puede estar vacío si el anexo no cubre el período).
+            ``PERIODO``, ``N_MESES_VENTANA``, ``CODIGO_DOMINIO``, ``TASA_DESEMPLEO_PCT``,
+            ``TD_DANE_PCT`` y ``DIF_TD_PP``. Las dos últimas las calcula
+            ``estimacion_directa.py`` con ``td_dane_ventana`` (R-58; NULL si el anexo no cubre
+            el período).
         pesos_catalogo (dict): Código de indicador del catálogo → nombre del peso.
 
     Returns:
@@ -95,9 +94,9 @@ def tabla_auditoria_dominios(
     >>> est = pd.DataFrame({"PER": [2018, 2018], "MES": [12, 12],
     ...     "PERIODO": ["Ene-Dic 2018"] * 2, "N_MESES_VENTANA": [12, 12],
     ...     "CODIGO_DOMINIO": ["76001", "19001"],
-    ...     "TASA_DESEMPLEO_PCT": [10.0, 12.0]})
-    >>> pub = pd.DataFrame({"CIUDAD": ["Cali A.M."], "TASA_DESEMPLEO": [10.004]})
-    >>> t = tabla_auditoria_dominios(miembros, est, pub, {"x": "SUPERFICIE"})
+    ...     "TASA_DESEMPLEO_PCT": [10.0, 12.0], "TD_DANE_PCT": [10.004, None],
+    ...     "DIF_TD_PP": [-0.004, None]})
+    >>> t = tabla_auditoria_dominios(miembros, est, {"x": "SUPERFICIE"})
     >>> t[["CODIGO_AREA_GEIH", "NOMBRE_DOMINIO", "DIVIPOLA_INTEGRANTES", "EN_ANEXO_DANE"]]
       CODIGO_AREA_GEIH NOMBRE_DOMINIO DIVIPOLA_INTEGRANTES  EN_ANEXO_DANE
     0               19        Popayán                19001          False
@@ -142,7 +141,6 @@ def tabla_auditoria_dominios(
             }
         )
 
-    publicados = dict(zip(df_publicados["CIUDAD"], df_publicados["TASA_DESEMPLEO"]))
     tabla = df_estimaciones[
         [
             "PER",
@@ -151,11 +149,12 @@ def tabla_auditoria_dominios(
             "N_MESES_VENTANA",
             "CODIGO_DOMINIO",
             "TASA_DESEMPLEO_PCT",
+            "TD_DANE_PCT",
+            "DIF_TD_PP",
         ]
     ].merge(pd.DataFrame(filas), on="CODIGO_DOMINIO", how="inner")
-    tabla["EN_ANEXO_DANE"] = tabla["NOMBRE_DOMINIO"].isin(publicados.keys())
-    tabla["TD_DANE_PCT"] = tabla["NOMBRE_DOMINIO"].map(publicados).astype(float)
-    tabla["DIF_TD_PP"] = tabla["TASA_DESEMPLEO_PCT"] - tabla["TD_DANE_PCT"]
+    # R-58: la cifra oficial viene de estimacion_directa; el dominio está en el anexo si la tiene
+    tabla["EN_ANEXO_DANE"] = tabla["TD_DANE_PCT"].notna()
     columnas = [
         "PER",
         "MES",

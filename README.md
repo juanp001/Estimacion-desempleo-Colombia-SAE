@@ -37,6 +37,7 @@ cambio va en `shared/`, no en el notebook orquestador.
 code/
 ├── ingesta_datos/
 │   ├── geih/
+│   │   ├── renombrar_geih.py       # Paso previo local: nombra los CSV del DANE como espera geih_bronce
 │   │   ├── geih_bronce.py          # Carga de módulos GEIH (fuerza de trabajo, ocupados, no ocupados, etc.)
 │   │   ├── geih_plata.py           # Consolidación marco antiguo + marco nuevo, transformaciones de negocio
 │   │   ├── geih_oro.py             # Tabla analítica final: mercado laboral con todos los indicadores laborales
@@ -45,14 +46,12 @@ code/
 │   │       ├── transformations/campos_nucleo.py # Columnas núcleo comunes a marco antiguo/nuevo
 │   │       └── utils/spark_utils.py             # Escritura a Unity Catalog
 │   ├── terridata/
-│   │   ├── terridata_bronce.py     # Ingesta de TerriData (DNP) con normalización de texto
+│   │   ├── terridata_bronce.py     # Ingesta de TerriData (DNP)
 │   │   ├── terridata_plata.py      # Pivote largo → ancho (~1.582 indicadores como columnas) + dim_indicadores
 │   │   └── shared/
 │   │       ├── config/terridata_config.py
-│   │       ├── transformations/normalizacion.py   # Normalización de texto/nombres
+│   │       ├── transformations/normalizacion.py   # Campos que se cargan en bronce
 │   │       └── utils/{spark_utils,verification_utils}.py  # Validaciones de la transformación a ancho
-│   ├── censo_nal/
-│   │   └── censo_bronce.py         # Ingesta del Censo Nacional (no se usa en el flujo actual)
 │   └── dimensiones/
 │       ├── dim_divipola.py         # Nomenclatura DIVIPOLA de los municipios de Colombia
 │       └── dim_geih_divipola.py    # Traduce áreas GEIH a su municipio/código DIVIPOLA correcto
@@ -143,6 +142,10 @@ estimacion_directa.py                            │
 
 ### 1. GEIH — ingesta y consolidación
 
+- **Paso previo (local, marco antiguo):** `code/ingesta_datos/geih/renombrar_geih.py` renombra los CSV
+  descargados del DANE (`GEIH/<año>/<Mes>/`) a `<seccion>_<modulo>_<MM>_<AAAA>.csv` antes de subirlos al
+  volumen; `geih_bronce` toma el año y el mes de ese nombre y se detiene si no lo cumple. Simula por
+  defecto (`DRY_RUN = True`).
 - **Marco antiguo** (hasta 2022): cada módulo viene partido en `area`, `cabecera`, `resto`. Incluye el
   módulo de **inactivos**.
 - **Marco nuevo** (2023 en adelante): un solo archivo por módulo, sin partición área/cabecera/resto. No
@@ -322,4 +325,4 @@ databricks bundle run preprocesamiento -t dev --params anio_estimacion=2018,mes_
 - **PySpark** para procesamiento distribuido
 - **Python** (pandas, scikit-learn, statsmodels) para análisis estadístico
 - Catálogo: `tesis` — esquemas: `geih_bronce`, `geih_plata`, `geih_oro`, `terridata`, `preprocesamiento`,
-  `modelo`, `dim`, `censo_nal`
+  `modelo`, `dim`

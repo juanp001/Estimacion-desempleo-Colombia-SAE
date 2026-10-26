@@ -9,8 +9,9 @@ formas, ambas con el **dominio como estrato** y la **vivienda como conglomerado*
   remuestrea conglomerados dentro de cada estrato y conserva todos los registros de las viviendas
   seleccionadas). Como θ̂ es una razón de totales, basta con los totales de cada vivienda
   a_k = Σ w·y y b_k = Σ w: θ̂* = Σ a*/Σ b*.
-- **Linealización de Taylor** de la razón con la fórmula de conglomerados últimos (DANE,
-  metodología GEIH v9, PDF 15; Shiferaw, 2025, PDF 10): v(θ̂) = n/(n−1)·Σ(z_k − z̄)² con
+- **Linealización de Taylor** de la razón: adaptación de la fórmula de la GEIH (DANE,
+  metodología GEIH v9, PDF 15; Shiferaw, 2025, PDF 10), que usa los segmentos a_h dentro de cada
+  estrato h, con la vivienda como conglomerado: v(θ̂) = n/(n−1)·Σ(z_k − z̄)² con
   z_k = (a_k − θ̂·b_k)/Σ b. Sirve de control analítico del bootstrap.
 
 Por qué el dominio y la vivienda. Las áreas metropolitanas y las capitales son unidades de
@@ -20,8 +21,10 @@ completo (todas las viviendas, hogares y personas del segmento, PDF 11): las per
 vivienda no son independientes y se remuestrean juntas.
 
 Limitación. Los microdatos no traen el estrato interno ni el segmento (~10 viviendas contiguas),
-que son las unidades de la varianza oficial (PDF 14-15). Esta varianza es una aproximación: no se
-sabe si la varianza del diseño es mayor o menor, ni por cuánto. `modelo/sensibilidad_varianza.py`
+que son las unidades de la varianza oficial (PDF 14-15). Además, el FEX de la GEIH se calibra por
+regresión generalizada (CLAN 97) a las proyecciones por sexo y edad (PDF 13-14), y aquí los pesos
+quedan fijos en cada réplica en vez de recalibrarse (Morales et al., 2021, p. 61) (R-25). Esta
+varianza es una aproximación: no se sabe si la varianza del diseño es mayor o menor, ni por cuánto. `modelo/sensibilidad_varianza.py`
 muestra cómo responde el modelo si se equivoca.
 
 Funciones puras numpy/pandas; los ejemplos se comprueban con
@@ -69,13 +72,30 @@ def totales_por_conglomerado(
         1  x  2  5.0  5.0           1
         >>> len(totales_por_conglomerado(df, ["D"], None))
         3
+        >>> desordenado = df.iloc[[2, 0, 1]].reset_index(drop=True)
+        >>> totales_por_conglomerado(desordenado, ["D"], None).equals(
+        ...     totales_por_conglomerado(df, ["D"], None))
+        True
+
+    Raises:
+        ValueError: Si alguna columna de `grupo_cols` o el conglomerado tiene nulos (R-27):
+            pandas descarta esas claves al agrupar y el dominio desaparecería sin aviso.
     """
+    claves = grupo_cols + ([col_conglomerado] if col_conglomerado else [])
+    nulos = {c: int(n) for c, n in df[claves].isna().sum().items() if n}
+    if nulos:
+        raise ValueError(f"Claves nulas en el dominio o el conglomerado: {nulos}")
     tmp = df[grupo_cols].copy()
     tmp["A"] = (df[col_peso] * df[col_y]).to_numpy(dtype=float)
     tmp["B"] = df[col_peso].to_numpy(dtype=float)
     tmp["N_PERSONAS"] = 1
     if col_conglomerado is None:
-        return tmp.reset_index(drop=True)
+        # Orden fijo: el remuestreo de personas no puede depender del orden en que Spark entrega
+        # las filas (antes cambiaba al reescribir mercado_laboral). Las filas que empatan tienen
+        # los mismos A y B, así que da igual cuál queda primero.
+        return tmp.sort_values(grupo_cols + ["B", "A"], kind="mergesort").reset_index(
+            drop=True
+        )
     tmp[col_conglomerado] = df[col_conglomerado].to_numpy()
     return tmp.groupby(grupo_cols + [col_conglomerado], as_index=False, sort=True)[
         ["A", "B", "N_PERSONAS"]
@@ -126,11 +146,12 @@ def replicas_razon(
 
 
 def varianza_taylor_razon(a: np.ndarray, b: np.ndarray) -> float:
-    """Varianza de la razón Σa/Σb por linealización de Taylor (conglomerados últimos).
+    """Varianza de la razón Σa/Σb por linealización de Taylor.
 
     v(θ̂) = n/(n−1)·Σ(z_k − z̄)², con z_k = (a_k − θ̂·b_k)/Σ b y θ̂ = Σa/Σb: la variable
-    linealizada de la razón (GEIH v9, PDF 15) con muestreo de conglomerados con reemplazo
-    dentro del estrato.
+    linealizada de la razón con muestreo de conglomerados con reemplazo dentro del estrato. Es
+    una adaptación de la fórmula de la GEIH (v9, PDF 15), que usa los segmentos dentro de cada
+    estrato, con el conglomerado que se pase (aquí, la vivienda).
 
     Args:
         a (np.ndarray): Totales Σ w·y de cada conglomerado, shape (n,), n ≥ 2.
@@ -181,7 +202,11 @@ def varianza_por_dominio(
     Returns:
         pd.DataFrame: `grupo_cols` más `TASA_DESEMPLEO` (proporción), `MEDIA_BOOTSTRAP`,
             `VAR_BOOTSTRAP`, `SE_BOOTSTRAP`, `IC_INF_2.5`, `IC_SUP_97.5`, `VAR_TAYLOR`,
-            `SE_TAYLOR` y `N_CONGLOMERADOS`.
+            `SE_TAYLOR`, `N_CONGLOMERADOS` y `N_PERSONAS` (personas que vio el remuestreo).
+
+    Raises:
+        ValueError: Si un dominio tiene menos de 2 conglomerados (R-27): la varianza de Taylor
+            divide por n − 1 y el bootstrap no tendría variación.
 
     Casos de uso:
         `EstimacionDirecta` lo usa con `ID_VIVIENDA` (varianza del modelo) y la sensibilidad
@@ -192,8 +217,8 @@ def varianza_por_dominio(
         >>> df = pd.DataFrame({"D": ["x"] * 400, "V": np.repeat(np.arange(200), 2),
         ...                    "FEX": 1.0, "DESOCUPADO": rng.integers(0, 2, 400)})
         >>> r = varianza_por_dominio(df, ["D"], "V", 500, 42)
-        >>> int(r["N_CONGLOMERADOS"].iloc[0])
-        200
+        >>> int(r["N_CONGLOMERADOS"].iloc[0]), int(r["N_PERSONAS"].iloc[0])
+        (200, 400)
         >>> bool(abs(r["SE_BOOTSTRAP"].iloc[0] / r["SE_TAYLOR"].iloc[0] - 1) < 0.15)
         True
     """
@@ -205,6 +230,10 @@ def varianza_por_dominio(
     for clave, g in totales.groupby(grupo_cols, sort=True):
         a = g["A"].to_numpy()
         b = g["B"].to_numpy()
+        if len(a) < 2:
+            raise ValueError(
+                f"El dominio {clave} tiene {len(a)} conglomerado(s): no se puede estimar su varianza"
+            )
         replicas = replicas_razon(a, b, num_replicas, rng)
         var_taylor = varianza_taylor_razon(a, b)
         clave = clave if isinstance(clave, tuple) else (clave,)
@@ -220,6 +249,7 @@ def varianza_por_dominio(
                 "VAR_TAYLOR": var_taylor,
                 "SE_TAYLOR": np.sqrt(var_taylor),
                 "N_CONGLOMERADOS": len(a),
+                "N_PERSONAS": int(g["N_PERSONAS"].sum()),
             }
         )
         filas.append(fila)

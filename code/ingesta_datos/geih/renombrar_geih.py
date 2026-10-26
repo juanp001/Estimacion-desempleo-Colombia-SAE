@@ -2,6 +2,13 @@
 # MAGIC %md
 # MAGIC # Renombrador de archivos GEIH — DANE
 # MAGIC
+# MAGIC **Paso previo, manual y local, a `geih_bronce` (marco antiguo).** No es una tarea del bundle:
+# MAGIC se corre en el computador donde se descargaron los microdatos del DANE, antes de subirlos al
+# MAGIC volumen `/Volumes/tesis/geih_bronce/`. `geih_bronce` toma el año (y, en fuerza de trabajo, el
+# MAGIC mes) del nombre que produce este script, `<seccion>_<modulo>_<MM>_<AAAA>.csv`
+# MAGIC (`PATRON_ANIO_ARCHIVO` y `PATRON_MES_ARCHIVO` en `shared/config/geih_config.py`), y se detiene
+# MAGIC si un archivo no lo cumple (R-23). R-33: se movió aquí desde `code/analisis/`.
+# MAGIC
 # MAGIC Convierte los nombres de archivos de la GEIH al formato estándar:
 # MAGIC
 # MAGIC ```
@@ -46,7 +53,9 @@ print("OK: Librerias cargadas.")
 # --- CONFIGURA AQUI ---
 RUTA_BASE = r"./GEIH"  # Carpeta raiz que contiene la subcarpeta del anio
 ANO = "2018"  # Anio a procesar
-DRY_RUN = False  # True = solo simula | False = renombra en disco
+DRY_RUN = (
+    True  # True = solo simula | False = renombra en disco (R-33: simula por defecto)
+)
 # ----------------------
 
 print("Ruta base :", RUTA_BASE)
@@ -98,6 +107,22 @@ def quitar_tildes(texto):
 
 
 def normalizar_nombre(nombre_sin_ext, mes_num, ano):
+    """Convierte el nombre de un archivo del DANE al formato que espera geih_bronce.
+
+    Args:
+        nombre_sin_ext (str): Nombre original sin extensión, p. ej.
+            ``"Cabecera - Características generales (Personas)"``.
+        mes_num (str): Mes en dos dígitos (``"01"``-``"12"``), tomado de la carpeta del mes.
+        ano (str): Año en cuatro dígitos.
+
+    Returns:
+        str: ``<seccion>_<modulo>_<MM>_<AAAA>`` sin extensión, p. ej.
+        ``"cabecera_caracteristicas_generales_01_2018"``.
+
+    Example:
+        >>> normalizar_nombre("Cabecera - Desocupados", "01", "2018")
+        'cabecera_no_ocupados_01_2018'
+    """
     # 1. Eliminar contenido entre parentesis
     nombre = re.sub(r"\s*\(.*?\)", "", nombre_sin_ext).strip()
     # 2. Minusculas

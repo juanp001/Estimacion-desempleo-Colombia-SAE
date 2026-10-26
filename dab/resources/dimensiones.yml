@@ -13,9 +13,11 @@ resources:
           environment_key: serverless
           notebook_task:
             notebook_path: ../../code/ingesta_datos/dimensiones/dim_divipola.py
+        # R-24: las capitales salen de dim_dominio_geih
         - task_key: dim_geih_divipola
           depends_on:
             - task_key: dim_divipola
+            - task_key: dim_dominio_geih
           environment_key: serverless
           notebook_task:
             notebook_path: ../../code/ingesta_datos/dimensiones/dim_geih_divipola.py
