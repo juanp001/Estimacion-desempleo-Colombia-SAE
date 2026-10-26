@@ -147,6 +147,13 @@ def reconciliar_fuerza_trabajo(mercado: DataFrame, dominios: DataFrame) -> DataF
     También compara la TD expandida con la bandera ``PEA`` (``TD_PEA_PCT``) y con
     ``OC + DS`` (``TD_OC_DS_PCT``): si coinciden, la derivación por ausencia es correcta.
 
+    PET de 15 años y más (R-53): en el marco antiguo la PET de la fuente es 12+ urbana y 10+
+    rural, pero la serie recalibrada con el CNPV 2018 y ``estimacion_directa`` usan 15+. Las
+    identidades se revisan sobre toda la PET (también detectan fallos de unión en 10-14 años),
+    y ``N_PET_15``, ``N_PEA_15``, ``N_DESOCUPADOS_15`` y ``TD_15_PCT`` dan la versión 15+, la
+    comparable con el anexo DANE y con la estimación directa. En 2018 la diferencia son 40.403
+    registros de 10-14 años en la PET (1.517 en la PEA); en 2025 no hay ninguno.
+
     Args:
         mercado (DataFrame): ``tesis.geih_oro.mercado_laboral``.
         dominios (DataFrame): ``tesis.dim.dim_dominio_geih``; se usa la fila de la capital
@@ -156,8 +163,8 @@ def reconciliar_fuerza_trabajo(mercado: DataFrame, dominios: DataFrame) -> DataF
     Returns:
         DataFrame: Una fila por ``PER``/``MES``/``CODIGO_DOMINIO`` con ``N_PET``, ``N_PEA``,
         ``N_PEI``, ``N_OCUPADOS``, ``N_DESOCUPADOS``, ``N_PEA_DISTINTA_OC_DS``,
-        ``N_PET_SIN_CLASE``, ``N_OC_Y_DS``, ``TD_PEA_PCT``, ``TD_OC_DS_PCT`` y
-        ``DIF_TD_PP``.
+        ``N_PET_SIN_CLASE``, ``N_OC_Y_DS``, ``TD_PEA_PCT``, ``TD_OC_DS_PCT``,
+        ``DIF_TD_PP``, ``N_PET_15``, ``N_PEA_15``, ``N_DESOCUPADOS_15`` y ``TD_15_PCT``.
 
     Casos de uso:
         En ``geih_oro.py`` después de escribir ``mercado_laboral``; un período con
@@ -168,6 +175,8 @@ def reconciliar_fuerza_trabajo(mercado: DataFrame, dominios: DataFrame) -> DataF
     )
     oc_ds = F.col("OCUPADO") + F.col("DESOCUPADO")
     w = F.col("FEX_C18")
+    # R-53: PET de 15 años y más, la de la serie CNPV 2018 y la estimación directa
+    es_15 = F.col("EDAD") >= 15
     return (
         mercado.filter(F.col("PET") == 1)
         .join(capitales, "CODIGO_MUNICIPIO", "left")
@@ -193,6 +202,13 @@ def reconciliar_fuerza_trabajo(mercado: DataFrame, dominios: DataFrame) -> DataF
             F.try_divide(100 * F.sum(F.col("DESOCUPADO") * w), F.sum(oc_ds * w)).alias(
                 "TD_OC_DS_PCT"
             ),
+            F.count_if(es_15).alias("N_PET_15"),
+            F.count_if(es_15 & (F.col("PEA") == 1)).alias("N_PEA_15"),
+            F.count_if(es_15 & (F.col("DESOCUPADO") == 1)).alias("N_DESOCUPADOS_15"),
+            F.try_divide(
+                100 * F.sum(F.when(es_15, F.col("DESOCUPADO") * w)),
+                F.sum(F.when(es_15, F.col("PEA") * w)),
+            ).alias("TD_15_PCT"),
         )
         .withColumn("DIF_TD_PP", F.col("TD_PEA_PCT") - F.col("TD_OC_DS_PCT"))
         .orderBy("PER", "MES", "CODIGO_DOMINIO")

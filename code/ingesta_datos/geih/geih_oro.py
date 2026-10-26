@@ -34,14 +34,22 @@
 # MAGIC     porque no cambian la estimación: en 2018 son 9.866 (≈ 280 viviendas por mes,
 # MAGIC     `DIRECTORIO` 4518316-4804436), probablemente San Andrés, que la GEIH publica aparte.
 # MAGIC * `reconciliacion_fuerza_trabajo`: por período y dominio, PET, PEA, PEI, OC y DS, y las
-# MAGIC   personas que rompen PEA = OC + DS o PET = PEA + PEI.
+# MAGIC   personas que rompen PEA = OC + DS o PET = PEA + PEI. Las identidades se revisan sobre
+# MAGIC   toda la PET de la fuente; las columnas `*_15` y `TD_15_PCT` (R-53) dan la versión de 15
+# MAGIC   años y más, la comparable con el anexo DANE y con `estimacion_directa`.
+# MAGIC
+# MAGIC ## PET: 15 años y más (R-53)
+# MAGIC En el marco antiguo la bandera `PET` es la de la fuente: 12+ urbana y 10+ rural. La serie
+# MAGIC recalibrada con el CNPV 2018 y la estimación directa usan 15+, así que toda tasa que se compare
+# MAGIC con ellas debe filtrar `EDAD >= 15` (en 2018 la PET de la fuente trae 40.403 registros de
+# MAGIC 10-14 años; en el marco nuevo la PET ya es 15+).
 # MAGIC
 # MAGIC ## Ejemplo de uso
 # MAGIC ```sql
 # MAGIC SELECT PERIODO, DEPARTAMENTO,
 # MAGIC        SUM(DESOCUPADO * FEX_C18) / SUM(PEA * FEX_C18) * 100 AS tasa_desempleo
 # MAGIC FROM tesis.geih_oro.mercado_laboral
-# MAGIC WHERE PEA = 1
+# MAGIC WHERE PEA = 1 AND EDAD >= 15
 # MAGIC GROUP BY PERIODO, DEPARTAMENTO
 # MAGIC ```
 
