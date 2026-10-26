@@ -85,8 +85,8 @@
 # MAGIC
 # MAGIC ## Referencias
 # MAGIC
-# MAGIC * Morales, D., Esteban, M. D., Pérez, A. & Hobza, T. (2021). *A Course on Small Area Estimation and Mixed Models*. Springer.
-# MAGIC * Rao, J.N.K. & Molina, I. (2015). *Small Area Estimation* (2nd ed.). Wiley.
+# MAGIC * Morales, D., Esteban, M. D., Pérez, A. & Hobza, T. (2021). *A Course on Small Area Estimation and Mixed Models*. Springer
+# MAGIC   (p. 21 y 425: agregación de x_d; p. 419: especificación de los registros administrativos).
 # MAGIC * TerriData - DNP: https://terridata.dnp.gov.co/
 
 # COMMAND ----------

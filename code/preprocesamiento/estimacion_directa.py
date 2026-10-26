@@ -23,33 +23,13 @@
 # MAGIC * **Inferencia estadística**: bootstrap por viviendas dentro del dominio (2000 réplicas, semilla 42)
 # MAGIC   y, como control, linealización de Taylor con las mismas unidades
 # MAGIC
-# MAGIC ## ¿Qué es Estimación Directa?
+# MAGIC ## Estimación directa en este proyecto
 # MAGIC
-# MAGIC La **estimación directa** usa **solo los datos de la muestra del dominio de interés** (en este caso, la ciudad o ciudad A.M.) para calcular la estimación, sin "pedir prestada" información de otros dominios.
-# MAGIC
-# MAGIC ### Ventajas:
-# MAGIC ✅ **Simple y transparente**: Usa solo datos locales
-# MAGIC ✅ **Sin supuestos de modelo**: No asume relaciones con covariables
-# MAGIC ✅ **Fácil de interpretar**: Es el estimador "natural"
-# MAGIC
-# MAGIC ### Desventajas:
-# MAGIC ❌ **Alta variabilidad en áreas pequeñas**: Muestras chicas → errores grandes
-# MAGIC ❌ **Intervalos de confianza amplios**: Poca precisión para municipios pequeños
-# MAGIC ❌ **Coeficientes de variación altos**: CV ≥ 20% son comunes en municipios pequeños
-# MAGIC ❌ **Imposible estimar dominios con muestra cero**: Sin observaciones → sin estimación
-# MAGIC
-# MAGIC ### ¿Cuándo usar estimación directa?
-# MAGIC
-# MAGIC **Usar cuando**:
-# MAGIC * El dominio tiene **muestra suficiente** (n ≥ 30 típicamente)
-# MAGIC * El **CV es aceptable** (< 5% confiable, < 20% aceptable)
-# MAGIC * Se requiere **transparencia metodológica**
-# MAGIC * Es el **baseline** para comparar con métodos SAE
-# MAGIC
-# MAGIC **NO usar cuando**:
-# MAGIC * El dominio tiene muestra muy pequeña (n < 10)
-# MAGIC * El CV es muy alto (≥ 20%)
-# MAGIC * Se requieren estimaciones para **todos** los municipios (incluso sin muestra)
+# MAGIC La **estimación directa** usa solo la muestra del dominio (la ciudad o ciudad A.M.), sin tomar
+# MAGIC información de otros dominios. Aquí los dominios son ciudades con muestra grande: en 2018 cada
+# MAGIC uno tiene entre 8.997 y 21.615 personas en la PEA y al menos 5.176 viviendas, y su CV va de 2,0 %
+# MAGIC a 3,2 %, así que la directa es confiable en los 23. El modelo de área hace falta para los
+# MAGIC municipios **sin muestra**, donde no hay estimación directa (`dominios_sin_encuesta`).
 # MAGIC
 # MAGIC ## Periodicidad: año calendario (trimestre móvil opcional)
 # MAGIC
@@ -80,8 +60,9 @@
 # MAGIC * `w_i`: Peso de expansión `FEX_C18` (factor 2018) de la observación i; solo personas de 15 años o más
 # MAGIC * `y_i`: Variable binaria (1 = desocupado, 0 = ocupado)
 # MAGIC
-# MAGIC Para muestras grandes es aproximadamente insesgado, consistente y asintóticamente normal.
-# MAGIC Para muestras pequeñas (áreas pequeñas) puede tener alta variabilidad.
+# MAGIC Es una razón de dos totales estimados: si ambos son consistentes, θ̂ es aproximadamente
+# MAGIC insesgado y, con muestra grande, su varianza se aproxima por linealización de Taylor (Morales
+# MAGIC et al., 2021, pp. 21-22, Prop. 2.4).
 # MAGIC
 # MAGIC ## Bootstrap por viviendas dentro del dominio (G7-B3)
 # MAGIC
@@ -115,8 +96,8 @@
 # MAGIC La varianza es una aproximación: no se sabe si la del diseño es mayor o menor, ni por cuánto.
 # MAGIC El notebook `modelo/sensibilidad_varianza.py` muestra cómo responde el modelo si se equivoca.
 # MAGIC
-# MAGIC **Número de réplicas**: B = 2000 (ver `shared/config.py`).
-# MAGIC Literatura recomienda B ≥ 500 para SE y B ≥ 1000 para IC.
+# MAGIC **Número de réplicas**: B = 2000 (ver `shared/config.py`). Con esa B el error Monte Carlo de
+# MAGIC la varianza bootstrap es de ≈ √(2/B) ≈ 3 %; la celda de control lo compara con Taylor.
 # MAGIC
 # MAGIC ## Parámetros Configurables
 # MAGIC
@@ -166,11 +147,13 @@
 # MAGIC
 # MAGIC ## Referencias
 # MAGIC
-# MAGIC * Hájek, J. (1971). "Comment on 'An essay on the logical foundations of survey sampling'".
-# MAGIC * Efron, B. & Tibshirani, R. (1993). *An Introduction to the Bootstrap*. Chapman & Hall.
-# MAGIC * Morales, D. et al. (2021). *A Course on Small Area Estimation and Mixed Models*. Springer (p. 61).
-# MAGIC * DANE (2016). Metodología General GEIH v9 (PDF 11-15: diseño y estimación de la varianza).
-# MAGIC * DANE (2020). "Guía de calidad de estimaciones para encuestas de hogares".
+# MAGIC * Morales, D. et al. (2021). *A Course on Small Area Estimation and Mixed Models*. Springer
+# MAGIC   (pp. 21-22: estimador de razón; p. 61: remuestreo en encuestas de fuerza laboral).
+# MAGIC * DANE (2016). Metodología General GEIH v9 (PDF 9: dominios; PDF 11-15: diseño, calibración y
+# MAGIC   varianza).
+# MAGIC * Molina, I. (2019). *Desagregación de datos en encuestas de hogares: metodologías de estimación
+# MAGIC   en áreas pequeñas*. CEPAL, Serie Estudios Estadísticos 97 (PDF 16-17: CV; PDF 26: benchmarking
+# MAGIC   de los directos).
 
 # COMMAND ----------
 

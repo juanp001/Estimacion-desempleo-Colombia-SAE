@@ -32,10 +32,6 @@
 # MAGIC * `tesis.preprocesamiento.covariables_prefiltradas` — covariables supervivientes.
 # MAGIC * `tesis.preprocesamiento.cascada_prefiltrado` — conteo por etapa, insumo de la
 # MAGIC   tabla de cascada del capítulo de resultados.
-# MAGIC
-# MAGIC ## Referencias
-# MAGIC
-# MAGIC * Rao, J.N.K. & Molina, I. (2015). *Small Area Estimation* (2nd ed.). Wiley.
 
 # COMMAND ----------
 
