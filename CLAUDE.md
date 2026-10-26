@@ -13,10 +13,9 @@ municipales del clásico son resultados preliminares del benchmark, no las estim
 
 Todo el código corre sobre Databricks (notebooks `.py` con `# Databricks notebook source` / `# COMMAND ----------`)
 y persiste en tablas Unity Catalog bajo el catálogo `tesis`. Esquemas: `geih_bronce`, `geih_plata`, `geih_oro`,
-`terridata`, `dim`, `preprocesamiento`, `modelo` (y `censo_nal`, que ningún código fuera de `censo_nal/` usa;
-`censo_nal/censo_bronce.py` lee cada volumen `/Volumes/tesis/censo_nal/<módulo>` como **Parquet**
-—`fallecidos`, `viviendas`, `hogares`, `personas`, `marco_georreferenciacion`—, lista sus archivos y los carga
-a `tesis.censo_nal.<módulo>` con la columna `archivo_origen`).
+`terridata`, `dim`, `preprocesamiento`, `modelo`. La ingesta del censo (`censo_nal/censo_bronce.py`, que
+cargaba `tesis.censo_nal.*` y ningún código leía) se borró en R-55; queda en el historial de git (commit
+`b2b95ab`).
 Los jobs se despliegan con un bundle DAB (ver «Despliegue con DAB»).
 
 ### Patrón de carpetas: orquestador + `shared/`

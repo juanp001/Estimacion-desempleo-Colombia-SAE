@@ -52,8 +52,6 @@ code/
 │   │       ├── config/terridata_config.py
 │   │       ├── transformations/normalizacion.py   # Campos que se cargan en bronce
 │   │       └── utils/{spark_utils,verification_utils}.py  # Validaciones de la transformación a ancho
-│   ├── censo_nal/
-│   │   └── censo_bronce.py         # Ingesta del Censo Nacional (no se usa en el flujo actual)
 │   └── dimensiones/
 │       ├── dim_divipola.py         # Nomenclatura DIVIPOLA de los municipios de Colombia
 │       └── dim_geih_divipola.py    # Traduce áreas GEIH a su municipio/código DIVIPOLA correcto
@@ -327,4 +325,4 @@ databricks bundle run preprocesamiento -t dev --params anio_estimacion=2018,mes_
 - **PySpark** para procesamiento distribuido
 - **Python** (pandas, scikit-learn, statsmodels) para análisis estadístico
 - Catálogo: `tesis` — esquemas: `geih_bronce`, `geih_plata`, `geih_oro`, `terridata`, `preprocesamiento`,
-  `modelo`, `dim`, `censo_nal`
+  `modelo`, `dim`
