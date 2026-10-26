@@ -19,19 +19,68 @@
 # MAGIC 2. `AREA`: inicializada como NULL en sección "resto" (no existe en raw)
 # MAGIC 3. `MES`: extraído del nombre de archivo para fuerza_trabajo cabecera/resto
 # MAGIC 4. `FT="1"`: marcador para fuerza_trabajo + sección resto (el raw de resto no trae `FT`)
+# MAGIC
+# MAGIC ## Período del marco antiguo (R-23)
+# MAGIC El año (y el mes en fuerza de trabajo) sale del nombre del archivo,
+# MAGIC `<seccion>_<modulo>_<MM>_<AAAA>.csv`, que produce `code/analisis/renombrar_geih.py`. Antes de
+# MAGIC escribir cada tabla se verifica que todo archivo cumpla el patrón, que el año esté entre
+# MAGIC `ANIO_MIN_MARCO_ANTIGUO` y `ANIO_MAX_MARCO_ANTIGUO`, que `MES` esté entre 01 y 12 y que
+# MAGIC coincida con el mes del nombre; si no, el notebook se detiene (antes quedaban PER y PK
+# MAGIC nulos sin aviso).
 
 # COMMAND ----------
 
 # DBTITLE 1,Importación de librerías
 from pyspark.sql.functions import col, lit, regexp_extract
 
-from shared.config.geih_config import TABLAS_CONFIG
+from shared.config.geih_config import (
+    ANIO_MAX_MARCO_ANTIGUO,
+    ANIO_MIN_MARCO_ANTIGUO,
+    PATRON_ANIO_ARCHIVO,
+    PATRON_MES_ARCHIVO,
+    TABLAS_CONFIG,
+)
 from shared.utils.spark_utils import leer_csv, escribir_tabla
 
 # COMMAND ----------
 
 
 # DBTITLE 1,Cargar tablas
+def verificar_periodo_archivo(df, nombre_tabla: str) -> None:
+    """Verifica el año y el mes que el marco antiguo toma del nombre de archivo (R-23).
+
+    Args:
+        df (DataFrame): Tabla bronce del marco antiguo con ``archivo_origen`` y ``MES``.
+        nombre_tabla (str): Nombre de la tabla, para el mensaje de error.
+
+    Raises:
+        ValueError: Si algún archivo no cumple ``<seccion>_<modulo>_<MM>_<AAAA>.csv``, si el
+            año queda fuera de ``ANIO_MIN_MARCO_ANTIGUO``-``ANIO_MAX_MARCO_ANTIGUO`` o si
+            ``MES`` no está entre 01 y 12 o no coincide con el mes del nombre.
+
+    Example:
+        >>> verificar_periodo_archivo(df, "tesis.geih_bronce.ocupados_resto_marco_antiguo")
+    """
+    anio = regexp_extract(col("archivo_origen"), PATRON_ANIO_ARCHIVO, 1).cast("int")
+    mes_archivo = regexp_extract(col("archivo_origen"), PATRON_MES_ARCHIVO, 1)
+    malos = (
+        df.select("archivo_origen", "MES")
+        .distinct()
+        .filter(
+            anio.isNull()
+            | ~anio.between(ANIO_MIN_MARCO_ANTIGUO, ANIO_MAX_MARCO_ANTIGUO)
+            | ~col("MES").isin([f"{m:02d}" for m in range(1, 13)])
+            | (col("MES") != mes_archivo)
+        )
+        .collect()
+    )
+    if malos:
+        detalle = ", ".join(f"{r.archivo_origen} (MES={r.MES})" for r in malos[:5])
+        raise ValueError(
+            f"{nombre_tabla}: período inválido en {len(malos)} archivos: {detalle}"
+        )
+
+
 def cargar_tablas_bronce(
     spark,
     tablas_config: dict,
@@ -83,8 +132,12 @@ def cargar_tablas_bronce(
         # Extrae mes del nombre de archivo (patrón: resto_fuerza_de_trabajo_01_2018.csv → "01")
         if tabla["aplicar_mes"]:
             df = df.withColumn(
-                "MES", regexp_extract(col("archivo_origen"), r"_(\d{2})_\d{4}\.csv", 1)
+                "MES", regexp_extract(col("archivo_origen"), PATRON_MES_ARCHIVO, 1)
             )
+
+        # R-23: el período del marco antiguo sale del nombre de archivo; se verifica antes de escribir
+        if tabla["marco"] == "antiguo":
+            verificar_periodo_archivo(df, tabla["table_name"])
 
         # Identifica registros de fuerza de trabajo en sección resto
         if tabla["modulo"] == "fuerza_trabajo" and tabla["seccion"] == "resto":

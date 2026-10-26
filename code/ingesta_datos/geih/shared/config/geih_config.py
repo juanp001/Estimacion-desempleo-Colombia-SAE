@@ -7,6 +7,16 @@ SCHEMA_ORO = "geih_oro"
 # Base path for raw CSV volumes
 VOLUME_BASE = f"/Volumes/{CATALOG}/{SCHEMA_BRONCE}"
 
+# Nombre de los CSV del marco antiguo (R-23): <seccion>_<modulo>_<MM>_<AAAA>.csv, p. ej.
+# resto_fuerza_de_trabajo_01_2018.csv. Lo produce code/analisis/renombrar_geih.py a partir de
+# las carpetas del DANE (GEIH/<año>/<Mes>/). El año y, en fuerza de trabajo, el mes salen de
+# este nombre; geih_bronce falla si no cumple el patrón o quedan fuera de rango.
+PATRON_ANIO_ARCHIVO = r"_\d{2}_(\d{4})\.csv$"
+PATRON_MES_ARCHIVO = r"_(\d{2})_\d{4}\.csv$"
+# Años que cubre el marco antiguo (GEIH desde 2006; marco 2005 hasta 2022)
+ANIO_MIN_MARCO_ANTIGUO = 2006
+ANIO_MAX_MARCO_ANTIGUO = 2022
+
 # Datos publicados por el DANE (anexo mercado laboral según proyecciones CNPV 2018)
 RUTA_DATOS_PUBLICADOS = (
     f"{VOLUME_BASE}/datos_publicados/"

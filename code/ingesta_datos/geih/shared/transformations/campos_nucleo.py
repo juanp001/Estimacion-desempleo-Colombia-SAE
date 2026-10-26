@@ -1,5 +1,7 @@
 from pyspark.sql.functions import col, concat, lit, regexp_extract, regexp_replace, trim
 
+from shared.config.geih_config import PATRON_ANIO_ARCHIVO
+
 # Campos núcleo para marco nuevo.
 # El marco nuevo entrega PERIODO, MES y FEX_C18 directamente en las tablas bronce.
 # MARCO identifica el origen de cada fila en plata: geih_oro lo usa para elegir el factor de
@@ -23,22 +25,25 @@ CAMPOS_NUCLEO_MARCO_NUEVO = [
 ]
 
 # Campos núcleo para marco antiguo.
-# PERIODO y PER se extraen del nombre del archivo origen con regex.
+# PERIODO y PER se extraen del nombre del archivo origen con PATRON_ANIO_ARCHIVO (geih_config,
+# R-23); geih_bronce ya verificó que todos los archivos lo cumplen.
 # FEX_C_2011 requiere reemplazar comas por puntos antes de castear a double. Es el factor
 # calibrado con las proyecciones del censo 2005: el factor CNPV 2018 viene de dim_fex.
+_ANIO_ARCHIVO = regexp_extract(col("archivo_origen"), PATRON_ANIO_ARCHIVO, 1)
+
 CAMPOS_NUCLEO_MARCO_ANTIGUO = [
     concat(
-        regexp_extract(col("archivo_origen"), r"(\d{4})", 1),
+        _ANIO_ARCHIVO,
         col("MES"),
         col("DIRECTORIO"),
         col("SECUENCIA_P"),
         col("ORDEN"),
     ).alias("PK"),
     concat(
-        regexp_extract(col("archivo_origen"), r"(\d{4})", 1),
+        _ANIO_ARCHIVO,
         col("MES"),
     ).alias("PERIODO"),
-    regexp_extract(col("archivo_origen"), r"(\d{4})", 1).cast("int").alias("PER"),
+    _ANIO_ARCHIVO.cast("int").alias("PER"),
     col("MES").cast("int").alias("MES"),
     col("DIRECTORIO"),
     col("SECUENCIA_P"),
