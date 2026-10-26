@@ -49,6 +49,16 @@
 # MAGIC construcción de `x_d` y la tasa directa frente a la publicada. Se detiene si un dominio no
 # MAGIC aparece en la auditoría o si su nombre no está en las cifras oficiales del período.
 # MAGIC
+# MAGIC ## Corte de cada covariable del catálogo (R-19)
+# MAGIC
+# MAGIC La plata de TerriData tiene una fila por entidad, año y mes de corte, y aquí solo se lee la del
+# MAGIC mes estimado. Un indicador con otro corte ese año llega en NULL: en 2019 los puntajes Saber 11
+# MAGIC (`040040001`, `040040002`) solo tienen corte en noviembre. Antes de agregar se verifica que
+# MAGIC cada código del catálogo tenga dato en el mes estimado para algún municipio miembro; si no, el
+# MAGIC notebook se detiene y dice en qué meses de ese año sí lo tiene (antes el pre-filtrado lo sacaba
+# MAGIC por completitud sin decir por qué). Morales et al. (2021, p. 419): los x de registros
+# MAGIC administrativos pueden no tener las mismas especificaciones que la encuesta.
+# MAGIC
 # MAGIC ## Estrategia de Join: LEFT JOIN
 # MAGIC
 # MAGIC ```
@@ -190,6 +200,41 @@ sin_regla = [c for c in codigos_catalogo if c not in REGLAS_AGREGACION]
 if sin_regla:
     raise ValueError(
         f"Variables del catálogo sin regla de agregación en reglas_agregacion.py: {sin_regla}"
+    )
+
+# R-19: cada código del catálogo debe tener dato en el mes estimado (no solo en otro corte del año)
+miembros = df_dim_dominio.select(F.col("CODIGO_MUNICIPIO").alias("CODIGO_ENTIDAD"))
+for per, mes in periodos_estimados:
+    df_anio = df_terridata.join(miembros, on="CODIGO_ENTIDAD", how="inner").filter(
+        F.col("ANO").cast("int") == per
+    )
+    presentes = [c for c in codigos_catalogo if c in df_terridata.columns]
+    meses_con_dato = df_anio.agg(
+        *[
+            F.array_sort(
+                F.collect_set(
+                    F.when(F.col(f"`{c}`").isNotNull(), F.col("MES").cast("int"))
+                )
+            ).alias(c)
+            for c in presentes
+        ]
+    ).first()
+    sin_dato = {
+        c: (meses_con_dato[c] if c in presentes else "no está en TerriData")
+        for c in codigos_catalogo
+        if c not in presentes or mes not in meses_con_dato[c]
+    }
+    if sin_dato:
+        detalle = "; ".join(
+            f"{c}: meses con dato en {per} = {m}" for c, m in sin_dato.items()
+        )
+        raise ValueError(
+            f"Covariables del catálogo sin dato en {per}-{mes:02d} para los municipios de los "
+            f"dominios (TerriData las publica con otro corte o no las tiene): {detalle}"
+        )
+    print(
+        f"✔ {per}-{mes:02d}: las {len(codigos_catalogo)} covariables del catálogo tienen dato "
+        "en el mes estimado"
     )
 
 pesos_por_columna = {c: regla_de(c)["peso"] for c in columnas_indicadores}
