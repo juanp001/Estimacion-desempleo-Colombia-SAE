@@ -83,10 +83,8 @@ df_datos_unificados = df_datos_unificados.filter(
 df_datos_unificados = df_datos_unificados.select(
     "CODIGO_DEPARTAMENTO",
     "DEPARTAMENTO",
-    "DEPARTAMENTO_NORMALIZADO",
     "CODIGO_ENTIDAD",
     "ENTIDAD",
-    "ENTIDAD_NORMALIZADO",
     col("ANO").cast("int").alias("ANO"),
     col("MES").cast("int").alias("MES"),
     "CODIGO_INDICADOR",

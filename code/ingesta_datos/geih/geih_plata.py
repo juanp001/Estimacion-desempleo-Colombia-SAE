@@ -9,7 +9,7 @@
 # MAGIC ## Tablas generadas
 # MAGIC | Tabla | Campos específicos |
 # MAGIC |---|---|
-# MAGIC | `caracteristicas_generales_consolidado` | SEXO, EDAD, ANO_NACIMIENTO, MES_NACIMIENTO |
+# MAGIC | `caracteristicas_generales_consolidado` | SEXO, EDAD |
 # MAGIC | `fuerza_trabajo_consolidado` | PEA, PEI, PET |
 # MAGIC | `no_ocupados_consolidado` | DESOCUPADO |
 # MAGIC | `ocupados_consolidado` | OCUPADO |
@@ -80,8 +80,7 @@ df_cg_plata = spark.table(TBL_CG_BRONCE).select(
     .when(col("P3271") == 2, "FEMENINO")
     .alias("SEXO"),
     col("P6040").cast("int").alias("EDAD"),
-    col("P6030S3").cast("int").alias("ANO_NACIMIENTO"),
-    col("P6030S1").cast("int").alias("MES_NACIMIENTO"),
+    # R-52: sin ANO_NACIMIENTO ni MES_NACIMIENTO, que no llegaban a oro
 )
 
 # COMMAND ----------
@@ -94,8 +93,6 @@ select_fields_cg_antiguo = [
     .when(col("P6020") == "2", "FEMENINO")
     .alias("SEXO"),
     expr("try_cast(P6040 as int)").alias("EDAD"),
-    expr("try_cast(P6030S3 as int)").alias("ANO_NACIMIENTO"),
-    expr("try_cast(P6030S1 as int)").alias("MES_NACIMIENTO"),
 ]
 
 df_cg_cabecera_plata = spark.table(TBL_CG_CAB_MA).select(

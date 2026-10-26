@@ -1,24 +1,15 @@
-from pyspark.sql.functions import col, upper, translate
-
-_TILDES_IN = "áéíóúÁÉÍÓÚ"
-_TILDES_OUT = "aeiouAEIOU"
-
-
-def _normalizar(columna: str):
-    """Elimina tildes y convierte a mayúsculas."""
-    return upper(translate(col(columna), _TILDES_IN, _TILDES_OUT))
-
+from pyspark.sql.functions import col
 
 # Lista de expresiones de columna para la capa bronce.
-# Incluye los campos originales y añade DEPARTAMENTO_NORMALIZADO / ENTIDAD_NORMALIZADO.
+# R-52: ya no se agregan DEPARTAMENTO_NORMALIZADO ni ENTIDAD_NORMALIZADO (sin tildes, en
+# mayúsculas): ninguna etapa las leía (preprocesamiento solo las excluía) y la normalización
+# ignoraba ñ y ü. Los cruces se hacen por CODIGO_DEPARTAMENTO / CODIGO_ENTIDAD.
 CAMPOS_BRONCE = [
     # --- GEOGRAFÍA ---
     col("CODIGO_DEPARTAMENTO"),
     col("DEPARTAMENTO"),
-    _normalizar("DEPARTAMENTO").alias("DEPARTAMENTO_NORMALIZADO"),
     col("CODIGO_ENTIDAD"),
     col("ENTIDAD"),
-    _normalizar("ENTIDAD").alias("ENTIDAD_NORMALIZADO"),
     # --- CLASIFICACIÓN DEL INDICADOR ---
     col("DIMENSION"),
     col("SUBCATEGORIA"),

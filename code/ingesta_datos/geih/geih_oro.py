@@ -132,6 +132,8 @@ df = (
         cg.CODIGO_DPTO.alias("CODIGO_DEPARTAMENTO"),
         col("div_dep.DEPARTAMENTO"),
         col("div_mun.CODIGO_MUNICIPIO"),
+        # R-52: MUNICIPIO, FEX y SEXO no los lee ninguna etapa siguiente, pero se conservan a
+        # propósito: MUNICIPIO y SEXO para consultar la tabla, FEX para auditar FEX_C18 (G7-B6)
         col("div_mun.MUNICIPIO"),
         cg.MARCO,
         cg.FEX,
