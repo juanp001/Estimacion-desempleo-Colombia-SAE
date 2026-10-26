@@ -329,16 +329,26 @@ df_publicados = td_dane_ventana(
     N_MESES,
 )
 
+# R-58: TD_DANE_PCT y DIF_TD_PP se calculan solo aquí y se guardan en la tabla; la auditoría
+# de adicion_covariables las lee (antes repetía la comparación). NULL si no hay cifra oficial.
+resultado = resultado.merge(
+    df_publicados.rename(
+        columns={"CIUDAD": "NOMBRE_DOMINIO", "TD_DANE": "TD_DANE_PCT"}
+    ),
+    on="NOMBRE_DOMINIO",
+    how="left",
+    validate="one_to_one",
+)
+resultado["TD_DANE_PCT"] = resultado["TD_DANE_PCT"].astype(float)
+resultado["DIF_TD_PP"] = resultado["TASA_DESEMPLEO_PCT"] - resultado["TD_DANE_PCT"]
+
 if df_publicados.empty:
     print(f"Sin cifras oficiales para {PERIODO}: no se valida.")
 else:
-    comparacion = resultado[["NOMBRE_DOMINIO", "TASA_DESEMPLEO_PCT"]].merge(
-        df_publicados.rename(columns={"CIUDAD": "NOMBRE_DOMINIO"}),
-        on="NOMBRE_DOMINIO",
-        how="left",
-    )
-    comparacion["DIF_PP"] = comparacion["TASA_DESEMPLEO_PCT"] - comparacion["TD_DANE"]
-    ok = comparacion["DIF_PP"].abs() <= TOLERANCIA_PP
+    comparacion = resultado[
+        ["NOMBRE_DOMINIO", "TASA_DESEMPLEO_PCT", "TD_DANE_PCT", "DIF_TD_PP"]
+    ]
+    ok = comparacion["DIF_TD_PP"].abs() <= TOLERANCIA_PP
     print(
         f"[{'PASS' if ok.all() else 'FAIL'}] {int(ok.sum())} de {len(comparacion)} dominios "
         f"coinciden con el DANE en {PERIODO} (tolerancia {TOLERANCIA_PP} pp)"

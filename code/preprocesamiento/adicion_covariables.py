@@ -123,7 +123,6 @@ if CODE_DIR not in sys.path:
 from preprocesamiento.shared.config import *
 from preprocesamiento.shared.agregacion_dominios import agregar_covariables_dominio
 from preprocesamiento.shared.auditoria_dominios import tabla_auditoria_dominios
-from preprocesamiento.shared.ventana import td_dane_ventana
 from preprocesamiento.shared.reglas_agregacion import (
     PESOS_AGREGACION,
     REGLAS_AGREGACION,
@@ -457,24 +456,16 @@ df_miembros = (
     )
     .toPandas()
 )
-# Cifra oficial de la misma ventana que la estimación directa (N_MESES_VENTANA viaja en la tabla):
-# año = TD reconstruida con los 4 trimestres que no se pisan; trimestre = TD publicada
-# (shared/ventana.py).
+# La cifra oficial de la misma ventana (TD_DANE_PCT, DIF_TD_PP) ya viene en la estimación directa
+# (R-58: se calcula una sola vez, en estimacion_directa.py).
 ventanas = df_estimaciones.select("PER", "MES", "N_MESES_VENTANA").distinct().collect()
 if len(ventanas) != 1:
     raise ValueError(
         f"La auditoría se define por período y hay {len(ventanas)} ventanas en {TBL_ESTIMACION_DIRECTA}."
     )
-df_publicados = td_dane_ventana(
-    spark.table(TBL_DATOS_MUNICIPALES).toPandas(),
-    int(ventanas[0]["PER"]),
-    int(ventanas[0]["MES"]),
-    int(ventanas[0]["N_MESES_VENTANA"]),
-).rename(columns={"TD_DANE": "TASA_DESEMPLEO"})
 df_auditoria = tabla_auditoria_dominios(
     df_miembros,
     df_estimaciones.toPandas(),
-    df_publicados,
     {c: pesos_por_columna.get(c, regla_de(c)["peso"]) for c in codigos_catalogo},
 )
 
@@ -483,7 +474,8 @@ if len(df_auditoria) != n_dominios:
     raise ValueError(
         f"La auditoría tiene {len(df_auditoria)} filas y hay {n_dominios} dominios estimados"
     )
-if not df_publicados.empty and not df_auditoria["EN_ANEXO_DANE"].all():
+# Si el anexo cubre el período (algún dominio con cifra), todos deben tenerla
+if df_auditoria["EN_ANEXO_DANE"].any() and not df_auditoria["EN_ANEXO_DANE"].all():
     raise ValueError(
         "Dominios cuyo nombre no está en las cifras oficiales del DANE: "
         f"{df_auditoria.loc[~df_auditoria['EN_ANEXO_DANE'], 'NOMBRE_DOMINIO'].tolist()}"
@@ -492,7 +484,8 @@ print(
     f"Dominios auditados: {len(df_auditoria)} "
     f"({(df_auditoria['TIPO_DOMINIO'] == 'CIUDAD_AM').sum()} A.M., "
     f"{df_auditoria['N_MUNICIPIOS'].sum()} municipios) | "
-    f"máx |TD directa − TD DANE| = {df_auditoria['DIF_TD_PP'].abs().max():.4f} pp"
+    f"máx |TD directa − TD DANE| = {df_auditoria['DIF_TD_PP'].abs().max():.4f} pp "
+    "(NaN si el anexo no cubre el período)"
 )
 display(df_auditoria)
 

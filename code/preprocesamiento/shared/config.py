@@ -274,6 +274,10 @@ METADATA_COLS = [
     # G7-B3: control analítico de la varianza y número de viviendas (conglomerados del bootstrap)
     "SE_TAYLOR_PCT",
     "N_VIVIENDAS",
+    # R-58: TD del DANE de la misma ventana y diferencia con la directa (las calcula
+    # estimacion_directa; NULL si el anexo no cubre el período)
+    "TD_DANE_PCT",
+    "DIF_TD_PP",
 ]
 
 # Columnas a excluir de TerriData al hacer el join: las de identificación ya existen en las
