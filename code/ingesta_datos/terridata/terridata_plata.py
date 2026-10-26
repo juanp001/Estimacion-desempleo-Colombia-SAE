@@ -226,7 +226,10 @@ print("=" * 60)
 print(f"\nTabla: {TBL_PLATA}")
 print(f"\nESTADÍSTICAS:")
 print(f"  - Filas:    {n_filas:,}")
-print(f"  - Columnas: {n_cols}  (8 de identificación + {n_cols - 8} indicadores)")
+n_id = len(COLUMNAS_ID)
+print(
+    f"  - Columnas: {n_cols}  ({n_id} de identificación + {n_cols - n_id} indicadores)"
+)
 
 # COMMAND ----------
 
