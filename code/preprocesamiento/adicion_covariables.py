@@ -35,7 +35,9 @@
 # MAGIC peso = valor agregado; densidad → superficie; valores per cápita, IPM, homicidios → población
 # MAGIC total; coberturas educativas y Saber 11 → población del grupo de edad (proxy). La regla de cada
 # MAGIC variable del catálogo está en `shared/reglas_agregacion.py` y se guarda en
-# MAGIC `tesis.preprocesamiento.reglas_agregacion_covariables`; los indicadores fuera del catálogo usan
+# MAGIC `tesis.preprocesamiento.reglas_agregacion_covariables`, que es la tabla de covariables del
+# MAGIC documento (R-06): para cada una trae, además de la regla, la unidad, la fuente, el año y mes de
+# MAGIC corte, la periodicidad, la geografía y los matices de su definición. Los indicadores fuera del catálogo usan
 # MAGIC la población de 15 años y más. En los 16 dominios de un solo municipio el resultado es el valor
 # MAGIC del municipio. Una celda compara, para los 7 dominios A.M., la regla por variable con la
 # MAGIC regla anterior (todo ponderado por la población de 15 años y más).
@@ -125,6 +127,7 @@ from preprocesamiento.shared.ventana import td_dane_ventana
 from preprocesamiento.shared.reglas_agregacion import (
     PESOS_AGREGACION,
     REGLAS_AGREGACION,
+    periodicidad,
     regla_de,
     tabla_reglas,
 )
@@ -377,6 +380,49 @@ indicadores_dict = {
 }
 df_reglas = tabla_reglas(codigos_catalogo, indicadores_dict)
 df_reglas.insert(1, "ALIAS", df_reglas["CODIGO_INDICADOR"].map(alias_catalogo))
+
+# R-06: unidad, fuente y corte de cada covariable, desde TerriData (formato largo), para cada
+# período estimado. MESES_CON_DATO son los cortes de ese año; el que se usa es MES_CORTE.
+metadatos = []
+for per, mes in periodos_estimados:
+    meta = (
+        spark.table(TBL_TERRIDATA_BRONCE)
+        .filter(
+            (F.col("ANO").cast("int") == per)
+            & F.col("CODIGO_INDICADOR").isin(codigos_catalogo)
+            & (
+                F.col("DATO_NUMERICO").isNotNull()
+                | F.col("DATO_CUALITATIVO").isNotNull()
+            )
+        )
+        .groupBy("CODIGO_INDICADOR")
+        .agg(
+            F.concat_ws(" | ", F.array_sort(F.collect_set("UNIDAD_MEDIDA"))).alias(
+                "UNIDAD_MEDIDA"
+            ),
+            F.concat_ws(" | ", F.array_sort(F.collect_set("FUENTE"))).alias("FUENTE"),
+            F.array_sort(F.collect_set(F.col("MES").cast("int"))).alias("MESES"),
+        )
+        .toPandas()
+    )
+    meta["ANO_CORTE"] = per
+    meta["MES_CORTE"] = mes
+    meta["PERIODICIDAD"] = meta["MESES"].apply(lambda m: periodicidad(list(m)))
+    meta["MESES_CON_DATO"] = meta["MESES"].apply(
+        lambda m: ", ".join(f"{int(x):02d}" for x in m)
+    )
+    metadatos.append(meta.drop(columns="MESES"))
+df_reglas = df_reglas.merge(
+    pd.concat(metadatos, ignore_index=True),
+    on="CODIGO_INDICADOR",
+    how="left",
+    validate="one_to_many",
+)
+sin_metadatos = df_reglas.loc[df_reglas["UNIDAD_MEDIDA"].isna(), "CODIGO_INDICADOR"]
+if not sin_metadatos.empty:
+    raise ValueError(
+        f"Covariables del catálogo sin unidad ni fuente en TerriData: {sin_metadatos.tolist()}"
+    )
 display(df_reglas)
 
 spark.createDataFrame(df_reglas).write.mode("overwrite").option(
