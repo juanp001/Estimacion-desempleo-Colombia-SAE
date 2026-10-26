@@ -53,9 +53,6 @@ TBL_OC_BRONCE = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados"
 TBL_FEX_BRONCE = f"{CATALOG}.{SCHEMA_BRONCE}.dim_fex"
 
 # Source table names — bronce (marco antiguo, características generales)
-TBL_CG_AREA_MA = (
-    f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales_area_marco_antiguo"
-)
 TBL_CG_CAB_MA = (
     f"{CATALOG}.{SCHEMA_BRONCE}.caracteristicas_generales_cabecera_marco_antiguo"
 )
@@ -64,22 +61,18 @@ TBL_CG_RESTO_MA = (
 )
 
 # Source table names — bronce (marco antiguo, fuerza de trabajo)
-TBL_FT_AREA_MA = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_area_marco_antiguo"
 TBL_FT_CAB_MA = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_cabecera_marco_antiguo"
 TBL_FT_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.fuerza_trabajo_resto_marco_antiguo"
 
 # Source table names — bronce (marco antiguo, inactivos)
-TBL_IN_AREA_MA = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_area_marco_antiguo"
 TBL_IN_CAB_MA = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_cabecera_marco_antiguo"
 TBL_IN_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.inactivos_resto_marco_antiguo"
 
 # Source table names — bronce (marco antiguo, no ocupados)
-TBL_NO_AREA_MA = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_area_marco_antiguo"
 TBL_NO_CAB_MA = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_cabecera_marco_antiguo"
 TBL_NO_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.no_ocupados_resto_marco_antiguo"
 
 # Source table names — bronce (marco antiguo, ocupados)
-TBL_OC_AREA_MA = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_area_marco_antiguo"
 TBL_OC_CAB_MA = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_cabecera_marco_antiguo"
 TBL_OC_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_resto_marco_antiguo"
 
@@ -89,21 +82,15 @@ TBL_OC_RESTO_MA = f"{CATALOG}.{SCHEMA_BRONCE}.ocupados_resto_marco_antiguo"
 # Fields:
 #   table_name   : Fully qualified destination table in Unity Catalog
 #   path         : Glob path to source CSV files in the volume
-#   seccion      : Geographic section — "area", "cabecera", "resto", or None (marco nuevo)
+#   seccion      : Geographic section — "cabecera", "resto", or None (marco nuevo)
+#                  (R-21: la sección "area" del marco antiguo no se carga; nadie la usaba y la de
+#                  características generales solo traía Ene-Mar 2018)
 #   modulo       : Thematic module — see module names below
 #   aplicar_mes  : True to extract MES from the filename, None otherwise
 #   marco        : "antiguo", "nuevo", or None (fex)
 TABLAS_CONFIG = {
     "config": [
         # ========== MARCO ANTIGUO - CARACTERÍSTICAS GENERALES ==========
-        {
-            "table_name": TBL_CG_AREA_MA,
-            "path": f"{VOLUME_BASE}/caracteristicas_generales/marco_antiguo/area/*.csv",
-            "seccion": "area",
-            "modulo": "caracteristicas_generales",
-            "aplicar_mes": None,
-            "marco": "antiguo",
-        },
         {
             "table_name": TBL_CG_CAB_MA,
             "path": f"{VOLUME_BASE}/caracteristicas_generales/marco_antiguo/cabecera/*.csv",
@@ -122,14 +109,6 @@ TABLAS_CONFIG = {
         },
         # ========== MARCO ANTIGUO - FUERZA DE TRABAJO ==========
         {
-            "table_name": TBL_FT_AREA_MA,
-            "path": f"{VOLUME_BASE}/fuerza_de_trabajo/marco_antiguo/area/*.csv",
-            "seccion": "area",
-            "modulo": "fuerza_trabajo",
-            "aplicar_mes": None,
-            "marco": "antiguo",
-        },
-        {
             "table_name": TBL_FT_CAB_MA,
             "path": f"{VOLUME_BASE}/fuerza_de_trabajo/marco_antiguo/cabecera/*.csv",
             "seccion": "cabecera",
@@ -146,14 +125,6 @@ TABLAS_CONFIG = {
             "marco": "antiguo",
         },
         # ========== MARCO ANTIGUO - OCUPADOS ==========
-        {
-            "table_name": TBL_OC_AREA_MA,
-            "path": f"{VOLUME_BASE}/ocupados/marco_antiguo/area/*.csv",
-            "seccion": "area",
-            "modulo": "ocupados",
-            "aplicar_mes": None,
-            "marco": "antiguo",
-        },
         {
             "table_name": TBL_OC_CAB_MA,
             "path": f"{VOLUME_BASE}/ocupados/marco_antiguo/cabecera/*.csv",
@@ -172,14 +143,6 @@ TABLAS_CONFIG = {
         },
         # ========== MARCO ANTIGUO - INACTIVOS ==========
         {
-            "table_name": TBL_IN_AREA_MA,
-            "path": f"{VOLUME_BASE}/inactivos/marco_antiguo/area/*.csv",
-            "seccion": "area",
-            "modulo": "inactivos",
-            "aplicar_mes": None,
-            "marco": "antiguo",
-        },
-        {
             "table_name": TBL_IN_CAB_MA,
             "path": f"{VOLUME_BASE}/inactivos/marco_antiguo/cabecera/*.csv",
             "seccion": "cabecera",
@@ -196,14 +159,6 @@ TABLAS_CONFIG = {
             "marco": "antiguo",
         },
         # ========== MARCO ANTIGUO - NO OCUPADOS ==========
-        {
-            "table_name": TBL_NO_AREA_MA,
-            "path": f"{VOLUME_BASE}/no_ocupados/marco_antiguo/area/*.csv",
-            "seccion": "area",
-            "modulo": "no_ocupados",
-            "aplicar_mes": None,
-            "marco": "antiguo",
-        },
         {
             "table_name": TBL_NO_CAB_MA,
             "path": f"{VOLUME_BASE}/no_ocupados/marco_antiguo/cabecera/*.csv",

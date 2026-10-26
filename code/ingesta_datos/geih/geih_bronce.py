@@ -11,19 +11,19 @@
 # MAGIC * **no_ocupados** · **inactivos** · **fex**
 # MAGIC
 # MAGIC ## Secciones (marco antiguo)
-# MAGIC * **cabecera**: zonas urbanas · **resto**: zonas rurales · **area**: consolidado
+# MAGIC * **cabecera**: zonas urbanas · **resto**: zonas rurales
+# MAGIC * La sección **area** de los archivos fuente no se carga (R-21): ningún paso la usaba.
 # MAGIC
 # MAGIC ## Transformaciones aplicadas
 # MAGIC 1. `archivo_origen`: nombre del archivo fuente extraído de metadatos
 # MAGIC 2. `AREA`: inicializada como NULL en sección "resto" (no existe en raw)
 # MAGIC 3. `MES`: extraído del nombre de archivo para fuerza_trabajo cabecera/resto
-# MAGIC 4. `FT="1"`: marcador para fuerza_trabajo + sección resto
-# MAGIC 5. `fex_c_2011`: strings vacíos convertidos a NULL (marco antiguo, fuerza_trabajo)
+# MAGIC 4. `FT="1"`: marcador para fuerza_trabajo + sección resto (el raw de resto no trae `FT`)
 
 # COMMAND ----------
 
 # DBTITLE 1,Importación de librerías
-from pyspark.sql.functions import col, lit, regexp_extract, when, trim
+from pyspark.sql.functions import col, lit, regexp_extract
 
 from shared.config.geih_config import TABLAS_CONFIG
 from shared.utils.spark_utils import leer_csv, escribir_tabla
@@ -50,8 +50,8 @@ def cargar_tablas_bronce(
             de configuraciones de tablas (ver ``shared.config.geih_config.TABLAS_CONFIG``).
         table_number (int, optional): Índice 1-based para cargar solo una tabla específica.
             Si es ``None`` se cargan todas. Por defecto ``None``.
-        seccion (str, optional): Filtra por sección geográfica: ``"area"``, ``"cabecera"``
-            o ``"resto"``. Si es ``None`` no filtra. Por defecto ``None``.
+        seccion (str, optional): Filtra por sección geográfica: ``"cabecera"`` o
+            ``"resto"``. Si es ``None`` no filtra. Por defecto ``None``.
         modulo (str, optional): Filtra por módulo temático: ``"caracteristicas_generales"``,
             ``"fuerza_trabajo"``, ``"ocupados"``, ``"no_ocupados"``, ``"inactivos"`` o
             ``"fex"``. Si es ``None`` no filtra. Por defecto ``None``.
@@ -90,14 +90,8 @@ def cargar_tablas_bronce(
         if tabla["modulo"] == "fuerza_trabajo" and tabla["seccion"] == "resto":
             df = df.withColumn("FT", lit("1"))
 
-        # Marco antiguo trae fex_c_2011 con strings vacíos en vez de NULL
-        if tabla["marco"] == "antiguo" and tabla["modulo"] == "fuerza_trabajo":
-            df = df.withColumn(
-                "fex_c_2011",
-                when(trim(col("fex_c_2011")) == "", lit(None).cast("string")).otherwise(
-                    col("fex_c_2011")
-                ),
-            )
+        # R-21: ya no se limpia fex_c_2011 del módulo FT (no traía vacíos y oro solo usa el FEX
+        # de características generales)
 
         escribir_tabla(df, tabla["table_name"])
         print("Tabla cargada")

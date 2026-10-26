@@ -28,7 +28,7 @@
 
 # DBTITLE 1,Importación de librerías
 
-from pyspark.sql.functions import col, when, concat, expr, lit, trim
+from pyspark.sql.functions import col, when, concat, expr
 
 from shared.config.geih_config import (
     TBL_CG_BRONCE,
@@ -36,16 +36,12 @@ from shared.config.geih_config import (
     TBL_NO_BRONCE,
     TBL_OC_BRONCE,
     TBL_FEX_BRONCE,
-    TBL_CG_AREA_MA,
     TBL_CG_CAB_MA,
     TBL_CG_RESTO_MA,
-    TBL_FT_AREA_MA,
     TBL_FT_CAB_MA,
     TBL_FT_RESTO_MA,
-    TBL_IN_AREA_MA,
     TBL_IN_CAB_MA,
     TBL_IN_RESTO_MA,
-    TBL_NO_AREA_MA,
     TBL_NO_CAB_MA,
     TBL_NO_RESTO_MA,
     TBL_OC_CAB_MA,
@@ -101,8 +97,7 @@ df_cg_resto_plata = spark.table(TBL_CG_RESTO_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, *select_fields_cg_antiguo
 )
 
-# df_cg_area (marco antiguo) se omite porque es un consolidado de cabecera + resto,
-# incluirlo generaría duplicados en el resultado final
+# Marco antiguo: solo cabecera y resto (R-21: la sección área no se carga en bronce)
 df_cg_consolidado = df_cg_plata.union(df_cg_cabecera_plata).union(df_cg_resto_plata)
 escribir_tabla(df_cg_consolidado, TBL_CG_PLATA)
 
@@ -124,28 +119,21 @@ df_ft_plata = spark.table(TBL_FT_BRONCE).select(
 # COMMAND ----------
 
 # DBTITLE 1,Fuerza de trabajo — marco antiguo
-# En cabecera y resto el campo FT viene vacío para personas en PET;
-# se normaliza a "1" para homologar con el marco nuevo
-_ft_pet_select = [
-    when(trim(col("FT")) == "", lit("1").cast("string"))
-    .otherwise(col("FT"))
-    .alias("PET")
-]
-
-# Área trae FT directamente sin necesidad de normalización
-df_ft_area = spark.table(TBL_FT_AREA_MA).select(
+# El módulo FT solo trae personas de la PET: FT = "1" en todas las filas (en resto lo fija
+# geih_bronce). R-21: en vez de normalizar "" → "1", se verifica que así sea.
+df_ft_cabecera = spark.table(TBL_FT_CAB_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("FT").alias("PET")
 )
-df_ft_cabecera = spark.table(TBL_FT_CAB_MA).select(
-    *CAMPOS_NUCLEO_MARCO_ANTIGUO, *_ft_pet_select
-)
 df_ft_resto = spark.table(TBL_FT_RESTO_MA).select(
-    *CAMPOS_NUCLEO_MARCO_ANTIGUO, *_ft_pet_select
+    *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("FT").alias("PET")
 )
+for nombre, df_ft in [("cabecera", df_ft_cabecera), ("resto", df_ft_resto)]:
+    n_sin_pet = df_ft.filter(~col("PET").eqNullSafe("1")).count()
+    if n_sin_pet:
+        raise ValueError(
+            f"Fuerza de trabajo {nombre}: {n_sin_pet} filas con FT distinto de '1'"
+        )
 
-df_i_area = spark.table(TBL_IN_AREA_MA).select(
-    *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("INI").alias("PEI")
-)
 df_i_cabecera = spark.table(TBL_IN_CAB_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("INI").alias("PEI")
 )
@@ -186,9 +174,6 @@ df_no_plata = spark.table(TBL_NO_BRONCE).select(
 # COMMAND ----------
 
 # DBTITLE 1,No ocupados — marco antiguo
-df_no_area_plata = spark.table(TBL_NO_AREA_MA).select(
-    *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("DSI").alias("DESOCUPADO")
-)
 df_no_cabecera_plata = spark.table(TBL_NO_CAB_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("DSI").alias("DESOCUPADO")
 )
@@ -217,7 +202,7 @@ df_oc_plata = spark.table(TBL_OC_BRONCE).select(
 # COMMAND ----------
 
 # DBTITLE 1,Ocupados — marco antiguo
-# El marco antiguo de ocupados solo tiene cabecera y resto (no tiene sección área)
+# Marco antiguo: solo cabecera y resto (R-21: la sección área no se carga en bronce)
 df_oc_cabecera_plata = spark.table(TBL_OC_CAB_MA).select(
     *CAMPOS_NUCLEO_MARCO_ANTIGUO, col("OCI").alias("OCUPADO")
 )

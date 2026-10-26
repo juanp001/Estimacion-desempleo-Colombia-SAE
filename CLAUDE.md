@@ -34,7 +34,7 @@ cambio va en `shared/`, no en el notebook orquestador.
   (marco 2005, la que corresponde a los datos de 2018 del proyecto); los documentos del marco 2018 están
   desactivados (ver `DOCUMENTOS_INACTIVOS` en su `ingesta.py`), así que no hay respuesta indexada para 2023+.
 - **Marco antiguo** (hasta 2022): cada módulo viene partido en tres archivos — `area`, `cabecera`, `resto`.
-  Incluye el módulo de **inactivos**.
+  Incluye el módulo de **inactivos**. El pipeline carga solo `cabecera` y `resto` (R-21: `area` no se usaba).
 - **Marco nuevo** (2023 en adelante): un solo archivo por módulo, sin la partición área/cabecera/resto.
   No trae módulo de inactivos — esa información ya viene integrada en **fuerza de trabajo**.
   (La división por años es una convención de las carpetas de origen; el código no filtra por año.)
