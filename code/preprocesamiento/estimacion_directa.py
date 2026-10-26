@@ -99,13 +99,21 @@
 # MAGIC tamaño de muestra queda fijo en cada réplica.
 # MAGIC
 # MAGIC **Control.** `SE_TAYLOR_PCT` es la varianza por linealización de Taylor de la razón con las
-# MAGIC mismas unidades (conglomerados últimos, PDF 15). Con miles de viviendas por dominio ambas
+# MAGIC mismas unidades: una adaptación de la fórmula de la GEIH (PDF 15), que usa los segmentos dentro
+# MAGIC de cada estrato, con la vivienda como conglomerado. Con miles de viviendas por dominio ambas
 # MAGIC deben coincidir.
 # MAGIC
-# MAGIC **Limitación.** Los microdatos no traen el estrato interno ni el segmento (~10 viviendas
-# MAGIC contiguas) de la GEIH, que son las unidades de la varianza oficial (PDF 14-15). La varianza es
-# MAGIC una aproximación: no se sabe si la del diseño es mayor o menor, ni por cuánto. El notebook
-# MAGIC `modelo/sensibilidad_varianza.py` muestra cómo responde el modelo si se equivoca.
+# MAGIC **Limitación.** La varianza oficial depende de rasgos del diseño que aquí no se reproducen:
+# MAGIC * el estrato interno y el segmento (~10 viviendas contiguas), que son las unidades de la fórmula
+# MAGIC   oficial y no vienen en los microdatos (PDF 14-15);
+# MAGIC * la calibración del factor de expansión: el DANE ajusta el FEX por regresión generalizada
+# MAGIC   (CLAN 97) a las proyecciones de población por sexo y edad (PDF 13-14), y la varianza oficial
+# MAGIC   tiene en cuenta ese ajuste. Aquí los pesos quedan fijos en cada réplica, mientras que en los
+# MAGIC   métodos de remuestreo para encuestas de fuerza laboral cada réplica se recalibra igual que la
+# MAGIC   muestra (Morales et al., 2021, p. 61) (R-25).
+# MAGIC
+# MAGIC La varianza es una aproximación: no se sabe si la del diseño es mayor o menor, ni por cuánto.
+# MAGIC El notebook `modelo/sensibilidad_varianza.py` muestra cómo responde el modelo si se equivoca.
 # MAGIC
 # MAGIC **Número de réplicas**: B = 2000 (ver `shared/config.py`).
 # MAGIC Literatura recomienda B ≥ 500 para SE y B ≥ 1000 para IC.

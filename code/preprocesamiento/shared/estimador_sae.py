@@ -162,9 +162,10 @@ class EstimacionDirecta(EstimadorSAE):
     unidades (ver `shared/bootstrap.py`).
 
     Warning:
-        Los microdatos no traen el estrato interno ni el segmento de la GEIH, así que la
-        varianza es una aproximación a la del diseño: no se sabe si esta es mayor o menor, ni
-        por cuánto. No publicar como error de muestreo oficial.
+        Los microdatos no traen el estrato interno ni el segmento de la GEIH, y los pesos no
+        se recalibran en cada réplica como hace el DANE con el FEX (calibración por sexo y edad,
+        GEIH v9, PDF 13-14; R-25). La varianza es una aproximación a la del diseño: no se sabe
+        si esta es mayor o menor, ni por cuánto. No publicar como error de muestreo oficial.
 
     Example:
         >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)
@@ -275,7 +276,7 @@ class EstimacionDirecta(EstimadorSAE):
             f"{len(self._resultado)} dominios estimados"
         )
         print(
-            "Aproximación a la varianza del diseño: no reproduce el estrato interno ni el "
-            "segmento de la GEIH (G7-B3)."
+            "Aproximación a la varianza del diseño: no reproduce el estrato interno, el "
+            "segmento ni la calibración del FEX de la GEIH (G7-B3, R-25)."
         )
         return self._resultado

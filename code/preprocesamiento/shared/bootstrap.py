@@ -9,8 +9,9 @@ formas, ambas con el **dominio como estrato** y la **vivienda como conglomerado*
   remuestrea conglomerados dentro de cada estrato y conserva todos los registros de las viviendas
   seleccionadas). Como θ̂ es una razón de totales, basta con los totales de cada vivienda
   a_k = Σ w·y y b_k = Σ w: θ̂* = Σ a*/Σ b*.
-- **Linealización de Taylor** de la razón con la fórmula de conglomerados últimos (DANE,
-  metodología GEIH v9, PDF 15; Shiferaw, 2025, PDF 10): v(θ̂) = n/(n−1)·Σ(z_k − z̄)² con
+- **Linealización de Taylor** de la razón: adaptación de la fórmula de la GEIH (DANE,
+  metodología GEIH v9, PDF 15; Shiferaw, 2025, PDF 10), que usa los segmentos a_h dentro de cada
+  estrato h, con la vivienda como conglomerado: v(θ̂) = n/(n−1)·Σ(z_k − z̄)² con
   z_k = (a_k − θ̂·b_k)/Σ b. Sirve de control analítico del bootstrap.
 
 Por qué el dominio y la vivienda. Las áreas metropolitanas y las capitales son unidades de
@@ -20,8 +21,10 @@ completo (todas las viviendas, hogares y personas del segmento, PDF 11): las per
 vivienda no son independientes y se remuestrean juntas.
 
 Limitación. Los microdatos no traen el estrato interno ni el segmento (~10 viviendas contiguas),
-que son las unidades de la varianza oficial (PDF 14-15). Esta varianza es una aproximación: no se
-sabe si la varianza del diseño es mayor o menor, ni por cuánto. `modelo/sensibilidad_varianza.py`
+que son las unidades de la varianza oficial (PDF 14-15). Además, el FEX de la GEIH se calibra por
+regresión generalizada (CLAN 97) a las proyecciones por sexo y edad (PDF 13-14), y aquí los pesos
+quedan fijos en cada réplica en vez de recalibrarse (Morales et al., 2021, p. 61) (R-25). Esta
+varianza es una aproximación: no se sabe si la varianza del diseño es mayor o menor, ni por cuánto. `modelo/sensibilidad_varianza.py`
 muestra cómo responde el modelo si se equivoca.
 
 Funciones puras numpy/pandas; los ejemplos se comprueban con
@@ -143,11 +146,12 @@ def replicas_razon(
 
 
 def varianza_taylor_razon(a: np.ndarray, b: np.ndarray) -> float:
-    """Varianza de la razón Σa/Σb por linealización de Taylor (conglomerados últimos).
+    """Varianza de la razón Σa/Σb por linealización de Taylor.
 
     v(θ̂) = n/(n−1)·Σ(z_k − z̄)², con z_k = (a_k − θ̂·b_k)/Σ b y θ̂ = Σa/Σb: la variable
-    linealizada de la razón (GEIH v9, PDF 15) con muestreo de conglomerados con reemplazo
-    dentro del estrato.
+    linealizada de la razón con muestreo de conglomerados con reemplazo dentro del estrato. Es
+    una adaptación de la fórmula de la GEIH (v9, PDF 15), que usa los segmentos dentro de cada
+    estrato, con el conglomerado que se pase (aquí, la vivienda).
 
     Args:
         a (np.ndarray): Totales Σ w·y de cada conglomerado, shape (n,), n ≥ 2.
