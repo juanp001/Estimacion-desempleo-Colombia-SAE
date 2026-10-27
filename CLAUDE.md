@@ -198,10 +198,10 @@ analisis/analisis_descriptivo.py   (lee covariables_prefiltradas + tesis.dim.dim
   → catalogo_literatura, descriptivo_univariado, descriptivo_bivariado
         ↓
 analisis/eda_seleccion_covariables.py
-  → 1 asociación (Pearson/Spearman + IC de Fisher como descripción + signo esperado; decide el
+  → 1 asociación (Pearson/Spearman + IC de Fisher como descripción solo en la tabla bivariada, R-62: ya no entra a la ficha + signo esperado; decide el
     Fay-Herriot univariado con ψ_d = SE² por covariable, diag.fh_univariado, REML + GLS, G7-B8: IC de
     Wald de β1; G7-B13: la misma medida, r ponderada del FH, ordena y fija el signo, y Spearman es solo
-    descripción; forma funcional como diagnóstico, diag.forma_funcional: curvatura x² y log vs x por AIC
+    descripción; forma funcional como diagnóstico solo de las elegibles (R-62), diag.forma_funcional: curvatura x² y log vs x por AIC
     ML, sin transformar; la ficha advierte «revisar»)
   → 2 robustez como **diagnóstico, no filtro** (R-03; sobre el FH univariado, G7-B8: Cook 4/n con la
     fórmula de distancia_cook, Â fijo, y dejar-uno-fuera reajustando Â sobre la correlación ponderada por
@@ -217,8 +217,8 @@ analisis/eda_seleccion_covariables.py
     candidata con faltantes en `municipios_sin_encuesta` no entra («incompleta en los municipios objetivo»)
   → 3 redundancia (enlace completo: todos los pares del grupo con |r| ≥ 0.80, G7-B10; representante = primer integrante elegible (q de BH del FH ≤ 0.10) por menor Cook máx, con retroceso, G7-B11)
   → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = q de Benjamini-Hochberg del p de β1 del FH, sobre las
-      candidatas (18 activas), ≤ Q_FDR_ELEGIBILIDAD (0.10), G7-B9; estabilidad bootstrap de dominios descriptiva
-      (REPLICAS_ESTABILIDAD); el signo
+      candidatas (18 activas), ≤ Q_FDR_ELEGIBILIDAD (0.10), G7-B9; la estabilidad bootstrap de dominios salió (R-62):
+      la frecuencia de selección es `fh_validacion_cruzada_frecuencia` (G7-B19); el signo
       esperado es diagnóstico, no filtro (columna Signo_coherente, G7-B12); seleccionadas = las
       `cota_covariables(n)` = n // 10 (R-07: 2 con 23 dominios; regla de 10 observaciones por parámetro,
       convención externa a Morales, que pide no sobreparametrizar al predecir fuera de muestra, p. 453)
@@ -227,7 +227,7 @@ analisis/eda_seleccion_covariables.py
       del modelo lo trata como un modelo sin covariables
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
       conjunto (diag.figura_residuos_parciales, G7-B13) y sensibilidad al signo
-      (selección repetida exigiendo el signo → sensibilidad_signo_covariables)
+      (selección repetida exigiendo el signo → línea impresa en el notebook, ya sin tabla; R-62)
   → (R-32) toda la cadena de pasos 1-5 vive en `analisis/shared/seleccion.ejecutar_seleccion`, que usan
     el notebook y, vía `seleccionar_covariables`, la validación cruzada del modelo; la carga común está
     en `analisis/shared/datos_analisis.cargar_datos_analisis`
@@ -523,7 +523,7 @@ Reglas del flujo de selección:
   sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
 - Parámetros en `preprocesamiento/shared/config.py` (`BOOTSTRAP_REPLICAS`/`BOOTSTRAP_SEED`, umbrales de CV,
   `CV_MINIMO`, `PROP_MODAL_MAXIMA`, `UMBRAL_DUPLICADO`, `UMBRAL_REDUNDANCIA`, `UMBRAL_DELTA_LOO`,
-  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `REPLICAS_ESTABILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
+  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
   (tablas, `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`).
 - **Dominio = ciudad o ciudad A.M.** en preprocesamiento, análisis y modelo (`CODIGO_DOMINIO`,
   `NOMBRE_DOMINIO`, `TIPO_DOMINIO`); `CODIGO_MUNICIPIO`/`MUNICIPIO` solo existen en las tablas de municipios
