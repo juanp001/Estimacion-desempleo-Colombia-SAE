@@ -198,10 +198,10 @@ analisis/analisis_descriptivo.py   (lee covariables_prefiltradas + tesis.dim.dim
   → catalogo_literatura, descriptivo_univariado, descriptivo_bivariado
         ↓
 analisis/eda_seleccion_covariables.py
-  → 1 asociación (Pearson/Spearman + IC de Fisher como descripción + signo esperado; decide el
+  → 1 asociación (Pearson/Spearman + IC de Fisher como descripción solo en la tabla bivariada, R-62: ya no entra a la ficha + signo esperado; decide el
     Fay-Herriot univariado con ψ_d = SE² por covariable, diag.fh_univariado, REML + GLS, G7-B8: IC de
     Wald de β1; G7-B13: la misma medida, r ponderada del FH, ordena y fija el signo, y Spearman es solo
-    descripción; forma funcional como diagnóstico, diag.forma_funcional: curvatura x² y log vs x por AIC
+    descripción; forma funcional como diagnóstico solo de las elegibles (R-62), diag.forma_funcional: curvatura x² y log vs x por AIC
     ML, sin transformar; la ficha advierte «revisar»)
   → 2 robustez como **diagnóstico, no filtro** (R-03; sobre el FH univariado, G7-B8: Cook 4/n con la
     fórmula de distancia_cook, Â fijo, y dejar-uno-fuera reajustando Â sobre la correlación ponderada por
@@ -217,8 +217,8 @@ analisis/eda_seleccion_covariables.py
     candidata con faltantes en `municipios_sin_encuesta` no entra («incompleta en los municipios objetivo»)
   → 3 redundancia (enlace completo: todos los pares del grupo con |r| ≥ 0.80, G7-B10; representante = primer integrante elegible (q de BH del FH ≤ 0.10) por menor Cook máx, con retroceso, G7-B11)
   → 4 ficha de decisión (shared/seleccion.py: ficha_decision): elegible = q de Benjamini-Hochberg del p de β1 del FH, sobre las
-      candidatas (18 activas), ≤ Q_FDR_ELEGIBILIDAD (0.10), G7-B9; estabilidad bootstrap de dominios descriptiva
-      (REPLICAS_ESTABILIDAD); el signo
+      candidatas (18 activas), ≤ Q_FDR_ELEGIBILIDAD (0.10), G7-B9; la estabilidad bootstrap de dominios salió (R-62):
+      la frecuencia de selección es `fh_validacion_cruzada_frecuencia` (G7-B19); el signo
       esperado es diagnóstico, no filtro (columna Signo_coherente, G7-B12); seleccionadas = las
       `cota_covariables(n)` = n // 10 (R-07: 2 con 23 dominios; regla de 10 observaciones por parámetro,
       convención externa a Morales, que pide no sobreparametrizar al predecir fuera de muestra, p. 453)
@@ -227,7 +227,7 @@ analisis/eda_seleccion_covariables.py
       del modelo lo trata como un modelo sin covariables
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
       conjunto (diag.figura_residuos_parciales, G7-B13) y sensibilidad al signo
-      (selección repetida exigiendo el signo → sensibilidad_signo_covariables)
+      (selección repetida exigiendo el signo → línea impresa en el notebook, ya sin tabla; R-62)
   → (R-32) toda la cadena de pasos 1-5 vive en `analisis/shared/seleccion.ejecutar_seleccion`, que usan
     el notebook y, vía `seleccionar_covariables`, la validación cruzada del modelo; la carga común está
     en `analisis/shared/datos_analisis.cargar_datos_analisis`
@@ -457,18 +457,21 @@ filas, `moran_i`, `proximidad_total`, `filas_moran`), `fay_herriot_espacial.py` 
 de `ModeloAreaPequena`; `validacion_dejar_uno_fuera`), `figuras_espacial.py`, `figuras.py` (guardado común
 del clásico `fh_*` y del espacial `fhe_*`), `prediccion_espacial.py`, `sensibilidad_espacial.py`,
 `cuadro_comparativo.py` (también `construir_cuadro_coeficientes`); parámetros en `config.py` (`ESCENARIOS_W`,
-`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018 (corrida de `test-2`,
-23 dominios, 82 objetivos): **sin evidencia de dependencia espacial** — Moran de los residuos p entre 0.82 y
-0.91; ρ̂ entre 0.11 y 0.39 (completa) sin significancia (LRT p ≥ 0.60); ΔAIC entre −1.09 y −2.00 (el clásico
-tiene menor AIC en los 8 casos); perfil de ρ plano (ganancia ≤ 0.22); RMSE dejar-un-dominio-fuera: clásico
-2.084 frente a 2.115-2.440 del espacial con efecto. El efecto espacial en los objetivos es casi nulo (media
-absoluta 0.05 pp) y 74 de 82 objetivos extrapolan. El modelo recomendado sigue siendo el clásico (benchmark);
-detalle, tablas, comparación con el cierre anterior y limitaciones en `docs/fay_herriot_espacial.md`.
-Las cifras de este párrafo son del cierre previo a los cambios del bloque 05 (R-12…R-16, R-42, R-43, R-45):
-quedan pendientes de la nueva corrida (R-44). Ojo: en `municipios_sin_encuesta` figura Cali (76001), que ya
-es dominio con encuesta; desde R-14 el notebook espacial ya no la excluye: Cali y Yumbo son subáreas del nodo
-Cali A.M. y los objetivos son los mismos 83 del clásico. `marca_extrapolacion` (B20) recibe la matriz de
-diseño de los objetivos (`X_obj`), no `x'Cov(β̂)x`.
+`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018 (corrida del job `modelo` del 2026-10-27, run
+`899936223549833`; 23 dominios, 83 objetivos = 81 nodos + las subáreas Cali y Yumbo, R-44): **sin
+evidencia de dependencia espacial** — benchmark clásico `TASA_HOMICIDIOS` (EC3, AIC 108.90, Â 5.529); Moran
+de los residuos del clásico p entre 0.33 y 0.65 y del SEBLUP entre 0.52 y 0.98; ρ̂ entre 0.19 y 0.33
+(muestra) y entre 0.22 y 0.89 (completa) sin significancia (LRT p ≥ 0.22); ΔAIC entre −0.50 y −2.00 (el
+clásico tiene menor AIC en los 8 casos); perfil de ρ plano (ganancia ≤ 0.94). RMSE dejar-un-dominio-fuera:
+clásico 2.524 frente a 2.346 (`knn3`), 2.590, 2.602 y 2.859 del espacial con efecto: solo `knn3` mejora, sin
+respaldo en la verosimilitud. El efecto espacial en los 81 nodos objetivo es pequeño (media absoluta
+0.13 pp; −2.84 pp en Cali y Yumbo) y 21 de 83 objetivos extrapolan. El modelo recomendado sigue siendo el
+clásico (benchmark); detalle, tablas, comparación con el cierre anterior y limitaciones en
+`docs/fay_herriot_espacial.md`. Las figuras `fhe_*` de `docs/img/` se regeneraron con esa corrida (el volumen
+`/Volumes/tesis/modelo/figuras` ya existe). Ojo: en
+`municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; desde R-14 el notebook
+espacial no la excluye: Cali y Yumbo son subáreas del nodo Cali A.M. `marca_extrapolacion` (B20) recibe la
+matriz de diseño de los objetivos (`X_obj`), no `x'Cov(β̂)x`.
 
 ### Flujo de tablas Unity Catalog (resumen end-to-end)
 
@@ -523,7 +526,7 @@ Reglas del flujo de selección:
   sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
 - Parámetros en `preprocesamiento/shared/config.py` (`BOOTSTRAP_REPLICAS`/`BOOTSTRAP_SEED`, umbrales de CV,
   `CV_MINIMO`, `PROP_MODAL_MAXIMA`, `UMBRAL_DUPLICADO`, `UMBRAL_REDUNDANCIA`, `UMBRAL_DELTA_LOO`,
-  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `REPLICAS_ESTABILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
+  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
   (tablas, `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`).
 - **Dominio = ciudad o ciudad A.M.** en preprocesamiento, análisis y modelo (`CODIGO_DOMINIO`,
   `NOMBRE_DOMINIO`, `TIPO_DOMINIO`); `CODIGO_MUNICIPIO`/`MUNICIPIO` solo existen en las tablas de municipios

@@ -58,7 +58,6 @@
 # MAGIC * `tesis.preprocesamiento.decision_covariables`
 # MAGIC * `tesis.preprocesamiento.verificacion_seleccion`
 # MAGIC * `tesis.preprocesamiento.trazabilidad_covariables`
-# MAGIC * `tesis.preprocesamiento.sensibilidad_signo_covariables`
 # MAGIC * `tesis.preprocesamiento.covariables_seleccionadas`
 # MAGIC * Figuras en el volumen `figuras_eda`, con prefijo `eda_`.
 
@@ -74,7 +73,18 @@ from pyspark.sql import functions as F
 
 
 def _directorio_codigo() -> str:
-    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job."""
+    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job.
+
+    Resuelve el directorio con el contexto de `dbutils` cuando corre como notebook o job y, si
+    no existe (ejecución local), usa el directorio padre del directorio de trabajo.
+
+    Returns:
+        str: Ruta del directorio `code/` del repositorio.
+
+    Example:
+        >>> _directorio_codigo()  # doctest: +SKIP
+        '/Workspace/Users/usuario/.bundle/.../files/code'
+    """
     try:
         contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
         return "/Workspace" + os.path.dirname(
@@ -153,8 +163,6 @@ try:
         alfa_ic=ALFA_IC_CORRELACION,
         df_objetivos=df_objetivos,
         soporte_minimo=SOPORTE_MINIMO,
-        replicas_estabilidad=REPLICAS_ESTABILIDAD,
-        semilla=BOOTSTRAP_SEED,
         con_forma=True,
         silencioso=False,
     )
@@ -165,11 +173,11 @@ except sel.SeleccionVaciaError as error:
         "Ninguna candidata resulta elegible; el Fay-Herriot sería un modelo de solo "
         "intercepto. No se escriben tablas: revisar los diagnósticos y el catálogo."
     ) from error
-# Fay-Herriot univariado (G7-B8) con la estabilidad bootstrap de dominios (G7-B9, descriptiva).
-df_ic, df_fh, df_forma = (
-    SELECCION["df_ic"],
-    SELECCION["df_fh"],
-    SELECCION["df_forma"],
+# Fay-Herriot univariado (G7-B8) y forma funcional de las elegibles (R-62).
+df_fh, df_forma = SELECCION["df_fh"], SELECCION["df_forma"]
+# Intervalo de Fisher: solo descripción en la tabla bivariada, ya no entra a la ficha (R-62).
+df_ic = diag.tabla_ic_correlacion(
+    df_cand, CANDIDATAS, Y, alias=ALIAS, alfa=ALFA_IC_CORRELACION
 )
 df_influencia, df_estabilidad = (
     SELECCION["df_influencia"],
@@ -210,7 +218,8 @@ df_influencia, df_estabilidad = (
 # MAGIC covariable se transforma de forma automática, porque elegir la escala mirando la
 # MAGIC respuesta sería otra selección sobre los mismos 23 dominios, y una transformación tendría
 # MAGIC que aplicarse también a los municipios objetivo en el notebook del modelo. Si una
-# MAGIC covariable elegible queda en «revisar», la ficha lo advierte.
+# MAGIC covariable elegible queda en «revisar», la ficha lo advierte. Se calcula solo para las
+# MAGIC candidatas elegibles (R-62); las que ya quedaron fuera por la asociación no se examinan.
 # MAGIC
 # MAGIC **Multiplicidad (G7-B9).** Exigir que el intervalo al 95 % de cada candidata excluya el
 # MAGIC cero es la misma prueba al 5 % repetida 19 veces sin corrección. Por eso la elegibilidad
@@ -218,10 +227,9 @@ df_influencia, df_estabilidad = (
 # MAGIC candidatas (`q_FH`): es elegible la que tiene `q_FH ≤ Q_FDR_ELEGIBILIDAD` (0,10), lo que
 # MAGIC controla en 10 % la proporción esperada de falsos descubrimientos entre las elegibles. Es
 # MAGIC un tamizaje previo al modelo; la decisión final sobre los coeficientes la toma el
-# MAGIC notebook del modelo. Como lectura descriptiva se informa la **estabilidad
-# MAGIC bootstrap**: la proporción de réplicas válidas con remuestreo de dominios en que el
-# MAGIC intervalo de Wald de β1 excluye el cero con el mismo signo (se omiten y se cuentan en
-# MAGIC `Replicas_omitidas` las réplicas en que la covariable queda constante).
+# MAGIC notebook del modelo. La estabilidad de la selección frente al remuestreo de dominios no se
+# MAGIC calcula aquí (R-62): la frecuencia con que se elige cada covariable al repetir toda la
+# MAGIC cadena es `fh_validacion_cruzada_frecuencia` (G7-B19, notebook del modelo).
 # MAGIC
 # MAGIC La tabla trae también el **signo esperado** del catálogo. Es un **diagnóstico de
 # MAGIC coherencia sustantiva, no un filtro** (G7-B12): una asociación de signo contrario a la
@@ -268,8 +276,8 @@ display(spark.createDataFrame(df_forma))
 
 a_revisar = df_forma.loc[df_forma["Forma_funcional"] == "revisar", "Alias"].tolist()
 print(
-    f"Forma lineal adecuada en {len(CANDIDATAS) - len(a_revisar)} de {len(CANDIDATAS)} "
-    f"candidatas; a revisar: {', '.join(a_revisar) if a_revisar else 'ninguna'}."
+    f"Forma lineal adecuada en {len(df_forma) - len(a_revisar)} de {len(df_forma)} "
+    f"candidatas elegibles; a revisar: {', '.join(a_revisar) if a_revisar else 'ninguna'}."
 )
 
 # COMMAND ----------
@@ -526,7 +534,14 @@ except sel.SeleccionVaciaError:
 df_sensibilidad_signo = sel.sensibilidad_signo(
     df_ficha, SELECCIONADAS, df_ficha_signo, seleccionadas_signo, alias=ALIAS
 )
-display(spark.createDataFrame(df_sensibilidad_signo))
+# R-62: el resultado es una línea impresa, no una tabla (sin tabla en Unity Catalog).
+print(
+    "Sensibilidad al signo esperado (selección exigiendo el signo): "
+    + df_sensibilidad_signo.loc[1, "Diferencia_con_base"]
+    + f". Elegibles de signo inesperado en el base: "
+    + df_sensibilidad_signo.loc[0, "Elegibles_signo_inesperado"]
+    + "."
+)
 
 # COMMAND ----------
 
@@ -580,6 +595,7 @@ display(fig)
 
 # DBTITLE 1,Tabla maestra de trazabilidad
 ficha_idx = df_ficha.set_index("Codigo")
+ic_idx = df_ic.set_index("Codigo")
 influencia_idx = df_influencia.set_index("Codigo")
 estabilidad_idx = df_estabilidad.set_index("Codigo")
 redundancia_idx = df_redundancia.set_index("Codigo")
@@ -616,7 +632,7 @@ for _, entrada in reporte_catalogo.iterrows():
         continue
 
     fila["r_ponderada"] = float(ficha_idx.loc[codigo, "r_interpretable"])
-    fila["IC_contiene_cero"] = ficha_idx.loc[codigo, "IC_contiene_cero"]
+    fila["IC_contiene_cero"] = ic_idx.loc[codigo, "IC_contiene_cero"]
     fila["IC_FH_contiene_cero"] = ficha_idx.loc[codigo, "IC_FH_contiene_cero"]
     fila["q_FH"] = float(ficha_idx.loc[codigo, "q_FH"])
     fila["Signo_observado"] = ficha_idx.loc[codigo, "Signo_observado"]
@@ -642,7 +658,7 @@ display(spark.createDataFrame(df_trazabilidad))
 # DBTITLE 1,Escritura de las tablas de diagnóstico y trazabilidad
 df_diagnosticos = (
     df_ic.merge(df_fh.drop(columns=["Alias"]), on="Codigo")
-    .merge(df_forma.drop(columns=["Alias"]), on="Codigo")
+    .merge(df_forma.drop(columns=["Alias"]), on="Codigo", how="left")
     .merge(df_influencia.drop(columns=["Alias"]), on="Codigo")
     .merge(df_estabilidad.drop(columns=["Alias"]), on="Codigo")
     # R-63: la lectura de robustez va aquí en lugar de una tabla aparte que repetía
@@ -662,7 +678,6 @@ for tabla, destino in [
     (df_ficha, TBL_DECISION),
     (df_verificacion, TBL_VERIFICACION),
     (df_trazabilidad, TBL_TRAZABILIDAD),
-    (df_sensibilidad_signo, TBL_SENSIBILIDAD_SIGNO),
 ]:
     (
         spark.createDataFrame(tabla)
@@ -689,6 +704,9 @@ def escribir_base(codigos, destino):
 
     Returns:
         pyspark.sql.DataFrame: La tabla escrita, para mostrarla.
+
+    Example:
+        >>> escribir_base(SELECCIONADAS, TBL_SELECCIONADAS)  # doctest: +SKIP
     """
     cols = METADATA_COLS + [c for c in codigos if c not in METADATA_COLS]
     base = df_full.select(cols)

@@ -82,6 +82,9 @@ def _condicion_meses(meses: list):
 
     Returns:
         pyspark.sql.Column: Condición booleana sobre las columnas `PER` y `MES`.
+
+    Example:
+        >>> df.filter(_condicion_meses([(2018, 11), (2018, 12)]))  # doctest: +SKIP
     """
     condicion = None
     for anio, mes in meses:
@@ -234,7 +237,18 @@ def validar_formula_anual(
     trimestres = df_municipales[[c in cierres for c in claves]]
 
     def razon(df):
-        """TD = Σ DS / Σ PEA × 100 de un subconjunto (pd.DataFrame → float)."""
+        """Calcula la tasa de desempleo de un subconjunto de trimestres del anexo del DANE.
+
+        Args:
+            df (pd.DataFrame): Filas con `DESEMPLEADOS` y `PEA`.
+
+        Returns:
+            float: TD = Σ DS / Σ PEA × 100.
+
+        Example:
+            >>> razon(pd.DataFrame({"DESEMPLEADOS": [10], "PEA": [100]}))  # doctest: +SKIP
+            10.0
+        """
         return 100 * df["DESEMPLEADOS"].sum() / df["PEA"].sum()
 
     reconstruidas = {
@@ -275,6 +289,10 @@ def agregado_dominios(detalle_ventana: pd.DataFrame) -> float:
 
     Returns:
         float: Tasa agregada, en %.
+
+    Example:
+        >>> agregado_dominios(pd.DataFrame({"PEA_EXPANDIDA": [1, 3], "TASA_DESEMPLEO_PCT": [10.0, 20.0]}))
+        17.5
     """
     peso = detalle_ventana["PEA_EXPANDIDA"]
     return float((peso * detalle_ventana["TASA_DESEMPLEO_PCT"]).sum() / peso.sum())
