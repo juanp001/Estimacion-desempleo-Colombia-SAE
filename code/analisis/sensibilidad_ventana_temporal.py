@@ -77,7 +77,18 @@ from pyspark.sql import functions as F
 
 
 def _directorio_codigo() -> str:
-    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job."""
+    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job.
+
+    Resuelve el directorio con el contexto de `dbutils` cuando corre como notebook o job y, si
+    no existe (ejecución local), usa el directorio padre del directorio de trabajo.
+
+    Returns:
+        str: Ruta del directorio `code/` del repositorio.
+
+    Example:
+        >>> _directorio_codigo()  # doctest: +SKIP
+        '/Workspace/Users/usuario/.bundle/.../files/code'
+    """
     try:
         contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
         return "/Workspace" + os.path.dirname(

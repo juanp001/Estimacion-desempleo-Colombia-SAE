@@ -24,7 +24,7 @@ def figura_perfil_rho(perfiles: dict) -> plt.Figure:
         plt.Figure: Figura con el cambio de log-verosimilitud frente a ρ = 0.
 
     Example:
-        >>> fig = figura_perfil_rho({"knn3": modelo.perfil_rho()})
+        >>> fig = figura_perfil_rho({"knn3": modelo.perfil_rho()})  # doctest: +SKIP
     """
     fig, ax = plt.subplots(figsize=(7, 4))
     for nombre, perfil in perfiles.items():
@@ -51,7 +51,7 @@ def figura_validacion(cv: pd.DataFrame, columnas: dict) -> plt.Figure:
         plt.Figure: Un panel por predictor, con la diagonal de 45° como referencia.
 
     Example:
-        >>> figura_validacion(cv, {"Clásico": "pred_clasico", "Espacial": "pred_espacial"})
+        >>> figura_validacion(cv, {"Clásico": "pred_clasico", "Espacial": "pred_espacial"})  # doctest: +SKIP
     """
     fig, ejes = plt.subplots(
         1, len(columnas), figsize=(4.2 * len(columnas), 4), sharey=True
@@ -87,7 +87,7 @@ def figura_mapa_prediccion(
         plt.Figure: Figura con el recorte geográfico de Cauca y Valle del Cauca.
 
     Example:
-        >>> figura_mapa_prediccion(pred, dom, "PRED_ESPACIAL", "Tasa de desempleo (%)")
+        >>> figura_mapa_prediccion(pred, dom, "PRED_ESPACIAL", "Tasa de desempleo (%)")  # doctest: +SKIP
     """
     vmin = min(objetivo[columna].min(), dominios["Y"].min())
     vmax = max(objetivo[columna].max(), dominios["Y"].max())

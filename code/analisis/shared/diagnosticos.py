@@ -64,7 +64,7 @@ def ic_fisher_pearson(x: np.ndarray, y: np.ndarray, alfa: float = 0.05) -> tuple
         ValueError: Si hay menos de cuatro observaciones.
 
     Example:
-        >>> ic_fisher_pearson(x, Y)
+        >>> ic_fisher_pearson(x, Y)  # doctest: +SKIP
         (0.038, 0.723)
     """
     n = len(x)
@@ -99,7 +99,7 @@ def tabla_ic_correlacion(
             `IC_contiene_cero` (`"sí"`/`"no"`), ordenada por |r| descendente.
 
     Example:
-        >>> tabla_ic_correlacion(df_cand, codigos, Y, alias)
+        >>> tabla_ic_correlacion(df_cand, codigos, Y, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     filas = []
@@ -130,6 +130,9 @@ def _ajuste_fh(x: np.ndarray, y: np.ndarray, psi: np.ndarray) -> tuple:
 
     Returns:
         tuple: (A, beta, cov_beta). `beta` tiene shape (2,) y `cov_beta` shape (2, 2).
+
+    Example:
+        >>> A, beta, cov = _ajuste_fh(x, y, psi)  # doctest: +SKIP
     """
     return _ajuste_fh_matriz(np.column_stack([np.ones_like(x), x]), y, psi)
 
@@ -150,9 +153,23 @@ def _ajuste_fh_matriz(X: np.ndarray, y: np.ndarray, psi: np.ndarray) -> tuple:
 
     Returns:
         tuple: (A, beta, cov_beta). `beta` tiene shape (p,) y `cov_beta` shape (p, p).
+
+    Example:
+        >>> A, beta, cov = _ajuste_fh_matriz(X, y, psi)  # doctest: +SKIP
     """
 
     def menos_reml(log_a):
+        """Menos la log-verosimilitud REML del Fay-Herriot como función de log(A).
+
+        Args:
+            log_a (float): Logaritmo de la varianza de los efectos de área A.
+
+        Returns:
+            float: Valor que `minimize_scalar` minimiza para estimar A.
+
+        Example:
+            >>> menos_reml(0.0)  # doctest: +SKIP
+        """
         vi = 1.0 / (psi + np.exp(log_a))
         xtvi = X.T * vi
         q = xtvi @ X
@@ -181,9 +198,23 @@ def _loglik_ml(X: np.ndarray, y: np.ndarray, psi: np.ndarray) -> float:
 
     Returns:
         float: Log-verosimilitud ML en su máximo.
+
+    Example:
+        >>> _loglik_ml(X, y, psi)  # doctest: +SKIP
     """
 
     def menos_ml(log_a):
+        """Menos la log-verosimilitud ML del Fay-Herriot como función de log(A).
+
+        Args:
+            log_a (float): Logaritmo de la varianza de los efectos de área A.
+
+        Returns:
+            float: Valor que `minimize_scalar` minimiza; incluye la constante (n/2)·log(2π).
+
+        Example:
+            >>> menos_ml(0.0)  # doctest: +SKIP
+        """
         v = psi + np.exp(log_a)
         xtvi = X.T / v
         residuo = y - X @ np.linalg.solve(xtvi @ X, xtvi @ y)
@@ -213,7 +244,7 @@ def correlacion_ponderada(x: np.ndarray, y: np.ndarray, pesos: np.ndarray) -> fl
         float: Correlación ponderada.
 
     Example:
-        >>> correlacion_ponderada(x, Y, 1 / (A_hat + psi))
+        >>> correlacion_ponderada(x, Y, 1 / (A_hat + psi))  # doctest: +SKIP
     """
     w = pesos / pesos.sum()
     dx, dy = x - w @ x, y - w @ y
@@ -260,7 +291,7 @@ def fh_univariado(
             (`"sí"`/`"no"`), `p_FH` y `q_FH`, ordenada por |r_ponderada| descendente.
 
     Example:
-        >>> fh_univariado(df_cand, codigos, Y, SE**2, alias)
+        >>> fh_univariado(df_cand, codigos, Y, SE**2, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     y = np.asarray(y, dtype=float)
@@ -324,7 +355,7 @@ def influencia_fh(
             `Dominios_influyentes`.
 
     Example:
-        >>> influencia_fh(df_cand, codigos, Y, PSI, entidades, alias)
+        >>> influencia_fh(df_cand, codigos, Y, PSI, entidades, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     y = np.asarray(y, dtype=float)
@@ -384,7 +415,7 @@ def estabilidad_fh(
             `Delta_max`, `Delta_max_abs`, `Dominio_critico` e `Invierte_signo`.
 
     Example:
-        >>> estabilidad_fh(df_cand, codigos, Y, PSI, entidades, alias)
+        >>> estabilidad_fh(df_cand, codigos, Y, PSI, entidades, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     y = np.asarray(y, dtype=float)
@@ -466,7 +497,7 @@ def forma_funcional(
             `"revisar"`).
 
     Example:
-        >>> forma_funcional(df_cand, codigos, Y, PSI, alias)
+        >>> forma_funcional(df_cand, codigos, Y, PSI, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     y = np.asarray(y, dtype=float)
@@ -527,7 +558,7 @@ def figura_residuos_parciales(
         matplotlib.figure.Figure: Un panel por covariable.
 
     Example:
-        >>> fig = figura_residuos_parciales(df_cand, SELECCIONADAS, Y, PSI, ALIAS)
+        >>> fig = figura_residuos_parciales(df_cand, SELECCIONADAS, Y, PSI, ALIAS)  # doctest: +SKIP
     """
     import matplotlib.pyplot as plt
     from statsmodels.nonparametric.smoothers_lowess import lowess
@@ -588,7 +619,7 @@ def vif_conjunto(df: pd.DataFrame, columnas: list, alias: dict = None) -> pd.Dat
             Con una sola covariable el factor es 1 por definición.
 
     Example:
-        >>> vif_conjunto(df_cand, seleccionadas, alias)
+        >>> vif_conjunto(df_cand, seleccionadas, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     if len(columnas) < 2:
@@ -629,7 +660,7 @@ def figura_robustez(
         matplotlib.figure.Figure: Figura del plano de robustez.
 
     Example:
-        >>> fig = figura_robustez(df_cook, df_loo)
+        >>> fig = figura_robustez(df_cook, df_loo)  # doctest: +SKIP
     """
     import matplotlib.pyplot as plt
 
@@ -705,7 +736,7 @@ def interpretar_robustez(
         str: Interpretación lista para imprimir junto a la figura.
 
     Example:
-        >>> print(interpretar_robustez(df_influencia, df_estabilidad))
+        >>> print(interpretar_robustez(df_influencia, df_estabilidad))  # doctest: +SKIP
     """
     unido = influencia.merge(estabilidad, on="Codigo", suffixes=("", "_loo"))
     umbral_cook = float(unido["Umbral"].iloc[0])

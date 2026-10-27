@@ -207,7 +207,7 @@ def evaluar_elegibilidad(
             `Elegible` (`"sí"`/`"no"`) y `Motivo` (vacío si es elegible).
 
     Example:
-        >>> evaluar_elegibilidad(CANDIDATAS, SIGNO, df_fh, Q_FDR_ELEGIBILIDAD)
+        >>> evaluar_elegibilidad(CANDIDATAS, SIGNO, df_fh, Q_FDR_ELEGIBILIDAD)  # doctest: +SKIP
     """
     fh_idx = fh.set_index("Codigo")
 
@@ -297,7 +297,7 @@ def resolver_redundancia(
             covariable con su grupo, si fue elegida representante y el motivo.
 
     Example:
-        >>> representantes, reporte = resolver_redundancia(
+        >>> representantes, reporte = resolver_redundancia(  # doctest: +SKIP
         ...     df, codigos, cook, alias, elegibilidad=df_elegibilidad)
     """
     alias = alias or {}
@@ -309,6 +309,18 @@ def resolver_redundancia(
     )
 
     def es_elegible(codigo):
+        """Indica si una covariable es elegible según la tabla de elegibilidad.
+
+        Args:
+            codigo (str): Código de la covariable.
+
+        Returns:
+            bool: True si está en `elegibilidad` con `Elegible == "sí"`; False si no está o no lo es.
+
+        Example:
+            >>> es_elegible("260020003")  # doctest: +SKIP
+            False
+        """
         return codigo in eleg.index and eleg.loc[codigo, "Elegible"] == "sí"
 
     representantes, filas = [], []
@@ -603,14 +615,40 @@ def sensibilidad_signo(
             las seleccionadas, las elegibles de signo inesperado y la diferencia con el base.
 
     Example:
-        >>> sensibilidad_signo(df_ficha, SELECCIONADAS, df_ficha_sin, sel_sin, ALIAS)
+        >>> sensibilidad_signo(df_ficha, SELECCIONADAS, df_ficha_sin, sel_sin, ALIAS)  # doctest: +SKIP
     """
     alias = alias or {}
 
     def nombres(codigos):
+        """Une los alias de una lista de códigos en un texto legible.
+
+        Args:
+            codigos (Iterable[str]): Códigos de covariables.
+
+        Returns:
+            str: Alias separados por coma, o «—» si la lista está vacía.
+
+        Example:
+            >>> nombres([])  # doctest: +SKIP
+            '—'
+        """
         return ", ".join(alias.get(c, c) for c in codigos) or "—"
 
     def resumen(escenario, regla, ficha, seleccionadas):
+        """Resume un escenario de selección en una fila de la tabla de sensibilidad.
+
+        Args:
+            escenario (str): Nombre del escenario («base», «sin signo inesperado»).
+            regla (str): Cómo se trata el signo esperado («diagnóstico» o «filtro»).
+            ficha (pd.DataFrame): Ficha de decisión del escenario.
+            seleccionadas (list[str]): Conjunto final del escenario.
+
+        Returns:
+            dict: Escenario, regla, número de elegibles, seleccionadas y elegibles de signo inesperado.
+
+        Example:
+            >>> resumen("base", "diagnóstico", df_ficha, SELECCIONADAS)  # doctest: +SKIP
+        """
         elegibles = ficha["Decision"].isin(["seleccionada", "no seleccionada"])
         inesperado = ficha.loc[elegibles & (ficha["Signo_coherente"] == "no"), "Codigo"]
         return {
@@ -664,7 +702,7 @@ def ajustar_por_vif(
             lista de cadenas que describen cada sustitución realizada).
 
     Example:
-        >>> finales, df_vif, cambios = ajustar_por_vif(df_cand, seleccionadas, restantes)
+        >>> finales, df_vif, cambios = ajustar_por_vif(df_cand, seleccionadas, restantes)  # doctest: +SKIP
     """
     alias = alias or {}
     conjunto = list(seleccionadas)
@@ -723,7 +761,7 @@ def _anotar_vif_en_ficha(
         pd.DataFrame: Copia de la ficha con `Decision` y `Motivo` al día.
 
     Example:
-        >>> ficha = _anotar_vif_en_ficha(ficha, ["A", "B"], ["A", "C"])
+        >>> ficha = _anotar_vif_en_ficha(ficha, ["A", "B"], ["A", "C"])  # doctest: +SKIP
     """
     ficha = ficha.copy()
     entran = [c for c in finales if c not in previas]
@@ -737,7 +775,19 @@ def _anotar_vif_en_ficha(
     )
 
     def motivo_vif(codigo, motivo):
-        """(str, str) → str: motivo con la nota de VIF si la covariable entra o sale."""
+        """Agrega a un motivo la nota de VIF si la covariable entra o sale del conjunto.
+
+        Args:
+            codigo (str): Código de la covariable.
+            motivo (str): Motivo de la ficha antes del ajuste por VIF.
+
+        Returns:
+            str: Motivo reescrito si la covariable salió o entró por multicolinealidad; el mismo
+                motivo si no cambió.
+
+        Example:
+            >>> motivo_vif("C1", "elegible; ...")  # doctest: +SKIP
+        """
         if codigo in salen:
             return (
                 motivo.replace(
@@ -1053,7 +1103,7 @@ def _grupos_enlace_completo(df: pd.DataFrame, umbral: float) -> list:
 
     Example:
         >>> # IDF–ING_TRIB_PC 0.81, ING_TRIB_PC–VA_PC 0.93, IDF–VA_PC 0.73
-        >>> _grupos_enlace_completo(df_fiscal, 0.80)
+        >>> _grupos_enlace_completo(df_fiscal, 0.80)  # doctest: +SKIP
         [['ING_TRIB_PC', 'VA_PC'], ['IDF']]
     """
     cols = list(df.columns)

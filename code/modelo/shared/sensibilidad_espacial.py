@@ -129,7 +129,19 @@ def sensibilidad_centroide(
     """
 
     def distancias(lat_dom, lon_dom):
-        """(array, array) → np.ndarray: distancias de [dominios, objetivos] con esas coordenadas."""
+        """Distancias Haversine entre dominios y objetivos con las coordenadas dadas.
+
+        Args:
+            lat_dom (array-like): Latitud de cada dominio con encuesta, shape (n,).
+            lon_dom (array-like): Longitud de cada dominio con encuesta, shape (n,).
+
+        Returns:
+            np.ndarray: Matriz de distancias en km entre las n + r unidades (dominios y objetivos),
+                shape (n + r, n + r).
+
+        Example:
+            >>> distancias(lat_med, lon_med)  # doctest: +SKIP
+        """
         lat = np.concatenate(
             [np.asarray(lat_dom, float), df_objetivo["LATITUD"].values]
         )
