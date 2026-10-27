@@ -89,11 +89,23 @@ zona rural), que el proyecto decidió no usar, así que no hay un valor de refer
 Un tercer nivel departamental queda como extensión posible si se incorporan esos registros. Las 16 ciudades de un solo municipio tampoco tienen nivel 2: ajustarlas a su propia
 estimación directa devolvería la directa y anularía la ganancia del Fay-Herriot.
 
-Incertidumbre
--------------
-Se trata λ como fijo: RMSE^B = λ · RMSE, y por tanto el CV no cambia (CV^B = RMSE^B / θ^B = CV).
-Es una aproximación: ignora la variabilidad de λ, que depende de la estimación directa del
-territorio de referencia. Con dominios de CV cercano al 5 % y λ cercano a 1 su efecto es pequeño.
+Incertidumbre (R-09)
+--------------------
+Aun con λ fijo, θ̂^B = λθ̂ es sesgado para θ: bajo el modelo E(θ̂ − θ) ≈ 0, así que
+E(λθ̂ − θ) ≈ (λ − 1)θ y MSE(θ̂^B) ≈ λ²·MSE(θ̂) + (λ − 1)²θ². El segundo término se estima con
+(θ̂^B − θ̂)² = (λ − 1)²θ̂² (``rmse_benchmark``):
+
+    RMSE^B = √(λ²·MSE + (θ̂^B − θ̂)²),     CV^B = RMSE^B / θ̂^B.
+
+Es la definición de MSE como E(μ̂ − μ)² (Morales et al., 2021, pp. 441-442) aplicada al estimador
+ajustado; las fuentes de la base que describen el factor (ENUSC 2018, PDF 23; DANE, nota SAE
+2024, PDF 25) no dan su MSE, y el tratamiento formal del MSE con benchmarking está en Steorts y
+Ghosh (2013, Statistica Sinica 23), fuera de la base. La fórmula sigue ignorando la variabilidad
+de λ (que depende de la estimación directa del territorio de referencia). En el nivel 1, λ₁ ≈ 1 y
+el término de sesgo es despreciable; en el nivel 2 no: con λ_D lejos de 1 el sesgo puede dominar
+el error del municipio. Además, el MSE del sintético x'Cov(β̂)x + Â supone que el efecto del
+municipio es independiente de la muestra (caso d ∈ D1, Morales p. 442); Cali es casi todo el
+dominio Cali A.M., así que en Cali es una aproximación (para d ∈ D0 el libro resta 2a_dd·Â).
 
 Cómo se verifica (``verificar_benchmark``)
 ------------------------------------------
@@ -172,6 +184,37 @@ def factor_razon(estimaciones, pesos, objetivo: float) -> float:
             f"agregado ponderado = {agregado}: el ajuste de razón exige un agregado positivo"
         )
     return objetivo / agregado
+
+
+def rmse_benchmark(rmse, estimacion, estimacion_bm, lam) -> np.ndarray:
+    """RMSE de la estimación ajustada por benchmarking, con el término de sesgo (R-09).
+
+    RMSE^B = √(λ²·RMSE² + (θ̂^B − θ̂)²): la parte λ²·MSE es la varianza escalada (λ fijo) y
+    (θ̂^B − θ̂)² estima el sesgo al cuadrado (λ − 1)²θ² que introduce el ajuste de razón.
+
+    Args:
+        rmse (array-like): RMSE de la estimación sin ajustar (EBLUP o sintético).
+        estimacion (array-like): Estimación sin ajustar θ̂.
+        estimacion_bm (array-like): Estimación ajustada θ̂^B = λ·θ̂.
+        lam (float | array-like): Factor de razón λ de cada unidad.
+
+    Returns:
+        np.ndarray: RMSE^B de cada unidad. Con λ = 1 coincide con `rmse`.
+
+    Casos de uso:
+        RMSE y CV publicados de los dominios (nivel 1) y de los municipios de un A.M. (nivel 2)
+        en ``fay_herriot.py``.
+
+    Example:
+        >>> rmse_benchmark([3.0], [10.0], [8.0], 0.8).round(4).tolist()
+        [3.1241]
+        >>> rmse_benchmark([3.0, 1.0], [10.0, 5.0], [10.0, 5.0], 1.0).tolist()
+        [3.0, 1.0]
+    """
+    rmse = np.asarray(rmse, dtype=float)
+    sesgo = np.asarray(estimacion_bm, dtype=float) - np.asarray(estimacion, dtype=float)
+    lam = np.asarray(lam, dtype=float)
+    return np.sqrt((lam * rmse) ** 2 + sesgo**2)
 
 
 def benchmark_nivel1(estimaciones, pesos, objetivo: float) -> tuple:

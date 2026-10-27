@@ -22,8 +22,9 @@
 # MAGIC 1. **MSE del EBLUP.** Estimador de Prasad-Rao para REML del libro (p. 440), con
 # MAGIC    `g3 = D²/(D+Â)³ · avar(Â)`.
 # MAGIC 2. **De dónde salen las covariables.** El conjunto lo elige
-# MAGIC    `eda_seleccion_covariables` (EC1) y aquí se compara con las **especificaciones que
-# MAGIC    dejan una covariable fuera** (EC2…), para responder si cada covariable aporta.
+# MAGIC    `eda_seleccion_covariables` (EC1) y aquí se compara con **todos sus subconjuntos no
+# MAGIC    vacíos** (EC2…; R-05), para responder si cada covariable aporta. Con la cota
+# MAGIC    n // 10 = 2 son 3 especificaciones.
 # MAGIC 3. **Cómo se elige el benchmark.** El modelo se usa para predecir municipios sin
 # MAGIC    encuesta. Según Morales et al. (p. 453), los modelos de área suelen servir para
 # MAGIC    predecir lo observado y admiten sobreparametrizar; pero si además se predice fuera de
@@ -33,6 +34,10 @@
 # MAGIC    alguna covariable con p > 0.05 si tiene interpretación razonable (p. 454); eso debe
 # MAGIC    reportarse como excepción explícita, no aplicarse en silencio. Entre las que compiten
 # MAGIC    se elige la de menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
+# MAGIC    **R-05:** si ninguna especificación cumple la regla, el notebook no se detiene (se
+# MAGIC    muestra el proceso completo): compiten todas con el mismo criterio, se imprime un aviso
+# MAGIC    con las covariables no significativas y la columna `Criterio` de `fh_seleccion_modelo`
+# MAGIC    lo registra como excepción; su justificación va en el documento de tesis.
 # MAGIC    El umbral ΔAIC ≤ 2 y el AICc son convenciones externas al libro. **G7-B16:** el **AICc** se calcula
 # MAGIC    como complemento (no cambia la decisión) porque con 23 dominios el AIC penaliza poco; en
 # MAGIC    Fay-Herriot es una aproximación (la fórmula viene de regresión con errores iid y aquí las
@@ -120,7 +125,7 @@ from shared.config import *
 from shared.fay_herriot import FayHerriotClasico
 from shared.seleccion_modelo import (
     etiqueta_especificacion,
-    variantes_dejar_una_fuera,
+    subconjuntos_covariables,
     distancia_cook,
     tabla_diagnosticos,
     tabla_cook,
@@ -206,6 +211,7 @@ from shared.benchmarking import (
     benchmark_nivel1,
     benchmark_nivel2,
     brecha_agregacion,
+    rmse_benchmark,
     verificar_benchmark,
 )
 
@@ -260,7 +266,7 @@ print(f"Columnas disponibles:  {df.columns.tolist()}\n")
 
 # COMMAND ----------
 
-# DBTITLE 1,2. Especificaciones candidatas del modelo base (conjunto del EDA y dejar-una-fuera)
+# DBTITLE 1,2. Especificaciones candidatas del modelo base (subconjuntos del conjunto del EDA, R-05)
 covars_eda = [c for c in df.columns if c in alias_a_codigo]
 
 if not covars_eda:
@@ -269,7 +275,7 @@ if not covars_eda:
         f"Volver a ejecutar eda_seleccion_covariables."
     )
 
-nombres_covars = variantes_dejar_una_fuera(covars_eda)
+nombres_covars = subconjuntos_covariables(covars_eda)
 
 print(f"Conjunto elegido por el análisis exploratorio: {' + '.join(covars_eda)}")
 print(
@@ -277,8 +283,8 @@ print(
     f"({len(nombres_covars)}):"
 )
 for i, covars in enumerate(nombres_covars, 1):
-    excluida = set(covars_eda) - set(covars)
-    etiqueta = f"(sin {next(iter(excluida))})" if excluida else "(conjunto completo)"
+    excluidas = [c for c in covars_eda if c not in covars]
+    etiqueta = f"(sin {', '.join(excluidas)})" if excluidas else "(conjunto completo)"
     print(f"  {etiqueta_especificacion(i)}: {' + '.join(covars)}  {etiqueta}")
 
 # COMMAND ----------
@@ -460,6 +466,10 @@ if len(modelos) > 1:
         f"  Candidata: todas las covariables con p < {ALFA_SIGNIFICANCIA} "
         "(Morales et al., p. 453: no sobreparametrizar al predecir fuera de muestra; "
         "p. 454 admite una covariable con p > 0.05 si es interpretable, a reportar aparte)"
+    )
+    print(
+        "  Criterio: regla estricta o respaldo (ninguna cumple la regla: compiten todas y el "
+        "benchmark se reporta como excepción, R-05)"
     )
     print(
         f"  Equivalente_AIC: ΔAIC ≤ {DELTA_AIC_EQUIVALENTE} frente a la mejor candidata; "
@@ -733,8 +743,13 @@ eblup_n1, lambda_n1 = benchmark_nivel1(modelo_ganador.eblup, pea_dominio, refere
 resultados_ganador["PEA_EXPANDIDA"] = pea_dominio.round(0)
 resultados_ganador["LAMBDA_N1"] = round(lambda_n1, 6)
 resultados_ganador["EBLUP_BENCHMARK"] = eblup_n1.round(4)
-# λ se trata como fijo: el RMSE se escala por λ y el CV no cambia (ver shared/benchmarking.py).
-resultados_ganador["RMSE_EBLUP_BENCHMARK"] = (modelo_ganador.rmse * lambda_n1).round(4)
+# R-09: RMSE^B = √(λ²·MSE + (θ̂^B − θ̂)²), con el sesgo que introduce el ajuste de razón
+# (shared/benchmarking.py). Con λ₁ ≈ 1 el CV casi no cambia; es el que se publica.
+rmse_eblup_n1 = rmse_benchmark(
+    modelo_ganador.rmse, modelo_ganador.eblup, eblup_n1, lambda_n1
+)
+resultados_ganador["RMSE_EBLUP_BENCHMARK"] = rmse_eblup_n1.round(4)
+resultados_ganador["CV_EBLUP_BENCHMARK_PCT"] = (100 * rmse_eblup_n1 / eblup_n1).round(2)
 
 print(
     f"λ₁ = {lambda_n1:.6f}  (agregado de los EBLUP antes del ajuste: "
@@ -781,8 +796,9 @@ df_pred["RMSE_SINTETICO"] = rmse_sintetico.round(4)
 df_pred["CV_SINTETICO_PCT"] = cv_sintetico.round(2)
 # Extrapolación (B20, shared/extrapolacion.py), con cualquier número de covariables:
 # FUERA_DEL_RANGO si alguna covariable del municipio sale del [mín, máx] de los dominios;
-# COMBINACION_ATIPICA si todas están dentro pero x_m'Cov(β̂)x_m supera el máximo de la muestra
-# (Morales et al., p. 441). Se agregan la covariable responsable, la predicción con las
+# COMBINACION_ATIPICA si todas están dentro pero x_m'Cov(β̂)x_m (término de la varianza del
+# sintético, Morales et al., p. 441) supera el máximo de la muestra (umbral de extrapolación
+# oculta de Montgomery, Peck y Vining, sec. 3.8; inerte con una sola covariable, R-66). Se agregan la covariable responsable, la predicción con las
 # covariables acotadas al rango y la parte de la predicción que viene de fuera (pp).
 estado_ext = estado_extrapolacion(
     modelo_ganador.X,
@@ -1004,7 +1020,7 @@ pendientes.agregar(df_influencia, TBL_FH_LOAO_DOMINIOS, PER_MES)
 # MAGIC 2. **Procedimiento completo**: en cada iteración se repite todo con los 22 dominios que
 # MAGIC    quedan: la selección de covariables de `eda_seleccion_covariables` (Fay-Herriot
 # MAGIC    univariado con ψ_d, falsos descubrimientos, robustez, redundancia, parsimonia, VIF) y la
-# MAGIC    elección de la especificación de la celda 8 (conjunto y dejar-una-fuera, significancia,
+# MAGIC    elección de la especificación de la celda 8 (subconjuntos del conjunto, significancia,
 # MAGIC    AIC, parsimonia). Mide el error del **procedimiento**; su diferencia con el ejercicio 1
 # MAGIC    es el costo de seleccionar con los mismos datos.
 # MAGIC
@@ -1213,7 +1229,16 @@ df_bm2 = benchmark_nivel2(
 )
 df_pred["LAMBDA_N2"] = df_bm2["LAMBDA_N2"].round(6)
 df_pred["PRED_BENCHMARK"] = df_bm2["PRED_BENCHMARK"].round(4)
-df_pred["RMSE_BENCHMARK"] = (rmse_sintetico * df_bm2["LAMBDA_N2"]).round(4)
+# R-09: el RMSE del municipio ajustado incluye el sesgo (λ_D − 1)·θ̂ del ajuste de razón; con
+# λ_D lejos de 1 domina el error, así que el CV publicado (CV_BENCHMARK_PCT) sube. En los
+# municipios sin dominio padre λ = 1 y coincide con el del sintético.
+rmse_n2 = rmse_benchmark(
+    rmse_sintetico, y_sintetico, df_bm2["PRED_BENCHMARK"], df_bm2["LAMBDA_N2"]
+)
+df_pred["RMSE_BENCHMARK"] = rmse_n2.round(4)
+df_pred["CV_BENCHMARK_PCT"] = (
+    100 * rmse_n2 / np.abs(df_bm2["PRED_BENCHMARK"].to_numpy(dtype=float))
+).round(2)
 df_pred["TIPO"] = np.where(df_bm2["BENCHMARK"], "SINTETICO_BENCHMARK", "SINTETICO")
 
 ajustados = df_pred[df_bm2["BENCHMARK"]]
@@ -1228,6 +1253,7 @@ display(
             "LAMBDA_N2",
             "PRED_BENCHMARK",
             "CV_SINTETICO_PCT",
+            "CV_BENCHMARK_PCT",
         ]
     ]
 )
@@ -1268,7 +1294,8 @@ tabla_dominios = pd.DataFrame(
         "TASA_DESEMPLEO_PCT": resultados_ganador["EBLUP_BENCHMARK"],
         "TASA_SIN_AJUSTE_PCT": resultados_ganador["EBLUP"],
         "LAMBDA": resultados_ganador["LAMBDA_N1"],
-        "CV_PCT": resultados_ganador["CV_EBLUP_PCT"],
+        # R-09: CV del valor publicado (EBLUP ajustado), con el sesgo del ajuste.
+        "CV_PCT": resultados_ganador["CV_EBLUP_BENCHMARK_PCT"],
         "TIPO": "EBLUP_BENCHMARK",
     }
 )
@@ -1281,7 +1308,7 @@ tabla_municipios = pd.DataFrame(
         "TASA_DESEMPLEO_PCT": df_pred["PRED_BENCHMARK"],
         "TASA_SIN_AJUSTE_PCT": df_pred["PRED_SINTETICO"],
         "LAMBDA": df_pred["LAMBDA_N2"],
-        "CV_PCT": df_pred["CV_SINTETICO_PCT"],
+        "CV_PCT": df_pred["CV_BENCHMARK_PCT"],
         "TIPO": df_pred["TIPO"],
         # Estado de extrapolación (B20): entra a la etiqueta CALIDAD_REPORTADA (B21).
         "ESTADO_EXTRAPOLACION": df_pred["ESTADO_EXTRAPOLACION"],
