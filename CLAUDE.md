@@ -266,7 +266,8 @@ modelo/fay_herriot.py
   → extrapolación B20 (celda 10a, shared/extrapolacion.py, cualquier número de covariables; la tasa
     publicada NO cambia): ESTADO_EXTRAPOLACION = FUERA_DEL_RANGO (alguna covariable fuera del
     [mín, máx] de los 23 dominios) / COMBINACION_ATIPICA (todas dentro pero x'Cov(β̂)x > máximo de la
-    muestra, Morales p. 441; solo con p ≥ 2) / DENTRO_DEL_RANGO; COVARIABLES_FUERA,
+    muestra; h es el término de Morales p. 441, pero el umbral es la extrapolación oculta de Montgomery,
+    Peck y Vining, sec. 3.8, R-66; solo con p ≥ 2, inerte con una covariable) / DENTRO_DEL_RANGO; COVARIABLES_FUERA,
     COVARIABLE_PRINCIPAL (mayor |β̂_j(x_j − x̃_j)|), RAZON_H, PRED_ACOTADA (x̃'β̂ con x recortado al
     rango) y APORTE_EXTRAPOLADO_PP (x'β̂ − x̃'β̂). Sensibilidad: acotada + reajuste quitando cada
     dominio (mín/máx/amplitud y dominio más influyente). Sustento: Benedetti 2024 p. 144, Morales

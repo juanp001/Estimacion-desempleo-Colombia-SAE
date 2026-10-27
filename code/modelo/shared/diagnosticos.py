@@ -377,7 +377,8 @@ def marca_extrapolacion(X_nuevos: np.ndarray, modelo: ModeloAreaPequena) -> np.n
     Usa el criterio de `shared/extrapolacion.estado_extrapolacion`: extrapola si alguna
     covariable queda fuera del rango [mín, máx] de los dominios de ajuste o si, con todas
     dentro, ``x_m'Cov(β̂)x_m`` (el término de la varianza del predictor sintético, Morales et
-    al., p. 441) supera el máximo de esa cantidad en los dominios.
+    al., p. 441) supera el máximo de esa cantidad en los dominios. El umbral no es de Morales:
+    es el criterio de extrapolación oculta de Montgomery, Peck y Vining (sec. 3.8) (R-66).
 
     Args:
         X_nuevos (np.ndarray): Matriz de diseño de los municipios (m, p), con intercepto.

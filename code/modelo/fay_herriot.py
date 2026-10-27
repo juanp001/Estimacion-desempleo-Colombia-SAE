@@ -796,8 +796,9 @@ df_pred["RMSE_SINTETICO"] = rmse_sintetico.round(4)
 df_pred["CV_SINTETICO_PCT"] = cv_sintetico.round(2)
 # Extrapolación (B20, shared/extrapolacion.py), con cualquier número de covariables:
 # FUERA_DEL_RANGO si alguna covariable del municipio sale del [mín, máx] de los dominios;
-# COMBINACION_ATIPICA si todas están dentro pero x_m'Cov(β̂)x_m supera el máximo de la muestra
-# (Morales et al., p. 441). Se agregan la covariable responsable, la predicción con las
+# COMBINACION_ATIPICA si todas están dentro pero x_m'Cov(β̂)x_m (término de la varianza del
+# sintético, Morales et al., p. 441) supera el máximo de la muestra (umbral de extrapolación
+# oculta de Montgomery, Peck y Vining, sec. 3.8; inerte con una sola covariable, R-66). Se agregan la covariable responsable, la predicción con las
 # covariables acotadas al rango y la parte de la predicción que viene de fuera (pp).
 estado_ext = estado_extrapolacion(
     modelo_ganador.X,
