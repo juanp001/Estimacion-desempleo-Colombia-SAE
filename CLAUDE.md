@@ -467,8 +467,8 @@ clásico 2.524 frente a 2.346 (`knn3`), 2.590, 2.602 y 2.859 del espacial con ef
 respaldo en la verosimilitud. El efecto espacial en los 81 nodos objetivo es pequeño (media absoluta
 0.13 pp; −2.84 pp en Cali y Yumbo) y 21 de 83 objetivos extrapolan. El modelo recomendado sigue siendo el
 clásico (benchmark); detalle, tablas, comparación con el cierre anterior y limitaciones en
-`docs/fay_herriot_espacial.md`. Las figuras de `docs/img/` son de la corrida anterior: el volumen
-`/Volumes/tesis/modelo/figuras` no existe en el workspace, así que no se guardaron las nuevas. Ojo: en
+`docs/fay_herriot_espacial.md`. Las figuras `fhe_*` de `docs/img/` se regeneraron con esa corrida (el volumen
+`/Volumes/tesis/modelo/figuras` ya existe). Ojo: en
 `municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; desde R-14 el notebook
 espacial no la excluye: Cali y Yumbo son subáreas del nodo Cali A.M. `marca_extrapolacion` (B20) recibe la
 matriz de diseño de los objetivos (`X_obj`), no `x'Cov(β̂)x`.

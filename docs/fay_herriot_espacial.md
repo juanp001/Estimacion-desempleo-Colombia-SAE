@@ -14,11 +14,11 @@ objetivo. Las tres tareas (`fay_herriot`, `sensibilidad_varianza`, `fay_herriot_
 anterior del documento describía la corrida previa al bloque 05 de la revisión (R-12 a R-16, R-42, R-43,
 R-45) y al bloque 04 (R-01, R-02, R-05, R-07); ver «Qué cambió frente al cierre anterior».
 
-> **Figuras.** Las cuatro imágenes de `docs/img/` (`fhe_perfil_rho`, `fhe_validacion`, `fhe_mapa_clasico`,
-> `fhe_mapa_espacial`) son de la corrida anterior y **no se regeneraron**: el volumen
-> `/Volumes/tesis/modelo/figuras` (R-45) no existe en el workspace, así que el notebook mostró las figuras
-> pero no las guardó. Hay que crear el volumen y volver a correr el notebook para actualizarlas. Las tablas
-> de este documento sí son de la corrida nueva y mandan sobre lo que muestran esas imágenes.
+> **Figuras.** Las cinco imágenes de `docs/img/` (`fhe_perfil_rho`, `fhe_validacion`, `fhe_mapa_clasico`,
+> `fhe_mapa_espacial`, `fhe_mapa_residuos`) se regeneraron con una segunda corrida de la tarea
+> `fay_herriot_espacial` (2026-10-27, tras crear el volumen `/Volumes/tesis/modelo/figuras`), que dio las
+> mismas cifras que la primera (ρ̂ = 0.3724, RMSE 2.5243 y 2.3464, 21 objetivos que extrapolan). Las
+> figuras del clásico (`fh_*`) se guardarán en el mismo volumen la próxima vez que corra `fay_herriot`.
 
 > **Qué implementa el código actual** (bloque 05 de la revisión): (R-14) Cali y Yumbo no son nodos de W sino
 > subáreas del nodo «Cali A.M.» con benchmarking de nivel 2, y se predicen los mismos 83 municipios del
@@ -250,6 +250,8 @@ estandarización (R-12), tienen I entre −0.115 y −0.038 y p entre 0.52 y 0.9
 `completa`). Con n = 23 la potencia es baja: un Moran no significativo no demuestra independencia, solo
 que los datos no la contradicen.
 
+![Mapa de residuos estandarizados: clásico y SEBLUP](img/fhe_mapa_residuos.png)
+
 ### 6.3 SEBLUP frente al clásico (`fhe_comparacion_modelos`)
 
 Clásico: Â = 5.529, AIC = 108.90.
@@ -288,7 +290,7 @@ corte del intervalo al 95 %) y el intervalo de verosimilitud perfilada cubre cas
 `inversa1` llega al límite inferior de la rejilla (−0.9). Con 23 dominios dispersos los datos no informan
 sobre la autocorrelación espacial.
 
-![Perfil de ρ (corrida anterior)](img/fhe_perfil_rho.png)
+![Perfil de ρ](img/fhe_perfil_rho.png)
 
 ### 6.5 Validación dejar-un-dominio-fuera (`fhe_validacion_cruzada_metricas`)
 
@@ -312,7 +314,7 @@ llegan a 0.24 pp (`inversa2`, espacial con efecto) y −0.25 pp (`inversa1`, sin
 corregido por el ruido de la estimación directa lleva a la misma lectura (clásico 2.506; espacial con
 efecto 2.327-2.843).
 
-![Validación (corrida anterior)](img/fhe_validacion.png)
+![Validación](img/fhe_validacion.png)
 
 ### 6.5b Cuadro comparativo del objetivo 1 (`fhe_cuadro_comparativo`)
 
@@ -356,11 +358,10 @@ nodos de W con MSE bootstrap y 2 subáreas (Cali y Yumbo, R-14) que se predicen 
 Las dos mayores diferencias entre predictores (2.7-2.8 pp) son Cali y Yumbo, que heredan el efecto del
 nodo «Cali A.M.»; en los 81 nodos restantes la diferencia es menor a 0.8 pp. Los β̂ del espacial son casi
 los del clásico (`TASA_HOMICIDIOS` 0.1017 frente a 0.0993; diferencia de 0.07 errores estándar,
-`fhe_coeficientes_comparacion`), así que las dos predicciones son muy parecidas. Los mapas de la corrida
-anterior (82 objetivos) ya no coinciden con esta tabla:
+`fhe_coeficientes_comparacion`), así que las dos predicciones son muy parecidas. Mapas de la tasa predicha:
 
-![Mapa espacial (corrida anterior)](img/fhe_mapa_espacial.png)
-![Mapa clásico (corrida anterior)](img/fhe_mapa_clasico.png)
+![Mapa espacial](img/fhe_mapa_espacial.png)
+![Mapa clásico](img/fhe_mapa_clasico.png)
 
 ### 6.7 Sensibilidad al centroide del A.M. (`fhe_sensibilidad_centroide`, R-42)
 
@@ -414,7 +415,6 @@ del intercepto de a lo más 0.21.
 - El ΔAIC ≤ 2, el AICc y la prueba LRT de ρ = 0 son convenciones estadísticas generales; no aparecen en
   el libro de referencia ni en los artículos espaciales consultados, que comparan por simulación (sesgo y
   MSE) o con AIC/BIC según el caso, y deben citarse con fuentes externas.
-- Las figuras de `docs/img/` no corresponden a esta corrida (ver el aviso al inicio).
 
 ## 9. Cómo reproducir
 
