@@ -372,9 +372,10 @@ modelo/sensibilidad_varianza.py   (G7-B3, fuera de la cadena: no alimenta al mod
   → sensibilidad_varianza_directa, gvf_ajuste, sensibilidad_varianza_fh, sensibilidad_varianza_coeficientes,
     sensibilidad_varianza_dominios, sensibilidad_varianza_municipios (tesis.modelo)
   → 2018: ψ_viviendas/ψ_personas mediana 1.08 (1.00–1.17); bootstrap/Taylor 0.94–1.05; GVF R² 0.97 (A) y
-    0.976 (B, pendientes ≈ +1 y −1 = forma binomial, deff implícito ≈ 1.2). En los 11 escenarios el
-    ganador (IICA_CONFLICTO) y su significancia no cambian, Â/ψ̄ ≥ 15, γ ≥ 0.88, EBLUP cambia ≤ 0.19 pp y
-    la predicción sintética ≤ 0.11 pp; solo con ψ × 3 pasan 4 dominios de confiable a aceptable
+    0.976 (B, pendientes ≈ +1 y −1 = forma binomial, deff implícito ≈ 1.2). Corrida del bloque 06 (9
+    escenarios, R-65): el ganador (TASA_HOMICIDIOS) y su significancia no cambian, Â/ψ̄ ≥ 19.5, γ ≥ 0.90,
+    EBLUP cambia ≤ 0.20 pp y la predicción sintética ≤ 0.13 pp; Taylor y GVF A, ≤ 0.005 pp. Solo con ψ × 3
+    pasan 4 dominios de confiable a aceptable
 ```
 
 Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LITERATURA`,
