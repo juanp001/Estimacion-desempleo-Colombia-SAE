@@ -240,13 +240,19 @@ modelo/fay_herriot.py
   → FayHerriotClasico (shared/fay_herriot.py), MSE de Prasad-Rao con g3 = D²/(D+Â)³·avar(Â)
     (Morales et al., p. 440)
   → (G7-B15) especificaciones candidatas del modelo base Fay-Herriot clásico (EC1…ECk, antes M1–M5; NO son los modelos
-    finales del objetivo 1) = conjunto seleccionado (EC1) + dejar-una-fuera (shared/seleccion_modelo.py,
-    etiqueta_especificacion)
+    finales del objetivo 1) = conjunto seleccionado (EC1) + todos sus subconjuntos no vacíos (R-05,
+    `subconjuntos_covariables`; con k = 2 son EC1-EC3, mismas etiquetas que el antiguo dejar-una-fuera;
+    shared/seleccion_modelo.py, etiqueta_especificacion)
   → benchmark seleccionado (Morales et al., p. 453; los modelos de área admiten sobreparametrizar, pero
     aquí se predice también fuera de muestra, así que la regla es estricta; el libro admite una covariable
     con p > 0.05 si es interpretable, p. 454, a reportar como excepción): candidatas = especificaciones con todas las
     covariables p < 0.05; entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos
-    covariables. Si ninguna tiene todas las covariables significativas, compiten todas (imprime aviso).
+    covariables. R-05 (respaldo): si ninguna tiene todas las covariables significativas, el notebook NO se
+    detiene (se muestra el proceso completo): compiten todas, el aviso nombra las covariables no
+    significativas del elegido, `fh_seleccion_modelo` deja `Candidata = no` en todas y la columna
+    `Criterio` = respaldo, y `redaccion_seleccion` lo redacta como excepción (p. 454), que se justifica en
+    el documento de tesis. Con el cierre 2018 se cumple la regla: EC3 = TASA_HOMICIDIOS (p = 0.006) frente
+    a EC2 = COB_ACUEDUCTO (ΔAIC = 0.92); EC1 (las dos) no cumple.
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
     robustez (Cook + reajuste sin el dominio más influyente) del benchmark. G7-B16: AICc (AIC + 2k(k+1)/(n−k−1),
     k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
@@ -298,7 +304,7 @@ modelo/fay_herriot.py
     (`analisis/shared/seleccion.seleccionar_covariables`, mismos pasos que `eda_seleccion_covariables`: FH
     univariado con ψ_d, BH, redundancia, parsimonia con la cota calculada desde n, VIF; sobre las 18 candidatas de
     `covariables_prefiltradas`) y la elección del benchmark (`ajustar_benchmark`: conjunto +
-    dejar-una-fuera + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
+    subconjuntos + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
     reproducen EC1 y el benchmark. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
     (√media(e²−ψ)), errores estandarizados `Z_psi = e/√ψ` y `Z_pred = e/√(ψ + x'Cov(β̂)x + Â)` (media,
     sd, cobertura nominal), error dentro de muestra, y habilidad frente a un modelo de solo intercepto
@@ -394,7 +400,7 @@ umbrales de CV 5/20 se importan de `preprocesamiento/shared/config.py`, R-40/R-5
 resultados — común a cualquier variante SAE; `prediccion_sintetica`, única fórmula x'β̂ y x'Cov(β̂)x + Â),
 `datos_modelo.py` (R-40/R-63: `periodo_unico`, `alias_desde_catalogo`, `preparar_municipios`),
 `escritura.py` (`escribir_tabla`, `EscrituraDiferida`), `fay_herriot.py` (FayHerriotClasico: REML, GLS, EBLUP, MSE de
-Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de
+Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (subconjuntos de covariables, tabla de
 diagnósticos, Cook, tabla de selección y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV
 directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `escenarios_psi`,
 `ajustar_escenarios`, figuras e interpretación), `estabilidad_coeficientes.py` (`reajustes_sin_dominio`, el único LOAO del clásico, R-39;

@@ -19,7 +19,7 @@ Se hacen **dos ejercicios** que responden preguntas distintas:
   los 22 dominios que quedan: la selección de covariables (Fay-Herriot univariado con
   ψ_d, control de falsos descubrimientos, robustez, redundancia, parsimonia y VIF; la misma
   de `eda_seleccion_covariables`, en `analisis/shared/seleccion.seleccionar_covariables`) y la
-  elección de la especificación (conjunto, dejar-una-fuera, significancia, AIC y parsimonia;
+  elección de la especificación (subconjuntos del conjunto, significancia, AIC y parsimonia;
   `seleccion_modelo.elegir_ganador`). Mide el error de predicción **del procedimiento**, que
   es lo que se reporta cuando la selección se hizo con los mismos datos. La diferencia entre
   los dos errores es el costo de haber seleccionado con los datos.
@@ -54,7 +54,7 @@ from scipy import stats
 from shared.estabilidad_coeficientes import reajustes_sin_dominio
 from shared.fay_herriot import FayHerriotClasico
 from shared.modelo_area_pequena import prediccion_sintetica
-from shared.seleccion_modelo import elegir_ganador, variantes_dejar_una_fuera
+from shared.seleccion_modelo import elegir_ganador, subconjuntos_covariables
 
 EJERCICIO_FIJAS = "COVARIABLES_FIJAS"
 EJERCICIO_COMPLETO = "PROCEDIMIENTO_COMPLETO"
@@ -74,10 +74,10 @@ def ajustar_benchmark(
     delta_aic: float,
     alfa: float,
 ) -> FayHerriotClasico:
-    """Repite la elección del benchmark: conjunto del EDA, dejar-una-fuera y regla de parsimonia.
+    """Repite la elección del benchmark: conjunto del EDA, sus subconjuntos y regla de parsimonia.
 
-    Es la misma secuencia del notebook del modelo (celdas 2, 3 y 8): genera el conjunto y sus
-    variantes sin una covariable, las ajusta y aplica `elegir_ganador`. Sin covariables
+    Es la misma secuencia del notebook del modelo (celdas 2, 3 y 8): genera el conjunto y todos sus
+    subconjuntos no vacíos (R-05), los ajusta y aplica `elegir_ganador`. Sin covariables
     ajusta el modelo de solo intercepto.
 
     Args:
@@ -100,7 +100,7 @@ def ajustar_benchmark(
         modelo = FayHerriotClasico([], df, y_col, se_col)
         modelo.ajustar()
         return modelo
-    variantes = variantes_dejar_una_fuera(list(covars_eda))
+    variantes = subconjuntos_covariables(list(covars_eda))
     modelos = []
     for covars in variantes:
         modelo = FayHerriotClasico(covars, df, y_col, se_col)
@@ -310,7 +310,7 @@ def loao_procedimiento_completo(
 
     En cada iteración, con los n−1 dominios que quedan: (1) `selector` repite la selección de
     covariables (EC1) y (2) `ajustar_benchmark` repite la elección de la especificación
-    (conjunto y dejar-una-fuera, significancia, AIC y parsimonia). Con ese benchmark se predice
+    (subconjuntos del conjunto, significancia, AIC y parsimonia). Con ese benchmark se predice
     el dominio retirado. Si el selector no deja ninguna covariable, el modelo es de solo
     intercepto.
 

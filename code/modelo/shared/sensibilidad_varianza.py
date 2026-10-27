@@ -20,7 +20,7 @@ Escenarios:
 - **Grilla multiplicativa** ψ_d × k con k ∈ {1/3, 1/2, 2/3, 1, 3/2, 2, 3}: simétrica en escala
   log, porque no se presume la dirección del error.
 
-En cada escenario se reajustan todas las variantes (conjunto del EDA y dejar-una-fuera), se elige
+En cada escenario se reajustan todas las variantes (todos los subconjuntos del conjunto del EDA, R-05), se elige
 el ganador con la misma regla del modelo (Morales, p. 453) y se comparan con el escenario base: el
 ganador, Â frente a ψ̄ (Benedetti et al., 2024, p. 143: subestimar ψ pesa más cuando Â es pequeña
 frente a ψ), γ, coeficientes y su significancia, EBLUP, CV y confiabilidad, λ₁ del benchmarking y
@@ -282,7 +282,7 @@ def ajustar_escenarios(
             `CODIGO_DOMINIO` y `NOMBRE_DOMINIO`.
         escenarios (dict[str, np.ndarray]): Salida de `escenarios_psi` (ψ en %², mismo orden
             que `df`). La primera entrada es la base.
-        nombres_covars (list[list[str]]): Variantes a comparar (conjunto del EDA y dejar-una-fuera).
+        nombres_covars (list[list[str]]): Variantes a comparar (todos los subconjuntos del conjunto del EDA, R-05).
         covars_referencia (list[str]): Covariables del ganador base.
         y_col (str): Variable respuesta (tasa en %).
         pesos_nivel1 (array-like): PEA expandida de cada dominio (benchmarking de nivel 1).

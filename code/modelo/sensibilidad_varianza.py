@@ -72,7 +72,7 @@ for _ruta in (CODE_DIR, os.path.join(CODE_DIR, "modelo")):
 
 from shared.config import *
 from shared.fay_herriot import FayHerriotClasico
-from shared.seleccion_modelo import elegir_ganador, variantes_dejar_una_fuera
+from shared.seleccion_modelo import elegir_ganador, subconjuntos_covariables
 from shared.datos_modelo import alias_desde_catalogo, periodo_unico, preparar_municipios
 from shared.escritura import escribir_tabla
 from shared.sensibilidad_varianza import (
@@ -113,7 +113,7 @@ df = (
     .reset_index(drop=True)
 )
 covars_eda = [c for c in df.columns if c in alias_a_codigo]
-nombres_covars = variantes_dejar_una_fuera(covars_eda)
+nombres_covars = subconjuntos_covariables(covars_eda)
 
 PERIODO = periodo_unico(df, TBL_COVARIABLES_SELECCIONADAS)
 PER_MODELO, MES_MODELO = PERIODO["PER"], PERIODO["MES"]
