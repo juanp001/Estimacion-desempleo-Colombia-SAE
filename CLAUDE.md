@@ -363,8 +363,9 @@ modelo/sensibilidad_varianza.py   (G7-B3, fuera de la cadena: no alimenta al mod
   → GVF A log ψ = b0 + b1·y + b2·n (Morales p. 427/454-455) y GVF B log ψ = b0 + b1·log(p(1−p)) +
     b2·log n (deff: Téllez 2020 p. 15, Chile 2016 PDF 4), retransformadas con Δ = Σψ/Σexp(x'α̂)
     (ENUSC 2018 PDF 15-16); R², residuos y figura observada vs predicha. GVF = solo escenario
-  → escenarios: base, personas, Taylor, GVF A/B y ψ × k (k ∈ {1/3, 1/2, 2/3, 3/2, 2, 3}, simétrica en
-    log). En cada uno reajusta las variantes y elige ganador con la misma regla; compara con la
+  → escenarios (R-65, 9): base, Taylor, GVF A y ψ × k (k ∈ {1/3, 1/2, 2/3, 3/2, 2, 3}, simétrica en
+    log); el bootstrap por personas y la GVF B solo quedan como columnas de sensibilidad_varianza_directa
+    (daban lo mismo: con Â/ψ̄ alto, γ ≈ 1 y el EBLUP casi no depende de ψ). En cada uno reajusta las variantes y elige ganador con la misma regla; compara con la
     especificación de referencia (ganador base): Â/ψ̄ (Benedetti 2024 p. 143), γ, β̂ y p, EBLUP, CV y
     confiabilidad, λ₁ y predicción sintética de los 83 municipios
   → sensibilidad_varianza_directa, gvf_ajuste, sensibilidad_varianza_fh, sensibilidad_varianza_coeficientes,

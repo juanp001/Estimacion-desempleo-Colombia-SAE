@@ -5,7 +5,7 @@ El Fay-Herriot trata ψ_d (D_i en el código) como conocida (Morales et al., 202
 no reproduce el estrato interno ni el segmento de la GEIH. No se sabe si la varianza del diseño es
 mayor o menor que ψ_d, así que este módulo mide cuánto cambian las conclusiones si ψ_d se equivoca.
 
-Escenarios:
+Varianzas que se calculan (todas en `sensibilidad_varianza_directa`):
 
 - **Alternativas medidas**: bootstrap por personas, Taylor con viviendas como conglomerado.
 - **GVF** (función de varianza generalizada), dos formas ajustadas sobre la ψ_d base:
@@ -19,6 +19,12 @@ Escenarios:
   tiene miles de viviendas.
 - **Grilla multiplicativa** ψ_d × k con k ∈ {1/3, 1/2, 2/3, 1, 3/2, 2, 3}: simétrica en escala
   log, porque no se presume la dirección del error.
+
+Escenarios que reajustan el modelo (R-65): base, Taylor, GVF A y la grilla. El bootstrap por
+personas y la GVF B no se reajustan: cambiaban el EBLUP ≤ 0,0075 pp y el sintético ≤ 0,022 pp,
+eran indistinguibles de Taylor y la GVF A y daban el mismo ganador. Con Â/ψ̄ alto, γ ≈ 1 y el
+EBLUP casi coincide con la directa cualquiera sea ψ (Morales et al., pp. 427 y 440; Benedetti et
+al., 2024, p. 143); la grilla es la que acota el error desconocido del diseño.
 
 En cada escenario se reajustan todas las variantes (todos los subconjuntos del conjunto del EDA, R-05), se elige
 el ganador con la misma regla del modelo (Morales, p. 453) y se comparan con el escenario base: el
