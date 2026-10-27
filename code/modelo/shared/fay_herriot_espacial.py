@@ -60,7 +60,7 @@ def covarianza_sar(W: np.ndarray, A: float, rho: float) -> np.ndarray:
         numpy.linalg.LinAlgError: Si I − ρW es singular (|ρ| demasiado cercano a 1).
 
     Example:
-        >>> G = covarianza_sar(W, A=4.0, rho=0.5)
+        >>> G = covarianza_sar(W, A=4.0, rho=0.5)  # doctest: +SKIP
     """
     M_inv = np.linalg.inv(np.eye(W.shape[0]) - rho * W)
     return A * (M_inv @ M_inv.T)
@@ -99,9 +99,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
             faltan covariables en `df_objetivo`.
 
     Example:
-        >>> m = FayHerriotEspacial(["VA_PCT_PRIM"], df, "TASA", "SE", P, df_obj, n_bootstrap=500)
-        >>> m.ajustar()
-        >>> m.rho_hat, m.aic
+        >>> m = FayHerriotEspacial(["VA_PCT_PRIM"], df, "TASA", "SE", P, df_obj, n_bootstrap=500)  # doctest: +SKIP
+        >>> m.ajustar()  # doctest: +SKIP
+        >>> m.rho_hat, m.aic  # doctest: +SKIP
     """
 
     def __init__(
@@ -134,6 +134,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
         Raises:
             ValueError: Si la estructura no es válida, W no tiene el tamaño esperado o faltan
                 covariables en `df_objetivo`.
+
+        Example:
+            >>> FayHerriotEspacial(['X1'], df, 'TASA', 'SE', W)  # doctest: +SKIP
         """
         super().__init__(covars, df, y_col, se_col)
         if estructura not in ("completa", "muestra"):
@@ -177,6 +180,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
 
         Returns:
             np.ndarray: G, shape (m, m).
+
+        Example:
+            >>> modelo._G(np.array([0.0, 0.3]))  # doctest: +SKIP
         """
         return covarianza_sar(self.W, float(np.exp(theta[0])), float(theta[1]))
 
@@ -194,6 +200,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
 
         Returns:
             float: Log-verosimilitud, o −1e10 si V no es definida positiva.
+
+        Example:
+            >>> modelo._log_verosimilitud(theta, Y, reml=True, con_constante=False)  # doctest: +SKIP
         """
         n = self.n
         try:
@@ -224,6 +233,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
 
         Returns:
             tuple: (theta, log_verosimilitud_sin_constante) del mejor inicio.
+
+        Example:
+            >>> theta, ll = modelo._estimar_theta(modelo.Y)  # doctest: +SKIP
         """
         if inicios is None:
             logA0 = np.log(max(np.var(Y) / 2, 1e-3))
@@ -258,7 +270,7 @@ class FayHerriotEspacial(ModeloAreaPequena):
                 ρ = 0, que corresponde al Fay-Herriot clásico).
 
         Example:
-            >>> modelo.perfil_rho().sort_values("loglik_reml").tail(3)
+            >>> modelo.perfil_rho().sort_values("loglik_reml").tail(3)  # doctest: +SKIP
         """
         if rejilla is None:
             rejilla = np.round(np.arange(-0.9, 0.96, 0.05), 2)
@@ -291,6 +303,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
             dict: `beta`, `cov_beta`, `V`, `Vi`, `G`, `resid` (Y − Xβ̂) y `pred` (shape (m,)):
                 Xβ̂ + G[:, :n]·V⁻¹·(Y − Xβ̂), que es el EBLUP en las n primeras unidades y la
                 predicción con efecto espacial en las restantes.
+
+        Example:
+            >>> aj = modelo._ajuste_gls(modelo.Y, modelo.theta_hat)  # doctest: +SKIP
         """
         n = self.n
         G = self._G(theta)
@@ -324,6 +339,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
             tuple: (mse_pred, mse_sintetico_obj, n_validas). `mse_pred` tiene shape (m,);
                 `mse_sintetico_obj` shape (r,) (o None si no hay objetivos o la estructura es
                 "muestra"); `n_validas` es el número de réplicas que convergieron.
+
+        Example:
+            >>> mse, mse_obj, n_validas = modelo._bootstrap_mse()  # doctest: +SKIP
         """
         rng = np.random.default_rng(self.semilla)
         n, m = self.n, self.m
@@ -357,6 +375,10 @@ class FayHerriotEspacial(ModeloAreaPequena):
         Puebla el contrato de `ModeloAreaPequena` más los atributos espaciales descritos en el
         docstring de la clase. Si hay `df_objetivo` y la estructura es completa, calcula también
         la predicción de los dominios sin encuesta con efecto espacial.
+
+        Example:
+            >>> modelo = FayHerriotEspacial(...); modelo.ajustar()  # doctest: +SKIP
+            >>> modelo.rho_hat  # doctest: +SKIP
         """
         n = self.n
         self.theta_hat, self.loglik_reml = self._estimar_theta(self.Y, reml=True)
@@ -433,7 +455,7 @@ def reordenar_proximidad(P: np.ndarray, orden) -> np.ndarray:
         np.ndarray: P[orden][:, orden].
 
     Example:
-        >>> reordenar_proximidad(P, [1, 0, 2])
+        >>> reordenar_proximidad(P, [1, 0, 2])  # doctest: +SKIP
     """
     orden = list(orden)
     return P[np.ix_(orden, orden)]
@@ -475,8 +497,8 @@ def validacion_dejar_uno_fuera(
             ese dominio.
 
     Example:
-        >>> cv = validacion_dejar_uno_fuera(cov, df, "TASA", "SE", P, df_obj)
-        >>> np.sqrt(((cv.y - cv.pred_clasico) ** 2).mean())
+        >>> cv = validacion_dejar_uno_fuera(cov, df, "TASA", "SE", P, df_obj)  # doctest: +SKIP
+        >>> np.sqrt(((cv.y - cv.pred_clasico) ** 2).mean())  # doctest: +SKIP
     """
     n = len(df)
     r = len(df_objetivo)

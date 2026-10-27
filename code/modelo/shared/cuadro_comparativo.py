@@ -41,8 +41,8 @@ def construir_cuadro_comparativo(
             `Veredicto`.
 
     Example:
-        >>> cuadro = construir_cuadro_comparativo(comp, val, clasico, ["IICA", "VA"])
-        >>> cuadro.loc[0, "Tipo"]
+        >>> cuadro = construir_cuadro_comparativo(comp, val, clasico, ["IICA", "VA"])  # doctest: +SKIP
+        >>> cuadro.loc[0, "Tipo"]  # doctest: +SKIP
         'CLASICO'
     """
     val = df_validacion.set_index(["escenario", "estructura", "predictor"])

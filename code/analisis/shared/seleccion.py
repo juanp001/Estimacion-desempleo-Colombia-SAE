@@ -54,7 +54,6 @@ COLUMNAS_FH = [
     "IC_FH_contiene_cero",
     "p_FH",
     "q_FH",
-    "Estabilidad_boot",
 ]
 # Nombre de la medida única de asociación cuando decide el Fay-Herriot univariado (G7-B13).
 MEDIDA_FH = "r ponderada (FH)"
@@ -160,7 +159,6 @@ def diagnosticar_robustez(
 
 def evaluar_elegibilidad(
     candidatas: list,
-    ic: pd.DataFrame,
     signo_esperado: dict,
     fh: pd.DataFrame,
     q_fdr: float,
@@ -174,7 +172,7 @@ def evaluar_elegibilidad(
 
     * la pendiente del **Fay-Herriot univariado** (G7-B8) incorpora la varianza de
       muestreo ψ_d de cada dominio, que la correlación ignora. El intervalo de Fisher de la
-      correlación se conserva en la salida como descripción.
+      correlación ya no forma parte de la ficha (R-62): queda solo en la tabla bivariada.
     * Decide el control de la tasa de falsos descubrimientos (G7-B9): la candidata es
       elegible si el p-valor de β1, ajustado por Benjamini-Hochberg sobre todas las
       candidatas (`q_FH`), es menor o igual que `q_fdr`. Exigir un intervalo al 95 % sin
@@ -196,25 +194,21 @@ def evaluar_elegibilidad(
 
     Args:
         candidatas (list[str]): Códigos a evaluar.
-        ic (pd.DataFrame): Salida de `diagnosticos.tabla_ic_correlacion()`.
         signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
-        fh (pd.DataFrame): Salida de `diagnosticos.fh_univariado()`, opcionalmente
-            con la columna `Estabilidad_boot` de `diagnosticos.estabilidad_bootstrap()`.
+        fh (pd.DataFrame): Salida de `diagnosticos.fh_univariado()`.
         q_fdr (float): Tasa de falsos descubrimientos con la que se declara elegible.
         exigir_signo (bool): Si es True, el signo contrario al esperado vuelve no elegible.
 
     Returns:
         pd.DataFrame: Una fila por candidata con `Codigo`, `Medida`, `r_interpretable`,
             `Signo_esperado`, `Signo_observado`, `Signo_coherente` (`"sí"`, `"no"` o `"—"`
-            si el catálogo no fija dirección), `IC_inf`, `IC_sup`, `IC_contiene_cero`
-            (Fisher), las columnas del Fay-Herriot univariado presentes en `fh`
-            (`r_ponderada`, `Beta_FH`, `IC_FH_*`, `p_FH`, `q_FH`, `Estabilidad_boot`),
+            si el catálogo no fija dirección), las columnas del Fay-Herriot univariado presentes en `fh`
+            (`r_ponderada`, `Beta_FH`, `IC_FH_*`, `p_FH`, `q_FH`),
             `Elegible` (`"sí"`/`"no"`) y `Motivo` (vacío si es elegible).
 
     Example:
-        >>> evaluar_elegibilidad(CANDIDATAS, df_ic, SIGNO, df_fh, Q_FDR_ELEGIBILIDAD)
+        >>> evaluar_elegibilidad(CANDIDATAS, SIGNO, df_fh, Q_FDR_ELEGIBILIDAD)  # doctest: +SKIP
     """
-    ic_idx = ic.set_index("Codigo")
     fh_idx = fh.set_index("Codigo")
 
     filas = []
@@ -249,9 +243,6 @@ def evaluar_elegibilidad(
             "Signo_esperado": esperado,
             "Signo_observado": observado,
             "Signo_coherente": coherente,
-            "IC_inf": float(ic_idx.loc[codigo, "IC_inf"]),
-            "IC_sup": float(ic_idx.loc[codigo, "IC_sup"]),
-            "IC_contiene_cero": ic_idx.loc[codigo, "IC_contiene_cero"],
         }
         for columna in COLUMNAS_FH:
             if columna in fh_idx.columns:
@@ -306,7 +297,7 @@ def resolver_redundancia(
             covariable con su grupo, si fue elegida representante y el motivo.
 
     Example:
-        >>> representantes, reporte = resolver_redundancia(
+        >>> representantes, reporte = resolver_redundancia(  # doctest: +SKIP
         ...     df, codigos, cook, alias, elegibilidad=df_elegibilidad)
     """
     alias = alias or {}
@@ -318,6 +309,18 @@ def resolver_redundancia(
     )
 
     def es_elegible(codigo):
+        """Indica si una covariable es elegible según la tabla de elegibilidad.
+
+        Args:
+            codigo (str): Código de la covariable.
+
+        Returns:
+            bool: True si está en `elegibilidad` con `Elegible == "sí"`; False si no está o no lo es.
+
+        Example:
+            >>> es_elegible("260020003")  # doctest: +SKIP
+            False
+        """
         return codigo in eleg.index and eleg.loc[codigo, "Elegible"] == "sí"
 
     representantes, filas = [], []
@@ -372,7 +375,6 @@ def resolver_redundancia(
 
 def ficha_decision(
     candidatas: list,
-    ic: pd.DataFrame,
     robustez: pd.DataFrame,
     redundancia: pd.DataFrame,
     signo_esperado: dict,
@@ -399,8 +401,8 @@ def ficha_decision(
     3. La pendiente del Fay-Herriot univariado, que pesa cada dominio por ``1/(Â + ψ_d)``
        (G7-B8), decide con el control de falsos descubrimientos (G7-B9): ``q_FH > q_fdr`` →
        ``no elegible``, con el p-valor de β1 ajustado por Benjamini-Hochberg sobre todas las
-       candidatas. El intervalo de Fisher de la correlación queda en la ficha como
-       descripción. La ficha muestra además la estabilidad bootstrap si `fh` la trae.
+       candidatas. El intervalo de Fisher de la correlación no se incluye en la ficha
+       (R-62); queda como descripción en la tabla bivariada del EDA.
     4. El signo esperado del catálogo es un **diagnóstico, no un filtro** (G7-B12): la
        columna `Signo_coherente` lo registra y, si una covariable elegible tiene signo
        contrario al esperado, su motivo lo advierte para que se interprete en el documento.
@@ -416,7 +418,6 @@ def ficha_decision(
 
     Args:
         candidatas (list[str]): Códigos de las candidatas conceptualmente elegibles.
-        ic (pd.DataFrame): Salida de `diagnosticos.tabla_ic_correlacion()`.
         robustez (pd.DataFrame): Salida de `diagnosticar_robustez()`.
         redundancia (pd.DataFrame): Salida de `resolver_redundancia()`.
         signo_esperado (dict): Mapa código → `"+"`, `"-"` o `"±"`.
@@ -441,7 +442,7 @@ def ficha_decision(
 
     Example:
         >>> seleccionadas, ficha = ficha_decision(
-        ...     CANDIDATAS, df_ic, df_robustez, df_redundancia, SIGNO, df_fh,
+        ...     CANDIDATAS, df_robustez, df_redundancia, SIGNO, df_fh,
         ...     Q_FDR_ELEGIBILIDAD, 2, ALIAS, DIMENSION)  # doctest: +SKIP
     """
     alias = alias or {}
@@ -451,7 +452,6 @@ def ficha_decision(
     # Mismas reglas que usa resolver_redundancia() para el retroceso (G7-B11).
     eleg = evaluar_elegibilidad(
         candidatas,
-        ic,
         signo_esperado,
         fh,
         q_fdr,
@@ -483,12 +483,16 @@ def ficha_decision(
                 "Signo_coherente": e["Signo_coherente"],
                 "Medida": e["Medida"],
                 "r_interpretable": e["r_interpretable"],
-                "IC_inf": e["IC_inf"],
-                "IC_sup": e["IC_sup"],
-                "IC_contiene_cero": e["IC_contiene_cero"],
                 **{c: e[c] for c in columnas_fh},
                 **(
-                    {c: forma_idx.loc[codigo, c] for c in COLUMNAS_FORMA}
+                    {
+                        c: (
+                            forma_idx.loc[codigo, c]
+                            if codigo in forma_idx.index
+                            else None
+                        )
+                        for c in COLUMNAS_FORMA
+                    }
                     if forma_idx is not None
                     else {}
                 ),
@@ -539,10 +543,6 @@ def ficha_decision(
                 f"(|{fila['Medida']}| = {fila['abs_r']:.2f}), fuera de la cota de {p_maximo} covariables"
             )
         ficha.loc[idx, "Motivo"] += f"; q de Benjamini-Hochberg = {fila['q_FH']:.3f}"
-        if "Estabilidad_boot" in fila:
-            ficha.loc[
-                idx, "Motivo"
-            ] += f", estabilidad bootstrap = {fila['Estabilidad_boot']:.2f}"
         if forma_idx is not None and fila["Forma_funcional"] == "revisar":
             ficha.loc[idx, "Motivo"] += (
                 f"; forma funcional a revisar (curvatura p = {fila['p_curvatura']:.3f}, "
@@ -615,14 +615,40 @@ def sensibilidad_signo(
             las seleccionadas, las elegibles de signo inesperado y la diferencia con el base.
 
     Example:
-        >>> sensibilidad_signo(df_ficha, SELECCIONADAS, df_ficha_sin, sel_sin, ALIAS)
+        >>> sensibilidad_signo(df_ficha, SELECCIONADAS, df_ficha_sin, sel_sin, ALIAS)  # doctest: +SKIP
     """
     alias = alias or {}
 
     def nombres(codigos):
+        """Une los alias de una lista de códigos en un texto legible.
+
+        Args:
+            codigos (Iterable[str]): Códigos de covariables.
+
+        Returns:
+            str: Alias separados por coma, o «—» si la lista está vacía.
+
+        Example:
+            >>> nombres([])  # doctest: +SKIP
+            '—'
+        """
         return ", ".join(alias.get(c, c) for c in codigos) or "—"
 
     def resumen(escenario, regla, ficha, seleccionadas):
+        """Resume un escenario de selección en una fila de la tabla de sensibilidad.
+
+        Args:
+            escenario (str): Nombre del escenario («base», «sin signo inesperado»).
+            regla (str): Cómo se trata el signo esperado («diagnóstico» o «filtro»).
+            ficha (pd.DataFrame): Ficha de decisión del escenario.
+            seleccionadas (list[str]): Conjunto final del escenario.
+
+        Returns:
+            dict: Escenario, regla, número de elegibles, seleccionadas y elegibles de signo inesperado.
+
+        Example:
+            >>> resumen("base", "diagnóstico", df_ficha, SELECCIONADAS)  # doctest: +SKIP
+        """
         elegibles = ficha["Decision"].isin(["seleccionada", "no seleccionada"])
         inesperado = ficha.loc[elegibles & (ficha["Signo_coherente"] == "no"), "Codigo"]
         return {
@@ -676,7 +702,7 @@ def ajustar_por_vif(
             lista de cadenas que describen cada sustitución realizada).
 
     Example:
-        >>> finales, df_vif, cambios = ajustar_por_vif(df_cand, seleccionadas, restantes)
+        >>> finales, df_vif, cambios = ajustar_por_vif(df_cand, seleccionadas, restantes)  # doctest: +SKIP
     """
     alias = alias or {}
     conjunto = list(seleccionadas)
@@ -735,7 +761,7 @@ def _anotar_vif_en_ficha(
         pd.DataFrame: Copia de la ficha con `Decision` y `Motivo` al día.
 
     Example:
-        >>> ficha = _anotar_vif_en_ficha(ficha, ["A", "B"], ["A", "C"])
+        >>> ficha = _anotar_vif_en_ficha(ficha, ["A", "B"], ["A", "C"])  # doctest: +SKIP
     """
     ficha = ficha.copy()
     entran = [c for c in finales if c not in previas]
@@ -749,7 +775,19 @@ def _anotar_vif_en_ficha(
     )
 
     def motivo_vif(codigo, motivo):
-        """(str, str) → str: motivo con la nota de VIF si la covariable entra o sale."""
+        """Agrega a un motivo la nota de VIF si la covariable entra o sale del conjunto.
+
+        Args:
+            codigo (str): Código de la covariable.
+            motivo (str): Motivo de la ficha antes del ajuste por VIF.
+
+        Returns:
+            str: Motivo reescrito si la covariable salió o entró por multicolinealidad; el mismo
+                motivo si no cambió.
+
+        Example:
+            >>> motivo_vif("C1", "elegible; ...")  # doctest: +SKIP
+        """
         if codigo in salen:
             return (
                 motivo.replace(
@@ -793,8 +831,6 @@ def ejecutar_seleccion(
     exigir_signo: bool = False,
     df_objetivos: pd.DataFrame = None,
     soporte_minimo: float = SOPORTE_MINIMO,
-    replicas_estabilidad: int = None,
-    semilla: int = 42,
     con_forma: bool = False,
     diagnosticos: dict = None,
     silencioso: bool = True,
@@ -807,13 +843,15 @@ def ejecutar_seleccion(
     verificación por VIF. La robustez (Cook y dejar-uno-fuera sobre el Fay-Herriot univariado,
     R-03) y el soporte en los municipios objetivo (R-02) son diagnósticos que la ficha reporta
     y no descartan covariables. Lo usan
-    el notebook de selección (con `silencioso=False`, la estabilidad bootstrap y la forma
-    funcional) y, a través de `seleccionar_covariables()`, la validación cruzada del modelo
+    el notebook de selección (con `silencioso=False` y la forma funcional) y, a través de `seleccionar_covariables()`, la validación cruzada del modelo
     (`modelo/shared/validacion_predictiva.py`): hay una sola implementación, de modo que un
     cambio en un paso se aplica en ambos lugares.
 
-    La estabilidad bootstrap (`Estabilidad_boot`) y la forma funcional son descriptivas y
-    ninguna decide la selección: solo cambian las columnas y el texto de la ficha.
+    La forma funcional es descriptiva y no decide la selección: solo cambia las columnas y
+    el texto de la ficha. Se calcula únicamente para las candidatas elegibles (R-62). La
+    estabilidad bootstrap de dominios salió de la cadena (R-62): la frecuencia con que se
+    elige cada covariable al repetir toda la cadena es `fh_validacion_cruzada_frecuencia`
+    (G7-B19, notebook del modelo).
 
     Args:
         df (pd.DataFrame): Una fila por dominio, con una columna por candidata.
@@ -838,18 +876,16 @@ def ejecutar_seleccion(
             mide el soporte (R-02) y la ficha advierte las que extrapolan. Con None no se mide.
         soporte_minimo (float): Proporción de objetivos dentro del rango de los dominios por
             debajo de la cual se advierte.
-        replicas_estabilidad (int | None): Réplicas de la estabilidad bootstrap (G7-B9); con
-            None no se calcula.
-        semilla (int): Semilla de la estabilidad bootstrap.
-        con_forma (bool): Si es True, calcula la forma funcional (G7-B13) y la pasa a la ficha.
-        diagnosticos (dict | None): Resultado previo de esta función; reutiliza `df_ic`,
+        con_forma (bool): Si es True, calcula la forma funcional (G7-B13) de las candidatas
+            elegibles y la pasa a la ficha.
+        diagnosticos (dict | None): Resultado previo de esta función; reutiliza
             `df_fh`, `df_forma`, `df_influencia` y `df_estabilidad` en lugar de recalcularlos
             (sensibilidad al signo).
         silencioso (bool): Si es True, no imprime el avance de cada paso.
 
     Returns:
         dict: Con las claves `seleccionadas` (conjunto final tras el VIF), `ficha` (ya
-            al día con el VIF), `df_ic`, `df_fh`, `df_forma` (None si no se pidió),
+            al día con el VIF), `df_fh`, `df_forma` (None si no se pidió o no hay elegibles),
             `df_influencia`, `df_estabilidad`, `df_robustez` (diagnóstico), `soporte`
             (None sin `df_objetivos`), `df_elegibilidad`, `df_redundancia`, `df_vif`,
             `sustituciones`, `p_maximo` (el usado) y `seleccionadas_previas` (antes del VIF).
@@ -875,35 +911,29 @@ def ejecutar_seleccion(
     )
     with contexto:
         previo = diagnosticos or {}
-        df_ic = previo.get("df_ic")
-        if df_ic is None:
-            df_ic = diag.tabla_ic_correlacion(
-                df, candidatas, y, alias=alias, alfa=alfa_ic
-            )
         df_fh = previo.get("df_fh")
         if df_fh is None:
             df_fh = diag.fh_univariado(
                 df, candidatas, y, psi, alias=alias, alfa=alfa_ic
             )
-            if replicas_estabilidad is not None:
-                df_fh = df_fh.merge(
-                    diag.estabilidad_bootstrap(
-                        df,
-                        candidatas,
-                        y,
-                        psi,
-                        alias=alias,
-                        replicas=replicas_estabilidad,
-                        semilla=semilla,
-                        alfa=alfa_ic,
-                    ).drop(columns=["Alias"]),
-                    on="Codigo",
-                )
+        df_elegibilidad = evaluar_elegibilidad(
+            candidatas,
+            signo_esperado,
+            fh=df_fh,
+            q_fdr=q_fdr,
+            exigir_signo=exigir_signo,
+        )
         df_forma = previo.get("df_forma")
         if df_forma is None and con_forma:
-            df_forma = diag.forma_funcional(
-                df, candidatas, y, psi, alias=alias, alfa=alfa_ic
-            )
+            # Solo las elegibles (R-62): la forma funcional no decide y no hace falta
+            # examinar las que ya quedaron fuera por la asociación.
+            elegibles_forma = df_elegibilidad.loc[
+                df_elegibilidad["Elegible"] == "sí", "Codigo"
+            ].tolist()
+            if elegibles_forma:
+                df_forma = diag.forma_funcional(
+                    df, elegibles_forma, y, psi, alias=alias, alfa=alfa_ic
+                )
         df_influencia = previo.get("df_influencia")
         if df_influencia is None:
             df_influencia = diag.influencia_fh(
@@ -927,14 +957,6 @@ def ejecutar_seleccion(
             soporte = tabla_soporte(
                 df, df_objetivos, candidatas, alias=alias, minimo=soporte_minimo
             )
-        df_elegibilidad = evaluar_elegibilidad(
-            candidatas,
-            df_ic,
-            signo_esperado,
-            fh=df_fh,
-            q_fdr=q_fdr,
-            exigir_signo=exigir_signo,
-        )
         _, df_redundancia = resolver_redundancia(
             df,
             candidatas,
@@ -946,7 +968,6 @@ def ejecutar_seleccion(
         try:
             previas, ficha = ficha_decision(
                 candidatas,
-                df_ic,
                 df_robustez,
                 df_redundancia,
                 signo_esperado=signo_esperado,
@@ -972,7 +993,6 @@ def ejecutar_seleccion(
         "seleccionadas": finales,
         "seleccionadas_previas": previas,
         "ficha": ficha,
-        "df_ic": df_ic,
         "df_fh": df_fh,
         "df_forma": df_forma,
         "df_influencia": df_influencia,
@@ -1008,8 +1028,8 @@ def seleccionar_covariables(
     Envoltorio de `ejecutar_seleccion()`, que es la implementación única de la cadena (R-32).
     Existe para poder **repetir la selección completa dentro de la validación cruzada** del
     modelo (`modelo/shared/validacion_predictiva.py`); el notebook del modelo comprueba que
-    con los mismos datos reproduce `covariables_seleccionadas`. No calcula la estabilidad
-    bootstrap ni la forma funcional (descriptivas).
+    con los mismos datos reproduce `covariables_seleccionadas`. No calcula la forma funcional
+    (descriptiva).
 
     Args:
         df (pd.DataFrame): Una fila por dominio, con una columna por candidata.
@@ -1083,7 +1103,7 @@ def _grupos_enlace_completo(df: pd.DataFrame, umbral: float) -> list:
 
     Example:
         >>> # IDF–ING_TRIB_PC 0.81, ING_TRIB_PC–VA_PC 0.93, IDF–VA_PC 0.73
-        >>> _grupos_enlace_completo(df_fiscal, 0.80)
+        >>> _grupos_enlace_completo(df_fiscal, 0.80)  # doctest: +SKIP
         [['ING_TRIB_PC', 'VA_PC'], ['IDF']]
     """
     cols = list(df.columns)

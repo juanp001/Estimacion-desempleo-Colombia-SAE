@@ -54,6 +54,10 @@ def _directorio_codigo() -> str:
 
     Returns:
         str: Ruta del directorio `code/` del repositorio.
+
+    Example:
+        >>> _directorio_codigo()  # doctest: +SKIP
+        '/Workspace/Users/usuario/.bundle/.../files/code'
     """
     try:
         contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
@@ -120,6 +124,9 @@ def mostrar(objeto):
 
     Args:
         objeto (pd.DataFrame): Tabla a mostrar.
+
+    Example:
+        >>> mostrar(df_resultados)  # doctest: +SKIP
     """
     try:
         display(objeto)
@@ -137,6 +144,9 @@ def guardar_figura(fig, nombre: str) -> None:
     Args:
         fig (plt.Figure): Figura a guardar.
         nombre (str): Nombre del archivo sin extensión (se antepone `fhe_`).
+
+    Example:
+        >>> guardar_figura(fig, 'moran_residuos')  # doctest: +SKIP
     """
     guardar_png(fig, nombre, "fhe_", VOLUMEN_FIGURAS_MODELO)
     try:
@@ -327,6 +337,9 @@ def proximidad_total(tipo: str, parametro, estructura: str) -> np.ndarray:
 
     Returns:
         np.ndarray: Matriz (n + r, n + r).
+
+    Example:
+        >>> W = proximidad_total('knn', 5, 'completa')  # doctest: +SKIP
     """
     return proximidad_total_compartida(D_km, n, tipo, parametro, estructura)
 
@@ -952,6 +965,9 @@ def escribir(df_pandas: pd.DataFrame, tabla: str) -> None:
     Args:
         df_pandas (pd.DataFrame): Datos a escribir.
         tabla (str): Nombre completo `catalogo.esquema.tabla`.
+
+    Example:
+        >>> escribir(df_cuadro, 'tesis.modelo.fhe_cuadro_comparativo')  # doctest: +SKIP
     """
     (
         spark.createDataFrame(df_pandas)

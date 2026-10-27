@@ -76,7 +76,7 @@ def proximidad_knn(distancias: np.ndarray, k: int) -> np.ndarray:
         ValueError: Si `k` no está entre 1 y m − 1.
 
     Example:
-        >>> proximidad_knn(distancias, k=3).sum(axis=1).min() >= 3
+        >>> proximidad_knn(distancias, k=3).sum(axis=1).min() >= 3  # doctest: +SKIP
         True
     """
     m = distancias.shape[0]
@@ -107,7 +107,7 @@ def proximidad_inversa(distancias: np.ndarray, potencia: float = 1.0) -> np.ndar
         np.ndarray: Matriz (m, m) simétrica no negativa, diagonal nula, sin estandarizar.
 
     Example:
-        >>> P = proximidad_inversa(distancias, potencia=2.0)
+        >>> P = proximidad_inversa(distancias, potencia=2.0)  # doctest: +SKIP
     """
     d = distancias.copy()
     positivas = d[d > 0]
@@ -133,7 +133,7 @@ def estandarizar_filas(proximidad: np.ndarray) -> np.ndarray:
         ValueError: Si alguna fila suma cero (unidad sin vecinos).
 
     Example:
-        >>> estandarizar_filas(proximidad_knn(distancias, 3)).sum(axis=1)
+        >>> estandarizar_filas(proximidad_knn(distancias, 3)).sum(axis=1)  # doctest: +SKIP
         array([1., 1., ...])
     """
     suma = proximidad.sum(axis=1, keepdims=True)
@@ -255,7 +255,7 @@ def moran_i(valores: np.ndarray, W: np.ndarray, n_perm: int = 9999, semilla: int
         ValueError: Si `valores` y `W` no tienen la misma dimensión.
 
     Example:
-        >>> moran_i(residuos, estandarizar_filas(proximidad_knn(d, 3)))["p_valor"]
+        >>> moran_i(residuos, estandarizar_filas(proximidad_knn(d, 3)))["p_valor"]  # doctest: +SKIP
     """
     valores = np.asarray(valores, dtype=float)
     n = len(valores)
@@ -295,7 +295,7 @@ def resumen_vecindad(distancias: np.ndarray, indices_origen, indices_destino) ->
             `n_a_50km`, `n_a_100km`: cuántos orígenes tienen un destino a ≤50 / ≤100 km.
 
     Example:
-        >>> resumen_vecindad(d, range(23, 106), range(23))
+        >>> resumen_vecindad(d, range(23, 106), range(23))  # doctest: +SKIP
     """
     cercana = distancias[np.ix_(list(indices_origen), list(indices_destino))].min(
         axis=1

@@ -50,7 +50,7 @@ def guardar_figura(fig, nombre: str, directorio: str = None) -> str:
         str: Ruta del archivo escrito, o cadena vacía si no se guardó.
 
     Example:
-        >>> guardar_figura(fig, "desc_respuesta", VOLUMEN_FIGURAS)
+        >>> guardar_figura(fig, "desc_respuesta", VOLUMEN_FIGURAS)  # doctest: +SKIP
     """
     if not directorio:
         return ""
@@ -96,7 +96,7 @@ def resumen_univariado(
         ValueError: Si alguna columna no existe en `df`.
 
     Example:
-        >>> resumen_univariado(df, ["TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT"])
+        >>> resumen_univariado(df, ["TASA_DESEMPLEO_PCT", "SE_BOOTSTRAP_PCT"])  # doctest: +SKIP
     """
     faltantes = [c for c in columnas if c not in df.columns]
     if faltantes:
@@ -166,7 +166,7 @@ def dominios_extremos(
         pd.DataFrame: Una fila por variable con el número de dominios extremos y su lista.
 
     Example:
-        >>> dominios_extremos(df_cand, codigos, entidades, alias)
+        >>> dominios_extremos(df_cand, codigos, entidades, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     filas = []
@@ -210,7 +210,7 @@ def figura_respuesta(
         matplotlib.figure.Figure: Figura con los cuatro paneles.
 
     Example:
-        >>> fig = figura_respuesta(Y, SE)
+        >>> fig = figura_respuesta(Y, SE)  # doctest: +SKIP
     """
     fig, axes = plt.subplots(2, 2, figsize=(11, 7))
 
@@ -269,7 +269,7 @@ def figura_territorial(
         matplotlib.figure.Figure: Figura de barras horizontales ordenadas.
 
     Example:
-        >>> fig = figura_territorial(Y, entidades)
+        >>> fig = figura_territorial(Y, entidades)  # doctest: +SKIP
     """
     orden = np.argsort(y)
     fig, ax = plt.subplots(figsize=(8, 0.32 * len(y) + 1.5))
@@ -305,7 +305,7 @@ def figura_panel_boxplots(df: pd.DataFrame, columnas: list, alias: dict = None):
         matplotlib.figure.Figure: Figura con un diagrama de caja por covariable.
 
     Example:
-        >>> fig = figura_panel_boxplots(df_cand, codigos, alias)
+        >>> fig = figura_panel_boxplots(df_cand, codigos, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     datos = [
@@ -375,7 +375,7 @@ def tabla_bivariada(
             número de valores extremos y la medida recomendada con su motivo.
 
     Example:
-        >>> tabla_bivariada(df_cand, codigos, Y, alias)
+        >>> tabla_bivariada(df_cand, codigos, Y, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     filas = []
@@ -443,7 +443,7 @@ def figura_panel_dispersion(
         matplotlib.figure.Figure: Figura con un diagrama por covariable.
 
     Example:
-        >>> fig = figura_panel_dispersion(df_cand, codigos, Y, alias)
+        >>> fig = figura_panel_dispersion(df_cand, codigos, Y, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     nfilas = (len(columnas) + ncols - 1) // ncols
@@ -492,7 +492,7 @@ def orden_por_agrupamiento(df: pd.DataFrame, columnas: list) -> list:
         list[str]: Las mismas covariables, reordenadas.
 
     Example:
-        >>> orden_por_agrupamiento(df_cand, codigos)
+        >>> orden_por_agrupamiento(df_cand, codigos)  # doctest: +SKIP
     """
     if len(columnas) < 3:
         return list(columnas)
@@ -524,7 +524,7 @@ def figura_correlacion_agrupada(
         tuple[matplotlib.figure.Figure, list]: La figura y el orden de covariables usado.
 
     Example:
-        >>> fig, orden = figura_correlacion_agrupada(df_cand, codigos, alias)
+        >>> fig, orden = figura_correlacion_agrupada(df_cand, codigos, alias)  # doctest: +SKIP
     """
     alias = alias or {}
     orden = orden_por_agrupamiento(df, columnas)
@@ -578,7 +578,7 @@ def tabla_pares_correlacionados(
         pd.DataFrame: Una fila por par, ordenada por magnitud descendente.
 
     Example:
-        >>> tabla_pares_correlacionados(df_cand, codigos, alias, umbral=0.80)
+        >>> tabla_pares_correlacionados(df_cand, codigos, alias, umbral=0.80)  # doctest: +SKIP
     """
     alias = alias or {}
     corr = df[columnas].corr()
@@ -612,7 +612,19 @@ def tabla_pares_correlacionados(
 
 
 def _nombres(indices, etiquetas_dominio: np.ndarray) -> str:
-    """Une los nombres de dominio de una lista de índices en una cadena legible."""
+    """Une los nombres de dominio de una lista de índices en una cadena legible.
+
+    Args:
+        indices (Iterable[int]): Posiciones de los dominios en `etiquetas_dominio`.
+        etiquetas_dominio (np.ndarray): Nombre de cada dominio, shape (n,).
+
+    Returns:
+        str: Nombres separados por coma, en el orden de `indices`.
+
+    Example:
+        >>> _nombres([0, 2], np.array(["Cali A.M.", "Pasto", "Tunja"]))
+        'Cali A.M., Tunja'
+    """
     return ", ".join(str(etiquetas_dominio[i]) for i in indices)
 
 
@@ -637,7 +649,7 @@ def interpretar_respuesta(
         str: Interpretación lista para imprimir junto a la figura.
 
     Example:
-        >>> print(interpretar_respuesta(Y, SE, entidades))
+        >>> print(interpretar_respuesta(Y, SE, entidades))  # doctest: +SKIP
     """
     asim_y = float(stats.skew(y, bias=False))
     asim_se = float(stats.skew(se, bias=False))
@@ -647,7 +659,18 @@ def interpretar_respuesta(
     cv_dir = 100 * se / np.abs(y)
 
     def forma(asim):
-        """Describe la asimetría: (float) coeficiente de asimetría → (str) texto de la forma."""
+        """Describe la asimetría de una distribución en palabras.
+
+        Args:
+            asim (float): Coeficiente de asimetría.
+
+        Returns:
+            str: «aproximadamente simétrica» si |asim| < 0.5; en otro caso el grado y el lado de la cola.
+
+        Example:
+            >>> forma(0.2)  # doctest: +SKIP
+            'aproximadamente simétrica'
+        """
         if abs(asim) < 0.5:
             return "aproximadamente simétrica"
         lado = (
@@ -700,7 +723,7 @@ def interpretar_territorial(y: np.ndarray, etiquetas_dominio: np.ndarray) -> str
         str: Interpretación lista para imprimir junto a la figura.
 
     Example:
-        >>> print(interpretar_territorial(Y, entidades))
+        >>> print(interpretar_territorial(Y, entidades))  # doctest: +SKIP
     """
     orden = np.argsort(y)
     media = y.mean()
@@ -737,7 +760,7 @@ def interpretar_boxplots(resumen: pd.DataFrame, alias: dict = None) -> str:
         str: Interpretación lista para imprimir junto a la figura.
 
     Example:
-        >>> print(interpretar_boxplots(desc_covariables))
+        >>> print(interpretar_boxplots(desc_covariables))  # doctest: +SKIP
     """
     alias = alias or {}
     tabla = resumen.copy()
@@ -814,7 +837,7 @@ def interpretar_dispersion(bivariado: pd.DataFrame, signo_esperado: dict = None)
         str: Interpretación lista para imprimir junto a la figura.
 
     Example:
-        >>> print(interpretar_dispersion(bivariado, SIGNO))
+        >>> print(interpretar_dispersion(bivariado, SIGNO))  # doctest: +SKIP
     """
     signo_esperado = signo_esperado or {}
     tabla = bivariado.copy()
@@ -833,7 +856,18 @@ def interpretar_dispersion(bivariado: pd.DataFrame, signo_esperado: dict = None)
     spearman = tabla[tabla["Medida_interpretable"] == "Spearman"]
 
     def lista(df):
-        """Lista covariables: (pd.DataFrame) con `Alias` y `r_interp` → (str) "ALIAS (+0.12), ..."."""
+        """Lista covariables con su correlación interpretable.
+
+        Args:
+            df (pd.DataFrame): Tabla con las columnas `Alias` y `r_interp`.
+
+        Returns:
+            str: Texto «ALIAS (+0.12), ...», una entrada por fila de `df`.
+
+        Example:
+            >>> lista(pd.DataFrame({"Alias": ["POB"], "r_interp": [0.12]}))  # doctest: +SKIP
+            'POB (+0.12)'
+        """
         return ", ".join(
             f"{fila['Alias']} ({fila['r_interp']:+.2f})" for _, fila in df.iterrows()
         )
@@ -885,7 +919,7 @@ def interpretar_correlacion(
         str: Interpretación lista para imprimir junto a la figura.
 
     Example:
-        >>> print(interpretar_correlacion(pares, orden_agrupado, ALIAS))
+        >>> print(interpretar_correlacion(pares, orden_agrupado, ALIAS))  # doctest: +SKIP
     """
     alias = alias or {}
     lineas = ["INTERPRETACIÓN DE LA FIGURA:"]

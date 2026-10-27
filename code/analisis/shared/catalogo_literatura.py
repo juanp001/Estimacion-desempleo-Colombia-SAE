@@ -445,8 +445,8 @@ def resolver_catalogo(
             `sin dato utilizable: <motivo>` o `excluida del catálogo (R-01): <motivo>`.
 
     Example:
-        >>> catalogo_activo, reporte = resolver_catalogo(indicadores_dict, list(df_pd.columns))
-        >>> reporte["Estado"].value_counts()
+        >>> catalogo_activo, reporte = resolver_catalogo(indicadores_dict, list(df_pd.columns))  # doctest: +SKIP
+        >>> reporte["Estado"].value_counts()  # doctest: +SKIP
     """
     disponibles = set(columnas_disponibles)
     incompletas = set(incompletas_objetivos or [])
@@ -515,7 +515,7 @@ def mapas_catalogo(catalogo_activo: list) -> tuple:
             mapa con el código de indicador como clave.
 
     Example:
-        >>> codigos, alias, signo, dimension = mapas_catalogo(catalogo_activo)
+        >>> codigos, alias, signo, dimension = mapas_catalogo(catalogo_activo)  # doctest: +SKIP
     """
     codigos = [e["codigo"] for e in catalogo_activo]
     alias = {e["codigo"]: e["alias"] for e in catalogo_activo}
