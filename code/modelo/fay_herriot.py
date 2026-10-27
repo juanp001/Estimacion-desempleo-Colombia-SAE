@@ -211,6 +211,7 @@ from shared.benchmarking import (
     benchmark_nivel1,
     benchmark_nivel2,
     brecha_agregacion,
+    rmse_benchmark,
     verificar_benchmark,
 )
 
@@ -742,8 +743,13 @@ eblup_n1, lambda_n1 = benchmark_nivel1(modelo_ganador.eblup, pea_dominio, refere
 resultados_ganador["PEA_EXPANDIDA"] = pea_dominio.round(0)
 resultados_ganador["LAMBDA_N1"] = round(lambda_n1, 6)
 resultados_ganador["EBLUP_BENCHMARK"] = eblup_n1.round(4)
-# λ se trata como fijo: el RMSE se escala por λ y el CV no cambia (ver shared/benchmarking.py).
-resultados_ganador["RMSE_EBLUP_BENCHMARK"] = (modelo_ganador.rmse * lambda_n1).round(4)
+# R-09: RMSE^B = √(λ²·MSE + (θ̂^B − θ̂)²), con el sesgo que introduce el ajuste de razón
+# (shared/benchmarking.py). Con λ₁ ≈ 1 el CV casi no cambia; es el que se publica.
+rmse_eblup_n1 = rmse_benchmark(
+    modelo_ganador.rmse, modelo_ganador.eblup, eblup_n1, lambda_n1
+)
+resultados_ganador["RMSE_EBLUP_BENCHMARK"] = rmse_eblup_n1.round(4)
+resultados_ganador["CV_EBLUP_BENCHMARK_PCT"] = (100 * rmse_eblup_n1 / eblup_n1).round(2)
 
 print(
     f"λ₁ = {lambda_n1:.6f}  (agregado de los EBLUP antes del ajuste: "
@@ -1222,7 +1228,16 @@ df_bm2 = benchmark_nivel2(
 )
 df_pred["LAMBDA_N2"] = df_bm2["LAMBDA_N2"].round(6)
 df_pred["PRED_BENCHMARK"] = df_bm2["PRED_BENCHMARK"].round(4)
-df_pred["RMSE_BENCHMARK"] = (rmse_sintetico * df_bm2["LAMBDA_N2"]).round(4)
+# R-09: el RMSE del municipio ajustado incluye el sesgo (λ_D − 1)·θ̂ del ajuste de razón; con
+# λ_D lejos de 1 domina el error, así que el CV publicado (CV_BENCHMARK_PCT) sube. En los
+# municipios sin dominio padre λ = 1 y coincide con el del sintético.
+rmse_n2 = rmse_benchmark(
+    rmse_sintetico, y_sintetico, df_bm2["PRED_BENCHMARK"], df_bm2["LAMBDA_N2"]
+)
+df_pred["RMSE_BENCHMARK"] = rmse_n2.round(4)
+df_pred["CV_BENCHMARK_PCT"] = (
+    100 * rmse_n2 / np.abs(df_bm2["PRED_BENCHMARK"].to_numpy(dtype=float))
+).round(2)
 df_pred["TIPO"] = np.where(df_bm2["BENCHMARK"], "SINTETICO_BENCHMARK", "SINTETICO")
 
 ajustados = df_pred[df_bm2["BENCHMARK"]]
@@ -1237,6 +1252,7 @@ display(
             "LAMBDA_N2",
             "PRED_BENCHMARK",
             "CV_SINTETICO_PCT",
+            "CV_BENCHMARK_PCT",
         ]
     ]
 )
@@ -1277,7 +1293,8 @@ tabla_dominios = pd.DataFrame(
         "TASA_DESEMPLEO_PCT": resultados_ganador["EBLUP_BENCHMARK"],
         "TASA_SIN_AJUSTE_PCT": resultados_ganador["EBLUP"],
         "LAMBDA": resultados_ganador["LAMBDA_N1"],
-        "CV_PCT": resultados_ganador["CV_EBLUP_PCT"],
+        # R-09: CV del valor publicado (EBLUP ajustado), con el sesgo del ajuste.
+        "CV_PCT": resultados_ganador["CV_EBLUP_BENCHMARK_PCT"],
         "TIPO": "EBLUP_BENCHMARK",
     }
 )
@@ -1290,7 +1307,7 @@ tabla_municipios = pd.DataFrame(
         "TASA_DESEMPLEO_PCT": df_pred["PRED_BENCHMARK"],
         "TASA_SIN_AJUSTE_PCT": df_pred["PRED_SINTETICO"],
         "LAMBDA": df_pred["LAMBDA_N2"],
-        "CV_PCT": df_pred["CV_SINTETICO_PCT"],
+        "CV_PCT": df_pred["CV_BENCHMARK_PCT"],
         "TIPO": df_pred["TIPO"],
         # Estado de extrapolación (B20): entra a la etiqueta CALIDAD_REPORTADA (B21).
         "ESTADO_EXTRAPOLACION": df_pred["ESTADO_EXTRAPOLACION"],

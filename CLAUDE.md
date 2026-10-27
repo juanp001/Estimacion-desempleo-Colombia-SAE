@@ -332,7 +332,10 @@ modelo/fay_herriot.py
          directa exige los registros sin AREA, que el proyecto no usa; nivel 3 = extensión posible)
       12 verificación: tablas antes/después y pruebas (consistencia < 1e-8, razones conservadas, rango,
          miembros completos; aviso si |λ−1| > 0.20) + comprobación sobre la tabla final redondeada
-    λ fijo: RMSE × λ, CV sin cambio
+    R-09: RMSE^B = √(λ²·MSE + (θ̂^B − θ̂)²) (`rmse_benchmark`: λ fijo más el sesgo (λ−1)θ del ajuste de
+    razón); CV^B = RMSE^B/θ̂^B en CV_EBLUP_BENCHMARK_PCT (dominios) y CV_BENCHMARK_PCT (municipios), que
+    son el CV_PCT de la tabla final. Nivel 1: λ₁ ≈ 1, cambio despreciable. Nivel 2: con λ_D ≈ 0.81 el
+    sesgo domina y Cali y Yumbo pasan a «No confiable» (CV ≈ 30 %). El espacial no publica este RMSE
   → fh_diagnosticos_variantes, fh_cook y fh_seleccion_modelo (solo si hay más de una variante),
     fh_coeficientes, fay_herriot_resultados (con EBLUP_BENCHMARK y LAMBDA_N1),
     fay_herriot_prediccion_sintetica (con LAMBDA_N2 y PRED_BENCHMARK), fay_herriot_estimaciones_finales
