@@ -434,11 +434,9 @@ def ficha_decision(
 
     Returns:
         tuple[list, pd.DataFrame]: (seleccionadas, ficha). `seleccionadas` conserva el orden
-            por asociación descendente; `ficha` tiene una fila por candidata con la
-            evidencia y la decisión.
-
-    Raises:
-        ValueError: Si ninguna candidata resulta elegible.
+            por asociación descendente y queda vacía si ninguna candidata resulta elegible
+            (R-04: se imprime una advertencia y el modelo será de solo intercepto); `ficha`
+            tiene una fila por candidata con la evidencia y la decisión.
 
     Example:
         >>> seleccionadas, ficha = ficha_decision(
@@ -520,8 +518,11 @@ def ficha_decision(
     ficha = pd.DataFrame(filas)
     elegibles = ficha[ficha["Decision"] == "elegible"].copy()
     if elegibles.empty:
-        raise ValueError(
-            "Ninguna candidata resulta elegible; revisar los diagnósticos antes de continuar."
+        # R-04: no se detiene; el conjunto vacío es un resultado (modelo de solo intercepto).
+        print(
+            "⚠ ADVERTENCIA: ninguna candidata resulta elegible. El conjunto seleccionado queda "
+            "vacío y el Fay-Herriot será un modelo de solo intercepto (EC0): la predicción de "
+            "los municipios sin encuesta es la misma tasa sintética para todos."
         )
 
     elegibles["abs_r"] = elegibles["r_interpretable"].abs()
@@ -699,7 +700,8 @@ def ajustar_por_vif(
 
     Returns:
         tuple[list, pd.DataFrame, list]: (conjunto final, tabla VIF del conjunto final,
-            lista de cadenas que describen cada sustitución realizada).
+            lista de cadenas que describen cada sustitución realizada). Con `seleccionadas`
+            vacía devuelve ([], una fila «—» con VIF NaN, []) (R-04).
 
     Example:
         >>> finales, df_vif, cambios = ajustar_por_vif(df_cand, seleccionadas, restantes)  # doctest: +SKIP
@@ -708,6 +710,11 @@ def ajustar_por_vif(
     conjunto = list(seleccionadas)
     pendientes = list(elegibles_restantes)
     sustituciones = []
+    if not conjunto:
+        # R-04: sin covariables no hay multicolinealidad que verificar; una fila marca el
+        # conjunto vacío para que la tabla de verificación se pueda escribir igual.
+        print("Verificación de multicolinealidad: conjunto vacío (solo intercepto)")
+        return [], pd.DataFrame([{"Alias": "—", "Codigo": "—", "VIF": np.nan}]), []
 
     while True:
         tabla_vif = vif_conjunto(df, conjunto, alias=alias)
@@ -732,15 +739,6 @@ def ajustar_por_vif(
         f"Verificación de multicolinealidad: VIF máximo {float(tabla_vif['VIF'].max()):.3f} (umbral {vif_max})"
     )
     return conjunto, tabla_vif, sustituciones
-
-
-class SeleccionVaciaError(ValueError):
-    """Ninguna candidata resulta elegible: el conjunto sería solo el intercepto.
-
-    Subclase de `ValueError`: `ejecutar_seleccion()` la lanza para que el notebook de selección
-    se detenga con un mensaje claro y para que `seleccionar_covariables()` la traduzca en un
-    resultado vacío dentro de la validación cruzada.
-    """
 
 
 def _anotar_vif_en_ficha(
@@ -890,10 +888,9 @@ def ejecutar_seleccion(
             (None sin `df_objetivos`), `df_elegibilidad`, `df_redundancia`, `df_vif`,
             `sustituciones`, `p_maximo` (el usado) y `seleccionadas_previas` (antes del VIF).
 
-    Raises:
-        SeleccionVaciaError: Si ninguna candidata resulta elegible (el conjunto sería solo el
-            intercepto: el notebook de selección debe detenerse y la validación cruzada del
-            modelo lo trata como un modelo sin covariables).
+        Si ninguna candidata resulta elegible, `seleccionadas` queda vacía y se imprime una
+        advertencia (R-04): el proceso no se detiene y el modelo será de solo intercepto
+        (EC0). La validación cruzada del modelo recibe la misma lista vacía.
 
     Example:
         >>> r = ejecutar_seleccion(df_cand, CANDIDATAS, Y, PSI, nombres, SIGNO, ALIAS)  # doctest: +SKIP
@@ -965,23 +962,21 @@ def ejecutar_seleccion(
             umbral=umbral_redundancia,
             elegibilidad=df_elegibilidad,
         )
-        try:
-            previas, ficha = ficha_decision(
-                candidatas,
-                df_robustez,
-                df_redundancia,
-                signo_esperado=signo_esperado,
-                alias=alias,
-                dimension=dimension,
-                p_maximo=p_maximo,
-                exigir_signo=exigir_signo,
-                fh=df_fh,
-                forma=df_forma,
-                q_fdr=q_fdr,
-                soporte=soporte,
-            )
-        except ValueError as error:
-            raise SeleccionVaciaError(str(error)) from error
+        # R-04: sin elegibles, ficha_decision avisa y devuelve el conjunto vacío.
+        previas, ficha = ficha_decision(
+            candidatas,
+            df_robustez,
+            df_redundancia,
+            signo_esperado=signo_esperado,
+            alias=alias,
+            dimension=dimension,
+            p_maximo=p_maximo,
+            exigir_signo=exigir_signo,
+            fh=df_fh,
+            forma=df_forma,
+            q_fdr=q_fdr,
+            soporte=soporte,
+        )
         restantes = ficha.loc[ficha["Decision"] == "no seleccionada", "Codigo"].tolist()
         finales, df_vif, sustituciones = ajustar_por_vif(
             df, previas, restantes, vif_max=vif_max, alias=alias
@@ -1049,31 +1044,28 @@ def seleccionar_covariables(
 
     Returns:
         tuple[list, pd.DataFrame]: (seleccionadas, ficha). `seleccionadas` es la lista final
-            de columnas tras el VIF, vacía si ninguna candidata resulta elegible (en ese caso
-            `ficha` es un DataFrame vacío).
+            de columnas tras el VIF, vacía si ninguna candidata resulta elegible (R-04: la
+            `ficha` se conserva con todas las candidatas como «no elegible» o «descartada»).
 
     Example:
         >>> sel, ficha = seleccionar_covariables(df_cand, CANDIDATAS, Y, PSI, nombres, SIGNO)  # doctest: +SKIP
     """
-    try:
-        resultado = ejecutar_seleccion(
-            df,
-            candidatas,
-            y,
-            psi,
-            etiquetas_dominio,
-            signo_esperado,
-            alias=alias,
-            dimension=dimension,
-            p_maximo=p_maximo,
-            q_fdr=q_fdr,
-            umbral_delta=umbral_delta,
-            umbral_redundancia=umbral_redundancia,
-            vif_max=vif_max,
-            alfa_ic=alfa_ic,
-        )
-    except SeleccionVaciaError:
-        return [], pd.DataFrame()
+    resultado = ejecutar_seleccion(
+        df,
+        candidatas,
+        y,
+        psi,
+        etiquetas_dominio,
+        signo_esperado,
+        alias=alias,
+        dimension=dimension,
+        p_maximo=p_maximo,
+        q_fdr=q_fdr,
+        umbral_delta=umbral_delta,
+        umbral_redundancia=umbral_redundancia,
+        vif_max=vif_max,
+        alfa_ic=alfa_ic,
+    )
     return resultado["seleccionadas"], resultado["ficha"]
 
 
