@@ -21,7 +21,12 @@ Qué se calcula (todo con cualquier número de covariables)
    * ``COMBINACION_ATIPICA``: cada covariable está dentro de su rango, pero la combinación queda
      más lejos del centro de los datos que cualquier dominio: h_m = x_m'Cov(β̂)x_m (el término de
      la varianza del sintético por estimar β, Morales et al., p. 441) supera el máximo de la
-     muestra. Solo puede pasar con dos o más covariables.
+     muestra. Morales solo da h como parte de la varianza; el umbral «h_m > máx_i h_i» es el
+     criterio de extrapolación oculta (envolvente de los regresores) de la regresión general
+     (Montgomery, Peck y Vining, Introduction to Linear Regression Analysis, sec. 3.8; fuera de
+     la base bibliográfica del proyecto) (R-66). Solo puede pasar con dos o más covariables: con
+     una, h es convexa en x y su máximo dentro del rango está en un extremo, así que la regla
+     queda inerte.
    * ``DENTRO_DEL_RANGO``: ninguno de los dos.
 3. **Aporte extrapolado**: la predicción con las covariables recortadas al rango de los dominios,
    x̃_m'β̂, y la diferencia x_m'β̂ − x̃_m'β̂ en puntos porcentuales. Por covariable,
@@ -173,8 +178,9 @@ def estado_extrapolacion(
 
     * ``FUERA_DEL_RANGO`` si alguna covariable queda fuera del [mín, máx] de los dominios.
     * ``COMBINACION_ATIPICA`` si todas están dentro de su rango pero h = x'Cov(β̂)x supera el
-      máximo de h en los dominios (Morales et al., p. 441): cada valor es habitual, la
-      combinación no.
+      máximo de h en los dominios (criterio de extrapolación oculta de Montgomery, Peck y
+      Vining, sec. 3.8; h es el término x'Cov(β̂)x de Morales et al., p. 441, R-66): cada valor
+      es habitual, la combinación no. Con una covariable no se activa.
     * ``DENTRO_DEL_RANGO`` en otro caso.
 
     Args:

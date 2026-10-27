@@ -240,13 +240,19 @@ modelo/fay_herriot.py
   → FayHerriotClasico (shared/fay_herriot.py), MSE de Prasad-Rao con g3 = D²/(D+Â)³·avar(Â)
     (Morales et al., p. 440)
   → (G7-B15) especificaciones candidatas del modelo base Fay-Herriot clásico (EC1…ECk, antes M1–M5; NO son los modelos
-    finales del objetivo 1) = conjunto seleccionado (EC1) + dejar-una-fuera (shared/seleccion_modelo.py,
-    etiqueta_especificacion)
+    finales del objetivo 1) = conjunto seleccionado (EC1) + todos sus subconjuntos no vacíos (R-05,
+    `subconjuntos_covariables`; con k = 2 son EC1-EC3, mismas etiquetas que el antiguo dejar-una-fuera;
+    shared/seleccion_modelo.py, etiqueta_especificacion)
   → benchmark seleccionado (Morales et al., p. 453; los modelos de área admiten sobreparametrizar, pero
     aquí se predice también fuera de muestra, así que la regla es estricta; el libro admite una covariable
     con p > 0.05 si es interpretable, p. 454, a reportar como excepción): candidatas = especificaciones con todas las
     covariables p < 0.05; entre ellas menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos
-    covariables. Si ninguna tiene todas las covariables significativas, compiten todas (imprime aviso).
+    covariables. R-05 (respaldo): si ninguna tiene todas las covariables significativas, el notebook NO se
+    detiene (se muestra el proceso completo): compiten todas, el aviso nombra las covariables no
+    significativas del elegido, `fh_seleccion_modelo` deja `Candidata = no` en todas y la columna
+    `Criterio` = respaldo, y `redaccion_seleccion` lo redacta como excepción (p. 454), que se justifica en
+    el documento de tesis. Con el cierre 2018 se cumple la regla: EC3 = TASA_HOMICIDIOS (p = 0.006) frente
+    a EC2 = COB_ACUEDUCTO (ΔAIC = 0.92); EC1 (las dos) no cumple.
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
     robustez (Cook + reajuste sin el dominio más influyente) del benchmark. G7-B16: AICc (AIC + 2k(k+1)/(n−k−1),
     k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
@@ -260,7 +266,8 @@ modelo/fay_herriot.py
   → extrapolación B20 (celda 10a, shared/extrapolacion.py, cualquier número de covariables; la tasa
     publicada NO cambia): ESTADO_EXTRAPOLACION = FUERA_DEL_RANGO (alguna covariable fuera del
     [mín, máx] de los 23 dominios) / COMBINACION_ATIPICA (todas dentro pero x'Cov(β̂)x > máximo de la
-    muestra, Morales p. 441; solo con p ≥ 2) / DENTRO_DEL_RANGO; COVARIABLES_FUERA,
+    muestra; h es el término de Morales p. 441, pero el umbral es la extrapolación oculta de Montgomery,
+    Peck y Vining, sec. 3.8, R-66; solo con p ≥ 2, inerte con una covariable) / DENTRO_DEL_RANGO; COVARIABLES_FUERA,
     COVARIABLE_PRINCIPAL (mayor |β̂_j(x_j − x̃_j)|), RAZON_H, PRED_ACOTADA (x̃'β̂ con x recortado al
     rango) y APORTE_EXTRAPOLADO_PP (x'β̂ − x̃'β̂). Sensibilidad: acotada + reajuste quitando cada
     dominio (mín/máx/amplitud y dominio más influyente). Sustento: Benedetti 2024 p. 144, Morales
@@ -298,7 +305,7 @@ modelo/fay_herriot.py
     (`analisis/shared/seleccion.seleccionar_covariables`, mismos pasos que `eda_seleccion_covariables`: FH
     univariado con ψ_d, BH, redundancia, parsimonia con la cota calculada desde n, VIF; sobre las 18 candidatas de
     `covariables_prefiltradas`) y la elección del benchmark (`ajustar_benchmark`: conjunto +
-    dejar-una-fuera + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
+    subconjuntos + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
     reproducen EC1 y el benchmark. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
     (√media(e²−ψ)), errores estandarizados `Z_psi = e/√ψ` y `Z_pred = e/√(ψ + x'Cov(β̂)x + Â)` (media,
     sd, cobertura nominal), error dentro de muestra, y habilidad frente a un modelo de solo intercepto
@@ -326,7 +333,10 @@ modelo/fay_herriot.py
          directa exige los registros sin AREA, que el proyecto no usa; nivel 3 = extensión posible)
       12 verificación: tablas antes/después y pruebas (consistencia < 1e-8, razones conservadas, rango,
          miembros completos; aviso si |λ−1| > 0.20) + comprobación sobre la tabla final redondeada
-    λ fijo: RMSE × λ, CV sin cambio
+    R-09: RMSE^B = √(λ²·MSE + (θ̂^B − θ̂)²) (`rmse_benchmark`: λ fijo más el sesgo (λ−1)θ del ajuste de
+    razón); CV^B = RMSE^B/θ̂^B en CV_EBLUP_BENCHMARK_PCT (dominios) y CV_BENCHMARK_PCT (municipios), que
+    son el CV_PCT de la tabla final. Nivel 1: λ₁ ≈ 1, cambio despreciable. Nivel 2: con λ_D ≈ 0.81 el
+    sesgo domina y Cali y Yumbo pasan a «No confiable» (CV ≈ 30 %). El espacial no publica este RMSE
   → fh_diagnosticos_variantes, fh_cook y fh_seleccion_modelo (solo si hay más de una variante),
     fh_coeficientes, fay_herriot_resultados (con EBLUP_BENCHMARK y LAMBDA_N1),
     fay_herriot_prediccion_sintetica (con LAMBDA_N2 y PRED_BENCHMARK), fay_herriot_estimaciones_finales
@@ -354,16 +364,18 @@ modelo/sensibilidad_varianza.py   (G7-B3, fuera de la cadena: no alimenta al mod
   → GVF A log ψ = b0 + b1·y + b2·n (Morales p. 427/454-455) y GVF B log ψ = b0 + b1·log(p(1−p)) +
     b2·log n (deff: Téllez 2020 p. 15, Chile 2016 PDF 4), retransformadas con Δ = Σψ/Σexp(x'α̂)
     (ENUSC 2018 PDF 15-16); R², residuos y figura observada vs predicha. GVF = solo escenario
-  → escenarios: base, personas, Taylor, GVF A/B y ψ × k (k ∈ {1/3, 1/2, 2/3, 3/2, 2, 3}, simétrica en
-    log). En cada uno reajusta las variantes y elige ganador con la misma regla; compara con la
+  → escenarios (R-65, 9): base, Taylor, GVF A y ψ × k (k ∈ {1/3, 1/2, 2/3, 3/2, 2, 3}, simétrica en
+    log); el bootstrap por personas y la GVF B solo quedan como columnas de sensibilidad_varianza_directa
+    (daban lo mismo: con Â/ψ̄ alto, γ ≈ 1 y el EBLUP casi no depende de ψ). En cada uno reajusta las variantes y elige ganador con la misma regla; compara con la
     especificación de referencia (ganador base): Â/ψ̄ (Benedetti 2024 p. 143), γ, β̂ y p, EBLUP, CV y
     confiabilidad, λ₁ y predicción sintética de los 83 municipios
   → sensibilidad_varianza_directa, gvf_ajuste, sensibilidad_varianza_fh, sensibilidad_varianza_coeficientes,
     sensibilidad_varianza_dominios, sensibilidad_varianza_municipios (tesis.modelo)
   → 2018: ψ_viviendas/ψ_personas mediana 1.08 (1.00–1.17); bootstrap/Taylor 0.94–1.05; GVF R² 0.97 (A) y
-    0.976 (B, pendientes ≈ +1 y −1 = forma binomial, deff implícito ≈ 1.2). En los 11 escenarios el
-    ganador (IICA_CONFLICTO) y su significancia no cambian, Â/ψ̄ ≥ 15, γ ≥ 0.88, EBLUP cambia ≤ 0.19 pp y
-    la predicción sintética ≤ 0.11 pp; solo con ψ × 3 pasan 4 dominios de confiable a aceptable
+    0.976 (B, pendientes ≈ +1 y −1 = forma binomial, deff implícito ≈ 1.2). Corrida del bloque 06 (9
+    escenarios, R-65): el ganador (TASA_HOMICIDIOS) y su significancia no cambian, Â/ψ̄ ≥ 19.5, γ ≥ 0.90,
+    EBLUP cambia ≤ 0.20 pp y la predicción sintética ≤ 0.13 pp; Taylor y GVF A, ≤ 0.005 pp. Solo con ψ × 3
+    pasan 4 dominios de confiable a aceptable
 ```
 
 Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LITERATURA`,
@@ -394,7 +406,7 @@ umbrales de CV 5/20 se importan de `preprocesamiento/shared/config.py`, R-40/R-5
 resultados — común a cualquier variante SAE; `prediccion_sintetica`, única fórmula x'β̂ y x'Cov(β̂)x + Â),
 `datos_modelo.py` (R-40/R-63: `periodo_unico`, `alias_desde_catalogo`, `preparar_municipios`),
 `escritura.py` (`escribir_tabla`, `EscrituraDiferida`), `fay_herriot.py` (FayHerriotClasico: REML, GLS, EBLUP, MSE de
-Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (variantes dejar-una-fuera, tabla de
+Prasad-Rao con g3 de la p. 440, AIC por ML), `seleccion_modelo.py` (subconjuntos de covariables, tabla de
 diagnósticos, Cook, tabla de selección y ganador), `diagnosticos.py` (gráficas de validación sin GVF, CV
 directo vs EBLUP, avisos), `sensibilidad_varianza.py` (G7-B3: `ajustar_gvf`, `escenarios_psi`,
 `ajustar_escenarios`, figuras e interpretación), `estabilidad_coeficientes.py` (`reajustes_sin_dominio`, el único LOAO del clásico, R-39;

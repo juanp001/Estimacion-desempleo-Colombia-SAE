@@ -176,7 +176,9 @@ DELTA_AIC_EQUIVALENTE = 2.0
 # Nivel de significancia que deben cumplir todas las covariables de una variante para
 # competir (Morales et al., p. 453: al predecir fuera de muestra no conviene incluir
 # covariables no significativas). Regla estricta: el libro (p. 454) admite una covariable
-# con p > 0.05 si es interpretable; de darse, se reporta como excepción explícita.
+# con p > 0.05 si es interpretable; de darse, se reporta como excepción explícita. R-05: si
+# ninguna variante cumple, compiten todas (respaldo) y el cálculo sigue; el aviso, la columna
+# `Criterio` de fh_seleccion_modelo y la redacción lo registran (shared/seleccion_modelo.py).
 ALFA_SIGNIFICANCIA = 0.05
 
 # ── Avisos ───────────────────────────────────────────────────────────────────

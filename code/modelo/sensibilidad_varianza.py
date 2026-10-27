@@ -22,9 +22,14 @@
 # MAGIC    residuos y la figura de ψ observada contra predicha (Morales, Fig. 16.1). Es **solo un
 # MAGIC    escenario**: la GVF estabiliza ψ̂ inestables por muestras pequeñas (ENUSC, PDF 15) y aquí
 # MAGIC    cada dominio tiene miles de viviendas.
-# MAGIC 3. **Escenarios del modelo**: base, las alternativas de 1 y 2 y la grilla ψ_d × k con
-# MAGIC    k ∈ {1/3, 1/2, 2/3, 3/2, 2, 3}, simétrica en escala log porque no se presume la dirección
-# MAGIC    del error. En cada uno se reajustan todas las variantes, se elige el ganador con la regla
+# MAGIC 3. **Escenarios del modelo** (R-65): base, Taylor (método independiente), GVF A (la del
+# MAGIC    libro) y la grilla ψ_d × k con k ∈ {1/3, 1/2, 2/3, 3/2, 2, 3}, simétrica en escala log
+# MAGIC    porque no se presume la dirección del error. El bootstrap por personas y la GVF B quedan
+# MAGIC    solo como columnas de `sensibilidad_varianza_directa` (y la GVF B en `gvf_ajuste` y la
+# MAGIC    figura): en la corrida anterior cambiaban el EBLUP ≤ 0,0075 pp, eran indistinguibles de
+# MAGIC    Taylor y la GVF A y daban el mismo ganador. La razón es una sola: con Â/ψ̄ alto, γ ≈ 1 y
+# MAGIC    el EBLUP casi coincide con la directa cualquiera sea ψ (Morales, pp. 427 y 440; Benedetti
+# MAGIC    et al., 2024, p. 143). La grilla es la que acota el error desconocido del diseño. En cada uno se reajustan todas las variantes, se elige el ganador con la regla
 # MAGIC    del modelo (p. 453) y se comparan con la base: Â/ψ̄ (Benedetti et al., 2024, p. 143:
 # MAGIC    subestimar ψ pesa más cuando Â es pequeña frente a ψ), γ, coeficientes, EBLUP, CV y
 # MAGIC    confiabilidad, λ₁ del benchmarking y la predicción sintética de los municipios.
@@ -72,7 +77,7 @@ for _ruta in (CODE_DIR, os.path.join(CODE_DIR, "modelo")):
 
 from shared.config import *
 from shared.fay_herriot import FayHerriotClasico
-from shared.seleccion_modelo import elegir_ganador, variantes_dejar_una_fuera
+from shared.seleccion_modelo import elegir_ganador, subconjuntos_covariables
 from shared.datos_modelo import alias_desde_catalogo, periodo_unico, preparar_municipios
 from shared.escritura import escribir_tabla
 from shared.sensibilidad_varianza import (
@@ -113,7 +118,7 @@ df = (
     .reset_index(drop=True)
 )
 covars_eda = [c for c in df.columns if c in alias_a_codigo]
-nombres_covars = variantes_dejar_una_fuera(covars_eda)
+nombres_covars = subconjuntos_covariables(covars_eda)
 
 PERIODO = periodo_unico(df, TBL_COVARIABLES_SELECCIONADAS)
 PER_MODELO, MES_MODELO = PERIODO["PER"], PERIODO["MES"]
@@ -247,13 +252,13 @@ print(f"Municipios objetivo: {len(df_new)}")
 # COMMAND ----------
 
 # DBTITLE 1,5. Escenarios del modelo
+# R-65: solo Taylor (método independiente) y la GVF A (la del libro) reajustan el FH; el bootstrap
+# por personas y la GVF B quedan como columnas de `directa`, porque daban lo mismo.
 escenarios = escenarios_psi(
     psi_base,
     {
-        "Bootstrap personas": directa["PSI_PERSONAS"].to_numpy(),
         "Taylor viviendas": directa["PSI_TAYLOR"].to_numpy(),
         "GVF A (Morales)": directa["PSI_GVF_A"].to_numpy(),
-        "GVF B (deff)": directa["PSI_GVF_B"].to_numpy(),
     },
 )
 # `directa` conserva el orden de `df` (merge por la izquierda), así que cada vector ψ está
