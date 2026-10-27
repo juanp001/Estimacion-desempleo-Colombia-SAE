@@ -59,8 +59,8 @@ Nivel 1: los 23 dominios (ciudades y ciudades A.M.) → «Total 23 ciudades y A.
       laboral según proyecciones CNPV 2018»): la publicada si la ventana es un trimestre móvil
       (10.3251 % en Oct-Dic 2018) o, si es el año, la reconstruida como Σ desempleados / Σ PEA de
       los cuatro trimestres que no se pisan, porque el anexo no publica la serie anual de las 23
-      ciudades (``preprocesamiento/shared/ventana.td_dane_ventana``). El notebook la compara y se
-      detiene si difiere.
+      ciudades (``preprocesamiento/shared/ventana.td_dane_ventana``). El notebook la compara y
+      advierte si difiere (R-04: no se detiene).
 Nivel 2: municipios de un dominio A.M. → valor ya ajustado (nivel 1) de su dominio
     * Unidades: la predicción sintética x_m'β̂ de cada municipio (Cali y Yumbo en Cali A.M.).
     * Pesos: la población de 15 años y más del municipio (suma de los grupos quinquenales de edad de
@@ -402,8 +402,8 @@ def verificar_benchmark(
             ``DIF_DESPUES_PP``, ``LAMBDA``, ``CONSISTENTE``, ``RAZONES_CONSERVADAS``,
             ``EN_RANGO``, ``MIEMBROS_COMPLETOS`` y ``OK``.
 
-    Raises:
-        ValueError: Si alguna comprobación (a)-(d) falla, con la lista de territorios.
+    Si alguna comprobación (a)-(d) falla imprime una advertencia con la lista de territorios
+    y devuelve la tabla igual (R-04: el proceso no se detiene; ``OK`` = False la marca).
 
     Casos de uso:
         Celda «Verificación del benchmarking» de ``fay_herriot.py``, una vez por nivel.
@@ -458,5 +458,6 @@ def verificar_benchmark(
     tabla = pd.DataFrame(filas)
     fallas = tabla.loc[~tabla["OK"], "TERRITORIO"].tolist()
     if fallas:
-        raise ValueError(f"El benchmarking no pasó la verificación en: {fallas}")
+        # R-04: no se detiene; la columna OK y la advertencia dejan la falla a la vista.
+        print(f"⚠ ADVERTENCIA: el benchmarking no pasó la verificación en: {fallas}")
     return tabla

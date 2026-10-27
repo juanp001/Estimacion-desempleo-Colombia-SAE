@@ -555,6 +555,9 @@ def resumen_influencia_dominios(
         >>> resumen_influencia_dominios(detalle_coef, detalle_pred, por_dominio)  # doctest: +SKIP
     """
     param = detalle_coef[detalle_coef["Parametro"] != "Intercepto"]
+    if param.empty:
+        # R-04: con el modelo de solo intercepto (EC0) la influencia se lee en β̂0.
+        param = detalle_coef[detalle_coef["Parametro"] == "Intercepto"]
     filas = []
     for dominio, g in param.groupby("Dominio_excluido", sort=False):
         g = g.reset_index(drop=True)

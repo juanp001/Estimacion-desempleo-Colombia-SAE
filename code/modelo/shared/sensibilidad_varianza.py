@@ -288,7 +288,7 @@ def ajustar_escenarios(
             `CODIGO_DOMINIO` y `NOMBRE_DOMINIO`.
         escenarios (dict[str, np.ndarray]): Salida de `escenarios_psi` (ψ en %², mismo orden
             que `df`). La primera entrada es la base.
-        nombres_covars (list[list[str]]): Variantes a comparar (todos los subconjuntos del conjunto del EDA, R-05).
+        nombres_covars (list[list[str]]): Variantes a comparar (todos los subconjuntos del conjunto del EDA, R-05, y el de solo intercepto EC0, R-04).
         covars_referencia (list[str]): Covariables del ganador base.
         y_col (str): Variable respuesta (tasa en %).
         pesos_nivel1 (array-like): PEA expandida de cada dominio (benchmarking de nivel 1).
@@ -348,7 +348,7 @@ def ajustar_escenarios(
                 "GAMMA_MEDIA": float(ref.gamma_i.mean()),
                 "GAMMA_MIN": float(ref.gamma_i.min()),
                 "GAMMA_MAX": float(ref.gamma_i.max()),
-                "GANADOR": " + ".join(ganador.covars),
+                "GANADOR": " + ".join(ganador.covars) or "EC0 (solo intercepto)",
                 "MISMO_GANADOR": tuple(ganador.covars) == base["ganador"],
                 "REF_TODAS_SIGNIF": todas_significativas(ref, alfa),
                 "REF_MISMOS_SIGNOS": bool(
