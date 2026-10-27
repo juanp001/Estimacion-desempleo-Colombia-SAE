@@ -457,18 +457,21 @@ filas, `moran_i`, `proximidad_total`, `filas_moran`), `fay_herriot_espacial.py` 
 de `ModeloAreaPequena`; `validacion_dejar_uno_fuera`), `figuras_espacial.py`, `figuras.py` (guardado común
 del clásico `fh_*` y del espacial `fhe_*`), `prediccion_espacial.py`, `sensibilidad_espacial.py`,
 `cuadro_comparativo.py` (también `construir_cuadro_coeficientes`); parámetros en `config.py` (`ESCENARIOS_W`,
-`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018 (corrida de `test-2`,
-23 dominios, 82 objetivos): **sin evidencia de dependencia espacial** — Moran de los residuos p entre 0.82 y
-0.91; ρ̂ entre 0.11 y 0.39 (completa) sin significancia (LRT p ≥ 0.60); ΔAIC entre −1.09 y −2.00 (el clásico
-tiene menor AIC en los 8 casos); perfil de ρ plano (ganancia ≤ 0.22); RMSE dejar-un-dominio-fuera: clásico
-2.084 frente a 2.115-2.440 del espacial con efecto. El efecto espacial en los objetivos es casi nulo (media
-absoluta 0.05 pp) y 74 de 82 objetivos extrapolan. El modelo recomendado sigue siendo el clásico (benchmark);
-detalle, tablas, comparación con el cierre anterior y limitaciones en `docs/fay_herriot_espacial.md`.
-Las cifras de este párrafo son del cierre previo a los cambios del bloque 05 (R-12…R-16, R-42, R-43, R-45):
-quedan pendientes de la nueva corrida (R-44). Ojo: en `municipios_sin_encuesta` figura Cali (76001), que ya
-es dominio con encuesta; desde R-14 el notebook espacial ya no la excluye: Cali y Yumbo son subáreas del nodo
-Cali A.M. y los objetivos son los mismos 83 del clásico. `marca_extrapolacion` (B20) recibe la matriz de
-diseño de los objetivos (`X_obj`), no `x'Cov(β̂)x`.
+`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018 (corrida del job `modelo` del 2026-10-27, run
+`899936223549833`; 23 dominios, 83 objetivos = 81 nodos + las subáreas Cali y Yumbo, R-44): **sin
+evidencia de dependencia espacial** — benchmark clásico `TASA_HOMICIDIOS` (EC3, AIC 108.90, Â 5.529); Moran
+de los residuos del clásico p entre 0.33 y 0.65 y del SEBLUP entre 0.52 y 0.98; ρ̂ entre 0.19 y 0.33
+(muestra) y entre 0.22 y 0.89 (completa) sin significancia (LRT p ≥ 0.22); ΔAIC entre −0.50 y −2.00 (el
+clásico tiene menor AIC en los 8 casos); perfil de ρ plano (ganancia ≤ 0.94). RMSE dejar-un-dominio-fuera:
+clásico 2.524 frente a 2.346 (`knn3`), 2.590, 2.602 y 2.859 del espacial con efecto: solo `knn3` mejora, sin
+respaldo en la verosimilitud. El efecto espacial en los 81 nodos objetivo es pequeño (media absoluta
+0.13 pp; −2.84 pp en Cali y Yumbo) y 21 de 83 objetivos extrapolan. El modelo recomendado sigue siendo el
+clásico (benchmark); detalle, tablas, comparación con el cierre anterior y limitaciones en
+`docs/fay_herriot_espacial.md`. Las figuras de `docs/img/` son de la corrida anterior: el volumen
+`/Volumes/tesis/modelo/figuras` no existe en el workspace, así que no se guardaron las nuevas. Ojo: en
+`municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; desde R-14 el notebook
+espacial no la excluye: Cali y Yumbo son subáreas del nodo Cali A.M. `marca_extrapolacion` (B20) recibe la
+matriz de diseño de los objetivos (`X_obj`), no `x'Cov(β̂)x`.
 
 ### Flujo de tablas Unity Catalog (resumen end-to-end)
 
