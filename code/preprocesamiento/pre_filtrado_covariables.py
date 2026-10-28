@@ -47,20 +47,16 @@ import pandas as pd
 # carpetas `shared/` distintas en el proyecto —una bajo `preprocesamiento/` y otra bajo
 # `modelo/`— y la forma corta resuelve a una u otra según desde dónde se ejecute, lo que
 # haría que el mismo notebook importara módulos distintos en el editor y en un job.
-def _directorio_codigo() -> str:
-    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job."""
-    try:
-        contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-        return "/Workspace" + os.path.dirname(
-            os.path.dirname(contexto.notebookPath().get())
-        )
-    except Exception:
-        return os.path.dirname(os.getcwd())
-
-
-CODE_DIR = _directorio_codigo()
-if CODE_DIR not in sys.path:
-    sys.path.insert(0, CODE_DIR)
+# R-67: `code/` en sys.path (el notebook está en code/<carpeta>/); `comun.entorno` hace el resto
+_ruta_nb = (
+    dbutils.notebook.entry_point.getDbutils()
+    .notebook()
+    .getContext()
+    .notebookPath()
+    .get()
+)
+CODE_DIR = "/Workspace" + os.path.dirname(os.path.dirname(_ruta_nb))
+sys.path.insert(0, CODE_DIR)
 
 # R-61: nombres explícitos en vez de «import *»
 from preprocesamiento.shared.config import (

@@ -37,10 +37,25 @@
 # COMMAND ----------
 
 # DBTITLE 1,Imports
+import os
+import sys
+
+# R-67: `code/` en sys.path para importar `comun` (el notebook está en code/ingesta_datos/<carpeta>/)
+_ruta_nb = (
+    dbutils.notebook.entry_point.getDbutils()
+    .notebook()
+    .getContext()
+    .notebookPath()
+    .get()
+)
+sys.path.insert(
+    0, "/Workspace" + os.path.dirname(os.path.dirname(os.path.dirname(_ruta_nb)))
+)
+
 
 from shared.config.terridata_config import VOL_CONSOLIDADO, TBL_BRONCE
 from shared.transformations.normalizacion import CAMPOS_BRONCE
-from shared.utils.spark_utils import leer_parquet, escribir_tabla
+from comun.spark_utils import leer_parquet, escribir_tabla
 
 # COMMAND ----------
 

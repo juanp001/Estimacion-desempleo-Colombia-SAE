@@ -49,29 +49,21 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 
-def _directorio_codigo() -> str:
-    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job.
+# R-67: `code/` en sys.path (el notebook está en code/<carpeta>/); `comun.entorno` hace el resto
+if "CODE_DIR" not in globals():
+    _ruta_nb = (
+        dbutils.notebook.entry_point.getDbutils()
+        .notebook()
+        .getContext()
+        .notebookPath()
+        .get()
+    )
+    CODE_DIR = "/Workspace" + os.path.dirname(os.path.dirname(_ruta_nb))
+sys.path.insert(0, CODE_DIR)
 
-    Returns:
-        str: Ruta del directorio `code/` del repositorio.
+from comun.entorno import agregar_rutas
 
-    Example:
-        >>> _directorio_codigo()  # doctest: +SKIP
-        '/Workspace/Users/usuario/.bundle/.../files/code'
-    """
-    try:
-        contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-        return "/Workspace" + os.path.dirname(
-            os.path.dirname(contexto.notebookPath().get())
-        )
-    except Exception:
-        return os.path.dirname(os.getcwd())
-
-
-CODE_DIR = globals().get("CODE_DIR") or _directorio_codigo()
-for _ruta in (CODE_DIR, os.path.join(CODE_DIR, "modelo")):
-    if _ruta not in sys.path:
-        sys.path.insert(0, _ruta)
+agregar_rutas(CODE_DIR, "modelo")
 
 from shared.config import *
 from shared.datos_modelo import alias_desde_catalogo
