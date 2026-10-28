@@ -23,8 +23,11 @@
 # MAGIC    `g3 = D²/(D+Â)³ · avar(Â)`.
 # MAGIC 2. **De dónde salen las covariables.** El conjunto lo elige
 # MAGIC    `eda_seleccion_covariables` (EC1) y aquí se compara con **todos sus subconjuntos no
-# MAGIC    vacíos** (EC2…; R-05), para responder si cada covariable aporta. Con la cota
-# MAGIC    n // 10 = 2 son 3 especificaciones.
+# MAGIC    vacíos** (EC2…; R-05), para responder si cada covariable aporta, y con el **modelo de
+# MAGIC    solo intercepto, EC0** (R-04), para responder si las covariables aportan algo frente a
+# MAGIC    no usarlas. Con la cota n // 10 = 2 son 4 especificaciones. Si la selección no dejó
+# MAGIC    ninguna covariable, el notebook advierte y sigue solo con EC0: el código muestra el
+# MAGIC    proceso completo y ninguna decisión del modelo detiene la ejecución.
 # MAGIC 3. **Cómo se elige el benchmark.** El modelo se usa para predecir municipios sin
 # MAGIC    encuesta. Según Morales et al. (p. 453), los modelos de área suelen servir para
 # MAGIC    predecir lo observado y admiten sobreparametrizar; pero si además se predice fuera de
@@ -34,6 +37,9 @@
 # MAGIC    alguna covariable con p > 0.05 si tiene interpretación razonable (p. 454); eso debe
 # MAGIC    reportarse como excepción explícita, no aplicarse en silencio. Entre las que compiten
 # MAGIC    se elige la de menor AIC y, entre las equivalentes (ΔAIC ≤ 2), la de menos covariables.
+# MAGIC    EC0 cumple la regla de forma trivial (no tiene covariables), así que gana si ninguna
+# MAGIC    especificación con covariables lo supera en AIC por más de 2. La tabla de selección
+# MAGIC    muestra además `RMSE_LOAO`, el error de predecir cada dominio retirado (descriptivo).
 # MAGIC    **R-05:** si ninguna especificación cumple la regla, el notebook no se detiene (se
 # MAGIC    muestra el proceso completo): compiten todas con el mismo criterio, se imprime un aviso
 # MAGIC    con las covariables no significativas y la columna `Criterio` de `fh_seleccion_modelo`
@@ -196,6 +202,8 @@ from shared.validacion_predictiva import (
     crear_selector,
     loao_covariables_fijas,
     loao_procedimiento_completo,
+    rmse_loao_especificaciones,  # R-04: RMSE dejar-un-dominio-fuera por especificación
+    advertencia_validacion,  # R-04: aviso si el procedimiento pierde frente al nulo
     metricas_validacion_cruzada,
     frecuencia_seleccion,
     resumen_seleccion,
@@ -270,22 +278,37 @@ print(f"Columnas disponibles:  {df.columns.tolist()}\n")
 covars_eda = [c for c in df.columns if c in alias_a_codigo]
 
 if not covars_eda:
-    raise ValueError(
-        f"No se reconoció ninguna covariable en {TBL_COVARIABLES_SELECCIONADAS}. "
-        f"Volver a ejecutar eda_seleccion_covariables."
+    # R-04: el conjunto vacío no detiene el notebook (se muestra el proceso completo). La única
+    # especificación es la de solo intercepto (EC0).
+    print(
+        f"⚠ ADVERTENCIA: {TBL_COVARIABLES_SELECCIONADAS} no trae covariables (ninguna candidata "
+        "resultó elegible en eda_seleccion_covariables). Se ajusta solo el modelo de solo "
+        "intercepto (EC0): todos los municipios sin encuesta reciben la misma predicción "
+        "sintética β̂0 (Benedetti et al., 2024, p. 141)."
     )
 
+# R-04: el modelo de solo intercepto (EC0) compite con los subconjuntos con la misma regla.
 nombres_covars = subconjuntos_covariables(covars_eda)
 
-print(f"Conjunto elegido por el análisis exploratorio: {' + '.join(covars_eda)}")
+print(
+    f"Conjunto elegido por el análisis exploratorio: {' + '.join(covars_eda) or '— (vacío)'}"
+)
 print(
     f"Especificaciones candidatas del modelo base Fay-Herriot clásico "
     f"({len(nombres_covars)}):"
 )
 for i, covars in enumerate(nombres_covars, 1):
     excluidas = [c for c in covars_eda if c not in covars]
-    etiqueta = f"(sin {', '.join(excluidas)})" if excluidas else "(conjunto completo)"
-    print(f"  {etiqueta_especificacion(i)}: {' + '.join(covars)}  {etiqueta}")
+    if not covars:
+        etiqueta = "(solo intercepto, R-04)"
+    elif excluidas:
+        etiqueta = f"(sin {', '.join(excluidas)})"
+    else:
+        etiqueta = "(conjunto completo)"
+    print(
+        f"  {etiqueta_especificacion(i, covars)}: {' + '.join(covars) or 'intercepto'}  "
+        f"{etiqueta}"
+    )
 
 # COMMAND ----------
 
@@ -313,7 +336,7 @@ eblup_display_cols = [
 for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     print("=" * 65)
     print(
-        f"{etiqueta_especificacion(i)}: {' + '.join(covars)} — RESULTADOS EBLUP POR DOMINIO"
+        f"{etiqueta_especificacion(i, covars)}: {' + '.join(covars) or 'intercepto'} — RESULTADOS EBLUP POR DOMINIO"
     )
     print("=" * 65)
     display(modelo.resultados[eblup_display_cols])
@@ -322,14 +345,16 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
 
 # DBTITLE 1,5. Gráficas de validación (por modelo)
 for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
-    etiqueta = f"{etiqueta_especificacion(i)}: {' + '.join(covars)}"
+    etiqueta = (
+        f"{etiqueta_especificacion(i, covars)}: {' + '.join(covars) or 'intercepto'}"
+    )
     print("=" * 65)
     print(f"{etiqueta} — GRÁFICAS DE VALIDACIÓN")
     print("=" * 65)
     print(explicacion_graficas())
 
     for k, fig in enumerate(graficar_validacion(modelo), 1):
-        guardar_figura(fig, f"validacion_{etiqueta_especificacion(i)}_{k}")
+        guardar_figura(fig, f"validacion_{etiqueta_especificacion(i, covars)}_{k}")
         display(fig)
         plt.close(fig)
 
@@ -343,7 +368,7 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
     param_names = ["Intercepto"] + covars
 
     print("=" * 65)
-    print(f"{etiqueta_especificacion(i)}: {' + '.join(covars)}")
+    print(f"{etiqueta_especificacion(i, covars)}: {' + '.join(covars) or 'intercepto'}")
     print("=" * 65)
 
     print(f"\nVarianza de efectos aleatorios (Â):   {modelo.A_hat:.6f}")
@@ -461,6 +486,21 @@ if len(modelos) > 1:
         delta_aic=DELTA_AIC_EQUIVALENTE,
         alfa=ALFA_SIGNIFICANCIA,
     )
+    # R-04: RMSE dejar-un-dominio-fuera de cada especificación (covariables fijas, reajusta β̂ y
+    # Â); descriptiva, no interviene en la regla. La validación del procedimiento completo, que
+    # repite la selección, está en la celda 10a-ter.
+    df_sel_modelo = df_sel_modelo.merge(
+        rmse_loao_especificaciones(
+            nombres_covars,
+            [etiqueta_especificacion(i, c) for i, c in enumerate(nombres_covars, 1)],
+            df,
+            Y_COL,
+            SE_COL,
+            ["CODIGO_DOMINIO", "NOMBRE_DOMINIO"],
+        ),
+        on="Modelo",
+        how="left",
+    )
     display(df_sel_modelo)
     print(
         f"  Candidata: todas las covariables con p < {ALFA_SIGNIFICANCIA} "
@@ -476,6 +516,17 @@ if len(modelos) > 1:
         "entre ellas se elige la de menos covariables"
     )
     print("  MSE_medio y Cook_max: informativas, no intervienen en la decisión")
+    print(
+        "  EC0: modelo de solo intercepto (R-04). Sin covariables cumple la regla de forma "
+        "trivial; gana solo si ninguna especificación con covariables lo supera en AIC por más "
+        f"de {DELTA_AIC_EQUIVALENTE} (Morales et al., p. 453: no sobreparametrizar al predecir "
+        "fuera de muestra)"
+    )
+    print(
+        "  RMSE_LOAO: error de predecir cada dominio retirado con x'β̂(-d), covariables fijas "
+        "(R-04). Descriptiva: optimista para las especificaciones con covariables, porque se "
+        "eligieron viendo a todos los dominios; no interviene en la decisión"
+    )
     # G7-B16: AICc como complemento (n pequeño); tampoco interviene en la decisión.
     print(
         "  AICc / Delta_AICc: AIC con corrección de muestra pequeña (n = "
@@ -693,9 +744,9 @@ if resultados_ganador["FUERA_DE_RANGO"].any():
 # misma ventana que las directas (por defecto el año calendario, G7-B2). Se contrasta con la cifra
 # oficial del DANE del «Total 23 ciudades y A.M.» en esa ventana: la publicada si es un trimestre
 # móvil, o la reconstruida con los 4 trimestres que no se pisan si es el año, porque el anexo no
-# publica la serie anual de las 23 ciudades (preprocesamiento/shared/ventana.py). La ejecución se
-# detiene si difieren más de TOLERANCIA_DANE_PP: un valor de referencia que no reproduce la cifra
-# oficial indicaría un problema en los datos, no algo que el ajuste deba absorber.
+# publica la serie anual de las 23 ciudades (preprocesamiento/shared/ventana.py). Si difieren más
+# de TOLERANCIA_DANE_PP se advierte y el notebook sigue (R-04): un valor de referencia que no
+# reproduce la cifra oficial indicaría un problema en los datos, no algo que el ajuste deba absorber.
 PER_MODELO, MES_MODELO = PERIODO["PER"], PERIODO["MES"]
 N_MESES_MODELO = PERIODO["N_MESES_VENTANA"]
 PERIODO_MODELO = PERIODO["PERIODO"]
@@ -727,10 +778,11 @@ if total_dane:
         f"(dif. {dif_dane:+.4f} pp)"
     )
     if abs(dif_dane) > TOLERANCIA_DANE_PP:
-        raise ValueError(
-            f"La tasa directa del conjunto de dominios ({referencia_n1:.4f}) no reproduce la "
-            f"cifra oficial del DANE ({float(total_dane[0]):.4f}). Revisar la estimación directa "
-            f"antes de ajustar."
+        print(
+            f"⚠ ADVERTENCIA: la tasa directa del conjunto de dominios ({referencia_n1:.4f}) no "
+            f"reproduce la cifra oficial del DANE ({float(total_dane[0]):.4f}; tolerancia "
+            f"{TOLERANCIA_DANE_PP} pp). El benchmarking sigue con la directa del conjunto, pero "
+            "hay que revisar la estimación directa."
         )
 else:
     print(
@@ -908,7 +960,12 @@ if fig is not None:
 
 print(interpretar_extrapolacion(rangos, df_sens, sens_dom, max_directa))
 
-pendientes.agregar(rangos, TBL_FH_RANGOS_COVARIABLES, PER_MES)
+# R-04: con el modelo de solo intercepto (EC0) no hay covariables cuyo rango comparar; la tabla
+# de rangos no se escribe y todos los municipios quedan DENTRO_DEL_RANGO.
+if covars_ganador:
+    pendientes.agregar(rangos, TBL_FH_RANGOS_COVARIABLES, PER_MES)
+else:
+    print("Modelo de solo intercepto (EC0): no hay rangos de covariables que comparar.")
 pendientes.agregar(df_sens, TBL_FH_SENSIBILIDAD_EXTRAPOLACION)
 
 # COMMAND ----------
@@ -1020,9 +1077,15 @@ pendientes.agregar(df_influencia, TBL_FH_LOAO_DOMINIOS, PER_MES)
 # MAGIC 2. **Procedimiento completo**: en cada iteración se repite todo con los 22 dominios que
 # MAGIC    quedan: la selección de covariables de `eda_seleccion_covariables` (Fay-Herriot
 # MAGIC    univariado con ψ_d, falsos descubrimientos, robustez, redundancia, parsimonia, VIF) y la
-# MAGIC    elección de la especificación de la celda 8 (subconjuntos del conjunto, significancia,
-# MAGIC    AIC, parsimonia). Mide el error del **procedimiento**; su diferencia con el ejercicio 1
-# MAGIC    es el costo de seleccionar con los mismos datos.
+# MAGIC    elección de la especificación de la celda 8 (subconjuntos del conjunto y EC0,
+# MAGIC    significancia, AIC, parsimonia). Mide el error del **procedimiento**; su diferencia con
+# MAGIC    el ejercicio 1 es el costo de seleccionar con los mismos datos.
+# MAGIC
+# MAGIC **R-04.** La validación no decide el benchmark (la regla es la de Morales et al., p. 453).
+# MAGIC Si el procedimiento completo predice peor que el modelo de solo intercepto, la celda
+# MAGIC imprime una **advertencia** con las tres RMSE y la inestabilidad del conjunto entre
+# MAGIC iteraciones: los municipios sin encuesta reciben solo la predicción sintética (Benedetti et
+# MAGIC al., 2024, p. 141), así que esa falta de capacidad predictiva es una limitación a reportar.
 # MAGIC
 # MAGIC La RMSE se complementa con **errores estandarizados**, porque y_d es una estimación con
 # MAGIC ruido ψ_d y ψ_d varía mucho entre dominios: `Z_psi = (pred − y_d)/√ψ_d` (error en unidades
@@ -1085,7 +1148,8 @@ _sel_todos = selector(df_val)
 _m2_repetido = ajustar_benchmark(
     df_val, _sel_todos, Y_COL, SE_COL, DELTA_AIC_EQUIVALENTE, ALFA_SIGNIFICANCIA
 )
-# R-32: si alguna comprobación falla, la corrida se detiene antes de escribir la validación.
+# R-32: si alguna comprobación falla se advierte y la validación sigue (R-04: el notebook muestra
+# el proceso completo), pero su lectura deja de aplicar al modelo reportado.
 _ok_seleccion = set(_sel_todos) == set(covars_eda_codigos)
 _ok_benchmark = set(_m2_repetido.covars) == set(covars_benchmark)
 print(
@@ -1098,11 +1162,12 @@ print(
     + ("PASS" if _ok_benchmark else "FAIL")
 )
 if not (_ok_seleccion and _ok_benchmark):
-    raise ValueError(
-        "La selección repetida dentro del modelo no reproduce el conjunto del análisis o el "
-        "benchmark: analisis.shared.seleccion.seleccionar_covariables quedó desincronizada "
-        "de eda_seleccion_covariables, y la validación del procedimiento completo no "
-        "validaría el modelo reportado."
+    print(
+        "⚠ ADVERTENCIA: la selección repetida dentro del modelo no reproduce el conjunto del "
+        "análisis o el benchmark: analisis.shared.seleccion.seleccionar_covariables quedó "
+        "desincronizada de eda_seleccion_covariables (o la tabla de seleccionadas es de otra "
+        "corrida). La validación sigue, pero el ejercicio del procedimiento completo no valida "
+        "el modelo reportado."
     )
 
 # Ejercicio 1 con los reajustes de la celda 8a (R-39): el benchmark con sus covariables (alias)
@@ -1170,6 +1235,11 @@ guardar_figura(fig, "validacion_cruzada")
 display(fig)
 plt.close(fig)
 print(interpretar_validacion_cruzada(df_metricas_cv, detalle_cv, resumen_sel_cv))
+# R-04: la validación no decide el benchmark, pero si el procedimiento pierde frente al modelo
+# de solo intercepto se advierte (y se reporta como limitación en el documento).
+_aviso_cv = advertencia_validacion(df_metricas_cv, resumen_sel_cv)
+if _aviso_cv:
+    print("\n" + _aviso_cv)
 
 pendientes.agregar(detalle_cv, TBL_FH_VALIDACION_CRUZADA, PER_MES)
 pendientes.agregar(df_metricas_cv, TBL_FH_VALIDACION_METRICAS, PER_MES)
@@ -1424,9 +1494,10 @@ print(interpretar_calidad(df_pred))
 # MAGIC * **(d) miembros completos:** las unidades son exactamente los miembros del territorio
 # MAGIC   (en el nivel 2, los municipios del A.M. según `dim_dominio_geih`).
 # MAGIC
-# MAGIC Si alguna falla, la celda se detiene y **no se escribe ninguna tabla**: las celdas
-# MAGIC anteriores solo registran sus tablas y la celda 13 las escribe todas cuando la verificación
-# MAGIC pasó (R-38). **λ** es además un diagnóstico del modelo: «si el
+# MAGIC Si alguna falla, la celda imprime una **advertencia** y el notebook sigue (R-04: el código
+# MAGIC muestra el proceso completo); las celdas anteriores solo registran sus tablas y la celda 13
+# MAGIC las escribe todas después de la verificación (R-38), así que la advertencia queda a la vista
+# MAGIC antes de publicar. **λ** es además un diagnóstico del modelo: «si el
 # MAGIC modelo es adecuado, el factor de ajuste estará en torno a uno» (INE Chile, ENUSC 2018,
 # MAGIC PDF 23); se avisa si se aleja de 1 más de `UMBRAL_LAMBDA_AVISO`. Por último se repite la
 # MAGIC comprobación sobre la tabla final publicada (valores redondeados a 4 decimales).
@@ -1514,7 +1585,7 @@ print(
     )
 )
 if abs(agregado_publicado - referencia_n1) > TOLERANCIA_REDONDEO:
-    raise ValueError("La tabla final no reproduce el total de las 23 ciudades.")
+    print("⚠ ADVERTENCIA: la tabla final no reproduce el total de las 23 ciudades.")
 
 mun_final = df_final[df_final["TIPO"] == "SINTETICO_BENCHMARK"].merge(
     df_pred[["CODIGO_MUNICIPIO", "PESO_N2"]].rename(
@@ -1533,12 +1604,15 @@ for padre, sub in mun_final.groupby("CODIGO_DOMINIO_PADRE"):
         f"{valor_dominio:.4f} → {'PASS' if ok else 'FAIL'}"
     )
     if not ok:
-        raise ValueError(f"La tabla final no reproduce el valor del dominio {padre}.")
+        print(
+            f"⚠ ADVERTENCIA: la tabla final no reproduce el valor del dominio {padre}."
+        )
 
 # COMMAND ----------
 
-# DBTITLE 1,13. Escritura de las tablas (solo si la verificación pasó)
-# R-38: el job no tiene transacciones; escribir al final evita dejar publicada una versión que no
-# pasó la verificación del benchmarking ni la de la tabla final redondeada.
+# DBTITLE 1,13. Escritura de las tablas (después de la verificación)
+# R-38: el job no tiene transacciones; las tablas se escriben al final, después de la verificación
+# del benchmarking y de la tabla final redondeada. Desde R-04 una verificación fallida no detiene la
+# escritura: se advierte en la celda 12 y en el registro de la corrida.
 print(f"Tablas a escribir: {len(pendientes.tablas())}")
 pendientes.escribir_todas()

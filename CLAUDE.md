@@ -222,9 +222,10 @@ analisis/eda_seleccion_covariables.py
       esperado es diagnóstico, no filtro (columna Signo_coherente, G7-B12); seleccionadas = las
       `cota_covariables(n)` = n // 10 (R-07: 2 con 23 dominios; regla de 10 observaciones por parámetro,
       convención externa a Morales, que pide no sobreparametrizar al predecir fuera de muestra, p. 453)
-      de mayor |r ponderada|. Si no queda ninguna elegible, `ejecutar_seleccion` lanza
-      `SeleccionVaciaError`: el notebook se detiene (modelo solo de intercepto) y la validación cruzada
-      del modelo lo trata como un modelo sin covariables
+      de mayor |r ponderada|. Si no queda ninguna elegible (R-04), `ficha_decision` imprime una
+      advertencia y devuelve el conjunto vacío: el notebook NO se detiene, escribe todas sus tablas
+      (covariables_seleccionadas sin covariables) y el modelo ajusta solo EC0 (solo intercepto); la
+      validación cruzada recibe la misma lista vacía
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
       conjunto (diag.figura_residuos_parciales, G7-B13) y sensibilidad al signo
       (selección repetida exigiendo el signo → línea impresa en el notebook, ya sin tabla; R-62)
@@ -242,7 +243,11 @@ modelo/fay_herriot.py
   → (G7-B15) especificaciones candidatas del modelo base Fay-Herriot clásico (EC1…ECk, antes M1–M5; NO son los modelos
     finales del objetivo 1) = conjunto seleccionado (EC1) + todos sus subconjuntos no vacíos (R-05,
     `subconjuntos_covariables`; con k = 2 son EC1-EC3, mismas etiquetas que el antiguo dejar-una-fuera;
-    shared/seleccion_modelo.py, etiqueta_especificacion)
+    shared/seleccion_modelo.py, etiqueta_especificacion) + el modelo de solo intercepto **EC0** (R-04,
+    siempre al final de la lista y etiquetado EC0). EC0 compite con la misma regla: sin covariables cumple
+    de forma trivial la exigencia de significancia y gana solo si ninguna especificación con covariables lo
+    supera en AIC por más de 2 (Morales p. 453). `fh_seleccion_modelo` trae además `RMSE_LOAO` por
+    especificación (`rmse_loao_especificaciones`, covariables fijas; descriptiva, no decide)
   → benchmark seleccionado (Morales et al., p. 453; los modelos de área admiten sobreparametrizar, pero
     aquí se predice también fuera de muestra, así que la regla es estricta; el libro admite una covariable
     con p > 0.05 si es interpretable, p. 454, a reportar como excepción): candidatas = especificaciones con todas las
@@ -252,7 +257,8 @@ modelo/fay_herriot.py
     significativas del elegido, `fh_seleccion_modelo` deja `Candidata = no` en todas y la columna
     `Criterio` = respaldo, y `redaccion_seleccion` lo redacta como excepción (p. 454), que se justifica en
     el documento de tesis. Con el cierre 2018 se cumple la regla: EC3 = TASA_HOMICIDIOS (p = 0.006) frente
-    a EC2 = COB_ACUEDUCTO (ΔAIC = 0.92); EC1 (las dos) no cumple.
+    a EC2 = COB_ACUEDUCTO (ΔAIC = 0.92); EC1 (las dos) no cumple; EC0 (solo intercepto) queda en
+    AIC 114.04 (ΔAIC = 5.14), fuera de la zona de soporte similar (RMSE_LOAO: EC3 2.52, EC0 2.77).
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
     robustez (Cook + reajuste sin el dominio más influyente) del benchmark. G7-B16: AICc (AIC + 2k(k+1)/(n−k−1),
     k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
@@ -305,8 +311,14 @@ modelo/fay_herriot.py
     (`analisis/shared/seleccion.seleccionar_covariables`, mismos pasos que `eda_seleccion_covariables`: FH
     univariado con ψ_d, BH, redundancia, parsimonia con la cota calculada desde n, VIF; sobre las 18 candidatas de
     `covariables_prefiltradas`) y la elección del benchmark (`ajustar_benchmark`: conjunto +
-    subconjuntos + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos pasos
-    reproducen EC1 y el benchmark. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
+    subconjuntos + EC0 + `elegir_ganador`). La celda comprueba (PASS/FAIL) que con los 23 dominios ambos
+    pasos reproducen EC1 y el benchmark; si falla, advierte y sigue (R-04).
+    R-04: si el procedimiento completo predice peor que el de solo intercepto (`Habilidad_vs_nulo` < 0),
+    `advertencia_validacion` imprime las tres RMSE y la inestabilidad del conjunto entre iteraciones; no
+    cambia la regla (Morales p. 453), se reporta como limitación (los municipios reciben solo el
+    sintético, Benedetti 2024 p. 141). Cierre 2018: RMSE 2.52 (fijas), 3.43 (procedimiento completo) y
+    2.77 (nulo), habilidad −0.54; el benchmark se reproduce en 14 de 23 iteraciones, con 6 conjuntos
+    distintos y 4 iteraciones sin covariables. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
     (√media(e²−ψ)), errores estandarizados `Z_psi = e/√ψ` y `Z_pred = e/√(ψ + x'Cov(β̂)x + Â)` (media,
     sd, cobertura nominal), error dentro de muestra, y habilidad frente a un modelo de solo intercepto
     evaluado igual. Salidas: `fh_validacion_cruzada` (por dominio y ejercicio),
@@ -325,7 +337,7 @@ modelo/fay_herriot.py
     Casen 2024, Molina 2019 PDF 26/78, Benedetti 2024 p. 159, Morales p. 42/425/462):
       9b nivel 1: los 23 EBLUP × λ₁ para que Σ PEA_EXPANDIDA·EBLUP/Σ PEA reproduzca la directa del
          conjunto (= «Total 23 ciudades y A.M.» del DANE en la ventana N_MESES_VENTANA de la tabla:
-         reconstruido con los 4 trimestres si es el año; se detiene si difiere > 0.01 pp)
+         reconstruido con los 4 trimestres si es el año; advierte si difiere > 0.01 pp, R-04)
       10b nivel 2: los municipios de un dominio A.M. (Cali y Yumbo) × λ_D para que, ponderados por la
          población de 15 años y más, reproduzcan el EBLUP ajustado de su dominio (imprime la brecha
          de agregación x̄_D'β̂ vs Σw·x_m'β̂/Σw, porque las covariables no usan la PET). Los otros 81
@@ -344,7 +356,11 @@ modelo/fay_herriot.py
     SINTETICO_BENCHMARK, TASA_SIN_AJUSTE_PCT para trazabilidad; R-11: MODELO_FUENTE =
     FH_CLASICO_BENCHMARK_NO_ESPACIAL y ESTADO_RESULTADO = PRELIMINAR, más COMMENT ON TABLE); la
     sensibilidad de Cook se muestra pero no se persiste. R-38: todas las tablas se registran en
-    `EscrituraDiferida` (shared/escritura.py) y la celda 13 las escribe después de la verificación
+    `EscrituraDiferida` (shared/escritura.py) y la celda 13 las escribe después de la verificación.
+    R-04: ninguna decisión ni verificación detiene el notebook (el código es académico y muestra el
+    proceso completo): conjunto vacío, R-32, cifra DANE, `verificar_benchmark` y tabla final redondeada
+    imprimen «⚠ ADVERTENCIA»; solo siguen como error los casos en que el cálculo no puede continuar
+    (columnas o datos faltantes)
   → R-10: Shapiro-Wilk y la media de residuos se redactan con `diagnosticos.lectura_normalidad` /
     `NOTA_MEDIA_RESIDUOS` (no demuestran normalidad; la media es ≈ 0 por construcción); R-64: sin prueba
     de Wilcoxon ni % de dominios que mejoran (MSE < Di por construcción, p. 440); R-41:

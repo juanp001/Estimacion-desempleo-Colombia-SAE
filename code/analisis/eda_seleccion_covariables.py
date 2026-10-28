@@ -145,36 +145,33 @@ print(f"Dominios: {len(Y)}  |  Candidatas conceptualmente elegibles: {len(CANDID
 # Cota de parsimonia calculada desde n (R-07): 23 dominios → 2 covariables.
 P_MAXIMO = cota_covariables(len(Y))
 print(f"Cota de covariables: {P_MAXIMO} ({OBS_POR_PARAMETRO} dominios por covariable)")
-try:
-    SELECCION = sel.ejecutar_seleccion(
-        df_cand,
-        CANDIDATAS,
-        Y,
-        PSI,
-        entidades,
-        SIGNO,
-        alias=ALIAS,
-        dimension=DIMENSION,
-        p_maximo=P_MAXIMO,
-        q_fdr=Q_FDR_ELEGIBILIDAD,
-        umbral_delta=UMBRAL_DELTA_LOO,
-        umbral_redundancia=UMBRAL_REDUNDANCIA,
-        vif_max=VIF_MAXIMO,
-        alfa_ic=ALFA_IC_CORRELACION,
-        df_objetivos=df_objetivos,
-        soporte_minimo=SOPORTE_MINIMO,
-        con_forma=True,
-        silencioso=False,
-    )
-except sel.SeleccionVaciaError as error:
-    # Sin covariables elegibles el modelo sería solo de intercepto (R-01): no se escribe una
-    # tabla de seleccionadas vacía y el job se detiene para que se revise la ficha.
-    raise RuntimeError(
-        "Ninguna candidata resulta elegible; el Fay-Herriot sería un modelo de solo "
-        "intercepto. No se escriben tablas: revisar los diagnósticos y el catálogo."
-    ) from error
-# Fay-Herriot univariado (G7-B8) y forma funcional de las elegibles (R-62).
+# R-04: si ninguna candidata resulta elegible, la cadena avisa y devuelve el conjunto vacío;
+# el notebook sigue, escribe todas sus tablas y el modelo será de solo intercepto (EC0).
+SELECCION = sel.ejecutar_seleccion(
+    df_cand,
+    CANDIDATAS,
+    Y,
+    PSI,
+    entidades,
+    SIGNO,
+    alias=ALIAS,
+    dimension=DIMENSION,
+    p_maximo=P_MAXIMO,
+    q_fdr=Q_FDR_ELEGIBILIDAD,
+    umbral_delta=UMBRAL_DELTA_LOO,
+    umbral_redundancia=UMBRAL_REDUNDANCIA,
+    vif_max=VIF_MAXIMO,
+    alfa_ic=ALFA_IC_CORRELACION,
+    df_objetivos=df_objetivos,
+    soporte_minimo=SOPORTE_MINIMO,
+    con_forma=True,
+    silencioso=False,
+)
+# Fay-Herriot univariado (G7-B8) y forma funcional de las elegibles (R-62). Sin elegibles no
+# hay forma funcional: una tabla vacía con la columna de unión permite escribir los diagnósticos.
 df_fh, df_forma = SELECCION["df_fh"], SELECCION["df_forma"]
+if df_forma is None:
+    df_forma = pd.DataFrame(columns=["Codigo", "Alias"])
 # Intervalo de Fisher: solo descripción en la tabla bivariada, ya no entra a la ficha (R-62).
 df_ic = diag.tabla_ic_correlacion(
     df_cand, CANDIDATAS, Y, alias=ALIAS, alfa=ALFA_IC_CORRELACION
@@ -272,13 +269,15 @@ print(
 
 # DBTITLE 1,Forma funcional en el Fay-Herriot univariado
 # Curvatura y escala logarítmica (G7-B13): diagnóstico, no transformación.
-display(spark.createDataFrame(df_forma))
-
-a_revisar = df_forma.loc[df_forma["Forma_funcional"] == "revisar", "Alias"].tolist()
-print(
-    f"Forma lineal adecuada en {len(df_forma) - len(a_revisar)} de {len(df_forma)} "
-    f"candidatas elegibles; a revisar: {', '.join(a_revisar) if a_revisar else 'ninguna'}."
-)
+if df_forma.empty:
+    print("Sin candidatas elegibles: no hay forma funcional que examinar (R-04).")
+else:
+    display(spark.createDataFrame(df_forma))
+    a_revisar = df_forma.loc[df_forma["Forma_funcional"] == "revisar", "Alias"].tolist()
+    print(
+        f"Forma lineal adecuada en {len(df_forma) - len(a_revisar)} de {len(df_forma)} "
+        f"candidatas elegibles; a revisar: {', '.join(a_revisar) if a_revisar else 'ninguna'}."
+    )
 
 # COMMAND ----------
 
@@ -456,6 +455,12 @@ display(spark.createDataFrame(df_ficha))
 print("\nCovariables seleccionadas:")
 for codigo in SELECCIONADAS:
     print(f"  · {ALIAS[codigo]:20s} {indicadores_dict.get(codigo, codigo)[:60]}")
+if not SELECCIONADAS:
+    # R-04: el conjunto vacío no detiene el flujo (el código muestra el proceso completo).
+    print(
+        "  ⚠ ADVERTENCIA: ninguna. Se escribe la tabla de seleccionadas sin covariables y el "
+        "notebook del modelo ajusta el Fay-Herriot de solo intercepto (EC0)."
+    )
 
 # COMMAND ----------
 
@@ -498,39 +503,28 @@ df_verificacion = df_vif.assign(
 # COMMAND ----------
 
 # DBTITLE 1,Sensibilidad: selección sin las covariables de signo inesperado
-# Reutiliza los diagnósticos de la cadena principal; solo cambia la regla de elegibilidad.
-try:
-    SELECCION_SIGNO = sel.ejecutar_seleccion(
-        df_cand,
-        CANDIDATAS,
-        Y,
-        PSI,
-        entidades,
-        SIGNO,
-        alias=ALIAS,
-        dimension=DIMENSION,
-        p_maximo=P_MAXIMO,
-        q_fdr=Q_FDR_ELEGIBILIDAD,
-        umbral_delta=UMBRAL_DELTA_LOO,
-        umbral_redundancia=UMBRAL_REDUNDANCIA,
-        vif_max=VIF_MAXIMO,
-        alfa_ic=ALFA_IC_CORRELACION,
-        exigir_signo=True,
-        diagnosticos=SELECCION,
-    )
-    df_ficha_signo = SELECCION_SIGNO["ficha"]
-    seleccionadas_signo = SELECCION_SIGNO["seleccionadas"]
-except sel.SeleccionVaciaError:
-    # Si todas las elegibles tienen el signo contrario al esperado, exigirlo no deja ninguna: el
-    # resultado de la sensibilidad es el conjunto vacío, no un error del notebook.
-    seleccionadas_signo = []
-    df_ficha_signo = df_ficha.assign(
-        Decision=np.where(
-            df_ficha["Decision"].isin(["seleccionada", "no seleccionada"]),
-            "no elegible",
-            df_ficha["Decision"],
-        )
-    )
+# Reutiliza los diagnósticos de la cadena principal; solo cambia la regla de elegibilidad. Si
+# exigir el signo no deja ninguna elegible, el resultado es el conjunto vacío (R-04).
+SELECCION_SIGNO = sel.ejecutar_seleccion(
+    df_cand,
+    CANDIDATAS,
+    Y,
+    PSI,
+    entidades,
+    SIGNO,
+    alias=ALIAS,
+    dimension=DIMENSION,
+    p_maximo=P_MAXIMO,
+    q_fdr=Q_FDR_ELEGIBILIDAD,
+    umbral_delta=UMBRAL_DELTA_LOO,
+    umbral_redundancia=UMBRAL_REDUNDANCIA,
+    vif_max=VIF_MAXIMO,
+    alfa_ic=ALFA_IC_CORRELACION,
+    exigir_signo=True,
+    diagnosticos=SELECCION,
+)
+df_ficha_signo = SELECCION_SIGNO["ficha"]
+seleccionadas_signo = SELECCION_SIGNO["seleccionadas"]
 df_sensibilidad_signo = sel.sensibilidad_signo(
     df_ficha, SELECCIONADAS, df_ficha_signo, seleccionadas_signo, alias=ALIAS
 )
@@ -554,14 +548,17 @@ print(
 # COMMAND ----------
 
 # DBTITLE 1,Figura: correlación entre las covariables seleccionadas
-fig, _ = desc.figura_correlacion_agrupada(
-    df_cand,
-    SELECCIONADAS,
-    alias=ALIAS,
-    titulo="Correlación entre las covariables seleccionadas",
-)
-desc.guardar_figura(fig, "eda_correlacion_finales", VOLUMEN_FIGURAS)
-display(fig)
+if SELECCIONADAS:
+    fig, _ = desc.figura_correlacion_agrupada(
+        df_cand,
+        SELECCIONADAS,
+        alias=ALIAS,
+        titulo="Correlación entre las covariables seleccionadas",
+    )
+    desc.guardar_figura(fig, "eda_correlacion_finales", VOLUMEN_FIGURAS)
+    display(fig)
+else:
+    print("Conjunto vacío (solo intercepto): no hay correlaciones que mostrar (R-04).")
 
 # COMMAND ----------
 
@@ -576,9 +573,14 @@ display(fig)
 # COMMAND ----------
 
 # DBTITLE 1,Figura: residuos parciales del conjunto seleccionado
-fig = diag.figura_residuos_parciales(df_cand, SELECCIONADAS, Y, PSI, alias=ALIAS)
-desc.guardar_figura(fig, "eda_residuos_parciales", VOLUMEN_FIGURAS)
-display(fig)
+if SELECCIONADAS:
+    fig = diag.figura_residuos_parciales(df_cand, SELECCIONADAS, Y, PSI, alias=ALIAS)
+    desc.guardar_figura(fig, "eda_residuos_parciales", VOLUMEN_FIGURAS)
+    display(fig)
+else:
+    print(
+        "Conjunto vacío (solo intercepto): no hay residuos parciales que mostrar (R-04)."
+    )
 
 # COMMAND ----------
 

@@ -76,9 +76,9 @@ def ajustar_benchmark(
 ) -> FayHerriotClasico:
     """Repite la elección del benchmark: conjunto del EDA, sus subconjuntos y regla de parsimonia.
 
-    Es la misma secuencia del notebook del modelo (celdas 2, 3 y 8): genera el conjunto y todos sus
-    subconjuntos no vacíos (R-05), los ajusta y aplica `elegir_ganador`. Sin covariables
-    ajusta el modelo de solo intercepto.
+    Es la misma secuencia del notebook del modelo (celdas 2, 3 y 8): genera el conjunto, todos sus
+    subconjuntos no vacíos (R-05) y el modelo de solo intercepto EC0 (R-04), los ajusta y aplica
+    `elegir_ganador`. Sin covariables la única especificación es EC0.
 
     Args:
         df (pd.DataFrame): Dominios de entrenamiento, con las covariables, `y_col` y `se_col`.
@@ -96,10 +96,6 @@ def ajustar_benchmark(
         >>> m.covars  # doctest: +SKIP
         ['A']
     """
-    if not covars_eda:
-        modelo = FayHerriotClasico([], df, y_col, se_col)
-        modelo.ajustar()
-        return modelo
     variantes = subconjuntos_covariables(list(covars_eda))
     modelos = []
     for covars in variantes:
@@ -294,6 +290,118 @@ def loao_covariables_fijas(
             )
         )
     return pd.DataFrame(filas)
+
+
+def rmse_loao_especificaciones(
+    nombres_covars: list,
+    etiquetas: list,
+    df: pd.DataFrame,
+    y_col: str,
+    se_col: str,
+    columnas_id: list,
+) -> pd.DataFrame:
+    """RMSE dejar-un-dominio-fuera de cada especificación candidata, con sus covariables fijas (R-04).
+
+    Para cada especificación (incluida EC0, solo intercepto) se retira cada dominio, se reajusta
+    el modelo (β̂ y Â) con los demás y se predice el retirado con el sintético x_d'β̂(-d), como
+    en el ejercicio 1 de G7-B19 (`loao_covariables_fijas`). Es **descriptiva**: la regla del
+    benchmark no la usa (significancia, AIC y parsimonia; Morales et al., p. 453). Las
+    covariables se escogieron viendo a todos los dominios, así que la RMSE de las
+    especificaciones con covariables es optimista; la de EC0 no lo es, porque no selecciona
+    nada.
+
+    Args:
+        nombres_covars (list[list[str]]): Covariables de cada especificación.
+        etiquetas (list[str]): Etiqueta de cada especificación («EC1», …, «EC0»), mismo orden.
+        df (pd.DataFrame): Los n dominios con encuesta, con las covariables, `y_col` y `se_col`.
+        y_col (str): Columna de la estimación directa.
+        se_col (str): Columna del error estándar de la directa.
+        columnas_id (list[str]): Columnas de `df` que identifican el dominio.
+
+    Returns:
+        pd.DataFrame: Una fila por especificación con `Modelo`, `RMSE_LOAO` (pp) y
+            `N_LOAO` (reajustes válidos).
+
+    Casos de uso:
+        Columna informativa de `fh_seleccion_modelo` en `fay_herriot.py` (celda 7).
+
+    Example:
+        >>> rmse_loao_especificaciones([["A"], []], ["EC1", "EC0"], df, "TASA", "SE", ["NOMBRE"])  # doctest: +SKIP
+    """
+    filas = []
+    for covars, etiqueta in zip(nombres_covars, etiquetas):
+        cv = loao_covariables_fijas(covars, df, y_col, se_col, columnas_id)
+        filas.append(
+            {
+                "Modelo": etiqueta,
+                "RMSE_LOAO": (
+                    float(np.sqrt((cv["Error"] ** 2).mean())) if len(cv) else np.nan
+                ),
+                "N_LOAO": int(len(cv)),
+            }
+        )
+    return pd.DataFrame(filas)
+
+
+def advertencia_validacion(metricas: pd.DataFrame, resumen_sel: dict = None) -> str:
+    """Advertencia si el procedimiento completo predice peor que el modelo de solo intercepto (R-04).
+
+    La validación dejar-un-dominio-fuera no decide el benchmark: la regla sigue siendo
+    significancia, AIC y parsimonia (Morales et al., p. 453). Pero si al repetir la selección
+    en cada iteración el procedimiento predice peor que un modelo sin covariables
+    (``Habilidad_vs_nulo`` < 0), las covariables no han mostrado capacidad predictiva fuera de
+    la muestra y el documento debe decirlo. Con efectos de área independientes, un municipio
+    sin muestra solo recibe la predicción sintética x'β̂ (Benedetti et al., 2024, p. 141), así
+    que esa capacidad es justamente la que importa para los municipios objetivo.
+
+    Args:
+        metricas (pd.DataFrame): Salida de `metricas_validacion_cruzada` con los tres
+            ejercicios (covariables fijas, procedimiento completo y sin covariables).
+        resumen_sel (dict | None): Salida de `resumen_seleccion`, para describir la
+            inestabilidad del conjunto entre iteraciones.
+
+    Returns:
+        str: Texto de la advertencia, o cadena vacía si el procedimiento completo no pierde
+            frente al nulo (o falta alguno de los ejercicios).
+
+    Casos de uso:
+        Celda 10a-ter de `fay_herriot.py`: se imprime y el notebook sigue.
+
+    Example:
+        >>> m = pd.DataFrame({"Ejercicio": [EJERCICIO_FIJAS, EJERCICIO_COMPLETO, EJERCICIO_NULO],
+        ...                   "RMSE": [2.5, 3.4, 2.8], "Habilidad_vs_nulo": [0.2, -0.5, np.nan]})
+        >>> advertencia_validacion(m).startswith("⚠ ADVERTENCIA")
+        True
+        >>> advertencia_validacion(m.assign(Habilidad_vs_nulo=[0.2, 0.1, np.nan]))
+        ''
+    """
+    m = metricas.set_index("Ejercicio")
+    if not {EJERCICIO_FIJAS, EJERCICIO_COMPLETO, EJERCICIO_NULO} <= set(m.index):
+        return ""
+    habilidad = float(m.loc[EJERCICIO_COMPLETO, "Habilidad_vs_nulo"])
+    if not habilidad < 0:
+        return ""
+    texto = (
+        "⚠ ADVERTENCIA (R-04): repitiendo la selección en cada iteración, el procedimiento "
+        f"predice peor que el modelo de solo intercepto (RMSE {m.loc[EJERCICIO_COMPLETO, 'RMSE']:.2f} "
+        f"frente a {m.loc[EJERCICIO_NULO, 'RMSE']:.2f} pp; habilidad {habilidad:+.2f}). Con las "
+        f"covariables del benchmark fijas la RMSE es {m.loc[EJERCICIO_FIJAS, 'RMSE']:.2f}, pero "
+        "ese ejercicio es optimista porque la selección vio al dominio retirado."
+    )
+    if resumen_sel:
+        texto += (
+            f" El benchmark cambia entre iteraciones: se reproduce en "
+            f"{resumen_sel['n_igual_benchmark']} de {resumen_sel['n_iteraciones']}, aparecen "
+            f"{resumen_sel['n_distintos_conjuntos']} conjuntos distintos y en "
+            f"{resumen_sel['n_sin_covariables']} no queda ninguna covariable."
+        )
+    texto += (
+        " La regla del benchmark no cambia (significancia, AIC y parsimonia; Morales et al., "
+        "p. 453), pero la predicción de los municipios sin encuesta es sintética (Benedetti et "
+        "al., 2024, p. 141) y esta falta de capacidad predictiva fuera de la muestra se reporta "
+        "como limitación en el documento."
+    )
+    return texto
 
 
 def loao_procedimiento_completo(
