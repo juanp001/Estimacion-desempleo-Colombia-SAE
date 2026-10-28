@@ -118,6 +118,7 @@ df = (
     .reset_index(drop=True)
 )
 covars_eda = [c for c in df.columns if c in alias_a_codigo]
+# R-04: subconjuntos del conjunto del EDA más el modelo de solo intercepto (EC0).
 nombres_covars = subconjuntos_covariables(covars_eda)
 
 PERIODO = periodo_unico(df, TBL_COVARIABLES_SELECCIONADAS)
@@ -140,7 +141,10 @@ ganador_base = (
     else modelos_base[0]
 )
 covars_referencia = list(ganador_base.covars)
-print(f"Especificación de referencia: {' + '.join(covars_referencia)}")
+print(
+    "Especificación de referencia: "
+    + (" + ".join(covars_referencia) or "EC0 (solo intercepto, R-04)")
+)
 
 # COMMAND ----------
 

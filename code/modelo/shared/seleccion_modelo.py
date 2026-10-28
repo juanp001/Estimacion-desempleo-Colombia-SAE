@@ -7,8 +7,10 @@ espaciales (`fay_herriot_espacial.py`).
 
 1. **Especificaciones candidatas**: todos los subconjuntos no vacíos del conjunto elegido por el
    análisis exploratorio (R-05; EC1 = conjunto completo, luego los de k − 1 covariables, que son
-   los de dejar-una-fuera, y así hasta los de una sola). Con la cota de covariables n // 10 son
-   pocas (3 con k = 2, 7 con k = 3), y la eliminación hacia atrás no se queda a medio camino.
+   los de dejar-una-fuera, y así hasta los de una sola) y el modelo de solo intercepto, EC0
+   (R-04). Con la cota de covariables n // 10 son pocas (4 con k = 2, 8 con k = 3), y la
+   eliminación hacia atrás no se queda a medio camino. EC0 es la referencia que la validación
+   dejar-un-dominio-fuera ya usaba («sin covariables»): ahora también compite en la regla.
 2. **Criterio de selección** basado en Morales et al. (2021, p. 453): los modelos de área
    suelen predecir lo observado y admiten sobreparametrizar, pero cuando el modelo también se
    usa para predecir fuera de muestra (aquí, la predicción sintética de municipios sin
@@ -69,40 +71,54 @@ CRITERIO_RESPALDO = (
 )
 
 
-def etiqueta_especificacion(indice: int) -> str:
+def etiqueta_especificacion(indice: int, covars: list = None) -> str:
     """Etiqueta de una especificación candidata del Fay-Herriot clásico (G7-B15).
 
-    Reemplaza los nombres M1…M5: son especificaciones del benchmark, no modelos finales.
+    Reemplaza los nombres M1…M5: son especificaciones del benchmark, no modelos finales. El
+    modelo de solo intercepto es siempre «EC0» (R-04), sin importar su posición en la lista.
 
     Args:
         indice (int): Posición de la especificación, empezando en 1.
+        covars (list[str] | None): Covariables de la especificación. Si es una lista vacía, la
+            etiqueta es «EC0»; con None se usa solo la posición.
 
     Returns:
-        str: Etiqueta «EC{indice}» (EC1 = conjunto completo del análisis exploratorio).
+        str: Etiqueta «EC{indice}» (EC1 = conjunto completo del análisis exploratorio) o
+            «EC0» para el modelo de solo intercepto.
 
     Example:
         >>> etiqueta_especificacion(3)
         'EC3'
+        >>> etiqueta_especificacion(4, [])
+        'EC0'
     """
+    if covars is not None and len(covars) == 0:
+        return "EC0"
     return f"EC{indice}"
 
 
-def subconjuntos_covariables(covars: list) -> list:
-    """Genera las especificaciones candidatas: todos los subconjuntos no vacíos del conjunto (R-05).
+def subconjuntos_covariables(covars: list, con_intercepto: bool = True) -> list:
+    """Genera las especificaciones candidatas: los subconjuntos del conjunto elegido (R-05, R-04).
 
     El orden conserva las etiquetas de la versión dejar-una-fuera: primero el conjunto completo
     (EC1), después los subconjuntos de k − 1 covariables (quitando la primera, la segunda, …) y
     así hasta los de una sola covariable. Dentro de cada tamaño se usa el orden inverso de
     `itertools.combinations`, que para k − 1 coincide con «quitar una covariable cada vez».
+    Con `con_intercepto` se agrega al final el modelo de solo intercepto (EC0, R-04), que
+    compite con la misma regla: no tiene covariables, así que cumple de forma trivial la
+    exigencia de que todas sean significativas, y solo gana si ninguna especificación con
+    covariables lo supera en AIC por más de ΔAIC (Morales et al., p. 453: no sobreparametrizar
+    cuando se predice fuera de la muestra).
 
     Args:
         covars (list[str]): Covariables del conjunto elegido por el análisis exploratorio.
+            Puede estar vacío (ninguna candidata elegible): entonces la única especificación es
+            la de solo intercepto.
+        con_intercepto (bool): Si es True, agrega la especificación vacía (EC0) al final.
 
     Returns:
-        list[list[str]]: Las 2^k − 1 especificaciones, el conjunto completo primero.
-
-    Raises:
-        ValueError: Si `covars` está vacío.
+        list[list[str]]: Las 2^k − 1 especificaciones con covariables, el conjunto completo
+            primero, más `[]` al final si `con_intercepto`.
 
     Casos de uso:
         Especificaciones del benchmark en `fay_herriot.py`, en la sensibilidad a ψ_d y en la
@@ -110,18 +126,21 @@ def subconjuntos_covariables(covars: list) -> list:
 
     Example:
         >>> subconjuntos_covariables(["A", "B"])
-        [['A', 'B'], ['B'], ['A']]
-        >>> subconjuntos_covariables(["A", "B", "C"])
+        [['A', 'B'], ['B'], ['A'], []]
+        >>> subconjuntos_covariables(["A", "B", "C"], con_intercepto=False)
         [['A', 'B', 'C'], ['B', 'C'], ['A', 'C'], ['A', 'B'], ['C'], ['B'], ['A']]
+        >>> subconjuntos_covariables([])
+        [[]]
     """
-    if not covars:
-        raise ValueError("El conjunto de covariables está vacío.")
     covars = list(covars)
-    return [
+    especificaciones = [
         list(subconjunto)
         for tamano in range(len(covars), 0, -1)
         for subconjunto in reversed(list(combinations(covars, tamano)))
     ]
+    if con_intercepto or not especificaciones:
+        especificaciones.append([])
+    return especificaciones
 
 
 def distancia_cook(modelo: ModeloAreaPequena) -> np.ndarray:
@@ -178,7 +197,7 @@ def tabla_diagnosticos(modelos: list, nombres_covars: list) -> pd.DataFrame:
         corr, corr_pval = stats.pearsonr(m.Y, m.Y - m.eblup)
         filas.append(
             {
-                "Modelo": etiqueta_especificacion(i),
+                "Modelo": etiqueta_especificacion(i, nombres_covars[i - 1]),
                 "Covariables": " + ".join(nombres_covars[i - 1]),
                 "R2": round(m.r2, 4),
                 "Media_resid": round(m.residuals.mean(), 4),
@@ -221,7 +240,7 @@ def tabla_cook(
         influyentes = np.where(cook > umbral)[0]
         filas.append(
             {
-                "Modelo": etiqueta_especificacion(i),
+                "Modelo": etiqueta_especificacion(i, covars),
                 "Covariables": " + ".join(covars),
                 "Cook_max": round(float(cook.max()), 4),
                 "Dominio_Cook_max": str(nombres_dominio[int(np.argmax(cook))]),
@@ -354,7 +373,7 @@ def tabla_seleccion(
     for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars)):
         filas.append(
             {
-                "Modelo": etiqueta_especificacion(i + 1),
+                "Modelo": etiqueta_especificacion(i + 1, covars),
                 "Covariables": " + ".join(covars),
                 "N_covariables": len(covars),
                 "AIC": round(float(modelo.aic), 4),
@@ -362,7 +381,10 @@ def tabla_seleccion(
                 # G7-B16: AICc y su diferencia frente a la mejor candidata por AICc.
                 "AICc": round(float(modelo.aicc), 4),
                 "Delta_AICc": round(float(modelo.aicc - mejor_aicc), 4),
-                "p_max_covariables": round(float(modelo.p_vals[1:].max()), 4),
+                # EC0 no tiene covariables: su p máximo no existe (R-04).
+                "p_max_covariables": (
+                    round(float(modelo.p_vals[1:].max()), 4) if covars else np.nan
+                ),
                 "Todas_signif": "sí" if todas_significativas(modelo, alfa) else "no",
                 # R-05: candidata = cumple la regla; en el respaldo compiten todas, pero
                 # ninguna es candidata, y el `Criterio` lo dice.
@@ -417,7 +439,7 @@ def redaccion_seleccion(
     idx, compiten, equivalentes, cumple_regla = _indice_ganador(
         modelos, nombres_covars, delta_aic, alfa
     )
-    etiqueta = etiqueta_especificacion(idx + 1)
+    etiqueta = etiqueta_especificacion(idx + 1, nombres_covars[idx])
     mejor_aicc = min(modelos[i].aicc for i in compiten)
     delta_aicc_ganador = modelos[idx].aicc - mejor_aicc
     equivalentes_aicc = [
@@ -445,7 +467,9 @@ def redaccion_seleccion(
         )
 
     if len(equivalentes) > 1:
-        lista = ", ".join(etiqueta_especificacion(i + 1) for i in equivalentes)
+        lista = ", ".join(
+            etiqueta_especificacion(i + 1, nombres_covars[i]) for i in equivalentes
+        )
         texto += (
             f"{etiqueta} fue seleccionado, entre varias especificaciones con soporte "
             f"similar (ΔAIC ≤ {delta_aic:g}: {lista}), mediante la regla de parsimonia "
@@ -509,7 +533,9 @@ def elegir_ganador(
     if cumple_regla:
         print(
             f"Especificaciones con todas las covariables significativas (p < {alfa}): "
-            + ", ".join(etiqueta_especificacion(i + 1) for i in compiten)
+            + ", ".join(
+                etiqueta_especificacion(i + 1, nombres_covars[i]) for i in compiten
+            )
         )
     else:
         no_signif = covariables_no_significativas(modelos[idx_ganador], alfa)
@@ -525,11 +551,13 @@ def elegir_ganador(
         )
     print(
         f"Equivalentes por AIC (ΔAIC ≤ {delta_aic}): "
-        + ", ".join(etiqueta_especificacion(i + 1) for i in equivalentes)
+        + ", ".join(
+            etiqueta_especificacion(i + 1, nombres_covars[i]) for i in equivalentes
+        )
     )
     print(
         f"Benchmark seleccionado (Fay-Herriot clásico): "
-        f"{etiqueta_especificacion(idx_ganador + 1)} "
+        f"{etiqueta_especificacion(idx_ganador + 1, nombres_covars[idx_ganador])} "
         f"({' + '.join(nombres_covars[idx_ganador])})"
     )
     # G7-B16: lectura con AICc, solo informativa (la decisión ya se tomó con AIC).
@@ -539,7 +567,9 @@ def elegir_ganador(
     ]
     print(
         f"Equivalentes por AICc (ΔAICc ≤ {delta_aic}, complemento): "
-        + ", ".join(etiqueta_especificacion(i + 1) for i in equivalentes_aicc)
+        + ", ".join(
+            etiqueta_especificacion(i + 1, nombres_covars[i]) for i in equivalentes_aicc
+        )
     )
     return modelos[idx_ganador]
 
@@ -694,7 +724,10 @@ def interpretar_cook(
     cook = distancia_cook(modelo)
     umbral = 4 / modelo.n
     influyentes = nombres_dominio[cook > umbral]
-    covars = sensibilidad[sensibilidad["Parametro"].isin(modelo.covars)]
+    # R-04: con el modelo de solo intercepto (EC0) el cambio relativo se lee en β̂0.
+    covars = sensibilidad[
+        sensibilidad["Parametro"].isin(list(modelo.covars) or ["Intercepto"])
+    ]
     cambios_signo = covars.loc[covars["Cambia_signo"] == "sí", "Parametro"].tolist()
     perdidas = covars.loc[covars["Cambio_signif"] == "pierde", "Parametro"].tolist()
     ganancias = covars.loc[covars["Cambio_signif"] == "gana", "Parametro"].tolist()
@@ -722,7 +755,13 @@ def interpretar_cook(
     if ganancias:
         hallazgos.append(f"pasan a ser significativas {', '.join(ganancias)}")
 
-    if hallazgos:
+    if not modelo.covars:
+        # R-04: con el modelo de solo intercepto no hay covariables que pierdan significancia.
+        lineas.append(
+            "  Modelo de solo intercepto (EC0): la distancia de Cook mide cuánto mueve cada "
+            "dominio la media ponderada β̂0; no hay covariables cuya significancia evaluar."
+        )
+    elif hallazgos:
         lineas.append(
             "  ✗ Sin ese dominio "
             + "; ".join(hallazgos)
