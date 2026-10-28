@@ -3,7 +3,7 @@ resources:
     preprocesamiento:
       name: preprocesamiento
       description: >-
-        Estimación directa por municipio, unión con covariables TerriData, pre-filtrado y
+        Estimación directa por dominio (ciudad o ciudad A.M.), unión con covariables TerriData, pre-filtrado y
         dominios sin encuesta. Requiere ingesta_geih e ingesta_terridata ya ejecutados.
       max_concurrent_runs: 1
       # Ventana de tiempo: llega como widgets a las tareas notebook que la declaran
@@ -16,6 +16,8 @@ resources:
           default: ${var.mes_estimacion}
         - name: n_meses_ventana
           default: ${var.n_meses_ventana}
+      # Entorno serverless 2 (verificado 2026-10-27): Python 3.11.10, numpy 1.23.5, scipy 1.11.1,
+      # pandas 1.5.3, statsmodels 0.14.0, matplotlib 3.7.2. Vienen en el entorno base; ver requirements.txt (R-50).
       environments:
         - environment_key: serverless
           spec:

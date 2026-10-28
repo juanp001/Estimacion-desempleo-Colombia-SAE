@@ -1,0 +1,51 @@
+resources:
+  jobs:
+    pipeline_completo:
+      name: pipeline_completo
+      description: >-
+        Orquestador (R-51): corre los seis jobs en el orden dimensiones → ingesta_geih e
+        ingesta_terridata → preprocesamiento → analisis → modelo. Sirve para volver a correr todo
+        después de cada bloque de ajustes. El período llega como parámetros del job y se pasa a
+        preprocesamiento.
+      max_concurrent_runs: 1
+      parameters:
+        - name: anio_estimacion
+          default: ${var.anio_estimacion}
+        - name: mes_estimacion
+          default: ${var.mes_estimacion}
+        - name: n_meses_ventana
+          default: ${var.n_meses_ventana}
+      tasks:
+        - task_key: dimensiones
+          run_job_task:
+            job_id: ${resources.jobs.dimensiones.id}
+        - task_key: ingesta_geih
+          depends_on:
+            - task_key: dimensiones
+          run_job_task:
+            job_id: ${resources.jobs.ingesta_geih.id}
+        - task_key: ingesta_terridata
+          depends_on:
+            - task_key: dimensiones
+          run_job_task:
+            job_id: ${resources.jobs.ingesta_terridata.id}
+        - task_key: preprocesamiento
+          depends_on:
+            - task_key: ingesta_geih
+            - task_key: ingesta_terridata
+          run_job_task:
+            job_id: ${resources.jobs.preprocesamiento.id}
+            job_parameters:
+              anio_estimacion: "{{job.parameters.anio_estimacion}}"
+              mes_estimacion: "{{job.parameters.mes_estimacion}}"
+              n_meses_ventana: "{{job.parameters.n_meses_ventana}}"
+        - task_key: analisis
+          depends_on:
+            - task_key: preprocesamiento
+          run_job_task:
+            job_id: ${resources.jobs.analisis.id}
+        - task_key: modelo
+          depends_on:
+            - task_key: analisis
+          run_job_task:
+            job_id: ${resources.jobs.modelo.id}
