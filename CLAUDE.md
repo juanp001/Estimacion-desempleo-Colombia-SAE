@@ -7,9 +7,11 @@ un modelo de área pequeña **Fay-Herriot** que estima la tasa de desempleo en m
 GEIH no tiene cobertura muestral directa.
 
 El Fay-Herriot clásico (efectos de área independientes, `modelo/fay_herriot.py`) es el **benchmark no
-espacial**: el proyecto **sí incluye variantes espaciales** del Fay-Herriot, que se desarrollan en una rama
-aparte y se integrarán a este flujo (ver «Componente espacial»). Mientras no estén mezcladas, las tablas
-municipales del clásico son resultados preliminares del benchmark, no las estimaciones finales.
+espacial**: el proyecto **sí incluye variantes espaciales** del Fay-Herriot, ya integradas en `modelo/`
+(`fay_herriot_espacial.py`, ver «Componente espacial»). Mientras no se cierre la comparación del objetivo 1,
+las tablas municipales del clásico son resultados preliminares del benchmark, no las estimaciones finales.
+Las cifras de la corrida vigente (cierre 2018) viven en [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md), no aquí: este archivo
+guarda solo reglas.
 
 Todo el código corre sobre Databricks (notebooks `.py` con `# Databricks notebook source` / `# COMMAND ----------`)
 y persiste en tablas Unity Catalog bajo el catálogo `tesis`. Esquemas: `geih_bronce`, `geih_plata`, `geih_oro`,
@@ -125,8 +127,7 @@ la transformación a ancho).
   solo PASS/FAIL): `tesis.geih_oro.llaves_sin_pareja` (% de llaves de cada módulo sin pareja en
   características generales; inactivos frente a fuerza de trabajo; personas sin FEX) y
   `tesis.geih_oro.reconciliacion_fuerza_trabajo` (por PER/MES/dominio: PET, PEA, PEI, OC, DS y quién rompe
-  PEA = OC + DS, PET = PEA + PEI u OC y DS a la vez). 2018: 0 violaciones en los 12 meses y 0 llaves sin
-  pareja o duplicadas en todos los módulos. `CG_SIN_FEX` solo revisa el marco antiguo (el único que depende
+  PEA = OC + DS, PET = PEA + PEI u OC y DS a la vez). Resultado 2018 en [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md). `CG_SIN_FEX` solo revisa el marco antiguo (el único que depende
 de `dim_fex`).
 
 ### Preprocesamiento → selección de covariables — `code/preprocesamiento/` y `code/analisis/`
@@ -256,9 +257,7 @@ modelo/fay_herriot.py
     detiene (se muestra el proceso completo): compiten todas, el aviso nombra las covariables no
     significativas del elegido, `fh_seleccion_modelo` deja `Candidata = no` en todas y la columna
     `Criterio` = respaldo, y `redaccion_seleccion` lo redacta como excepción (p. 454), que se justifica en
-    el documento de tesis. Con el cierre 2018 se cumple la regla: EC3 = TASA_HOMICIDIOS (p = 0.006) frente
-    a EC2 = COB_ACUEDUCTO (ΔAIC = 0.92); EC1 (las dos) no cumple; EC0 (solo intercepto) queda en
-    AIC 114.04 (ΔAIC = 5.14), fuera de la zona de soporte similar (RMSE_LOAO: EC3 2.52, EC0 2.77).
+    el documento de tesis. El benchmark vigente y su comparación con EC0 (cierre 2018) están en [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md).
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
     robustez (Cook + reajuste sin el dominio más influyente) del benchmark. G7-B16: AICc (AIC + 2k(k+1)/(n−k−1),
     k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
@@ -316,9 +315,7 @@ modelo/fay_herriot.py
     R-04: si el procedimiento completo predice peor que el de solo intercepto (`Habilidad_vs_nulo` < 0),
     `advertencia_validacion` imprime las tres RMSE y la inestabilidad del conjunto entre iteraciones; no
     cambia la regla (Morales p. 453), se reporta como limitación (los municipios reciben solo el
-    sintético, Benedetti 2024 p. 141). Cierre 2018: RMSE 2.52 (fijas), 3.43 (procedimiento completo) y
-    2.77 (nulo), habilidad −0.54; el benchmark se reproduce en 14 de 23 iteraciones, con 6 conjuntos
-    distintos y 4 iteraciones sin covariables. Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
+    sintético, Benedetti 2024 p. 141). Cifras del cierre 2018 en [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md). Métricas por ejercicio: RMSE, MAE, sesgo, RMSE corregido por ruido
     (√media(e²−ψ)), errores estandarizados `Z_psi = e/√ψ` y `Z_pred = e/√(ψ + x'Cov(β̂)x + Â)` (media,
     sd, cobertura nominal), error dentro de muestra, y habilidad frente a un modelo de solo intercepto
     evaluado igual. Salidas: `fh_validacion_cruzada` (por dominio y ejercicio),
@@ -330,7 +327,7 @@ modelo/fay_herriot.py
   → D_i = varianza bootstrap por viviendas tratada como conocida (p. 427), sin suavizar con GVF. La GVF
     y otras D_i solo se evalúan en modelo/sensibilidad_varianza.py. La validación predictiva
     dejar-un-área-fuera (G7-B19) está permitida: no hay restricción del proyecto contra ella
-  → figuras solo en pantalla (sin título y sin guardarse en volúmenes)
+  → figuras `fh_*` sin título, mostradas y guardadas en `VOLUMEN_FIGURAS_MODELO` (R-45; ver «Importaciones»)
   → clave de dominio PER_MES_CODIGO_DOMINIO; etiquetas = NOMBRE_DOMINIO («Cali A.M.»)
   → benchmarking en dos niveles, ajuste de razón de Fay-Herriot (1979) (shared/benchmarking.py, con la
     sustentación completa: DANE nota SAE 2024 PDF 8/19/25, ENUSC 2018 PDF 22-23, Chile pobreza 2016,
@@ -387,11 +384,7 @@ modelo/sensibilidad_varianza.py   (G7-B3, fuera de la cadena: no alimenta al mod
     confiabilidad, λ₁ y predicción sintética de los 83 municipios
   → sensibilidad_varianza_directa, gvf_ajuste, sensibilidad_varianza_fh, sensibilidad_varianza_coeficientes,
     sensibilidad_varianza_dominios, sensibilidad_varianza_municipios (tesis.modelo)
-  → 2018: ψ_viviendas/ψ_personas mediana 1.08 (1.00–1.17); bootstrap/Taylor 0.94–1.05; GVF R² 0.97 (A) y
-    0.976 (B, pendientes ≈ +1 y −1 = forma binomial, deff implícito ≈ 1.2). Corrida del bloque 06 (9
-    escenarios, R-65): el ganador (TASA_HOMICIDIOS) y su significancia no cambian, Â/ψ̄ ≥ 19.5, γ ≥ 0.90,
-    EBLUP cambia ≤ 0.20 pp y la predicción sintética ≤ 0.13 pp; Taylor y GVF A, ≤ 0.005 pp. Solo con ψ × 3
-    pasan 4 dominios de confiable a aceptable
+  → resultados 2018 (razones ψ, ajuste de la GVF y los 9 escenarios de R-65) en [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md)
 ```
 
 Lógica compartida en `analisis/shared/`: `catalogo_literatura.py` (`CATALOGO_LITERATURA`,
@@ -473,18 +466,8 @@ filas, `moran_i`, `proximidad_total`, `filas_moran`), `fay_herriot_espacial.py` 
 de `ModeloAreaPequena`; `validacion_dejar_uno_fuera`), `figuras_espacial.py`, `figuras.py` (guardado común
 del clásico `fh_*` y del espacial `fhe_*`), `prediccion_espacial.py`, `sensibilidad_espacial.py`,
 `cuadro_comparativo.py` (también `construir_cuadro_coeficientes`); parámetros en `config.py` (`ESCENARIOS_W`,
-`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018 (corrida del job `modelo` del 2026-10-27, run
-`899936223549833`; 23 dominios, 83 objetivos = 81 nodos + las subáreas Cali y Yumbo, R-44): **sin
-evidencia de dependencia espacial** — benchmark clásico `TASA_HOMICIDIOS` (EC3, AIC 108.90, Â 5.529); Moran
-de los residuos del clásico p entre 0.33 y 0.65 y del SEBLUP entre 0.52 y 0.98; ρ̂ entre 0.19 y 0.33
-(muestra) y entre 0.22 y 0.89 (completa) sin significancia (LRT p ≥ 0.22); ΔAIC entre −0.50 y −2.00 (el
-clásico tiene menor AIC en los 8 casos); perfil de ρ plano (ganancia ≤ 0.94). RMSE dejar-un-dominio-fuera:
-clásico 2.524 frente a 2.346 (`knn3`), 2.590, 2.602 y 2.859 del espacial con efecto: solo `knn3` mejora, sin
-respaldo en la verosimilitud. El efecto espacial en los 81 nodos objetivo es pequeño (media absoluta
-0.13 pp; −2.84 pp en Cali y Yumbo) y 21 de 83 objetivos extrapolan. El modelo recomendado sigue siendo el
-clásico (benchmark); detalle, tablas, comparación con el cierre anterior y limitaciones en
-`docs/fay_herriot_espacial.md`. Las figuras `fhe_*` de `docs/img/` se regeneraron con esa corrida (el volumen
-`/Volumes/tesis/modelo/figuras` ya existe). Ojo: en
+`RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018, detalle, tablas y limitaciones en
+[docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md) y `docs/fay_herriot_espacial.md` (sin evidencia de dependencia espacial: el modelo recomendado sigue siendo el clásico). Ojo: en
 `municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; desde R-14 el notebook
 espacial no la excluye: Cali y Yumbo son subáreas del nodo Cali A.M. `marca_extrapolacion` (B20) recibe la
 matriz de diseño de los objetivos (`X_obj`), no `x'Cov(β̂)x`.
@@ -527,8 +510,7 @@ Reglas del flujo de selección:
 - **Moran y AIC permitidos**: el índice de Moran (sobre residuos del benchmark y de las variantes espaciales)
   y el AIC pueden usarse donde corresponda, incluido el EDA. La comparación entre especificaciones del
   clásico se hace en `modelo/fay_herriot.py`.
-- **Componente espacial** (variantes espaciales del FH; el código vive en otra rama y se integrará a
-  `modelo/`). Requisitos de la revisión del Grupo 7 (`Comentarios Grupo 7.pdf`, sec. 7-9):
+- **Componente espacial** (variantes espaciales del FH; el código vive en `modelo/`). Requisitos de la revisión del Grupo 7 (`Comentarios Grupo 7.pdf`, sec. 7-9):
   - la matriz W se construye sobre las unidades reales de la respuesta (un dominio A.M. es un solo nodo),
     con la vecindad o distancia justificada;
   - comparación controlada FH clásico vs espacial: misma respuesta, mismos ψ_d, mismos dominios y mismas
@@ -567,7 +549,8 @@ Reglas del flujo de selección:
 
 `databricks.yml` + `dab/resources/*.yml` + `dab/targets/dev.yml` definen un bundle con un único target `dev`
 (cómputo serverless, `environment_version "2"`, `max_concurrent_runs: 1`; sin `mode: development` para que los
-jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas notebook (`../../code/...`):
+jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas notebook (`../../code/...`), más el
+orquestador `pipeline_completo` (R-51):
 
 | Job | Tareas |
 |-----|--------|
@@ -577,11 +560,12 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
 | `preprocesamiento` | `estimacion_directa` → `adicion_covariables` → `pre_filtrado_covariables` → `dominios_sin_encuesta` |
 | `analisis` | `analisis_descriptivo` → `eda_seleccion_covariables` (R-37: `sensibilidad_ventana_temporal` salió del job; se corre a mano) |
 | `modelo` | `fay_herriot` → `fay_herriot_espacial`; `sensibilidad_varianza` (independiente) |
+| `pipeline_completo` | `run_job_task` de los seis jobs anteriores en el orden de abajo; recibe `anio_estimacion`, `mes_estimacion` y `n_meses_ventana` y se los pasa a `preprocesamiento` |
 
-- Entre jobs no hay dependencias en el YAML; el orden real es `dimensiones` → `ingesta_geih` /
+- Entre los seis jobs de etapa no hay dependencias en su YAML; `pipeline_completo` las declara. El orden es `dimensiones` → `ingesta_geih` /
   `ingesta_terridata` → `preprocesamiento` → `analisis` → `modelo`.
 - El período llega como variables del bundle `anio_estimacion` (default "2018"), `mes_estimacion` (default
-  "12") y `n_meses_ventana` (default "12" = año; "3" = trimestre móvil); solo `preprocesamiento` los declara
+  "12") y `n_meses_ventana` (default "12" = año; "3" = trimestre móvil); solo `preprocesamiento` (y `pipeline_completo`, que se los pasa) los declara
   como parámetros. `resolver_periodo` (`preprocesamiento/shared/config.py`) lee los dos primeros en
   `estimacion_directa` y `dominios_sin_encuesta`; `resolver_ventana` lee la ventana solo en
   `estimacion_directa`, y de ahí viaja en la columna `N_MESES_VENTANA`. Ejemplo (trimestre Abr-Jun 2024):
@@ -590,6 +574,9 @@ jobs no lleven prefijo). Seis jobs, cada uno una cadena lineal de tareas noteboo
   `/Volumes/tesis/modelo/figuras` antes de `modelo` (si falta, las figuras se muestran pero no se guardan).
 - `sync.exclude` omite `data/`, `code/ingesta_datos/censo_nal/`, `code/analisis/renombrar_geih.py` y los
   `*.txt`, `*.xlsx`, `*.pdf` (archivos de trabajo de la raíz; `TerriData.txt` de ~3 GB rompía el despliegue).
+- **Versiones (R-50)**: el entorno base serverless 2 trae Python 3.11.10, numpy 1.23.5, scipy 1.11.1, pandas 1.5.3,
+  statsmodels 0.14.0 y matplotlib 3.7.2; solo `openpyxl==3.1.5` se instala aparte (`ingesta_geih`). Están en
+  `requirements.txt`; si se cambia `environment_version`, volver a verificarlas.
 - Para correr una sola tarea: `databricks bundle run <job> -t dev --only <task_key>`.
 - `modelo/fay_herriot.py` resuelve `CODE_DIR` con `dbutils` para poder correr como job.
 - Detalles de cómo ejecutar jobs en este workspace: ver la memoria `project_flujo_rev_decisiones`.

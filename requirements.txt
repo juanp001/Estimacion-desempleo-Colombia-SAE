@@ -1,0 +1,9 @@
+# Versiones del entorno serverless `environment_version "2"` de Databricks (verificadas 2026-10-27).
+# Los jobs usan ese entorno base; solo openpyxl se instala aparte (dab/resources/ingesta_geih.yml).
+# Sirven también para reproducir el entorno local (Python 3.11).
+numpy==1.23.5
+scipy==1.11.1
+pandas==1.5.3
+statsmodels==0.14.0
+matplotlib==3.7.2
+openpyxl==3.1.5
