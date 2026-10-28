@@ -50,6 +50,7 @@ no en el notebook.
 
 ```
 code/
+├── comun/                          # R-67: spark_utils.py (leer_csv, leer_parquet, escribir_tabla) y entorno.py
 ├── ingesta_datos/
 │   ├── geih/
 │   │   ├── renombrar_geih.py       # Paso previo local: nombra los CSV del DANE como espera geih_bronce
@@ -57,12 +58,12 @@ code/
 │   │   ├── geih_plata.py           # Consolida marco antiguo y nuevo; construye dim_fex
 │   │   ├── geih_oro.py             # mercado_laboral + reconciliación de la fuerza de trabajo
 │   │   ├── datos_publicados.py     # Cifras oficiales del DANE (anexo CNPV 2018) para validar
-│   │   └── shared/                 # config/geih_config.py, utils/spark_utils.py y transformations/
+│   │   └── shared/                 # config/geih_config.py y transformations/
 │   │                               #   (campos_nucleo, factor_expansion, reconciliacion)
 │   ├── terridata/
 │   │   ├── terridata_bronce.py     # Ingesta de TerriData (DNP)
 │   │   ├── terridata_plata.py      # Pivote largo → ancho (covariables) + dim_indicadores
-│   │   └── shared/                 # config, normalizacion, spark_utils, verification_utils
+│   │   └── shared/                 # config, normalizacion, verification_utils
 │   └── dimensiones/
 │       ├── dim_divipola.py         # Nomenclatura DIVIPOLA
 │       ├── dim_dominio_geih.py     # Dominio de estimación de cada municipio (ciudad / ciudad A.M.)
