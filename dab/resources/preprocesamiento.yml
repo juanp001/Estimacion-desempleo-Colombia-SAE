@@ -3,7 +3,7 @@ resources:
     preprocesamiento:
       name: preprocesamiento
       description: >-
-        Estimación directa por municipio, unión con covariables TerriData, pre-filtrado y
+        Estimación directa por dominio (ciudad o ciudad A.M.), unión con covariables TerriData, pre-filtrado y
         dominios sin encuesta. Requiere ingesta_geih e ingesta_terridata ya ejecutados.
       max_concurrent_runs: 1
       # Ventana de tiempo: llega como widgets a las tareas notebook que la declaran
