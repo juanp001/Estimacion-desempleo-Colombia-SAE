@@ -76,31 +76,16 @@ import pandas as pd
 from pyspark.sql import functions as F
 
 
-def _directorio_codigo() -> str:
-    """Ruta absoluta de `code/`, tanto en ejecución interactiva como en un job.
-
-    Resuelve el directorio con el contexto de `dbutils` cuando corre como notebook o job y, si
-    no existe (ejecución local), usa el directorio padre del directorio de trabajo.
-
-    Returns:
-        str: Ruta del directorio `code/` del repositorio.
-
-    Example:
-        >>> _directorio_codigo()  # doctest: +SKIP
-        '/Workspace/Users/usuario/.bundle/.../files/code'
-    """
-    try:
-        contexto = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-        return "/Workspace" + os.path.dirname(
-            os.path.dirname(contexto.notebookPath().get())
-        )
-    except Exception:
-        return os.path.dirname(os.getcwd())
-
-
-CODE_DIR = _directorio_codigo()
-if CODE_DIR not in sys.path:
-    sys.path.insert(0, CODE_DIR)
+# R-67: `code/` en sys.path (el notebook está en code/<carpeta>/); `comun.entorno` hace el resto
+_ruta_nb = (
+    dbutils.notebook.entry_point.getDbutils()
+    .notebook()
+    .getContext()
+    .notebookPath()
+    .get()
+)
+CODE_DIR = "/Workspace" + os.path.dirname(os.path.dirname(_ruta_nb))
+sys.path.insert(0, CODE_DIR)
 
 from preprocesamiento.shared.config import *
 from preprocesamiento.shared.estimador_sae import EstimacionDirecta

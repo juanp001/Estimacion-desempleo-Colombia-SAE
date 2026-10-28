@@ -34,6 +34,21 @@
 # COMMAND ----------
 
 # DBTITLE 1,Importación de librerías
+import os
+import sys
+
+# R-67: `code/` en sys.path para importar `comun` (el notebook está en code/ingesta_datos/<carpeta>/)
+_ruta_nb = (
+    dbutils.notebook.entry_point.getDbutils()
+    .notebook()
+    .getContext()
+    .notebookPath()
+    .get()
+)
+sys.path.insert(
+    0, "/Workspace" + os.path.dirname(os.path.dirname(os.path.dirname(_ruta_nb)))
+)
+
 
 from pyspark.sql.functions import col, when, expr, regexp_replace
 
@@ -64,7 +79,7 @@ from shared.transformations.campos_nucleo import (
     CAMPOS_NUCLEO_MARCO_ANTIGUO,
     llave_persona,
 )
-from shared.utils.spark_utils import escribir_tabla
+from comun.spark_utils import escribir_tabla
 
 # COMMAND ----------
 

@@ -1,3 +1,8 @@
+"""Utilidades de Spark comunes a toda la ingesta (R-67).
+
+Antes vivían duplicadas en `ingesta_datos/geih/shared/utils` y `ingesta_datos/terridata/shared/utils`.
+"""
+
 import glob
 from functools import reduce
 
@@ -32,7 +37,7 @@ def leer_csv(spark: SparkSession, path: str) -> DataFrame:
         AnalysisException: Si el clúster no tiene acceso al volumen.
 
     Example:
-        >>> df = leer_csv(spark, "/Volumes/tesis/geih_bronce/ocupados/marco_nuevo/*.csv")
+        >>> df = leer_csv(spark, "/Volumes/tesis/geih_bronce/ocupados/marco_nuevo/*.csv")  # doctest: +SKIP
     """
     archivos = sorted(glob.glob(path))
     if not archivos:
@@ -49,6 +54,22 @@ def leer_csv(spark: SparkSession, path: str) -> DataFrame:
     return reduce(lambda a, b: a.unionByName(b, allowMissingColumns=True), partes)
 
 
+def leer_parquet(spark: SparkSession, path: str) -> DataFrame:
+    """Lee archivos Parquet desde un volumen de Unity Catalog.
+
+    Args:
+        spark (SparkSession): Sesión de Spark activa.
+        path (str): Ruta al directorio o glob de archivos Parquet.
+
+    Returns:
+        DataFrame: Datos leídos.
+
+    Example:
+        >>> df = leer_parquet(spark, "/Volumes/tesis/terridata_archivos/consolidado")  # doctest: +SKIP
+    """
+    return spark.read.parquet(path)
+
+
 def escribir_tabla(df: DataFrame, table_name: str, mode: str = "overwrite") -> None:
     """Escribe un DataFrame en una tabla de Unity Catalog.
 
@@ -62,6 +83,6 @@ def escribir_tabla(df: DataFrame, table_name: str, mode: str = "overwrite") -> N
         AnalysisException: Si la ruta de la tabla es inválida o faltan permisos.
 
     Example:
-        >>> escribir_tabla(df, "tesis.geih_plata.ocupados_consolidado")
+        >>> escribir_tabla(df, "tesis.geih_plata.ocupados_consolidado")  # doctest: +SKIP
     """
     df.write.mode(mode).option("overwriteSchema", "true").saveAsTable(table_name)
