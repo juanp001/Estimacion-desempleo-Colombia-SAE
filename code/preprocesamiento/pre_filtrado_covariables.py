@@ -14,6 +14,11 @@
 # MAGIC | Filtro por \|Pearson\| con la tasa de desempleo | **No se aplica** | Descartar covariables usando la variable respuesta sobre los mismos 23 dominios que después ajustan el modelo sesga al alza las correlaciones de las supervivientes e invalida su lectura posterior como evidencia. No sería un pre-filtrado sino una selección encubierta. |
 # MAGIC | Reporte de grupos redundantes | **Solo se reporta** | Documenta qué covariables son duplicados exactos entre sí, sin descartar ninguna: cuál conservar exige un criterio conceptual que solo está disponible más adelante. |
 # MAGIC
+# MAGIC Los dos filtros se calculan sobre todos los indicadores de TerriData para describir la
+# MAGIC cascada del documento, pero **solo pasan a la tabla de salida las covariables del catálogo
+# MAGIC de literatura** (R-57): es lo único que leen la selección y el modelo. El catálogo se toma de
+# MAGIC `reglas_agregacion_covariables`, que escribe `adicion_covariables`.
+# MAGIC
 # MAGIC El pre-filtrado resultante es **enteramente independiente de la variable respuesta**.
 # MAGIC Su único propósito es eliminar covariables inutilizables, no elegir las mejores.
 # MAGIC La asociación con la tasa de desempleo se trata como evidencia descriptiva en
@@ -29,9 +34,10 @@
 # MAGIC
 # MAGIC ## Salidas
 # MAGIC
-# MAGIC * `tesis.preprocesamiento.covariables_prefiltradas` — covariables supervivientes.
+# MAGIC * `tesis.preprocesamiento.covariables_prefiltradas` — covariables del catálogo que
+# MAGIC   superan los dos filtros (R-57).
 # MAGIC * `tesis.preprocesamiento.cascada_prefiltrado` — conteo por etapa, insumo de la
-# MAGIC   tabla de cascada del capítulo de resultados.
+# MAGIC   tabla de cascada del capítulo de resultados; la última fila cuenta las del catálogo.
 
 # COMMAND ----------
 
@@ -66,6 +72,7 @@ from preprocesamiento.shared.config import (
     TBL_CASCADA,
     TBL_COVARIABLES,
     TBL_PREFILTRADAS,
+    TBL_REGLAS_AGREGACION,
     TBL_SENSIBILIDAD,
     UMBRAL_DUPLICADO,
 )
@@ -92,6 +99,22 @@ for col in df_covariables.select_dtypes(include=["object"]).columns:
 n_inicial = len(covariables_cols)
 print(f"Dominios de estimación: {len(df)}")
 print(f"Covariables candidatas iniciales: {n_inicial}")
+
+# R-57: códigos del catálogo de literatura (los que adicion_covariables agregó con su regla).
+# Se leen de la tabla y no de analisis.shared, para no sumar otra dependencia hacia análisis.
+codigos_catalogo = sorted(
+    fila["CODIGO_INDICADOR"]
+    for fila in spark.table(TBL_REGLAS_AGREGACION)
+    .select("CODIGO_INDICADOR")
+    .distinct()
+    .collect()
+)
+fuera_de_la_tabla = [c for c in codigos_catalogo if c not in covariables_cols]
+if fuera_de_la_tabla:
+    raise ValueError(
+        f"Covariables del catálogo que no están en {TBL_COVARIABLES}: {fuera_de_la_tabla}"
+    )
+print(f"Covariables del catálogo de literatura: {len(codigos_catalogo)}")
 
 # COMMAND ----------
 
@@ -146,6 +169,27 @@ print(f"Tabla escrita: {TBL_SENSIBILIDAD}")
 
 # COMMAND ----------
 
+# DBTITLE 1,Covariables del catálogo que superan los filtros (R-57)
+# Solo estas pasan a la tabla de salida: el resto de los indicadores sirve para describir la
+# cascada, pero ninguna etapa posterior los usa.
+# (mismo orden de columnas que antes del ajuste)
+catalogo_filtrado = [c for c in df_filtrado.columns if c in set(codigos_catalogo)]
+recorrido_catalogo = pd.DataFrame(
+    {
+        "CODIGO_INDICADOR": codigos_catalogo,
+        "PASA_COMPLETITUD": [c in df_sin_na.columns for c in codigos_catalogo],
+        "PASA_VARIABILIDAD": [c in df_filtrado.columns for c in codigos_catalogo],
+    }
+)
+display(recorrido_catalogo)
+n_catalogo = len(catalogo_filtrado)
+print(
+    f"Covariables del catálogo que superan los filtros: {n_catalogo} de {len(codigos_catalogo)}"
+)
+df_filtrado = df_filtrado[catalogo_filtrado]
+
+# COMMAND ----------
+
 # DBTITLE 1,Reporte de covariables duplicadas entre sí
 df_redundantes = reportar_grupos_redundantes(df_filtrado, umbral=UMBRAL_DUPLICADO)
 if not df_redundantes.empty:
@@ -154,6 +198,7 @@ if not df_redundantes.empty:
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC El reporte se hace sobre las covariables del catálogo que pasan los filtros (R-57).
 # MAGIC Los grupos anteriores contienen covariables con correlación de magnitud
 # MAGIC prácticamente unitaria: miden lo mismo, a veces en sentido inverso. Ninguna se
 # MAGIC descarta aquí. Retirar una exige decidir cuál conservar, y esa decisión necesita el
@@ -185,6 +230,13 @@ cascada = pd.DataFrame(
             "Covariables": n_variabilidad,
             "Retencion_pct": round(100 * n_variabilidad / n_inicial, 2),
         },
+        {
+            "Orden": 4,
+            "Etapa": "Catálogo de literatura",
+            "Criterio": "Covariables del catálogo que superan los dos filtros (R-57)",
+            "Covariables": n_catalogo,
+            "Retencion_pct": round(100 * n_catalogo / n_inicial, 2),
+        },
     ]
 )
 display(spark.createDataFrame(cascada))
@@ -198,8 +250,21 @@ spark.createDataFrame(cascada).write.mode("overwrite").option(
 # DBTITLE 1,Escritura de las covariables prefiltradas
 df_output = pd.concat([df[METADATA_COLS], df_filtrado], axis=1)
 
+# R-57: la tabla pierde las columnas que no son del catálogo. La optimización predictiva de
+# Databricks puede haber fijado estadísticas sobre alguna de ellas
+# (delta.workloadBasedColumns.deltaFileStatistics) y entonces la sobrescritura falla con
+# DELTA_COLUMN_NOT_FOUND_IN_SCHEMA; se quita la propiedad antes de escribir.
+if spark.catalog.tableExists(TBL_PREFILTRADAS):
+    spark.sql(
+        f"ALTER TABLE {TBL_PREFILTRADAS} UNSET TBLPROPERTIES IF EXISTS "
+        "('delta.workloadBasedColumns.deltaFileStatistics')"
+    )
+
 spark.createDataFrame(df_output).write.mode("overwrite").option(
     "overwriteSchema", "true"
 ).saveAsTable(TBL_PREFILTRADAS)
 
-print(f"Tabla escrita: {TBL_PREFILTRADAS}  ({n_variabilidad} covariables prefiltradas)")
+print(
+    f"Tabla escrita: {TBL_PREFILTRADAS}  ({n_catalogo} covariables del catálogo "
+    f"de {n_variabilidad} que superan los filtros)"
+)

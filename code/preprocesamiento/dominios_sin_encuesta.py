@@ -113,7 +113,8 @@ dominios_con_encuesta = {
     for fila in df_prefiltradas.select("CODIGO_DOMINIO").distinct().collect()
 }
 
-print(f"Covariables pre-filtradas: {len(codigos_prefiltrados)}")
+# R-57: covariables_prefiltradas trae solo las del catálogo de literatura
+print(f"Covariables pre-filtradas (catálogo): {len(codigos_prefiltrados)}")
 print(f"Dominios con estimación directa: {len(dominios_con_encuesta)}")
 
 # COMMAND ----------
@@ -263,6 +264,15 @@ if incompletas:
 # COMMAND ----------
 
 # DBTITLE 1,Escritura de la tabla de dominios objetivo
+# R-57: la tabla pierde las columnas que no son del catálogo. La optimización predictiva de
+# Databricks puede haber fijado estadísticas sobre alguna de ellas
+# (delta.workloadBasedColumns.deltaFileStatistics) y entonces la sobrescritura falla con
+# DELTA_COLUMN_NOT_FOUND_IN_SCHEMA; se quita la propiedad antes de escribir.
+if spark.catalog.tableExists(TBL_SIN_ENCUESTA):
+    spark.sql(
+        f"ALTER TABLE {TBL_SIN_ENCUESTA} UNSET TBLPROPERTIES IF EXISTS "
+        "('delta.workloadBasedColumns.deltaFileStatistics')"
+    )
 (
     df_objetivo.write.mode("overwrite")
     .option("overwriteSchema", "true")
