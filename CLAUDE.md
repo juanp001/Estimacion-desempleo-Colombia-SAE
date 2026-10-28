@@ -28,6 +28,11 @@ actúa como **orquestador fino** que importa la lógica real desde su propia car
 `ingesta_datos/` (`geih/`, `terridata/`) también tienen `shared/`. Al modificar comportamiento, casi siempre el
 cambio va en `shared/`, no en el notebook orquestador.
 
+Lo que comparten todas las etapas vive en `code/comun/` (R-67), importado por ruta completa (`comun.…`):
+`spark_utils.py` (`leer_csv`, `leer_parquet`, `escribir_tabla`: la ingesta y las dimensiones escriben con la misma
+función) y `entorno.py` (`agregar_rutas`). Cada notebook calcula `code/` con `dbutils` en dos líneas y lo agrega a
+`sys.path` antes de importar; los de `modelo/` además agregan `code/modelo` para su forma corta.
+
 ### GEIH: marco antiguo vs. marco nuevo
 
 - **Metodología por período**: la metodología 2016 (DANE, v9) aplica desde 2016 hasta 2022; la metodología
@@ -68,7 +73,7 @@ nulo o ≤ 0, `geih_oro` falla antes de escribir. Con la regla anterior 2018 ten
 período analítico no cambió) y 2025 los 135.810 (todo 2025 con peso 0).
 
 Lógica compartida en `geih/shared/`: `config/geih_config.py` (nombres de tablas, constantes),
-`transformations/campos_nucleo.py` (columnas núcleo comunes a marco antiguo/nuevo), `utils/spark_utils.py`
+`transformations/campos_nucleo.py` (columnas núcleo comunes a marco antiguo/nuevo)
 (escritura a Unity Catalog).
 
 ### Pipeline TerriData (sin capa oro) — `code/ingesta_datos/terridata/`
@@ -87,7 +92,7 @@ terridata_plata.py
 ```
 
 Lógica compartida en `terridata/shared/`: `config/terridata_config.py`, `transformations/normalizacion.py`
-(normalización de texto/nombres), `utils/spark_utils.py` y `utils/verification_utils.py` (validaciones de
+(normalización de texto/nombres) y `utils/verification_utils.py` (validaciones de
 la transformación a ancho).
 
 ### Dimensiones — `code/ingesta_datos/dimensiones/`
@@ -118,7 +123,7 @@ la transformación a ancho).
   (23 ciudades y A.M. más «Total 10 ciudades» y «Total 23 ciudades y A.M.», trimestre móvil 2016-2021) y
   `datos_anuales` (hoja «Anuales»: total nacional, cabeceras, rural, «Total 13 ciudades y áreas
   metropolitanas» y «Total 10 ciudades», serie anual 2016-2021; el anexo **no** trae la TD anual por ciudad).
-- **Lectura de CSV por nombre de columna** (`shared/utils/spark_utils.leer_csv`): cada archivo se lee
+- **Lectura de CSV por nombre de columna** (`comun/spark_utils.leer_csv`): cada archivo se lee
   por separado y se une con `unionByName(allowMissingColumns=True)`. Leer el glob de una vez asignaba las
   columnas por posición, y los archivos Ene-Mar 2018 (marco antiguo) traen otro orden (`AREA` al final, sin
   `MES`): `FT`/`INI` quedaban corridos, la unión con inactivos fallaba y toda la PET quedaba como PEA (TD

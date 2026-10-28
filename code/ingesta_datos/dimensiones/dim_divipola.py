@@ -86,12 +86,28 @@
 # COMMAND ----------
 
 # DBTITLE 1,Importar librerias
+import os
+import sys
+
+# R-67: `code/` en sys.path para importar `comun` (el notebook está en code/ingesta_datos/<carpeta>/)
+_ruta_nb = (
+    dbutils.notebook.entry_point.getDbutils()
+    .notebook()
+    .getContext()
+    .notebookPath()
+    .get()
+)
+sys.path.insert(
+    0, "/Workspace" + os.path.dirname(os.path.dirname(os.path.dirname(_ruta_nb)))
+)
+
 # Importar funciones de PySpark necesarias para la transformación
 from pyspark.sql.functions import (
     col,  # Referenciar columnas para renombrado y transformaciones
     regexp_replace,  # Reemplazar patrones de texto (comas por puntos en coordenadas)
 )
 
+from comun.spark_utils import escribir_tabla
 from shared.config.dim_config import RUTA_DIVIPOLA_CSV, TBL_DIM_DIVIPOLA
 
 # COMMAND ----------
@@ -162,6 +178,4 @@ df_select = (
 #
 # Resultado: Tabla dimensional lista para joins con tablas de hechos (GEIH)
 
-df_select.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    TBL_DIM_DIVIPOLA
-)
+escribir_tabla(df_select, TBL_DIM_DIVIPOLA)

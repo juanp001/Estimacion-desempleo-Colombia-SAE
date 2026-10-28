@@ -41,8 +41,24 @@
 # COMMAND ----------
 
 # DBTITLE 1,Importación de librerías
+import os
+import sys
+
+# R-67: `code/` en sys.path para importar `comun` (el notebook está en code/ingesta_datos/<carpeta>/)
+_ruta_nb = (
+    dbutils.notebook.entry_point.getDbutils()
+    .notebook()
+    .getContext()
+    .notebookPath()
+    .get()
+)
+sys.path.insert(
+    0, "/Workspace" + os.path.dirname(os.path.dirname(os.path.dirname(_ruta_nb)))
+)
+
 from pyspark.sql.functions import col
 
+from comun.spark_utils import escribir_tabla
 from shared.config.dim_config import (
     TBL_DIM_DIVIPOLA,
     TBL_DIM_DOMINIO,
@@ -85,7 +101,5 @@ print(f"Capitales GEIH: {n_filas}  |  códigos de área distintos: {n_areas}")
 # COMMAND ----------
 
 # DBTITLE 1,Guardar tabla dimensional
-df_geih_divipola.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(
-    TBL_DIM_GEIH_DIVIPOLA
-)
+escribir_tabla(df_geih_divipola, TBL_DIM_GEIH_DIVIPOLA)
 print(f"Tabla escrita: {TBL_DIM_GEIH_DIVIPOLA}")
