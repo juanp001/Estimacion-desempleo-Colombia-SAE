@@ -77,6 +77,9 @@ class EscrituraDiferida:
 
         Args:
             spark (pyspark.sql.SparkSession | None): Sesión de Spark (None solo en pruebas).
+
+        Uso:
+            escritor = EscrituraDiferida(spark); luego `escritor.agregar(...)` y `escritor.escribir_todas()`.
         """
         self.spark = spark
         self._pendientes = {}

@@ -29,7 +29,7 @@ def verificar_conservacion_registros(df_bronce: DataFrame, n_filas_plata: int) -
         bool: True si el conteo de combinaciones únicas de bronce iguala `n_filas_plata`.
 
     Example:
-        >>> verificar_conservacion_registros(df_bronce, df_plata.count())
+        >>> verificar_conservacion_registros(df_bronce, df_plata.count())  # doctest: +SKIP
     """
     print("=" * 60)
     print("VERIFICACIÓN 1: CONSERVACIÓN DE REGISTROS")
@@ -67,11 +67,14 @@ def verificar_llave_unica_bronce(df_valores: DataFrame) -> None:
         df_valores (DataFrame): Bronce ya filtrado a filas con valor (``CODIGO_ENTIDAD``,
             ``ANO``, ``MES``, ``CODIGO_INDICADOR``).
 
+    Returns:
+        None: no devuelve nada; si la llave es única no pasa nada.
+
     Raises:
         ValueError: Si alguna llave tiene más de una fila; el mensaje trae hasta 5 ejemplos.
 
     Example:
-        >>> verificar_llave_unica_bronce(df_datos_unificados)
+        >>> verificar_llave_unica_bronce(df_datos_unificados)  # doctest: +SKIP
     """
     llave = ["CODIGO_ENTIDAD", "ANO", "MES", "CODIGO_INDICADOR"]
     repetidas = df_valores.groupBy(*llave).count().filter(col("count") > 1)
@@ -102,7 +105,7 @@ def verificar_duplicados(df_plata: DataFrame, n_filas: int) -> bool:
         bool: True si no hay claves duplicadas; si las hay, muestra hasta 10 con `display`.
 
     Example:
-        >>> verificar_duplicados(df_plata, df_plata.count())
+        >>> verificar_duplicados(df_plata, df_plata.count())  # doctest: +SKIP
     """
     print("=" * 60)
     print("VERIFICACIÓN 2: DUPLICADOS EN PLATA")
@@ -157,7 +160,7 @@ def verificar_integridad_muestra(
         extraer ninguna.
 
     Example:
-        >>> verificar_integridad_muestra(df_bronce, df_plata, n_muestras=20)
+        >>> verificar_integridad_muestra(df_bronce, df_plata, n_muestras=20)  # doctest: +SKIP
     """
     print("=" * 60)
     print("VERIFICACIÓN 3: INTEGRIDAD DE MUESTRA ALEATORIA")
@@ -244,7 +247,7 @@ def verificar_calidad_casteo(clasificacion_completa: list) -> bool:
         bool: True si el porcentaje de valores en riesgo es <= `UMBRAL_RIESGO_CASTEO`.
 
     Example:
-        >>> verificar_calidad_casteo(clasificacion.collect())
+        >>> verificar_calidad_casteo(clasificacion.collect())  # doctest: +SKIP
     """
     print("=" * 60)
     print("VERIFICACIÓN 4: CALIDAD DE CASTEO NUMÉRICO")
@@ -299,7 +302,7 @@ def verificar_reclasificacion_indicadores(spark, tipo_indicador_dict: dict) -> b
         (verificación omitida); False si hubo reclasificaciones.
 
     Example:
-        >>> verificar_reclasificacion_indicadores(spark, tipo_por_indicador)
+        >>> verificar_reclasificacion_indicadores(spark, tipo_por_indicador)  # doctest: +SKIP
     """
     print("=" * 60)
     print("VERIFICACIÓN 5: RECLASIFICACIÓN DE INDICADORES")
@@ -362,7 +365,7 @@ def verificar_valores_no_nulos(
         bool: True si la diferencia relativa es <= `tolerancia_porcentaje`.
 
     Example:
-        >>> verificar_valores_no_nulos(df_bronce_largo, df_plata, tolerancia_porcentaje=0.5)
+        >>> verificar_valores_no_nulos(df_bronce_largo, df_plata, tolerancia_porcentaje=0.5)  # doctest: +SKIP
     """
     print("=" * 60)
     print("VERIFICACIÓN PESADA: CONSERVACIÓN DE VALORES NO NULOS")

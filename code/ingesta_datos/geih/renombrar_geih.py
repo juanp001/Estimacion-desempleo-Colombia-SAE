@@ -101,7 +101,18 @@ REEMPLAZOS_TERMINOS = {
 
 def quitar_tildes(texto):
     """Elimina tildes y diacriticos descomponiendo cada caracter (NFD)
-    y descartando las marcas de acento (categoria Mn)."""
+    y descartando las marcas de acento (categoria Mn).
+
+    Args:
+        texto (str): Texto con posibles tildes o diacriticos.
+
+    Returns:
+        str: El mismo texto sin tildes ni diacriticos.
+
+    Example:
+        >>> quitar_tildes("Desocupación")
+        'Desocupacion'
+    """
     normalizado = unicodedata.normalize("NFD", texto)
     return "".join(c for c in normalizado if unicodedata.category(c) != "Mn")
 

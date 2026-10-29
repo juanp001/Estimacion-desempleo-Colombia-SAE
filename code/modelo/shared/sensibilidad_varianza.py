@@ -252,6 +252,9 @@ def _ajustar_silencioso(
 
     Returns:
         tuple: (modelos ajustados, modelo ganador).
+
+    Uso:
+        Auxiliar de `ajustar_escenarios`: se llama una vez por escenario de ψ_d.
     """
     modelos = [FayHerriotClasico(c, df, y_col, SE_ESCENARIO) for c in nombres_covars]
     for m in modelos:

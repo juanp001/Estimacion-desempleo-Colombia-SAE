@@ -376,6 +376,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
         docstring de la clase. Si hay `df_objetivo` y la estructura es completa, calcula también
         la predicción de los dominios sin encuesta con efecto espacial.
 
+        Returns:
+            None: no devuelve nada; el efecto es el llenado de los atributos del modelo (`rho_hat`, `eblup`, `aic`, …).
+
         Example:
             >>> modelo = FayHerriotEspacial(...); modelo.ajustar()  # doctest: +SKIP
             >>> modelo.rho_hat  # doctest: +SKIP

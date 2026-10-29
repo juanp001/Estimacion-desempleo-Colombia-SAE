@@ -191,7 +191,7 @@ def leer_hoja(ruta: str, hoja: str) -> pd.DataFrame:
         ValueError: Si la pestaña no existe en el archivo.
 
     Example:
-        >>> hoja = leer_hoja(RUTA_DATOS_PUBLICADOS, HOJA_NACIONAL)
+        >>> hoja = leer_hoja(RUTA_DATOS_PUBLICADOS, HOJA_NACIONAL)  # doctest: +SKIP
     """
     return pd.read_excel(ruta, sheet_name=hoja, header=None, engine="openpyxl")
 
@@ -208,7 +208,7 @@ def valor_celda(hoja: pd.DataFrame, fila: int, col: int):
         object: Valor de la celda, o ``None`` si está vacía o fuera de rango.
 
     Example:
-        >>> valor_celda(hoja, 17, 181)  # TD nacional, Ene 2016
+        >>> valor_celda(hoja, 17, 181)  # TD nacional, Ene 2016  # doctest: +SKIP
     """
     if fila - 1 >= hoja.shape[0] or col >= hoja.shape[1]:
         return None
@@ -224,11 +224,14 @@ def validar_etiqueta(hoja: pd.DataFrame, fila: int, indicador: str) -> None:
         fila (int): Fila de Excel (1-based) donde se espera el indicador.
         indicador (str): Clave de ``ETIQUETAS_ESPERADAS``.
 
+    Returns:
+        None: no devuelve nada; si la etiqueta coincide no pasa nada.
+
     Raises:
         ValueError: Si la etiqueta de la columna A no empieza con el texto esperado.
 
     Example:
-        >>> validar_etiqueta(hoja, 17, "TASA_DESEMPLEO")
+        >>> validar_etiqueta(hoja, 17, "TASA_DESEMPLEO")  # doctest: +SKIP
     """
     etiqueta = str(valor_celda(hoja, fila, 0)).strip()
     if not etiqueta.startswith(ETIQUETAS_ESPERADAS[indicador]):
@@ -248,7 +251,7 @@ def normalizar_etiqueta(texto) -> str:
         str: Etiqueta sin ``*``, con espacios colapsados y recortada; ``""`` si no hay texto.
 
     Example:
-        >>> normalizar_etiqueta("Ene -Mar ")
+        >>> normalizar_etiqueta("Ene -Mar ")  # doctest: +SKIP
         'Ene -Mar'
     """
     if texto is None:
@@ -268,7 +271,7 @@ def convertir_valor(indicador: str, valor):
             ``None`` si la celda está vacía o no es numérica.
 
     Example:
-        >>> convertir_valor("PEA", 8385.007)
+        >>> convertir_valor("PEA", 8385.007)  # doctest: +SKIP
         8385007
     """
     if valor is None or isinstance(valor, str):
@@ -300,7 +303,7 @@ def extraer_registros(
             [``ANIO_INICIO_PUBLICADOS``, ``ANIO_FIN_PUBLICADOS``]. Se omiten períodos sin datos.
 
     Example:
-        >>> extraer_registros(hoja, FILAS_NACIONAL, 13, False)
+        >>> extraer_registros(hoja, FILAS_NACIONAL, 13, False)  # doctest: +SKIP
     """
     primer_bloque = ANIO_INICIO_PUBLICADOS - (1 if es_trimestre_movil else 0)
     registros = []
@@ -345,7 +348,7 @@ def cargar_nacional(ruta: str) -> list:
         ValueError: Si las filas del Excel no corresponden a los indicadores esperados.
 
     Example:
-        >>> registros = cargar_nacional(RUTA_DATOS_PUBLICADOS)
+        >>> registros = cargar_nacional(RUTA_DATOS_PUBLICADOS)  # doctest: +SKIP
     """
     hoja = leer_hoja(ruta, HOJA_NACIONAL)
     for indicador, fila in FILAS_NACIONAL.items():
@@ -370,7 +373,7 @@ def cargar_municipal(ruta: str) -> list:
         ValueError: Si no se detecta ninguna ciudad o el layout de un bloque no coincide.
 
     Example:
-        >>> registros = cargar_municipal(RUTA_DATOS_PUBLICADOS)
+        >>> registros = cargar_municipal(RUTA_DATOS_PUBLICADOS)  # doctest: +SKIP
     """
     hoja = leer_hoja(ruta, HOJA_MUNICIPAL)
     registros = []
@@ -408,9 +411,9 @@ def anio_columna(valor):
         int | None: Año como entero, o ``None`` si la celda no contiene un año.
 
     Example:
-        >>> anio_columna("2020*")
+        >>> anio_columna("2020*")  # doctest: +SKIP
         2020
-        >>> anio_columna(2018.0)
+        >>> anio_columna(2018.0)  # doctest: +SKIP
         2018
     """
     if valor is None:
@@ -443,7 +446,7 @@ def cargar_anual(ruta: str) -> list:
         las 13 ciudades de ``datos_municipales``.
 
     Example:
-        >>> registros = cargar_anual(RUTA_DATOS_PUBLICADOS)
+        >>> registros = cargar_anual(RUTA_DATOS_PUBLICADOS)  # doctest: +SKIP
     """
     hoja = leer_hoja(ruta, HOJA_ANUAL)
     registros = []
@@ -511,8 +514,11 @@ def reportar(nombre: str, ok: bool, detalle: str = "") -> None:
         ok (bool): ``True`` si la validación pasó.
         detalle (str): Información adicional para el mensaje. Por defecto ``""``.
 
+    Returns:
+        None: no devuelve nada; el efecto es una línea PASS/FAIL impresa.
+
     Example:
-        >>> reportar("Nacional = 72 filas", True, "72")
+        >>> reportar("Nacional = 72 filas", True, "72")  # doctest: +SKIP
     """
     print(f"[{'PASS' if ok else 'FAIL'}] {nombre} {detalle}".rstrip())
 
@@ -526,8 +532,11 @@ def validar(df, claves: list, filas_esperadas: int, nombre: str) -> None:
         filas_esperadas (int): Número de filas esperado si la serie está completa.
         nombre (str): Etiqueta de la tabla para los mensajes.
 
+    Returns:
+        None: no devuelve nada; el efecto es las líneas PASS/FAIL impresas por cada validación.
+
     Example:
-        >>> validar(df_nacional, ["ANIO", "MES"], 72, "datos_nacionales")
+        >>> validar(df_nacional, ["ANIO", "MES"], 72, "datos_nacionales")  # doctest: +SKIP
     """
     n = df.count()
     reportar(
@@ -620,8 +629,11 @@ def describir_tabla(tabla: str, df) -> None:
         tabla (str): Nombre completo ``catalog.schema.table`` de una tabla ya escrita.
         df (DataFrame): DataFrame escrito; sus columnas determinan los comentarios de columna.
 
+    Returns:
+        None: no devuelve nada; el efecto es el comentario de la tabla y de sus columnas en Unity Catalog.
+
     Example:
-        >>> describir_tabla(TBL_DATOS_NACIONALES, df_nacional)
+        >>> describir_tabla(TBL_DATOS_NACIONALES, df_nacional)  # doctest: +SKIP
     """
     descripcion = DESCRIPCION_TABLAS[tabla].replace("'", "")
     spark.sql(f"COMMENT ON TABLE {tabla} IS '{descripcion}'")

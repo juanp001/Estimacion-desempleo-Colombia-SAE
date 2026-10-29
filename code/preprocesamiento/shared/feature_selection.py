@@ -39,8 +39,10 @@ def filtrar_columnas_sin_na(df: pd.DataFrame) -> pd.DataFrame:
         ValueError: Si df está vacío.
 
     Example:
-        >>> df_limpio = filtrar_columnas_sin_na(df_covariables)
-        >>> print(df_limpio.shape)
+        >>> df = pd.DataFrame({"a": [1.0, 2.0], "b": [3.0, None]})
+        >>> filtrar_columnas_sin_na(df).columns.tolist()
+        Filtro NA: 2 → 1 variables (1 eliminadas)
+        ['a']
     """
     if df.empty:
         raise ValueError("El DataFrame está vacío.")
@@ -88,8 +90,8 @@ def filtrar_variabilidad(
         ValueError: Si `df` está vacío.
 
     Example:
-        >>> df_filtrado, reporte = filtrar_variabilidad(df_sin_na)
-        >>> reporte[reporte["Decision"] == "descartada"]["Motivo"].value_counts()
+        >>> df_filtrado, reporte = filtrar_variabilidad(df_sin_na)  # doctest: +SKIP
+        >>> reporte[reporte["Decision"] == "descartada"]["Motivo"].value_counts()  # doctest: +SKIP
     """
     if df.empty:
         raise ValueError("El DataFrame está vacío.")
@@ -166,7 +168,7 @@ def sensibilidad_variabilidad(
         pd.DataFrame: Una fila por combinación de umbrales con el número de supervivientes.
 
     Example:
-        >>> sensibilidad_variabilidad(df_sin_na)
+        >>> sensibilidad_variabilidad(df_sin_na)  # doctest: +SKIP
     """
     cvs = cvs if cvs is not None else [0.0001, 0.001, 0.01, 0.05]
     props_modales = props_modales if props_modales is not None else [0.80, 0.90, 0.95]
@@ -206,7 +208,7 @@ def reportar_grupos_redundantes(
             componen. Vacío si no hay grupos.
 
     Example:
-        >>> reportar_grupos_redundantes(df_filtrado)
+        >>> reportar_grupos_redundantes(df_filtrado)  # doctest: +SKIP
     """
     grupos = agrupar_por_correlacion(df, umbral=umbral)
     filas = [
@@ -227,8 +229,9 @@ def agrupar_por_correlacion(df: pd.DataFrame, umbral: float = 0.80) -> list:
     """Agrupa columnas en conjuntos conectados por correlaciones de magnitud alta.
 
     Construye el grafo cuyos nodos son las covariables y cuyas aristas unen los pares con
-    ``|r| >= umbral``, y devuelve sus componentes conexas. Se usa tanto para reportar
-    redundancia exacta en el pre-filtrado como para resolverla en la etapa de selección.
+    ``|r| >= umbral``, y devuelve sus componentes conexas. Se usa en el
+    pre-filtrado (``reportar_grupos_redundantes``) solo para reportar los grupos duplicados; la
+    etapa de selección usa enlace completo y no esta función (G7-B10).
 
     Args:
         df (pd.DataFrame): Covariables numéricas.
@@ -239,8 +242,9 @@ def agrupar_por_correlacion(df: pd.DataFrame, umbral: float = 0.80) -> list:
             unitarios. El orden dentro de cada grupo y entre grupos es determinista.
 
     Example:
-        >>> agrupar_por_correlacion(df_candidatas, umbral=0.80)
-        [['140010004', '140010001'], ['310010008']]
+        >>> df = pd.DataFrame({"a": [1.0, 2, 3, 4], "b": [2.0, 4, 6, 8], "c": [1.0, 0, 3, 1]})
+        >>> agrupar_por_correlacion(df, umbral=0.80)
+        [['a', 'b'], ['c']]
     """
     cols = list(df.columns)
     corr = df.corr().abs()
@@ -248,7 +252,17 @@ def agrupar_por_correlacion(df: pd.DataFrame, umbral: float = 0.80) -> list:
     padre = {c: c for c in cols}
 
     def raiz(c):
-        """Raíz del grupo de `c` (str → str) en la estructura union-find, con compresión de camino."""
+        """Raíz del grupo de `c` en la estructura union-find, con compresión de camino.
+
+        Args:
+            c (str): Código de la covariable.
+
+        Returns:
+            str: Código de la raíz de su grupo.
+
+        Uso:
+            Auxiliar de ``agrupar_por_correlacion``, que la llama al unir cada par correlacionado.
+        """
         while padre[c] != c:
             padre[c] = padre[padre[c]]
             c = padre[c]

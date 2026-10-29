@@ -26,6 +26,11 @@ class EstimadorSAE(ABC):
         spark: SparkSession activa.
         num_replicas (int): Réplicas bootstrap para cálculo de varianza.
         seed (int): Semilla aleatoria para reproducibilidad.
+
+    Example:
+        Es abstracta: se usa a través de ``EstimacionDirecta``.
+
+        >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)  # doctest: +SKIP
     """
 
     def __init__(self, spark, num_replicas: int = 1000, seed: int = 42):
@@ -37,7 +42,7 @@ class EstimadorSAE(ABC):
             seed (int): Semilla aleatoria (el notebook usa `BOOTSTRAP_SEED`=42).
 
         Example:
-            >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)
+            >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)  # doctest: +SKIP
         """
         self.spark = spark
         self.num_replicas = num_replicas
@@ -55,6 +60,9 @@ class EstimadorSAE(ABC):
 
         Returns:
             pd.DataFrame: Estimaciones y medidas de precisión por dominio.
+
+        Uso:
+            Cada estimador concreto la implementa; ver ``EstimacionDirecta.estimar``.
         """
 
     def validar_columnas(self, dataframe, columnas_requeridas: list) -> None:
@@ -64,11 +72,14 @@ class EstimadorSAE(ABC):
             dataframe: DataFrame de Spark a validar.
             columnas_requeridas (list[str]): Nombres de columnas necesarias.
 
+        Returns:
+            None: no devuelve nada; si están todas las columnas no pasa nada.
+
         Raises:
             ValueError: Si alguna columna requerida no existe en el DataFrame.
 
         Example:
-            >>> estimador.validar_columnas(df, ["FEX", "DESOCUPADO", "CODIGO_DOMINIO"])
+            >>> estimador.validar_columnas(df, ["FEX", "DESOCUPADO", "CODIGO_DOMINIO"])  # doctest: +SKIP
         """
         faltantes = set(columnas_requeridas) - set(dataframe.columns)
         if faltantes:
@@ -99,6 +110,9 @@ class EstimadorSAE(ABC):
                 de estimar(); el notebook pasa el resultado con sus columnas adicionales (R-28:
                 antes escribía el atributo privado ``_resultado``).
 
+        Returns:
+            None: no devuelve nada; el efecto es la tabla escrita en Unity Catalog.
+
         Raises:
             RuntimeError: Si no hay resultado (no se ha llamado estimar()).
             ValueError: Si una tabla origen está vacía: el crossJoin del linaje escribiría
@@ -108,7 +122,7 @@ class EstimadorSAE(ABC):
             >>> estimador.exportar(
             ...     "tesis.preprocesamiento.tasa_desempleo_municipal",
             ...     tabla_origen="tesis.geih_oro.mercado_laboral",
-            ... )
+            ... )  # doctest: +SKIP
         """
         if resultado is None:
             resultado = self._resultado
@@ -148,7 +162,16 @@ class EstimadorSAE(ABC):
 
     @property
     def resultado(self) -> pd.DataFrame | None:
-        """Último resultado calculado (None si no se ha llamado estimar())."""
+        """Último resultado calculado (None si no se ha llamado estimar()).
+
+        Returns:
+            pd.DataFrame | None: Tabla de estimaciones por dominio, o ``None`` si aún no se
+                ha llamado ``estimar()``.
+
+        Example:
+            >>> est.resultado is None  # doctest: +SKIP
+            True
+        """
         return self._resultado
 
 
@@ -168,12 +191,12 @@ class EstimacionDirecta(EstimadorSAE):
         si esta es mayor o menor, ni por cuánto. No publicar como error de muestreo oficial.
 
     Example:
-        >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)
-        >>> resultado = est.estimar(df, grupo_cols=["PER", "MES", "CODIGO_DOMINIO"])
+        >>> est = EstimacionDirecta(spark, num_replicas=2000, seed=42)  # doctest: +SKIP
+        >>> resultado = est.estimar(df, grupo_cols=["PER", "MES", "CODIGO_DOMINIO"])  # doctest: +SKIP
         >>> est.exportar(
         ...     "tesis.preprocesamiento.tasa_desempleo_municipal",
         ...     tabla_origen="tesis.geih_oro.mercado_laboral",
-        ... )
+        ... )  # doctest: +SKIP
     """
 
     def estimar(
@@ -203,8 +226,8 @@ class EstimacionDirecta(EstimadorSAE):
                 personas o si algún dominio queda con tasa o SE igual a 0 (R-27).
 
         Example:
-            >>> resultado = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"])
-            >>> por_personas = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"], col_conglomerado=None)
+            >>> resultado = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"])  # doctest: +SKIP
+            >>> por_personas = est.estimar(df, ["PER", "MES", "CODIGO_DOMINIO"], col_conglomerado=None)  # doctest: +SKIP
         """
         grupo_cols_final = list(grupo_cols)
         columnas = list(
