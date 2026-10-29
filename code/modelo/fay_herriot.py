@@ -230,6 +230,12 @@ def guardar_figura(fig, nombre: str) -> None:
     Args:
         fig (matplotlib.figure.Figure): Figura a guardar.
         nombre (str): Nombre del archivo sin extensión (se antepone `fh_`).
+
+    Returns:
+        None: no devuelve nada; el efecto es el PNG guardado en el volumen de figuras.
+
+    Example:
+        >>> guardar_figura(fig, "cv_directo_vs_eblup")  # doctest: +SKIP
     """
     guardar_png(fig, nombre, "fh_", VOLUMEN_FIGURAS_MODELO)
 

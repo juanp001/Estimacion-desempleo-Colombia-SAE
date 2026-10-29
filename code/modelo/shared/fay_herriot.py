@@ -71,6 +71,9 @@ def _vi_xtvi_xtvix(A: float, X: np.ndarray, Di: np.ndarray) -> tuple:
     Returns:
         tuple: (Vi, XtVi, XtViX) — Vi es la diagonal de V⁻¹ (shape (n,)),
             XtVi tiene shape (p, n) y XtViX tiene shape (p, p).
+
+    Uso:
+        Auxiliar de `_gls_beta` y de las log-verosimilitudes; no se llama desde los notebooks.
     """
     Vi = 1.0 / (Di + A)
     XtVi = X.T * Vi
@@ -92,6 +95,9 @@ def _gls_beta(A: float, Y: np.ndarray, X: np.ndarray, Di: np.ndarray) -> tuple:
 
     Raises:
         numpy.linalg.LinAlgError: Si X'V⁻¹X es singular.
+
+    Uso:
+        Auxiliar de `_estimar_beta_gls` y de `_neg_reml_loglik`; no se llama desde los notebooks.
     """
     Vi, XtVi, XtViX = _vi_xtvi_xtvix(A, X, Di)
     beta = np.linalg.solve(XtViX, XtVi @ Y)
@@ -113,6 +119,9 @@ def _neg_reml_loglik(
     Returns:
         float: Negativo de la log-verosimilitud REML (1e10 si X'V⁻¹X es
             singular, para que el optimizador descarte ese punto).
+
+    Uso:
+        Función objetivo de `minimize_scalar` en `_estimar_varianza_aleatoria`.
     """
     A = np.exp(log_A)
     Vi, Vi_X, Q = _vi_xtvi_xtvix(A, X, Di)
@@ -144,6 +153,9 @@ def _neg_ml_loglik(log_A: float, Y: np.ndarray, X: np.ndarray, Di: np.ndarray) -
     Returns:
         float: Negativo de la log-verosimilitud ML (1e10 si X'V⁻¹X es
             singular).
+
+    Uso:
+        Función objetivo de `minimize_scalar` en `_calcular_aic`.
     """
     A = np.exp(log_A)
     Vi, XtVi, XtViX = _vi_xtvi_xtvix(A, X, Di)
@@ -193,6 +205,9 @@ class FayHerriotClasico(ModeloAreaPequena):
 
         Returns:
             float: Â, la varianza estimada de los efectos aleatorios.
+
+        Uso:
+            Paso interno de `ajustar()`; se obtiene Â con `modelo.A_hat` después de ajustar.
         """
         cotas = _cotas_log_A(self.Y)
         res = minimize_scalar(
@@ -213,6 +228,9 @@ class FayHerriotClasico(ModeloAreaPequena):
 
         Returns:
             tuple: (beta, se_beta, t_stats, p_vals, cov_beta).
+
+        Uso:
+            Paso interno de `ajustar()`; los resultados quedan en `modelo.beta`, `modelo.p_vals`, etc.
         """
         beta, _, XtViX = _gls_beta(A, self.Y, self.X, self.Di)
         cov_beta = np.linalg.inv(XtViX)
@@ -230,6 +248,9 @@ class FayHerriotClasico(ModeloAreaPequena):
 
         Returns:
             tuple: (gamma_i, mu_hat, eblup), cada uno shape (n,).
+
+        Uso:
+            Paso interno de `ajustar()`; los resultados quedan en `modelo.gamma_i` y `modelo.eblup`.
         """
         gamma_i = A / (A + self.Di)
         mu_hat = self.X @ beta
@@ -276,6 +297,9 @@ class FayHerriotClasico(ModeloAreaPequena):
 
         Returns:
             tuple: (residuals, sw_stat, sw_pval, r2).
+
+        Uso:
+            Paso interno de `ajustar()`; los resultados quedan en `modelo.residuals` y `modelo.r2`.
         """
         residuals = (self.Y - mu_hat) / np.sqrt(self.Di + A)
         sw_stat, sw_pval = stats.shapiro(residuals)
@@ -289,6 +313,9 @@ class FayHerriotClasico(ModeloAreaPequena):
 
         Returns:
             float: AIC del modelo ajustado.
+
+        Uso:
+            Paso interno de `ajustar()`; el valor queda en `modelo.aic`.
         """
         res_ml = minimize_scalar(
             _neg_ml_loglik,

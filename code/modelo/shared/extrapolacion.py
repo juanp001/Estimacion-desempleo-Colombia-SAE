@@ -60,6 +60,9 @@ def _covariables(X) -> np.ndarray:
 
     Returns:
         np.ndarray: Matriz (n, p − 1) con solo las covariables.
+
+    Uso:
+        Auxiliar de `rangos_covariables` y `estado_extrapolacion`; ver los doctests del módulo.
     """
     return np.asarray(X, dtype=float)[:, 1:]
 

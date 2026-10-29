@@ -60,6 +60,9 @@ def _parametros(modelo) -> list:
 
     Returns:
         list[str]: `["Intercepto", *covars]`.
+
+    Uso:
+        `_parametros(modelo)` da las etiquetas de las columnas de β̂ en las tablas de estabilidad.
     """
     return ["Intercepto"] + list(modelo.covars)
 

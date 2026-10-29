@@ -117,6 +117,9 @@ def mostrar(objeto):
     Args:
         objeto (pd.DataFrame): Tabla a mostrar.
 
+    Returns:
+        None: no devuelve nada; el efecto es la tabla mostrada en pantalla.
+
     Example:
         >>> mostrar(df_resultados)  # doctest: +SKIP
     """
@@ -136,6 +139,9 @@ def guardar_figura(fig, nombre: str) -> None:
     Args:
         fig (plt.Figure): Figura a guardar.
         nombre (str): Nombre del archivo sin extensión (se antepone `fhe_`).
+
+    Returns:
+        None: no devuelve nada; el efecto es el PNG guardado y la figura mostrada.
 
     Example:
         >>> guardar_figura(fig, 'moran_residuos')  # doctest: +SKIP
@@ -957,6 +963,9 @@ def escribir(df_pandas: pd.DataFrame, tabla: str) -> None:
     Args:
         df_pandas (pd.DataFrame): Datos a escribir.
         tabla (str): Nombre completo `catalogo.esquema.tabla`.
+
+    Returns:
+        None: no devuelve nada; el efecto es la tabla Delta escrita.
 
     Example:
         >>> escribir(df_cuadro, 'tesis.modelo.fhe_cuadro_comparativo')  # doctest: +SKIP

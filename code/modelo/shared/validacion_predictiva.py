@@ -160,6 +160,9 @@ def crear_selector(
 
         Returns:
             list[str]: Códigos de las covariables seleccionadas.
+
+        Uso:
+            Se pasa como `selector` a `loao_procedimiento_completo`; se crea con `crear_selector`.
         """
         seleccionadas, _ = seleccionar_covariables(
             df_entrenamiento,
@@ -207,6 +210,9 @@ def _fila_prediccion(
     Returns:
         dict: Una fila con identificación, directa, ψ_d, predicción, RMSE sintético, errores
             (pred − directa) y estandarizados, y las covariables y Â del ajuste sin d.
+
+    Uso:
+        Auxiliar de `loao_covariables_fijas` y `loao_procedimiento_completo`: una llamada por dominio retirado.
     """
     fila_d = df.iloc[d]
     x = np.concatenate([[1.0], fila_d[list(modelo.covars)].to_numpy(dtype=float)])
@@ -455,6 +461,9 @@ def loao_procedimiento_completo(
 
         Returns:
             str: Texto para la tabla de selección.
+
+        Uso:
+            Auxiliar de `loao_procedimiento_completo` para la tabla `fh_validacion_cruzada_seleccion`.
         """
         return " + ".join(alias.get(c, c) for c in covars) or "—"
 
@@ -620,6 +629,9 @@ def resumen_seleccion(seleccion: pd.DataFrame, covars_benchmark: list) -> dict:
 
         Returns:
             float: |A ∩ B| / |A ∪ B| (1.0 si ambos están vacíos).
+
+        Uso:
+            Auxiliar de `frecuencia_seleccion`; se llama una vez por iteración del procedimiento completo.
         """
         union = bm | set(otro)
         return len(bm & set(otro)) / len(union) if union else 1.0
