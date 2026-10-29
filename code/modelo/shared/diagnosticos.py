@@ -33,6 +33,9 @@ def _annotate(ax, xs: np.ndarray, ys: np.ndarray, labels: np.ndarray) -> None:
 
     Returns:
         None
+
+    Uso:
+        Auxiliar de `_graficar_efecto_suavizador`; se llama con los ejes de un scatter ya dibujado.
     """
     for xi, yi, lab in zip(xs, ys, labels):
         ax.annotate(
@@ -58,6 +61,9 @@ def _graficar_efecto_suavizador(
 
     Returns:
         None
+
+    Uso:
+        Auxiliar de la figura de validación del modelo; se llama con uno de los ejes de la cuadrícula.
     """
     ax.axhline(0, color="red", linestyle="--", linewidth=1.2, label="Referencia 0")
     colores = ["tomato" if r > 0 else "steelblue" for r in resid_fh]
@@ -98,6 +104,9 @@ def _graficar_histograma_residuos(ax, residuals: np.ndarray) -> None:
 
     Returns:
         None
+
+    Uso:
+        Auxiliar de la figura de validación del modelo; se llama con uno de los ejes de la cuadrícula.
     """
     ax.axvline(0, color="red", linestyle="--", linewidth=1.2, label="Referencia 0")
     ax.hist(

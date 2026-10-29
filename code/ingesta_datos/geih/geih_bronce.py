@@ -68,13 +68,16 @@ def verificar_periodo_archivo(df, nombre_tabla: str) -> None:
         df (DataFrame): Tabla bronce del marco antiguo con ``archivo_origen`` y ``MES``.
         nombre_tabla (str): Nombre de la tabla, para el mensaje de error.
 
+    Returns:
+        None: no devuelve nada; si el periodo es válido no pasa nada.
+
     Raises:
         ValueError: Si algún archivo no cumple ``<seccion>_<modulo>_<MM>_<AAAA>.csv``, si el
             año queda fuera de ``ANIO_MIN_MARCO_ANTIGUO``-``ANIO_MAX_MARCO_ANTIGUO`` o si
             ``MES`` no está entre 01 y 12 o no coincide con el mes del nombre.
 
     Example:
-        >>> verificar_periodo_archivo(df, "tesis.geih_bronce.ocupados_resto_marco_antiguo")
+        >>> verificar_periodo_archivo(df, "tesis.geih_bronce.ocupados_resto_marco_antiguo")  # doctest: +SKIP
     """
     anio = regexp_extract(col("archivo_origen"), PATRON_ANIO_ARCHIVO, 1).cast("int")
     mes_archivo = regexp_extract(col("archivo_origen"), PATRON_MES_ARCHIVO, 1)
@@ -120,12 +123,15 @@ def cargar_tablas_bronce(
             ``"fuerza_trabajo"``, ``"ocupados"``, ``"no_ocupados"``, ``"inactivos"`` o
             ``"fex"``. Si es ``None`` no filtra. Por defecto ``None``.
 
+    Returns:
+        None: no devuelve nada; el efecto es las tablas bronce escritas en Unity Catalog.
+
     Raises:
         AnalysisException: Si alguna ruta de volumen no existe o falta acceso.
 
     Example:
-        >>> cargar_tablas_bronce(spark, TABLAS_CONFIG)
-        >>> cargar_tablas_bronce(spark, TABLAS_CONFIG, modulo="ocupados", seccion="cabecera")
+        >>> cargar_tablas_bronce(spark, TABLAS_CONFIG)  # doctest: +SKIP
+        >>> cargar_tablas_bronce(spark, TABLAS_CONFIG, modulo="ocupados", seccion="cabecera")  # doctest: +SKIP
     """
     for index, tabla in enumerate(tablas_config["config"]):
         if table_number is not None and table_number != index + 1:

@@ -294,6 +294,9 @@ def _indice_ganador(
             especificación tiene todas sus covariables significativas: entonces `compiten`
             son solo esas (las candidatas). Si es False se usa el respaldo (R-05): compiten
             todas y el elegido tiene al menos una covariable con p ≥ alfa.
+
+    Uso:
+        Auxiliar de `elegir_ganador`, que arma la tabla de selección con este resultado.
     """
     candidatas = [i for i, m in enumerate(modelos) if todas_significativas(m, alfa)]
     cumple_regla = bool(candidatas)

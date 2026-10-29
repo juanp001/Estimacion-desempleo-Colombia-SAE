@@ -83,12 +83,12 @@ def agregar_covariables_dominio(
         escenario de sensibilidad (regla anterior).
 
     Example:
-        >>> pesos = {c: regla_de(c)["peso"] for c in columnas_indicadores}
-        >>> expresiones = {p: PESOS_AGREGACION[p]["expresion"] for p in set(pesos.values())}
+        >>> pesos = {c: regla_de(c)["peso"] for c in columnas_indicadores}  # doctest: +SKIP
+        >>> expresiones = {p: PESOS_AGREGACION[p]["expresion"] for p in set(pesos.values())}  # doctest: +SKIP
         >>> df_cov = agregar_covariables_dominio(
         ...     spark.table(TBL_TERRIDATA), spark.table(TBL_DIM_DOMINIO),
         ...     pesos, expresiones, 2018, 12,
-        ... )
+        ... )  # doctest: +SKIP
     """
     columnas = list(pesos_por_columna)
     nombres_peso = sorted(set(pesos_por_columna.values()))

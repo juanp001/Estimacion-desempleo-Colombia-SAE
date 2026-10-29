@@ -79,6 +79,9 @@ def escribir_tabla(df: DataFrame, table_name: str, mode: str = "overwrite") -> N
             en formato ``catalog.schema.table``.
         mode (str): Modo de escritura. Por defecto ``"overwrite"``.
 
+    Returns:
+        None: no devuelve nada; el efecto es la tabla Delta escrita en Unity Catalog.
+
     Raises:
         AnalysisException: Si la ruta de la tabla es inválida o faltan permisos.
 

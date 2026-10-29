@@ -21,7 +21,7 @@ def llave_persona(periodo, directorio, secuencia_p, orden):
 
     Example:
         >>> df.select(llave_persona(col("PERIODO"), col("DIRECTORIO"),
-        ...                         col("SECUENCIA_P"), col("ORDEN")).alias("PK"))
+        ...                         col("SECUENCIA_P"), col("ORDEN")).alias("PK"))  # doctest: +SKIP
     """
     sep = lit("_")
     return concat(periodo, sep, directorio, sep, secuencia_p, sep, orden)
