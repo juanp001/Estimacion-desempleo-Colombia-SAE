@@ -1,0 +1,75 @@
+{
+  "C1": {
+    "rho_hat": 0.3724403164669198,
+    "sigma2_u_espacial": 4.825078000801038,
+    "sigma2_u_clasico": 5.528839513405352,
+    "bootstrap_validas": 500,
+    "cv_seblup_mediano": 2.603879375747596,
+    "cv_seblup_max": 3.2548235925424436,
+    "cv_eblup_mediano": 2.6,
+    "mse_seblup_medio": 0.09103438296943443,
+    "mse_eblup_medio": 0.089987,
+    "gamma_s_min": 0.9641544508669841,
+    "gamma_s_max": 0.9908858332772877,
+    "gamma_s_media": 0.9819575020559204,
+    "gamma_media": 0.9838260869565217,
+    "n_mse_seblup_menor_eblup": 11
+  },
+  "C2_municipios": {
+    "n": 83,
+    "dif_media_pp": -0.030170747312157548,
+    "dif_abs_media_pp": 0.2151767690108981,
+    "dif_abs_max_pp": 2.785290230987501,
+    "n_abs_mayor_0_5": 8,
+    "pearson": 0.9924487978708504,
+    "spearman": 0.9869387030259722,
+    "cv_mediano_clasico": 19.49154078223616,
+    "cv_mediano_espacial": 19.870563908131903,
+    "n_cambia_clase": 8,
+    "tabla_clases": {
+      "Aceptable": {
+        "Aceptable": 41,
+        "No confiable": 1
+      },
+      "No confiable": {
+        "Aceptable": 7,
+        "No confiable": 34
+      }
+    }
+  },
+  "C3_dominios": {
+    "n": 23,
+    "dif_media_pp": 0.00017392597401843585,
+    "dif_abs_media_pp": 0.007170218957640999,
+    "dif_abs_max_pp": 0.024380986569862984,
+    "n_abs_mayor_0_5": 0,
+    "pearson": 0.9999929052695505,
+    "spearman": 1.0,
+    "cv_mediano_clasico": 2.6,
+    "cv_mediano_espacial": 2.603879375747596,
+    "n_cambia_clase": 0,
+    "tabla_clases": {
+      "Confiable": {
+        "Confiable": 23
+      }
+    }
+  },
+  "C4_moran_final": {
+    "I": 0.26454738645766573,
+    "esperado": -0.012195121951219513,
+    "z_perm": 3.690252493209402,
+    "p_valor": 0.0007
+  },
+  "C4_moran_sin_ajuste": {
+    "I": 0.25578349813738366,
+    "esperado": -0.012195121951219513,
+    "z_perm": 3.5761746757330197,
+    "p_valor": 0.0011
+  },
+  "C4_moran_homicidios": {
+    "I": 0.255782984559642,
+    "esperado": -0.012195121951219513,
+    "z_perm": 3.576168053833861,
+    "p_valor": 0.0011
+  }
+}

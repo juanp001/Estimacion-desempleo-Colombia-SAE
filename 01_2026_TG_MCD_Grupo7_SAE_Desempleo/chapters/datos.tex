@@ -1,271 +1,196 @@
 
-\label{sec:datos} 
+\label{sec:datos}
 
-El desarrollo metodológico de la presente investigación se sustenta en la integración de diversas fuentes estadísticas oficiales, cuyo propósito es garantizar la solidez y representatividad de los resultados obtenidos. La combinación de encuestas, censos y sistemas de información territorial permite construir un panorama integral de las condiciones sociales, económicas y educativas de la población, con especial énfasis en los departamentos de Cauca y Valle del Cauca.
+Este capítulo describe las fuentes tal como se usaron: qué contienen, qué cobertura geográfica y temporal tienen, y qué variables se tomaron de cada una. Cómo se procesaron se explica en la Sección~\ref{sec:metodologia}. La Tabla~\ref{tab:fuentes_datos} resume las cuatro fuentes; la de mayor peso es la GEIH, que da la variable respuesta, y la segunda es TerriData, que da las covariables.
 
-En primer lugar, la Gran Encuesta Integrada de Hogares (GEIH) constituye la fuente principal para el análisis del mercado laboral, al proporcionar microdatos detallados sobre ocupación, fuerza de trabajo y características sociodemográficas. Sin embargo, dado que su diseño muestral está optimizado para niveles nacionales y departamentales, se hace necesario complementar la información con fuentes auxiliares que permitan mejorar la precisión de las estimaciones a nivel municipal.
-
-En este sentido, se incorporan los indicadores del Sistema de Estadísticas Territoriales – Terridata, desarrollado por el Departamento Nacional de Planeación (DNP), el cual aporta más de 800 indicadores estandarizados y comparables en múltiples dimensiones del desarrollo territorial.
-
-%--------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------
-\section{Gran encuesta integrada de hogares}
-    La Gran Encuesta Integrada de Hogares (GEIH) es la principal encuesta de hogares de
-    Colombia, producida mensualmente por el Departamento Administrativo Nacional de
-    Estadística (DANE). Su objetivo es medir las condiciones del mercado laboral a nivel
-    nacional, regional (principales áreas metropolitanas) y, con limitaciones de
-    representatividad, subnacional.
-
-    La GEIH utiliza un \textit{diseño muestral complejo} de dos etapas con estratificación
-    y conglomeración. Las unidades primarias de muestreo (UPM) son segmentos cartográficos,
-    y las unidades secundarias son los hogares dentro de cada segmento. Para cada individuo
-    se reporta un \textit{factor de expansión} ($w_i$, denominado \texttt{FEX\_C18} en el
-    marco nuevo y \textit{FEX\_C\_2011} en el marco antiguo), que representa el número de
-    personas de la población que dicha observación representa.
-
-    La encuesta se estructura en \textit{módulos temáticos} que se almacenan en archivos CSV separados:
-
-    \begin{table}[!htbp]
-    \centering
-    \small
-    \caption{Dimensiones y estructura de módulos de la GEIH 2018}
-    \label{tab:dimensiones-geih-modulos}
-    \renewcommand{\arraystretch}{1.25} 
-    \begin{tabular}{c l c p{6.2cm}} 
-    \hline
-    \textbf{No.} & \textbf{Módulo GEIH} & \textbf{Cantidad de Variables} & \textbf{Descripción Breve} \\ \hline
-    
-    1  & Vivienda y Hogares
-       & 59
-       & Datos sobre tipo de vivienda, materiales de construcción y acceso a servicios públicos básicos. \\
-    
-    2  & Características Generales
-       & 59
-       & Información demográfica fundamental: sexo, edad, parentesco, estado civil, etnia y seguridad social.\\
-    
-    3  & Fuerza de Trabajo 
-       & 24
-       & Estructura de la población (PET, PEA) y filtros iniciales para clasificar el estado laboral. \\
-    
-    4  & Ocupados
-       & 299
-       & Módulo más extenso; detalla cargos, ingresos, horas de trabajo, estabilidad y seguridad social laboral. \\
-    
-    5  & Desocupados
-       & 62
-       & Información sobre el tiempo de búsqueda de empleo y las causas de la cesantía o inactividad previa. \\
-    
-    6  & Inactivos
-       & 24
-       & Causas de no participación laboral y actividades realizadas (estudio, hogar, rentistas). \\
-    
-    7  & Otras Actividades
-       & 29
-       & Trabajo no remunerado en el hogar, cuidado de niños o ancianos y servicios a la comunidad.\\
-    
-    8  & Otros Ingresos
-       & 44
-       & Rentas, pensiones, intereses, remesas y ayudas gubernamentales o de terceros. \\
-    \hline
-    \end{tabular}
-    \end{table}
-    %-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    % Hay que citar la tabla en el texto, usar label y ref para \label{tab:dimensiones-geih-modulos}
-    %-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-    
-    Adicionalmente, la GEIH ha utilizado dos \textit{marcos muestrales distintos}:
-    \begin{itemize}
-        \item 
-            \textit{Marco antiguo}: empleado para los datos hasta 2021. Cada módulo se
-                  distribuye en dos archivos separados por sección geográfica:
-                  \textit{cabecera} y \textit{resto}, que hacen referencia a la zona urbana y rural respectivamente.
-        \item 
-            \textit{Marco nuevo}: empleado para datos de 2022 en adelante. Cada módulo
-                  se distribuye en un único archivo que cubre todo el territorio, con variables
-                  \texttt{PER} y \texttt{MES} explícitas.
-    \end{itemize}
-    
-    Para garantizar la interoperabilidad entre los microdatos de la GEIH y las fuentes auxiliares (Censo y Terridata), se utilizará como identificador único el código de la División Político-Administrativa de Colombia (DIVIPOLA). Este código consta de cinco dígitos: los dos primeros corresponden al departamento (19 para Cauca y 76 para Valle del Cauca) y los tres últimos al municipio. Esta codificación es crítica por dos razones:
-
-    \begin{itemize}
-        \item 
-            \textit{Vínculo espacial:} Permite asignar a cada registro de la encuesta         las características estructurales de su municipio (como el IPM o la                 ruralidad).
-        \item 
-            \textit{Análisis de vecindad:} Facilita la construcción de la matriz de           contigüidad (W) necesaria para los modelos mixtos con componentes espaciales,       identificando qué municipios comparten fronteras físicas.
-    \end{itemize}
-
-    La variable dependiente del modelo, la Tasa de Desempleo (TDD), se calculará siguiendo los lineamientos internacionales de la OIT adoptados por el DANE.
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Fuentes de datos del trabajo. GEIH: Gran Encuesta Integrada de Hogares; DANE: Departamento Administrativo Nacional de Estadística; DNP: Departamento Nacional de Planeación; A.M.: área metropolitana.}
+\label{tab:fuentes_datos}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}p{2.0cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.6cm}}
+\toprule
+Fuente & Entidad & Unidad y cobertura usada & Uso en el trabajo \\
+\midrule
+Microdatos GEIH 2018 & DANE & Persona; 12 meses de 2018, todo el país; con código de área solo en 23 ciudades y A.M. & Estimación directa de la tasa de desempleo \\
+TerriData & DNP & Municipio; indicadores con corte 2018 & Covariables del modelo \\
+DIVIPOLA & DANE & Municipio; código, nombre y coordenadas & Llave entre fuentes y distancias \\
+Anexo «Mercado laboral según proyecciones CNPV 2018» & DANE & Ciudad y A.M., agregados; 2016--2021 & Validación de la estimación directa y referencia del benchmarking \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
 %--------------------------------------------------------------------------------------
+\section{Gran Encuesta Integrada de Hogares}
+\label{sec:datos_geih}
+
+La GEIH es la encuesta continua de hogares del DANE para medir el mercado laboral \cite[p.~3]{DANE_GEIH_Metodologia2016}. Sus microdatos se publican por mes y por módulo temático, y cada persona lleva un factor de expansión. Se usaron los doce meses de 2018 del marco muestral de 2005, el que estaba vigente ese año.
+
+\paragraph{Marco antiguo y marco nuevo.} Hasta 2022 cada módulo se publica en archivos separados para las cabeceras, el resto (centros poblados y rural disperso) y las áreas; desde 2023 cada módulo viene en un solo archivo y la información de los inactivos está dentro del módulo de fuerza de trabajo. El procesamiento admite ambos marcos, pero el período de análisis es 2018, así que todos los registros usados son del marco antiguo. De ese marco se cargaron los archivos de cabecera y resto; el archivo de área no se usó.
+
+\paragraph{Módulos y variables.} La Tabla~\ref{tab:dimensiones-geih-modulos} muestra los cinco módulos que se usaron, sus registros en 2018 y las variables que aporta cada uno. Las identidades de la Ecuación~\ref{eq:identidades} se cumplen en los conteos de la tabla: los 628,486 registros de fuerza de trabajo, que es la PET, se dividen en 390,060 de la PEA (348,015 ocupados y 42,045 desocupados) y 238,426 inactivos. Los módulos de vivienda, otras actividades y otros ingresos no se usaron.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Módulos de la GEIH 2018 usados, número de registros (personas) y variables que aporta cada uno. Fuente: tablas de la capa plata y de la capa bronce (inactivos) del procesamiento; conteos del 2018.}
+\label{tab:dimensiones-geih-modulos}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.2cm} r >{\raggedright\arraybackslash}X}
+\toprule
+Módulo & Registros & Variables usadas \\
+\midrule
+Características generales & \num{762753} & Identificación de la persona (período, vivienda, hogar y orden), mes, departamento, área, edad, sexo y factor de expansión \\
+Fuerza de trabajo & \num{628486} & Pertenencia a la población en edad de trabajar \\
+Ocupados & \num{348015} & Condición de ocupado \\
+No ocupados & \num{42045} & Condición de desocupado \\
+Inactivos (cabecera y resto) & \num{238426} & Condición de inactivo (con ella se identifica la PEA en el marco antiguo) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\paragraph{Factor de expansión.} Para 2018 se usó el factor de expansión que el DANE recalculó con las retroproyecciones de población del CNPV 2018 \cite[pp.~3, 19]{DANE_GEIH_Series2022}, publicado como un archivo aparte de los módulos (\num{772619} registros). El factor original de los microdatos de 2018, calibrado con proyecciones del censo de 2005 sobre la población de 10 años y más, no se usó: mezclarlo con el recalculado produce un salto en la serie \cite[p.~19]{DANE_GEIH_Series2022}.
+
+\paragraph{Geografía.} El microdato identifica la ubicación de la persona por departamento y por área, y el área es la ciudad con su área metropolitana \cite[p.~9]{DANE_GEIH_Metodologia2016}. En 2018 la tabla consolidada tiene \num{762753} personas en \num{227027} viviendas de todo el país; \num{610439} de ellas tienen código de área, y ese código corresponde a 23 ciudades y áreas metropolitanas. Son los 23 dominios de la Tabla~\ref{tab:dominios_geih}. Las nueve capitales restantes (Arauca, Inírida, Leticia, Mitú, Mocoa, Puerto Carreño, San Andrés, San José del Guaviare y Yopal) no tienen código de área en los microdatos de 2018, y los registros sin área (el resto de las cabeceras y la zona rural) no se usaron.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Dominios de estimación de la GEIH con muestra en 2018: municipios que los forman, personas de 15 años y más en la PEA y viviendas observadas en el año. A.M.: área metropolitana. Fuente: tabla de estimación directa del procesamiento.}
+\label{tab:dominios_geih}
+\renewcommand{\arraystretch}{1.1}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{l r r r @{\hspace{1.2em}} l r r r}
+\toprule
+Dominio & Mun. & PEA & Viviendas & Dominio & Mun. & PEA & Viviendas \\
+\midrule
+Armenia & 1 & \num{12693} & \num{6798} & Montería & 1 & \num{13713} & \num{6391} \\
+Barranquilla A.M. & 2 & \num{20333} & \num{8765} & Neiva & 1 & \num{12725} & \num{6929} \\
+Bogotá & 1 & \num{18637} & \num{9526} & Pasto & 1 & \num{11830} & \num{6202} \\
+Bucaramanga A.M. & 4 & \num{13778} & \num{6283} & Pereira A.M. & 3 & \num{13033} & \num{7030} \\
+Cali A.M. & 2 & \num{15827} & \num{8182} & Popayán & 1 & \num{12701} & \num{6957} \\
+Cartagena & 1 & \num{13211} & \num{6965} & Quibdó & 1 & \num{8997} & \num{5176} \\
+Cúcuta A.M. & 4 & \num{11656} & \num{5926} & Riohacha & 1 & \num{13582} & \num{7288} \\
+Florencia & 1 & \num{9796} & \num{5868} & Santa Marta & 1 & \num{14754} & \num{7740} \\
+Ibagué & 1 & \num{12477} & \num{6579} & Sincelejo & 1 & \num{15737} & \num{7219} \\
+Manizales A.M. & 2 & \num{12968} & \num{7307} & Tunja & 1 & \num{9801} & \num{5569} \\
+Medellín A.M. & 10 & \num{21615} & \num{11274} & Valledupar & 1 & \num{12703} & \num{6490} \\
+ & & & & Villavicencio & 1 & \num{12177} & \num{6685} \\
+\midrule
+Total & & & & & 43 & \num{314744} & \num{163149} \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+Los dominios con área metropolitana siguen la composición que fija la metodología de la encuesta \cite[p.~9]{DANE_GEIH_Metodologia2016}: Medellín con los diez municipios del Valle de Aburrá, Barranquilla con Soledad, Bucaramanga con Floridablanca, Girón y Piedecuesta, Cali con Yumbo, Manizales con Villamaría, Pereira con Dosquebradas y La Virginia, y Cúcuta con Villa del Rosario, Los Patios y El Zulia. Del Cauca y del Valle del Cauca solo dos dominios tienen muestra: Popayán y Cali A.M.
+
 %--------------------------------------------------------------------------------------
+\section{Cifras publicadas por el DANE}
+\label{sec:datos_anexo}
+
+El anexo estadístico «Mercado laboral según proyecciones CNPV 2018» \cite{DANE_Anexo_CNPV2018} publica los indicadores calculados con los mismos factores de expansión. Se usaron tres de sus hojas, resumidas en la Tabla~\ref{tab:anexo_dane}. Sirven para validar la estimación directa y como referencia del benchmarking; el anexo no publica la tasa de desempleo anual por ciudad, de modo que la cifra anual de cada ciudad se reconstruye con los cuatro trimestres del año (Sección~\ref{sec:met_directa}).
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Hojas del anexo del DANE usadas. Fuente: tablas de cifras publicadas de la capa bronce.}
+\label{tab:anexo_dane}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.0cm} r >{\raggedright\arraybackslash}X}
+\toprule
+Hoja & Registros & Contenido \\
+\midrule
+Total nacional & 72 & Indicadores del total nacional por mes, 2016--2021 \\
+Ciudades y A.M. & \num{1800} & Indicadores por trimestre móvil, 2016--2021, de las 23 ciudades y A.M., del «Total 10 ciudades» y del «Total 23 ciudades y A.M.» \\
+Anuales & 30 & Serie anual 2016--2021 del total nacional, cabeceras, rural, «Total 13 ciudades y A.M.» y «Total 10 ciudades» \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
 %--------------------------------------------------------------------------------------
 \section{Sistema de estadísticas territoriales}
-    El Sistema de estadísticas territoriales (TerriData) fué desarrollado por el Departamento Nacional de Planeación (DNP) con el objetivo de fortalecer las capacidades de los gobiernos locales. Su propósito central es promover la gestión del conocimiento en la administración pública mediante el uso de datos estadísticos oficiales a nivel municipal, departamental y regional.
+\label{sec:datos_terridata}
 
-    La plataforma facilita la consulta y el aprovechamiento de indicadores estandarizados y comparables que reflejan el desempeño de las entidades territoriales en múltiples dimensiones. Además, cumple una función pedagógica al apoyar las distintas etapas del ciclo de la gestión pública, desde la planeación hasta el monitoreo y la evaluación de resultados.
+TerriData, del DNP, reúne indicadores de distintas entidades del Estado en un formato común por municipio y departamento \cite{DNP_TerriData}. La base descargada tiene \num{13147390} registros en formato largo para \num{1135} entidades territoriales, \num{1587} indicadores agrupados en 24 dimensiones y años entre 1985 y 2070 (estos últimos son proyecciones de población). Cada registro corresponde a una entidad, un año, un mes y un indicador; la Tabla~\ref{tab:tab-variables-originales-terridata} muestra su estructura. Para 2018, el Cauca y el Valle del Cauca tienen dato en 784 indicadores, para 86 entidades: los 42 municipios del Cauca, los 42 del Valle del Cauca y las dos filas departamentales.
 
-    TerriData también actúa como un canal de acceso a la información pública, permitiendo que cualquier ciudadano consulte de manera gratuita y ágil la situación de su territorio, lo que contribuye a fortalecer la transparencia y el control social. En este sentido, el sistema busca transformar los datos en información clara y útil que facilite la toma de decisiones informadas y promueva el bienestar de la población.
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Estructura de la base de TerriData (formato largo).}
+\label{tab:tab-variables-originales-terridata}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\linewidth}{l l >{\raggedright\arraybackslash}X}
+\toprule
+Campo & Tipo & Descripción \\
+\midrule
+Código y nombre del departamento & Texto & Identificación del departamento \\
+Código y nombre de la entidad & Texto & Municipio o departamento (código DIVIPOLA) \\
+Dimensión y subcategoría & Texto & Tema del indicador (24 dimensiones) \\
+Código y nombre del indicador & Texto & Identificación del indicador \\
+Dato numérico & Numérico & Valor, si el indicador es numérico \\
+Dato cualitativo & Texto & Valor, si el indicador es cualitativo \\
+Año y mes & Numérico & Período al que corresponde el valor \\
+Fuente & Texto & Entidad que produce el dato \\
+Unidad de medida & Texto & Unidad del valor \\
+\bottomrule
+\end{tabularx}
+\end{table}
 
-    La plataforma organiza la información en 22 dimensiones, lo que facilita su análisis a lo largo de las diferentes etapas del ciclo de gestión pública. Estas dimensiones, a su vez, agrupan más de 800 indicadores, tanto simples como compuestos, que permiten monitorear de manera integral el comportamiento y la evolución de los territorios.
+De esa base salen las 18 covariables candidatas de la Tabla~\ref{tab:covariables_datos}: los indicadores que la literatura del proyecto relaciona con el desempleo y que tienen dato para 2018 en todos los municipios de los dominios y en los municipios objetivo (el catálogo completo y la referencia de cada una están en el Apéndice~\ref{app:catalogo}). Otros seis indicadores de la literatura no tienen dato utilizable: la tasa de analfabetismo no tiene dato en los dominios para 2018; la densidad empresarial termina en 2016; la pobreza monetaria y el coeficiente de Gini solo existen para departamentos o grandes ciudades; las víctimas de desplazamiento solo existen para 2022 y 2023; y el índice de incidencia del conflicto armado se evaluó y se excluyó (Sección~\ref{sec:met_covariables}).
 
-    Para el desarrollo del caso de estudio, se extrajeron de la base de datos general los registros correspondientes a los departamentos de Valle del Cauca y Cauca. El conjunto de datos resultante, cuya estructura se presenta en la Tabla ~\ref{tab:tab-variables-originales-terridata}, está conformado por un total de 996{,}292 registros.
+La tabla documenta, para cada covariable, la geografía, el período, la unidad y el denominador con el que se lleva a un dominio con área metropolitana (Ecuación~\ref{eq:agregacion}). Todas describen el municipio completo, cabecera y zona rural, mientras que la tasa de desempleo de los dominios solo describe las cabeceras; esa diferencia de cobertura se conserva y se discute con los resultados. Todas tienen corte a diciembre de 2018; la penetración de banda ancha es trimestral y se usa el cuarto trimestre, y las demás son anuales. En la columna «Regla», «exacta» indica que el denominador es el del indicador, «proxy» que TerriData no publica ese denominador y se usa uno cercano, y «convención» que el indicador es un índice sin un valor natural para la unión de municipios.
 
-    Con el fin de facilitar la comprensión del análisis, y dado que estos conceptos serán utilizados en la construcción de variables auxiliares, es necesario definir algunos elementos clave de la base de datos:
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\caption{Covariables candidatas: unidad, fuente, denominador para agregar a un dominio con área metropolitana y tipo de regla. Todas son de TerriData, para el municipio completo (cabecera y resto) y con corte a diciembre de 2018. Fuente: tabla de reglas de agregación del procesamiento.}
+\label{tab:covariables_datos}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.0cm} >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}p{2.3cm} >{\raggedright\arraybackslash}X l}
+\toprule
+Covariable & Unidad & Fuente & Denominador de agregación & Regla \\
+\midrule
+\multicolumn{5}{l}{Educación} \\
+Cobertura neta en educación media & Porcentaje & MEN & Población de 15 a 19 años & Proxy \\
+Cobertura neta en educación secundaria & Porcentaje & MEN & Población de 10 a 14 años & Proxy \\
+Puntaje Saber 11, matemáticas & Puntos & Icfes & Población de 15 a 19 años & Proxy \\
+Puntaje Saber 11, lectura crítica & Puntos & Icfes & Población de 15 a 19 años & Proxy \\
+Tránsito inmediato a la educación superior & Porcentaje & MEN & Población de 15 a 19 años & Proxy \\
+\multicolumn{5}{l}{Economía} \\
+Valor agregado per cápita & Pesos corrientes & DNP y DANE & Población total & Exacta \\
+Valor agregado, actividades primarias & Porcentaje & DNP y DANE & Valor agregado municipal & Exacta \\
+Valor agregado, actividades secundarias & Porcentaje & DNP y DANE & Valor agregado municipal & Exacta \\
+Valor agregado, actividades terciarias & Porcentaje & DNP y DANE & Valor agregado municipal & Exacta \\
+\multicolumn{5}{l}{Pobreza} \\
+Índice de pobreza multidimensional & Porcentaje & DANE (CNPV 2018) & Población total & Exacta \\
+\multicolumn{5}{l}{Demografía} \\
+Población urbana & Porcentaje & DANE y DNP & Población total & Exacta \\
+Densidad poblacional & Hab./km$^2$ & DNP, IGAC y DANE & Superficie & Exacta \\
+Jóvenes de 14 a 28 años & Porcentaje & DANE y DNP & Población total & Exacta \\
+\multicolumn{5}{l}{Finanzas públicas} \\
+Indicador de desempeño fiscal & Puntos & DNP & Población total & Convención \\
+Ingresos tributarios per cápita & Pesos corrientes & DNP (FUT) y DANE & Población total & Exacta \\
+\multicolumn{5}{l}{Seguridad} \\
+Tasa de homicidios & Por 100,000 hab. & DNP y MinDefensa & Población total & Exacta \\
+\multicolumn{5}{l}{Vivienda y servicios} \\
+Cobertura de acueducto & Porcentaje & DANE (CNPV 2018) & Población total & Proxy \\
+Penetración de banda ancha & Accesos por 100 hab. & MinTIC & Población total & Exacta \\
+\bottomrule
+\end{tabularx}
+\begin{minipage}{\linewidth}
+\vspace{2pt}
+\footnotesize Siglas: MEN, Ministerio de Educación Nacional; Icfes, Instituto Colombiano para la Evaluación de la Educación; IGAC, Instituto Geográfico Agustín Codazzi; FUT, Formulario Único Territorial; MinTIC, Ministerio de Tecnologías de la Información y las Comunicaciones. El código de TerriData de cada covariable está en el Apéndice~\ref{app:catalogo}.
+\end{minipage}
+\end{table}
 
-    \begin{itemize}
-        \item 
-            \textit{Dimensión:} Corresponde a una temática general que agrupa            indicadores         asociados a un sector o aspecto específico del          territorio. TerriData se organiza       en 22 dimensiones como Salud, Educación y Economía y Finanzas Públicas lo       que permite estructurar la información de acuerdo con las necesidades de la             estión pública.
-        \item 
-            \textit{Subcategoría (o categoría):} Constituye un nivel de clasificación             intermedio dentro de cada dimensión, cuyo propósito es organizar los indicadores       de manera lógica y facilitar consultas más específicas. Este nivel permite             filtrar la información y seleccionar variables relevantes para análisis                particulares.
-         \item 
-             \textit{Indicador:} Es la unidad básica de información y representa datos             estadísticos agregados, que pueden ser simples o compuestos. TerriData dispone de      más de 800 indicadores estandarizados y comparables entre municipios y           departamentos.
-    \end{itemize}
-    
-    La comprensión de estos elementos es fundamental, ya que los indicadores servirán como insumo para la construcción de las variables necesarias en la estimación de la tasa de desempleo.
+Las coberturas netas de secundaria y de media se miden en el municipio donde estudia el alumno, no donde vive, lo que importa en las áreas metropolitanas, donde parte de los estudiantes cruza el límite municipal.
 
-    Entre los indicadores más relevantes para el desarrollo del proyecto se destacan:
-
-    \begin{itemize}[noitemsep, topsep=0pt]
-        \item Porcentaje de personas ocupadas formalmente con respecto a la población total
-        \item Trabajadores cotizantes al Sistema General de Seguridad Social (promedio mensual)
-        \item Coeficiente de Gini
-        \item Índice de pobreza
-        \item Afiliados al Sistema General de Seguridad Social en Salud (SGSSS)
-        \item Afiliados al régimen contributivo
-    \end{itemize}
-
-    Para sintetizar la información, cada indicador se registra a nivel municipal con periodicidad mensual para cada año. En el presente proyecto, se utilizarán exclusivamente los datos correspondientes al año 2018, con el fin de garantizar la consistencia con la información proporcionada por el censo.
-    
-    \begin{table}[!htbp]
-    \centering
-    \small
-    \caption{Variables contenidas en la base de datos completa de TerriData}
-    \label{tab:tab-variables-originales-terridata}
-    \renewcommand{\arraystretch}{1.25} 
-    \begin{tabular}{c l c p{6.2cm}} 
-    \hline
-    \textbf{No.} & \textbf{Nombre de la variable} & \textbf{Tipo de dato} & \textbf{Descripción} \\ \hline
-    
-    1  & Código Departamento
-       & Texto
-       & Número asignado al departamento por el DNP. \\
-    
-    2  & Departamento
-       & Texto
-       & Nombre del departamento.\\
-    
-    3  & Código Entidad 
-       & Texto
-       & Número asignado al municipio por el DNP. \\
-    
-    4  & Entidad
-       & Texto
-       & Nombre del municipio. \\
-    
-    5  & Dimensión
-       & Texto
-       & Nombre de la dimensión. \\
-    
-    6  & Subcategoría
-       & Texto
-       & Nombre de la subcategoría. \\
-    
-    7  & Indicador
-       & Texto
-       & Nombre del indicador\\
-    
-    8  & Dato Numérico
-       & Numérico
-       & Valor numérico. Este valor solo aplica cuando los indicadores son numéricos. \\
-    
-    9  & Dato Cualitativo
-       & Texto
-       & Valor cualitativo. Este valor solo aplica cuando los indicadores son cualitativos. \\
-    
-    10 & Año
-       & Numérico
-       & Año al cual corresponde el valor medido. \\
-    
-    11 & Mes
-       & Numérico
-       & Mes al cual corresponde el valor medido. \\
-    
-    12 & Fuente
-       & Texto
-       & Origen del dato que se encuentra en la base de datos.\\
-    
-    13 & Unidad de Medida
-       & Texto
-       & Detalla que se está midiendo en el indicador. \\
-    \hline
-    \end{tabular}
-    \end{table}
-
-
-
-
-    
 %--------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------
-\section{Censo Nacional de Población y Vivienda 2018}
+\section{DIVIPOLA y municipios objetivo}
+\label{sec:datos_divipola}
 
-    El Censo Nacional de Población y Vivienda (CNPV) del 2018, elaborado por el Departamento Administrativo Nacional de Estadística (DANE), el cual consistió en caracterizar a todas las personas residentes de Colombia, las viviendas y hogares. De este modo el CNPV nos muestra el estado del territorio en un momento dado u especifico.
-    Por tal motivo, cada registro corresponde a un individuo (persona), la cual incluye información de caracterización general, del hogar y de la vivienda, todo esto acompañado con información georreferenciada, de acuerdo con el Marco Geoestadístico Nacional (MGN) del DANE.
-    La base de datos constituida de DANE producto del CNPV 2018 genero un total de 44.164.417 personas efectivamente censadas en todo el territorio nacional, sin embargo, y de la mano con el objetivo de la presente investigación se realizó un subconjuto de la base original, manteniendo solamente los registros de los departamentos del Cauca y Valle del Cauca, la cual nos deja un total de registros de 5.033.377 personas censadas las cuales están distribuidas en 84 municipios.
-    En la tabla  ~\ref{tab:tab-variables-censo} se presenta un resumen de las principales variables contenidas en la base de datos original.
+La codificación DIVIPOLA \cite{DANE_DIVIPOLA} tiene \num{1122} municipios y áreas no municipalizadas, con su código de cinco dígitos, su nombre y las coordenadas de la cabecera. Se usó para unir la GEIH con TerriData, para identificar los municipios del Cauca (código 19) y del Valle del Cauca (código 76) y para calcular las distancias entre cabeceras del componente espacial.
 
-\usepackage{longtable} % en el preámbulo
-
-\renewcommand{\arraystretch}{1.25}
-
-% Bloque con tamaño reducido solo para la tabla
-{\footnotesize
-\begin{longtable}{c l c p{6.2cm}}
-\caption{Descripción de las variables} \label{tab:tab-variables-censo} \\
-
-\hline
-\textbf{No.} & \textbf{Nombre de la variable} & \textbf{Etiqueta} & \textbf{Descripción} \\ \hline
-\endfirsthead
-
-\hline
-\textbf{No.} & \textbf{Nombre de la variable} & \textbf{Etiqueta} & \textbf{Descripción} \\ \hline
-\endhead
-
-\hline
-\endfoot
-
-\hline
-\endlastfoot
-
-\multicolumn{4}{l}{\textbf{Características demográficas}} \\ \hline
-1 & Edad en grupos quinquenales & P\_EDADR & Edad del individuo censado agrupada por quinquenios (de 00 a 04 años). \\
-2 & Lugar de residencia hace 12 meses & PA\_VIVIA\_1ANO & Ubicación del censado 12 meses antes: No había nacido; En este municipio; En otro municipio colombiano; En otro país; No informa; No aplica. \\ \hline
-
-\multicolumn{4}{l}{\textbf{Educación}} \\ \hline
-3 & Sabe leer y escribir & P\_ALFABETA & Variable dicótoma que identifica a las personas analfabetas. \\
-4 & Nivel educativo más alto alcanzado & P\_NIVEL\_ANOSR & Variable recodificada: Preescolar; Básica primaria; Básica secundaria; Media académica o clásica; Media técnica; Normalista; Técnica profesional o tecnológica; Universitario; Especialización, maestría, doctorado; Ninguno; No aplica. \\ \hline
-
-\multicolumn{4}{l}{\textbf{Actividad económica}} \\ \hline
-5 & Qué hizo durante la semana pasada & P\_TRABAJO & Variable recodificada: Trabajó al menos una hora; Ayudó sin pago; No trabajó pero tenía empleo; Buscó trabajo; Vivió de renta/pensión; Oficios del hogar; Incapacitado; Otra situación; No informa; No aplica. \\ \hline
-
-\multicolumn{4}{l}{\textbf{Condiciones de la vivienda y servicios}} \\ \hline
-6 & Tipo de vivienda & V\_TIPO\_VIV & Variable recodificada: Casa; Apartamento; Tipo cuarto; Vivienda tradicional indígena; Vivienda étnica; Otro. \\
-7 & Servicio de energía eléctrica & VA\_EE & Variable dicótoma sobre acceso a energía eléctrica. \\
-8 & Servicio de acueducto & VB\_ACU & Variable dicótoma sobre acceso a acueducto. \\
-9 & Servicio de alcantarillado & VC\_ALC & Variable dicótoma sobre acceso a alcantarillado. \\
-10 & Servicio de gas natural & VD\_GAS & Variable dicótoma sobre acceso a gas natural. \\
-11 & Servicio de recolección de basura & VE\_RECBAS & Variable dicótoma sobre acceso a recolección de basura. \\
-
-\end{longtable}
-} % cierre del bloque de \footnotesize
-
-\vspace{2mm}
-\normalsize % aquí vuelves al tamaño normal para el resto del documento
-
-
-
-
-
+Los municipios objetivo son los del Cauca y del Valle del Cauca que no forman por sí solos un dominio con muestra. Son 83: 41 del Cauca, todos menos Popayán, y los 42 del Valle del Cauca. Dos de ellos, Cali y Yumbo, pertenecen al dominio Cali A.M.: tienen una estimación directa conjunta pero no una propia, y por eso se cuentan entre los objetivos.

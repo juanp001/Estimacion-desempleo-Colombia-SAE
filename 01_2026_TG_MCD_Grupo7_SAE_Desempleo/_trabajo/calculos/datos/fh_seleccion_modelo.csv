@@ -1,0 +1,5 @@
+Modelo,Covariables,N_covariables,AIC,Delta_AIC,AICc,Delta_AICc,p_max_covariables,Todas_signif,Candidata,Equivalente_AIC,Elegida,Criterio,MSE_medio,Cook_max,RMSE_LOAO,N_LOAO
+EC3,TASA_HOMICIDIOS,1,108.9036,0.0,110.1668,0.0,0.0058,sí,sí,sí,sí,regla estricta: todas las covariables con p < alfa (Morales p. 453),0.089987,0.6009,2.5243249659229865,23
+EC2,COB_ACUEDUCTO,1,109.8218,0.9182,111.0849,0.9182,0.0107,sí,sí,sí,,regla estricta: todas las covariables con p < alfa (Morales p. 453),0.090081,1.2966,2.599361163525286,23
+EC0,,0,114.0417,5.1381,114.6417,4.475,,sí,sí,no,,regla estricta: todas las covariables con p < alfa (Morales p. 453),0.090108,0.2499,2.7715364261213886,23
+EC1,TASA_HOMICIDIOS + COB_ACUEDUCTO,2,109.9261,1.0225,112.1483,1.9816,0.3512,no,no,no,,regla estricta: todas las covariables con p < alfa (Morales p. 453),0.090108,0.526,2.5517333717717405,23

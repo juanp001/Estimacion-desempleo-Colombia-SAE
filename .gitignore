@@ -3,3 +3,17 @@
 code/analisis/__pycache__/*.pyc
 code/modelo/shared/__pycache__/config.cpython-311.pyc
 **__pycache__**
+
+# LaTeX (documento)
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.aux
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.toc
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.out
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.log
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.bcf
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.bbl
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.blg
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.run.xml
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.fls
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.fdb_latexmk
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/pdfa.xmpi
+01_2026_TG_MCD_Grupo7_SAE_Desempleo/main.pdf

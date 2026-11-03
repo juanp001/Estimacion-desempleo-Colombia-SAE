@@ -1,13 +1,81 @@
 
-
 \label{sec:discusion}
 
-\section{Discusión}
+Este capítulo interpreta los resultados de la Sección~\ref{sec:resultados}: qué dicen sobre cada objetivo, qué alcance tienen las estimaciones municipales y cómo se comparan con los antecedentes. Cierra con el trabajo futuro que la metodología deja abierto.
+
+%--------------------------------------------------------------------------------------
+\section{El componente espacial frente al Fay-Herriot clásico}
+\label{sec:dis_espacial}
+
+La comparación controlada no encontró dependencia espacial: ninguna de las ocho especificaciones tiene un LRT significativo, el I de Moran de los residuos no lo es ni en el clásico ni en el espacial, y las estimaciones de los dominios coinciden hasta la segunda cifra decimal. Que no haya evidencia no equivale a demostrar que no hay dependencia. Con 23 dominios la prueba tiene poca potencia, y el perfil de verosimilitud del escenario de referencia es compatible con valores de $\rho$ entre $-0.15$ y 0.75. Lo que sí se puede afirmar es que, con estos datos, un $\rho$ distinto de cero no mejora el ajuste lo suficiente para preferir el modelo espacial.
+
+Hay dos razones de fondo para este resultado. La primera es la geografía de los dominios: son ciudades separadas por una mediana de 106 km de su vecina más cercana, y en 12 de ellas la vecina está a más de 100 km. Una matriz de proximidad entre puntos tan lejanos conecta mercados laborales que no comparten trabajadores ni empresas, de modo que no hay un mecanismo claro por el cual el residuo de una ciudad se parezca al de su vecina. Los antecedentes que sí encontraron ganancia con el modelo espacial trabajaron con áreas contiguas que cubren todo un territorio: las unidades de planeamiento zonal de Bogotá, donde el coeficiente de variación bajó en promedio un 13~\% \cite[p.~14]{VargasLemusAlejo2018}, o los mercados laborales locales de Italia \cite[pp.~140--142]{Benedetti2024}. En Cundinamarca, con municipios contiguos, la mejora fue leve \cite[p.~13]{MendozaZea2019}. En Perú, el modelo espacial sí corrigió una autocorrelación significativa de los residuos del clásico \cite[p.~194]{Sikov2023}, que aquí no existe.
+
+La segunda razón es la precisión de las estimaciones directas. Con un año de datos, la varianza de muestreo es pequeña frente a la varianza entre dominios ($\hat{\sigma}_u^2/\bar{\psi} \approx 61$), el peso de la directa es cercano a 1 y ni el EBLUP ni el SEBLUP pueden apartarse de ella. Cuando $\hat{\sigma}_u^2$ es grande frente a $\psi_d$, la forma del efecto de área pesa poco en los dominios observados \cite[p.~143]{Benedetti2024}. El modelo espacial solo podría marcar una diferencia en los municipios sin muestra, y allí su efecto depende de residuos de ciudades cuya distancia mediana al municipio objetivo es de unos 45 km y a más de 100 km entre sí. Por eso el efecto es menor que 0.5 puntos porcentuales en 75 de los 83 municipios.
+
+Díaz encontró clústeres de desempleo entre municipios colombianos con datos censales \cite[pp.~123--124]{Diaz2016}. El resultado de esta tesis no lo contradice: el diseño de la GEIH en 2018 no permite observar esos clústeres, porque solo mide 23 ciudades capitales y sus áreas metropolitanas. La hipótesis espacial quedó probada sobre la única red de puntos disponible, que no es la que describe Díaz.
+
+%--------------------------------------------------------------------------------------
+\section{Las covariables y su estabilidad}
+\label{sec:dis_covariables}
+
+El objetivo específico 2 pregunta por las variables con mayor incidencia en la tasa de desempleo. La respuesta que permiten los datos es más modesta que la pregunta. De las 18 candidatas con respaldo en la literatura, solo la tasa de homicidios quedó en el benchmark, con una asociación positiva de 0.099 puntos porcentuales por cada homicidio adicional por 100,000 habitantes, y explica el 27~\% de la variación de la tasa entre dominios. Es una asociación estadística condicional a la selección, no un efecto causal: los mismos 23 dominios filtraron, seleccionaron y estimaron el coeficiente, y su valor $p$ es descriptivo.
+
+Tres resultados limitan esa asociación. Depende de Quibdó: sin ese dominio el coeficiente baja un 38~\% y deja de ser significativo. Es inestable en la validación: si se repite la selección sin cada dominio aparecen seis conjuntos distintos, y en cuatro iteraciones ninguna covariable resulta elegible. Y no mejora la estimación fuera de muestra cuando se tiene en cuenta el costo de seleccionarla: el procedimiento completo estima peor que el promedio de los dominios (habilidad de $-0.54$). Con las covariables fijas el benchmark sí mejora al modelo nulo en un 17~\%, pero esa cifra es optimista. La lectura conjunta es que las covariables municipales de TerriData explican poco de las diferencias de desempleo entre ciudades, y que la tasa de homicidios funciona como un indicador amplio de las condiciones del territorio más que como una variable del mercado laboral.
+
+Este resultado tiene una consecuencia práctica para los municipios. Su estimación sintética es el intercepto más el efecto de la tasa de homicidios, de modo que dos municipios con la misma tasa de homicidios reciben la misma estimación aunque sus mercados laborales sean distintos. Los municipios sin homicidios en 2018 (Ginebra, Puracé y Silvia) reciben el intercepto, 9.19~\%, y Corinto, con 221 homicidios por 100,000 habitantes, recibe 31.17~\%. Ninguna de esas cifras se puede contrastar con una medición directa.
+
+El procedimiento de selección hizo lo que debía hacer con candidatas débiles: fijó la cota de covariables antes de ver los datos, controló la tasa de falsos descubrimientos, trató la influencia como diagnóstico y no como filtro, y midió el costo de seleccionar con los mismos datos. Mendoza y Zea resolvieron el mismo problema resumiendo cerca de 40 variables en componentes principales \cite[p.~9]{MendozaZea2019}; esa vía gana poder explicativo, pero pierde la lectura de cada coeficiente que pide el objetivo específico 2.
+
+%--------------------------------------------------------------------------------------
+\section{Alcance de las estimaciones municipales}
+\label{sec:dis_alcance}
+
+Las 83 estimaciones municipales son el producto del objetivo general, pero su alcance es limitado. La Tabla~\ref{tab:dis_alcance} reúne las limitaciones que los resultados dejan a la vista, su consecuencia y cómo la reporta el trabajo.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Limitaciones de las estimaciones municipales, su consecuencia y la forma en que el trabajo las reporta.}
+\label{tab:dis_alcance}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+Limitación & Consecuencia & Cómo se reporta \\
+\midrule
+Extrapolación & 21 de 83 municipios tienen una tasa de homicidios fuera del rango de los dominios; en Corinto 14.84 puntos de su estimación vienen de esa extrapolación & Estado de extrapolación, aporte extrapolado y estimación con la covariable recortada al rango (Sección~\ref{sec:res_sin_muestra}) \\
+CV condicional al modelo & El ECM supone que la relación de los dominios vale en cada municipio; no incluye la incertidumbre de la selección ni de la especificación & Calidad reportada «condicional al modelo» en todos los municipios \\
+El CV no ve la extrapolación & Los municipios que extrapolan tienen un RMSE 1.5 veces mayor y casi el mismo CV & La calidad reportada agrega «extrapolado» \\
+Geografía distinta & La tasa de los dominios es de cabeceras urbanas; la estimación de un municipio se aplica a su territorio completo, más rural & Auditoría de dominios; se declara en la tabla final \\
+Varianza de muestreo aproximada & El bootstrap no reproduce el estrato, el segmento ni la calibración; no se sabe si la varianza del diseño es mayor o menor & Nueve escenarios: el benchmark no cambia y el EBLUP cambia como máximo 0.20 puntos \\
+Benchmarking de Cali y Yumbo & $\lambda_D = 0.81$ baja sus estimaciones casi un 20~\% y su CV sube a 30~\% & Ambos quedan como no confiables \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+La diferencia de geografía merece una nota aparte. Los dominios son urbanos: su porcentaje de población urbana tiene mediana de 92.40~\%. En los 83 municipios objetivo esa mediana es 45.07~\%: 47 tienen menos de la mitad de su población en la cabecera y 61 quedan por debajo del dominio menos urbano (67.07~\%). Aplicar a esos municipios una relación estimada en cabeceras urbanas es una extrapolación que no se mide con el rango de las covariables, porque se refiere a la población, no a los valores de $\mathbf{x}$ \cite[p.~441]{morales2021smallarea}. Por eso las estimaciones se describen como tasas del municipio bajo el supuesto de que se comporta como los dominios, y no como mediciones.
+
+El benchmarking de nivel 2 también tiene una lectura propia. Cali A.M. tiene una tasa de homicidios alta y una tasa directa menor que la que anticipa esa covariable, de modo que el modelo sobrestima a Cali y a Yumbo y el ajuste los corrige hacia la directa de su dominio. El ajuste cumple su propósito, que es la consistencia con una cifra confiable \cite[pp.~24, 76]{Molina2019}, pero el tamaño del factor dice que la estimación sintética de esos dos municipios estaba lejos de lo observado. Es la única comparación que el trabajo puede hacer entre una estimación sintética municipal y una medición directa, y muestra una diferencia de casi 3 puntos porcentuales.
+
+Con todo, el patrón territorial de la Sección~\ref{sec:res_patrones} debe leerse como el patrón de la tasa de homicidios: el I de Moran de las estimaciones finales es el mismo que el de esa covariable. Que el norte del Cauca y el norte del Valle aparezcan con tasas altas refleja que esas zonas tuvieron las tasas de homicidios más altas en 2018, no una medición de su desempleo.
+
+%--------------------------------------------------------------------------------------
+\section{La metodología como aporte}
+\label{sec:dis_metodologia}
+
+El resultado que se puede trasladar a otros trabajos es el procedimiento, no las 83 cifras. La cadena reconstruye las cifras del DANE en los 23 dominios, documenta la correspondencia entre la geografía de la encuesta y la de las covariables, selecciona las covariables con reglas fijadas de antemano, mide el costo de esa selección con una validación que la repite, compara el modelo espacial con el clásico sin cambiar nada más y acompaña cada estimación municipal con su estado de extrapolación y una calidad reportada que no se reduce al CV. Esas piezas no dependen de las covariables elegidas. Si otro año o otra fuente aportan covariables más informativas, el mismo procedimiento dirá si mejoran la estimación fuera de muestra, con las mismas métricas.
+
+Frente a la práctica oficial, el trabajo se parece al del DANE en el uso de la GEIH y del benchmarking ponderado por población \cite[pp.~21--22, 25]{DANE_SAE_2025}, pero parte de una situación más difícil: el DANE usa directas municipales que cumplen un criterio de calidad, y aquí solo hay 23 dominios urbanos para estimar 83 municipios que no tienen ninguna. Los resultados muestran hasta dónde llega un modelo de área en ese escenario.
+
+%--------------------------------------------------------------------------------------
+\section{Trabajo futuro}
+\label{sec:dis_futuro}
+
+Las líneas que siguen se desprenden de las limitaciones anteriores, en orden de importancia.
 
 \begin{itemize}
-    \item Objetivo 1: 
-    \item Objetivo 2:
-    \item Objetivo 3:
+    \item Mejores covariables. Es el punto central. Las 18 candidatas de TerriData describen educación, economía, pobreza, población, finanzas públicas, seguridad y servicios, pero ninguna mide directamente el mercado laboral municipal. Indicadores como la cotización a la seguridad social, el empleo formal registrado o la ocupación declarada en el censo podrían explicar más de la variación entre dominios. El procedimiento ya mide si una covariable nueva mejora la estimación fuera de muestra.
+    \item Más dominios y otros años. Repetir la cadena con otros años, y con el marco 2018 de la GEIH que rige desde 2023, permitiría ver si la selección se estabiliza y si la relación con la tasa de homicidios se mantiene. Un modelo con componente temporal, como el de Shiferaw \cite[p.~4]{Shiferaw2025}, aprovecharía varios años a la vez.
+    \item Registros sin código de área. Los registros de cabeceras pequeñas y zonas rurales no se usaron por decisión del proyecto. Con ellos se podría estimar la tasa directa anual de cada departamento y agregar un tercer nivel de benchmarking para los 81 municipios que hoy conservan la estimación sintética sin ajustar, y además incluir información rural en la respuesta.
+    \item Modelos a nivel de unidad. Un modelo con las personas como unidad \cite{BatteseHarterFuller1988} usaría la información individual de la GEIH, pero exige las mismas covariables a nivel de persona para toda la población de los municipios objetivo, como las del censo.
+    \item Otras estructuras espaciales. Si se dispone de estimaciones directas en municipios contiguos, una matriz de contigüidad o un modelo geoestadístico \cite{Pereira2021} podrían captar la dependencia local que una red de 23 ciudades dispersas no permite observar.
 \end{itemize}
-
-\section{Trabajo futuro}

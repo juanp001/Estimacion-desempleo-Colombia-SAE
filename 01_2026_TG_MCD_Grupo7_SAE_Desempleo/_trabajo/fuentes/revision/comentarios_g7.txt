@@ -1,0 +1,678 @@
+Revisión
+Trabajo de Maestría en Ciencia de Datos
+Estimación Municipal Sobre la Tasa de Desempleo en el Cauca y
+Valle del Cauca: Estimación de Área Pequeña usando Modelos
+Mixtos y Componentes Espaciales
+Documento de orientación para revisión
+1.
+Síntesis revisada
+Como modelo de referencia, la formulación general del Fay–Herriot es pertinente. Es correcto distinguir
+el modelo de muestreo del modelo de enlace, estimar la varianza del efecto aleatorio mediante REML,
+estimar los coeficientes mediante GLS, construir el EBLUP con su factor de contracción y utilizar ML
+para comparar AIC entre especificaciones con diferentes efectos fijos.
+También es correcto que, bajo el Fay–Herriot clásico con efectos de área independientes, un municipio
+sin estimación directa no tenga componente directo y su predictor quede reducido al componente
+sintético x⊤
+d ˆ︁β. Esta característica no debe criticarse como ausencia de espacialidad: corresponde
+precisamente al benchmark no espacial que posteriormente deberá compararse con el predictor del
+modelo espacial.
+Sin embargo, antes de construir la extensión espacial deben resolverse aspectos sustantivos del
+benchmark:
+1. correspondencia geográfica entre los dominios GEIH y las covariables de TerriData;
+2. precisión y período de referencia de las estimaciones directas;
+3. estimación de las varianzas de muestreo;
+4. coherencia de la selección de covariables;
+5. validación fuera del conjunto utilizado para seleccionar y ajustar el modelo;
+6. elevada extrapolación desde capitales o áreas urbanas hacia municipios;
+7. interpretación de los coeficientes y de la incertidumbre.
+2.
+Reclasificación de observaciones de la evaluación anterior
+1
+
+Observación
+Clasificación anterior
+Clasificación corregida con la aclara-
+ción del estado del proyecto
+No se ha ajustado todavía
+el modelo espacial
+Se trató como contradicción
+crítica.
+No es error. Es una etapa pendiente
+del trabajo. Debe quedar explícito
+que el modelo actual es el benchmark
+no espacial.
+El objetivo específico 1 aún
+no compara modelos espa-
+ciales
+Se interpretó como objetivo no
+cumplido.
+Pendiente de evaluación. En esta ver-
+sión solo puede evaluarse si el bench-
+mark está bien construido. M1–M5
+son variantes internas del benchmark,
+no la comparación final requerida por
+el objetivo.
+El objetivo específico 3 no
+presenta patrones espaciales
+Se interpretó como incumpli-
+miento.
+Pendiente por estado de avance. No
+debe exigirse una conclusión espacial
+antes de ajustar y diagnosticar el mo-
+delo espacial.
+No se reporta todavía la ma-
+triz espacial W
+Se trató como ausencia meto-
+dológica.
+Pendiente de la etapa espacial. No
+obstante, conviene definir desde aho-
+ra cuál será la unidad espacial y cómo
+se construirá W, porque la definición
+de los dominios del benchmark con-
+diciona esa matriz.
+El predictor de municipios
+sin encuesta es x⊤
+d ˆ︁β
+Podía interpretarse como falta
+del componente espacial.
+Correcto para el Fay–Herriot clásico.
+En el futuro modelo espacial el predic-
+tor para áreas no observadas deberá
+modificarse si la estructura espacial
+permite predecir el efecto aleatorio
+de áreas sin muestra.
+La discusión y las conclusio-
+nes están incompletas
+Se señaló como no reportado.
+Esperable en esta etapa. Deben escri-
+birse después de completar la compa-
+ración espacial y la validación final.
+3.
+Matriz revisada por objetivo específico
+2
+
+Objetivo
+Etapa actual
+Evidencia disponible
+Estado actual
+Qué falta
+Evaluar el desempeño
+de distintos modelos
+SAE basados en mo-
+delos mixtos con com-
+ponentes espaciales.
+Construcción del bench-
+mark Fay–Herriot clási-
+co.
+Se comparan M1–
+M5, que son especi-
+ficaciones de efectos
+fijos del mismo mo-
+delo clásico.
+En
+desarrollo.
+No debe juzgar-
+se todavía co-
+mo incumplido.
+Corregir y con-
+gelar un bench-
+mark
+defendi-
+ble;
+posterior-
+mente ajustar
+el modelo es-
+pacial y com-
+pararlo bajo la
+misma tarea y
+los mismos do-
+minios.
+Determinar las varia-
+bles explicativas con
+mayor incidencia.
+Existe selección prelimi-
+nar dentro del bench-
+mark.
+M2 conserva cober-
+tura secundaria, VA
+primario e IPM; los
+coeficientes son ines-
+tables y ninguno al-
+canza 5 % de signifi-
+cancia.
+Parcial y preli-
+minar.
+Revisar
+se-
+lección,
+es-
+tabilidad
+e
+interpretación;
+volver
+a
+con-
+trastar
+los
+coeficientes
+después
+de
+incorporar
+la
+estructura
+espacial.
+Analizar distribución
+y patrones espaciales
+del desempleo.
+Todavía no se ha desa-
+rrollado la etapa espa-
+cial.
+Se dispone de dis-
+tribución territorial
+y predicciones del
+benchmark.
+No
+evaluable
+todavía
+como
+objetivo final.
+Ajustar
+el
+modelo
+espa-
+cial,
+definir
+W,
+analizar
+dependencia
+y
+comparar
+residuos y pre-
+dicciones
+con
+el benchmark.
+4.
+Aspectos del modelo base que están correctamente planteados
+4.1.
+Formulación del Fay–Herriot clásico
+La formulación general es pertinente para un modelo a nivel de área:
+ˆ︁θd = θd + ed,
+ed ∼N(0, ψd),
+θd = x⊤
+d β + ud,
+ud
+iid
+∼N(0, A).
+Es correcta la interpretación del factor de contracción:
+3
+
+γd =
+A
+A + ψd
+,
+y del EBLUP como combinación de estimación directa y predictor sintético.
+4.2.
+Estimación de los parámetros
+Es metodológicamente adecuado:
+estimar A mediante REML para obtener las predicciones;
+estimar β mediante GLS condicionado a ˆ︁A;
+utilizar ML para el AIC cuando se comparan modelos con diferentes efectos fijos;
+calcular el EBLUP y una aproximación de su MSE.
+4.3.
+Predicción de áreas sin muestra en el benchmark
+Para el modelo clásico independiente, es correcto que en un área sin estimación directa el predictor
+sea:
+ˆ︁θSIN
+d
+= x⊤
+d ˆ︁β.
+Por tanto, este elemento debe mantenerse como benchmark. Cuando se construya el modelo espacial,
+debe derivarse el predictor correspondiente a esa nueva estructura; no se debe copiar automáticamente
+la fórmula del modelo clásico.
+4.4.
+ML para AIC y REML para estimación
+La separación implementada entre REML para estimación y ML para comparación de modelos con
+diferentes efectos fijos es una buena decisión metodológica y debe mantenerse.
+4.5.
+Reconocimiento de la extrapolación
+Es una fortaleza que el documento marque los municipios que quedan fuera del soporte de las áreas
+de ajuste. Esa información será especialmente útil cuando se compare el benchmark con el modelo
+espacial.
+5.
+Problemas del benchmark que deben corregirse antes del modelo
+espacial
+5.1.
+G7-B1. Correspondencia geográfica entre respuesta y covariables
+Estado: Error documental demostrado y auditoría de implementación indispensable.
+4
+
+Gravedad: Crítica para el benchmark.
+Ubicación: Sección 5.4.1, pp. 39–41; Sección 5.9, p. 55.
+El documento indica que la GEIH utiliza un código de área de dos dígitos y que se construye una
+tabla para asociarlo con el DIVIPOLA de la ciudad capital.
+Este punto debe corregirse antes de continuar. La documentación oficial de la GEIH 2018 identifica
+varios códigos AREA como áreas metropolitanas: por ejemplo, Cali–Yumbo, Medellín–Valle de Aburrá,
+Barranquilla–Soledad, Pereira AM, Bucaramanga AM y Cúcuta AM. Véase:
+https://microdatos.dane.gov.co/index.php/catalog/547/variable/F258/V13409?name=AREA
+La ficha metodológica de la GEIH también distingue explícitamente las ciudades y sus áreas metropo-
+litanas:
+https://www.dane.gov.co/files/investigaciones/fichas/empleo/ficha_metodologica_
+GEIH-01_V10.pdf
+Por tanto, si la respuesta de un dominio corresponde, por ejemplo, a Cali–Yumbo, no es correcto
+emparejarla únicamente con las covariables municipales de Cali.
+En Fay–Herriot se requiere que:
+ˆ︁θd,
+ψd,
+xd
+correspondan al mismo dominio.
+Corrección: construir una tabla de auditoría para los 23 dominios que contenga:
+código GEIH;
+nombre oficial;
+geografía real del dominio;
+municipios que lo integran;
+DIVIPOLA utilizado actualmente;
+regla correcta de construcción de xd.
+Si una respuesta representa un área metropolitana, sus covariables deben construirse para esa misma
+área. La forma de agregación depende de la naturaleza de cada variable y de su denominador; no debe
+utilizarse un promedio simple de manera automática.
+Este problema es independiente de que el modelo espacial todavía no se haya construido. Si no se
+corrige, tanto el benchmark como el futuro modelo espacial partirán de dominios incompatibles.
+5
+
+5.2.
+G7-B2. Diciembre de 2018 debe justificarse mejor como unidad temporal de
+las estimaciones directas
+Estado: Explicación insuficiente; no se considera automáticamente un error.
+Gravedad: Mayor.
+Ubicación: Secciones 5.5 y 6.5.
+La coherencia temporal justifica utilizar 2018, pero no demuestra por sí sola que un único mes sea la
+mejor base para estimar cada dominio.
+La documentación oficial de la GEIH distingue niveles temporales de publicación y precisión; las
+estimaciones individuales por ciudad o área metropolitana se reportan habitualmente con acumulación
+trimestral. Véase la ficha metodológica oficial:
+https://www.dane.gov.co/files/investigaciones/fichas/empleo/ficha_metodologica_
+GEIH-01_V10.pdf
+Esto no demuestra que sea imposible calcular una tasa mensual a partir de microdatos. Sí implica que
+los estudiantes deben demostrar que la precisión de las tasas mensuales individuales es adecuada.
+Corrección: realizar una sensibilidad con:
+diciembre 2018,
+octubre–diciembre 2018,
+año 2018.
+Para cada dominio deben reportarse tamaño muestral, PEA muestral, desempleados muestrales,
+estimación directa y error estándar. La elección final debe justificarse con evidencia.
+5.3.
+G7-B3. La varianza bootstrap no reproduce el diseño complejo
+Estado: Limitación reconocida; interpretación a corregir.
+Gravedad: Mayor.
+Ubicación: Sección 5.5.1, pp. 44–45; Sección 6.5.
+Es correcto reconocer que el bootstrap simple no reproduce estratos ni conglomerados. Lo que debe
+corregirse es la afirmación de que las varianzas obtenidas necesariamente subestiman la verdadera
+varianza o constituyen una “cota inferior”.
+Sin información adicional no puede garantizarse la dirección del sesgo.
+Corrección documental: reemplazar esa afirmación por una formulación como:
+Las varianzas bootstrap utilizadas no reproducen completamente el diseño complejo de la
+GEIH y deben interpretarse como aproximaciones. La dirección y magnitud de su diferencia
+respecto de la varianza de diseño no se conocen con la información disponible.
+Corrección metodológica: revisar si existen variables, réplicas o identificadores que permitan una
+aproximación más adecuada. Si no existen, realizar análisis de sensibilidad de los resultados frente
+6
+
+a cambios razonables en ψd y considerar si una función generalizada de varianza puede aportar
+estabilidad.
+5.4.
+G7-B4. Debe validarse la construcción de la tasa de desempleo
+Estado: Análisis de control faltante.
+Gravedad: Mayor.
+Antes de utilizar las tasas como entrada del Fay–Herriot, el pipeline debería demostrar que reproduce
+razonablemente un indicador GEIH oficial en una geografía y período compatibles.
+Se recomienda una tabla:
+Dominio/período
+TD oficial
+TD reconstruida
+Diferencia
+Completar con resultados
+Este control verifica simultáneamente la clasificación de PEA y desempleo, los factores de expansión,
+las uniones de módulos y la definición geográfica.
+5.5.
+G7-B5. La derivación de PEA debe auditarse
+Estado: Explicación insuficiente.
+Gravedad: Mayor si la implementación reproduce literalmente la regla descrita.
+Ubicación: Sección 5.4.1, p. 40.
+Derivar PEA mediante ausencia en el módulo de inactivos puede ser válido únicamente si la persona
+pertenece previamente a la población en edad de trabajar y si un nulo proviene realmente de la
+clasificación laboral, no de un fallo de unión.
+Debe presentarse una reconciliación por dominio:
+PET,
+PEA,
+OC,
+DS,
+PEI,
+y verificar:
+PEA = OC + DS.
+También debe reportarse el porcentaje de llaves no emparejadas entre módulos.
+5.6.
+G7-B6. Imputar un factor de expansión faltante con cero es conceptualmente
+incorrecto
+Estado: Error en el pipeline; efecto final condicionado a si ocurre en diciembre de 2018.
+Gravedad: Menor o mayor según auditoría.
+7
+
+Ubicación: Sección 5.3 y Tabla 6.3.
+Un factor faltante no significa peso poblacional cero. Sin embargo, como el análisis actual se concentra
+en 2018 y el propio documento indica que los factores actualizados están disponibles para esos períodos,
+no debe afirmarse sin auditoría que este error afectó las tasas finalmente utilizadas.
+Corrección: modificar el pipeline y reportar cuántos registros del período analítico fueron afectados. Si
+fueron cero, documentar que el problema no alteró los resultados actuales.
+5.7.
+G7-B7. Inconsistencia en los umbrales del coeficiente de variación
+Estado: Error demostrado.
+Gravedad: Mayor documental y en clasificación.
+La Tabla 3.1 utiliza 5 % y 20 %, mientras la Sección 5.5.2 presenta 15 % y 30 %. En resultados vuelve
+a emplearse 5 % y 20 %.
+Debe seleccionarse una única regla, justificarla y actualizar todas las clasificaciones. Este problema no
+depende del modelo espacial y debe corregirse ahora.
+5.8.
+G7-B8. La selección de covariables ignora inicialmente la diferente precisión
+de las respuestas
+Estado: Metodología mejorable.
+Gravedad: Mayor.
+La respuesta utilizada en la selección es una estimación con error heterocedástico:
+ˆ︁θd = θd + ed,
+Var(ed) = ψd.
+Sin embargo, correlaciones y varias regresiones exploratorias otorgan el mismo peso a todas las áreas.
+Dado que ψd varía apreciablemente entre dominios, conviene que la selección formal se alinee con la
+estructura del modelo.
+Corrección: conservar Pearson y Spearman como descripción, pero complementar la decisión con
+modelos univariados o multivariados que incorporen ψd, o con desempeño predictivo validado.
+5.9.
+G7-B9. Multiplicidad: el problema reaparece mediante los intervalos de
+Fisher
+Estado: Inconsistencia metodológica.
+Gravedad: Mayor.
+Se evita reportar valores p de muchas correlaciones por multiplicidad, pero luego se exige que un
+intervalo de confianza del 95 % excluya cero para declarar una variable elegible.
+Ambos procedimientos expresan, aproximadamente, la misma decisión bilateral al 5 %.
+8
+
+Debe adoptarse un criterio coherente: corrección por multiplicidad, control de FDR, estabilidad por
+remuestreo o selección por validación predictiva.
+5.10.
+G7-B10. El agrupamiento por componentes conexas puede eliminar variables
+no redundantes entre sí
+Estado: Problema matemático demostrado.
+Gravedad: Mayor.
+La regla conecta dos variables si |r| ≥0.80 y después toma componentes conexas. La alta correlación
+no es transitiva.
+Por tanto, X1 y X3 pueden terminar en el mismo grupo aunque:
+|r(X1, X3)| < 0.80,
+solo porque ambas se conectan con X2.
+El propio resultado muestra grupos de este tipo.
+Corrección: utilizar una estrategia que controle la similitud dentro del grupo o resolver la redundancia
+mediante VIF/modelos candidatos sin convertir artificialmente la correlación en una relación transitiva.
+5.11.
+G7-B11. El orden de los filtros puede eliminar una dimensión por un
+artefacto del algoritmo
+Estado: Problema demostrado.
+Gravedad: Mayor.
+En algunos grupos la variable representante se elige antes de aplicar un criterio posterior y luego
+resulta no elegible, mientras otra variable del mismo grupo que fue descartada sí tenía evidencia más
+favorable.
+Corrección: implementar retroceso. Si el representante de un grupo falla en un criterio posterior,
+evaluar al siguiente candidato antes de eliminar la dimensión completa.
+5.12.
+G7-B12. El signo esperado debe usarse para interpretar, no como filtro
+automático
+Estado: Decisión metodológica que debe revisarse.
+Gravedad: Moderada a mayor.
+Una asociación de signo contrario a la literatura puede contener información y no debería descartarse
+automáticamente. El propio documento reconoce posteriormente que un signo inesperado exige
+interpretación, no necesariamente invalidez.
+Además, el signo bivariado y el coeficiente parcial multivariado no tienen por qué coincidir.
+9
+
+Corrección: mantener el signo esperado como diagnóstico de coherencia sustantiva y realizar análisis
+de sensibilidad con y sin las variables de signo inesperado.
+5.13.
+G7-B13. Inconsistencia Pearson–Spearman y forma funcional
+Estado: Incoherencia entre selección y modelo lineal.
+Gravedad: Mayor.
+Si se decide que Spearman es la asociación interpretable porque Pearson está condicionado por
+observaciones extremas, debe justificarse por qué posteriormente la variable entra sin transformación
+a un modelo lineal.
+En particular, no es coherente utilizar Spearman para ordenar una variable y el intervalo de Pearson
+para decidir su elegibilidad sin una justificación adicional.
+Corrección: examinar forma funcional, gráficos parciales y transformaciones antes de fijar el predictor
+lineal.
+5.14.
+G7-B14. El IPM es útil como auxiliar, pero su interpretación no debe ser
+causal
+Estado: Interpretación a corregir.
+Gravedad: Mayor para el objetivo 2; no invalida el benchmark predictivo.
+El IPM puede ser una covariable auxiliar válida si está disponible para todos los dominios. Sin
+embargo, contiene dimensiones relacionadas con condiciones laborales, por lo que no debe interpretarse
+automáticamente como causa externa del desempleo.
+Debe distinguirse:
+utilidad predictiva̸ = asociación̸ = incidencia causal.
+Este punto será aún más importante al comparar los coeficientes del modelo clásico y el espacial.
+5.15.
+G7-B15. M1–M5 son variantes del benchmark, no los modelos finales del
+objetivo 1
+Estado: Corrección conceptual/documental.
+Gravedad: Moderada.
+Ubicación: Secciones 5.9–5.12.
+La comparación M1–M5 es útil para seleccionar la parte fija del benchmark. Debe conservarse si se
+justifica.
+Lo que debe corregirse es la trazabilidad que presenta esas variantes como si con ellas se atendiera ya
+el objetivo de comparar distintos modelos SAE con componente espacial.
+En la versión actual, M1–M5 deben denominarse:
+10
+
+especificaciones candidatas del modelo base Fay–Herriot clásico.
+La comparación correspondiente al objetivo 1 ocurrirá después entre el benchmark seleccionado y las
+especificaciones espaciales.
+5.16.
+G7-B16. M2 es una elección razonable por la regla aplicada, pero no es
+claramente superior
+Estado: Interpretación a moderar.
+Gravedad: Moderada.
+M1, M2, M3 y M5 presentan diferencias de AIC pequeñas. Por ello M2 puede elegirse como benchmark
+parsimonioso, pero no debe afirmarse que los datos demuestran una superioridad contundente.
+Con D = 23 resulta recomendable calcular también AICc.
+Usando los números de parámetros reportados, la corrección por tamaño pequeño mantiene a M2
+entre los mejores modelos, pero la diferencia con M5 continúa siendo muy pequeña.
+La redacción recomendada es:
+M2 fue seleccionado, entre varias especificaciones con soporte similar, mediante la regla de
+parsimonia predefinida y se utilizará como benchmark para la comparación espacial.
+5.17.
+G7-B17. La significancia de los coeficientes no debe utilizarse como demos-
+tración fuerte
+Estado: Inferencia posterior a selección.
+Gravedad: Mayor para el objetivo 2.
+Las mismas 23 áreas se utilizan para filtrar, seleccionar, comparar especificaciones y posteriormente
+calcular valores p de los coeficientes.
+Por tanto, esos valores p no tienen la misma interpretación que tendrían en un modelo definido
+completamente a priori.
+Además, en M2 ninguno de los tres coeficientes alcanza p < 0.05.
+La conclusión actual debe limitarse a asociaciones preliminares del benchmark. El objetivo 2 debe
+reconsiderarse después de incorporar el componente espacial y estudiar la estabilidad de los coeficientes.
+5.18.
+G7-B18. La sensibilidad a dominios individuales es importante
+Estado: Resultado relevante que debe ampliarse.
+Gravedad: Mayor.
+Aunque ningún dominio supera el umbral de Cook en M2, al retirar Neiva algunos coeficientes cambian
+aproximadamente 37 % y 47 %.
+11
+
+Esto indica que el benchmark tiene sensibilidad sustantiva con solo 23 áreas.
+Corrección: realizar leave-one-area-out de los coeficientes y reportar para cada βj:
+m´ın
+d
+ˆ︁β(−d)
+j
+,
+m´ax
+d
+ˆ︁β(−d)
+j
+,
+cambio relativo máximo, cambios de signo y cambios importantes en predicciones.
+5.19.
+G7-B19. Falta validación predictiva del benchmark
+Estado: Análisis faltante.
+Gravedad: Mayor.
+El benchmark será utilizado después para evaluar si el componente espacial mejora el desempeño. Por
+ello debe tener una evaluación predictiva anterior a la comparación espacial.
+Se recomienda leave-one-area-out:
+1. retirar el área d;
+2. ajustar el benchmark con las demás;
+3. predecir el área retirada como si no tuviera estimación directa;
+4. comparar la predicción con la estimación directa observada.
+Debe recordarse que la estimación directa usada como referencia tiene error de muestreo. Por ello no
+basta con reportar RMSE bruto. Conviene complementar con errores estandarizados que incorporen
+ψd y explicar que se valida contra una referencia ruidosa, no contra el verdadero θd.
+Idealmente deben presentarse dos ejercicios:
+LOAO con las covariables de M2 fijadas;
+LOAO del procedimiento completo, repitiendo dentro de cada iteración los pasos de selección
+que dependen de la respuesta.
+5.20.
+G7-B20. La extrapolación masiva sigue siendo un problema, aunque el
+modelo espacial esté pendiente
+Estado: Problema demostrado.
+Gravedad: Crítica para la interpretación de predicciones municipales.
+El benchmark identifica 76 de 82 municipios como extrapolaciones y 72 estimaciones sintéticas superan
+el máximo de las estimaciones directas utilizadas para ajustar.
+Este resultado es útil como diagnóstico del benchmark, pero también muestra una dificultad funda-
+mental de transportabilidad.
+12
+
+El modelo espacial puede reducir parte de la incertidumbre o capturar estructura geográfica, pero no
+debe suponerse que resolverá automáticamente el problema de falta de soporte de las covariables.
+Antes de la comparación final conviene documentar:
+rangos de cada covariable en entrenamiento y municipios objetivo;
+distancia multivariada al soporte de entrenamiento;
+variables responsables de la extrapolación;
+sensibilidad de las predicciones.
+5.21.
+G7-B21. Las categorías de confiabilidad son condicionales al benchmark
+Estado: Interpretación a precisar.
+Gravedad: Mayor.
+El CV de la predicción sintética cuantifica incertidumbre bajo el modelo supuesto. No incluye
+completamente incertidumbre por selección, mala especificación o cambio de distribución entre
+capitales y municipios.
+Por tanto, para municipios extrapolados se recomienda informar:
+CV condicional al modelo base + estado de extrapolación.
+No interpretar “aceptable” como validación empírica de la tasa municipal.
+5.22.
+G7-B22. Media residual y Shapiro–Wilk deben interpretarse con prudencia
+Estado: Interpretación a moderar.
+Gravedad: Menor a moderada.
+Que los residuos estén aproximadamente centrados no demuestra por sí solo ausencia de sesgo del
+predictor. Asimismo, no rechazar normalidad con 23 residuos no demuestra normalidad separada de
+los errores de muestreo y los efectos aleatorios.
+La redacción correcta es:
+Los diagnósticos no muestran evidencia fuerte contra la aproximación normal en el bench-
+mark, dentro de la limitada potencia disponible con 23 áreas.
+6.
+Qué debe hacerse ahora, antes de construir el modelo espacial
+El orden recomendado de trabajo es:
+1. resolver definitivamente la geografía de los 23 dominios;
+13
+
+2. validar la reconstrucción de la tasa de desempleo;
+3. revisar período y tamaños muestrales;
+4. revisar ψd y la estrategia bootstrap;
+5. corregir los umbrales de CV;
+6. revisar la selección de covariables y congelar una especificación base defendible;
+7. calcular AICc como complemento;
+8. realizar sensibilidad leave-one-area-out;
+9. realizar validación predictiva leave-one-area-out;
+10. caracterizar con detalle la extrapolación hacia los municipios objetivo;
+11. documentar el benchmark definitivo;
+12. solo entonces construir el componente espacial.
+7.
+Cómo debe prepararse el benchmark para una comparación justa
+con el modelo espacial
+Cuando se construya el modelo espacial, la comparación debe aislar el aporte de la estructura espacial.
+La comparación principal debería mantener, en lo posible:
+misma respuesta,
+mismos ψd,
+mismos dominios,
+mismas covariables fijas.
+De esta manera puede compararse:
+FH clásico
+vs.
+FH espacial.
+Si simultáneamente se cambian covariables y estructura espacial, una mejora no podrá atribuirse
+exclusivamente al componente espacial.
+Puede existir, adicionalmente, una segunda comparación entre el mejor modelo clásico y el mejor
+modelo espacial, pero esta debe distinguirse de la comparación controlada que aísla el efecto espacial.
+8.
+Diagnóstico espacial que conviene calcular sobre el benchmark
+Aunque todavía no se ajuste el modelo espacial, sí es conveniente preparar un diagnóstico de dependencia
+espacial de los residuos del benchmark. Este diagnóstico servirá como línea base.
+Sin embargo, primero debe resolverse la geografía exacta de los dominios. La matriz W debe corres-
+ponder a las unidades reales de la respuesta. No es correcto construir una matriz de municipios si
+14
+
+algunas respuestas representan áreas metropolitanas y luego interpretar el resultado como si todas las
+observaciones fueran municipios individuales.
+Una vez definida la geografía, se recomienda:
+construir y justificar W;
+calcular Moran global sobre residuos del benchmark;
+inspeccionar el mapa de residuos;
+posteriormente repetir el diagnóstico sobre los residuos del modelo espacial.
+La comparación relevante será:
+Iresiduo, base
+vs.
+Iresiduo, espacial,
+acompañada de desempeño predictivo y medidas de incertidumbre.
+9.
+Qué cambiará en la predicción cuando exista el modelo espacial
+En el benchmark independiente es correcto:
+ˆ︁θSIN
+d
+= x⊤
+d ˆ︁β.
+En un modelo espacial, dependiendo de la estructura elegida, el efecto de área de un municipio
+sin muestra puede tener una predicción condicional basada en efectos de áreas observadas y en la
+estructura de dependencia.
+Por tanto, el futuro predictor espacial debe derivarse de la formulación específica del modelo. No debe
+suponerse desde ahora que será simplemente el predictor sintético más una corrección ad hoc.
+10.
+Plan de actualización de tablas y figuras
+Antes del modelo espacial se recomienda crear o actualizar:
+1. tabla de equivalencia entre dominio GEIH y geografía real;
+2. tabla de tamaño muestral, PEA y desempleados por dominio;
+3. comparación TD oficial versus TD reconstruida;
+4. tabla de sensibilidad mensual/trimestral/anual;
+5. auditoría de factores de expansión y uniones;
+6. tabla de covariables con geografía, período, unidad y denominador;
+15
+
+7. AIC y AICc de M1–M5;
+8. estabilidad de coeficientes leave-one-area-out;
+9. validación predictiva leave-one-area-out;
+10. tabla de soporte/extrapolación de covariables;
+11. mapa de residuos del benchmark, una vez definida correctamente la geografía.
+Las tablas de predicción municipal actuales pueden conservarse como resultados del benchmark no
+espacial, pero deben quedar claramente identificadas como preliminares y no como estimaciones finales
+del proyecto.
+11.
+Preguntas que deben quedar respondidas antes de ajustar el
+modelo espacial
+1. ¿Qué geografía exacta representa cada una de las 23 respuestas GEIH?
+2. ¿Respuesta, ψd y xd corresponden exactamente al mismo dominio?
+3. ¿Cómo se construirán las covariables de un dominio metropolitano?
+4. ¿Qué tamaño muestral tiene cada estimación directa de diciembre?
+5. ¿Cambian sustancialmente las tasas y ψd al usar trimestre o año?
+6. ¿El pipeline reproduce resultados oficiales compatibles de GEIH?
+7. ¿Cuántos registros presentan problemas de emparejamiento entre módulos?
+8. ¿Algún registro de diciembre de 2018 tuvo factor de expansión faltante o igual a cero?
+9. ¿Qué criterio único de CV se utilizará?
+10. ¿Qué variables se mantendrán congeladas para comparar base y espacial?
+11. ¿Cuán estables son esas variables al retirar un dominio?
+12. ¿Cuál es el desempeño LOAO del benchmark?
+13. ¿Qué variables explican que 76 de 82 municipios se clasifiquen como extrapolaciones?
+14. ¿Cuál será la unidad espacial del modelo futuro?
+15. ¿Qué matriz W se utilizará y por qué?
+16

@@ -1,50 +1,14 @@
 \chapter*{Introducción}
 \addcontentsline{toc}{chapter}{Introducción}
 
-Las encuestas por muestreo son el instrumento con el que los sistemas estadísticos nacionales
-observan fenómenos que ningún registro administrativo alcanza a cubrir por completo, como la
-condición de actividad laboral de la población. Su alcance, sin embargo, está acotado por el costo y la logística que exige el trabajo de campo, cada dominio del que se quiera informar con precisión
-requiere un número mínimo de hogares encuestados, y ese número se traduce en encuestadores,
-desplazamientos, supervisión y procesamiento. Ante esa restricción presupuestal, las instituciones
-concentran la muestra en las zonas de mayor peso poblacional y económico, de modo que el diseño
-garantiza precisión donde hay muestra suficiente y la sacrifica en el resto del territorio. La Gran
-Encuesta Integrada de Hogares (GEIH), operada mensualmente por el Departamento Administrativo
-Nacional de Estadística (DANE), es el caso colombiano de esta lógica, es la fuente oficial para
-medir la ocupación y el desempleo, y su muestra está calibrada para producir estimaciones confiables a nivel nacional, por zona de cabecera y resto, para las áreas metropolitanas y para las ciudades capitales, pero no para el conjunto de los municipios del país.
+Las encuestas de hogares miden lo que ningún registro administrativo cubre por completo, como la condición de actividad de la población, pero no cubren todo el territorio. Cada dominio para el que se quiere publicar una cifra precisa exige un número mínimo de hogares encuestados, y ese número cuesta en encuestadores, desplazamientos y supervisión. Por eso las encuestas concentran la muestra en los territorios de mayor peso. En Colombia, la Gran Encuesta Integrada de Hogares (GEIH), que realiza el Departamento Administrativo Nacional de Estadística (DANE), es la fuente oficial del mercado laboral, y en 2018 publicaba la tasa de desempleo de 23 ciudades capitales y áreas metropolitanas (A.M.), además de los totales nacional, por zona y por departamento \cite[p.~9]{DANE_GEIH_Metodologia2016}.
 
-La consecuencia directa de ese diseño es un vacío de información. Al descender por debajo de las
-ciudades capitales, el número de hogares encuestados en cada municipio se reduce hasta un punto en
-que los estimadores directos, calculados únicamente con la muestra del propio dominio, presentan
-varianzas tan altas que dejan de ser utilizables. En la práctica esto significa que no se conoce la
-tasa de desempleo de los municipios medianos y pequeños, que son justamente aquellos donde la
-información resulta más escasa y donde las decisiones de focalización tienen mayor margen de error.
-El problema se agrava porque la información auxiliar que podría suplir ese vacío también es
-limitada, el último censo con microdatos de acceso público es el de 2018, y los registros administrativos con cobertura municipal suelen estar bajo custodia de las entidades que
-los producen, con calidad y periodicidad heterogéneas.
+El resultado es que no se conoce la tasa de desempleo de los municipios medianos y pequeños. En el Cauca y el Valle del Cauca, 81 de los 84 municipios no tienen ninguna estimación directa, y los tres que la tienen se miden dentro de una ciudad o un área metropolitana. Las políticas de empleo de esos municipios se diseñan con la cifra del departamento o de la capital, aunque la evidencia para Colombia muestra que el desempleo municipal difiere mucho de un lugar a otro y que esas diferencias persisten \cite[pp.~124--125]{Diaz2016}.
 
-Los métodos de estimación en áreas pequeñas (SAE, por sus siglas en inglés) fueron desarrollados
-precisamente para esta situación. Su principio es tomar prestada fuerza de los dominios que sí
-cuentan con muestra suficiente, articulándolos con información auxiliar disponible para todo el
-territorio, de manera que sea posible estimar el indicador en dominios donde la encuesta no tiene
-cobertura \cite{Molina2019}. Entre estos métodos, el modelo de Fay-Herriot \cite{FayHerriot1979} es
-la referencia para trabajar a nivel de área y es el que se emplea en este trabajo. El modelo consta
-de dos partes articuladas. La primera es el modelo de muestreo, que parte de la estimación directa
-obtenida de la GEIH en los dominios encuestados y reconoce que esa estimación es una observación con error del valor poblacional verdadero. La segunda es el modelo de enlace, que expresa ese valor
-verdadero como una función lineal de covariables auxiliares observadas en todos los municipios, más
-un efecto aleatorio de área; las covariables provienen de TerriData, el sistema de estadísticas
-territoriales del Departamento Nacional de Planeación. La combinación de
-ambas partes permite estimar la tasa de desempleo en municipios que la encuesta no visita, evaluando el modelo de enlace sobre sus covariables. El alcance de este proyecto de grado son los municipios de los departamentos del Cauca y Valle del Cauca.
+La estimación en áreas pequeñas (SAE, por sus siglas en inglés) se desarrolló para este tipo de vacío: combina la encuesta con información auxiliar disponible para todo el territorio y, con un modelo ajustado a los dominios que sí tienen muestra, estima el indicador en los que no la tienen \cite[p.~17]{Molina2019}. Este trabajo usó el modelo de Fay-Herriot \cite{FayHerriot1979}, que tiene dos partes. El modelo de muestreo trata la tasa directa de la GEIH de cada dominio como una medición con error de su valor verdadero, con una varianza conocida. El modelo de enlace relaciona ese valor verdadero con covariables municipales de TerriData, el sistema de estadísticas territoriales del Departamento Nacional de Planeación (DNP), más un efecto aleatorio de área. Se probó además una extensión espacial, en la que los efectos de áreas cercanas pueden estar correlacionados.
 
-La aplicación de esta metodología genera información más precisa y desagregada, con un impacto
-relevante al permitir a las entidades gubernamentales fortalecer la formulación de políticas
-públicas focalizadas, diseñar estrategias de desarrollo más efectivas y orientar los recursos
-públicos hacia las zonas con mayores necesidades en materia de empleo y reducción de desigualdades.
-La metodología SAE ya ha sido aplicada en Colombia con estos fines, tanto para estimar el Índice de
-Pobreza Multidimensional (IPM) a nivel municipal como para estimar la tasa de desempleo y el ingreso medio en Cundinamarca mediante una extensión espacial del modelo de Fay-Herriot
-\cite{VargasLemusAlejo2018,ColeyTellez2024}.
+La metodología se organizó en 16 etapas. Se integraron la GEIH de 2018, TerriData, la división político-administrativa del DANE y las cifras publicadas por el DANE; se estimó la tasa de desempleo anual de 23 dominios (ciudades o ciudades con su área metropolitana) con su varianza por bootstrap de viviendas; se seleccionaron covariables de un catálogo construido con la literatura mediante un Fay-Herriot univariado y un control de falsos descubrimientos; se eligió un modelo Fay-Herriot clásico como referencia y se comparó con ocho especificaciones espaciales en condiciones controladas; se validó la estimación de cada dominio retirándolo del ajuste; y se estimó la tasa de 83 municipios del Cauca y del Valle del Cauca, con su error, su estado de extrapolación y un ajuste para que las estimaciones agregadas reprodujeran las cifras directas.
 
-El documento se organiza de la siguiente manera. En la Sección~\ref{sec:problema} se presenta el
-planteamiento y la formulación del problema, mientras que en la Sección~\ref{sec:objetivos} se
-exponen los objetivos que orientan el desarrollo del trabajo. En la
-Sección~\ref{sec:marco-referencia} se abordan los fundamentos conceptuales y metodológicos del
-estudio, incluyendo los modelos SAE, así como los antecedentes más relevantes relacionados con estosmodelos y con la estimación de la tasa de desempleo. Posteriormente, en la Sección~\ref{sec:datos} se describen las fuentes de información utilizadas, sin incorporar aún los procesos de manipulación, tratamiento o construcción de variables requeridos para el análisis. Estos procedimientos se desarrollan en la Sección~\ref{sec:metodologia}, donde se presentan las etapas metodológicas del estudio, desde la obtención y consolidación de los datos hasta la estimación en los municipios sin cobertura muestral. En la Sección~\ref{sec:resultados} se exponen los resultados obtenidos para cada una de las etapas definidas en la metodología, siguiendo el mismo orden de desarrollo. Luego, en la Sección~\ref{sec:discusion} se presenta la discusión de los hallazgos y se plantean posibles trabajos futuros. Finalmente, en la Sección~\ref{sec:conclusion} se presentan las conclusiones del trabajo.
+Las tasas directas de los 23 dominios reprodujeron las del DANE y todas resultaron confiables, con coeficientes de variación entre 2.01~\% y 3.23~\%. De 18 covariables candidatas, solo la tasa de homicidios quedó en el modelo, con una asociación positiva que depende de un dominio, Quibdó; al repetir la selección sin cada dominio, el procedimiento estimó peor que un modelo sin covariables. No se encontró evidencia de dependencia espacial: ninguna especificación espacial tuvo una prueba de razón de verosimilitudes significativa y las estimaciones de los dominios coincidieron con las del modelo clásico. Ninguno de los 83 municipios quedó con una estimación confiable, 21 de ellos son extrapolación del modelo, y el patrón territorial de las estimaciones reproduce el de la tasa de homicidios. El aporte del trabajo es, por tanto, la metodología: un procedimiento reproducible que informa con qué calidad y bajo qué supuestos se puede estimar el desempleo de un municipio sin encuesta, y que puede repetirse con mejores covariables.
+
+El documento se organiza así. La Sección~\ref{sec:problema} plantea y formula el problema y la Sección~\ref{sec:objetivos} presenta los objetivos. La Sección~\ref{sec:marco-referencia} reúne el marco teórico y los antecedentes. La Sección~\ref{sec:datos} describe las fuentes de información y la Sección~\ref{sec:metodologia}, las 16 etapas de la metodología. La Sección~\ref{sec:resultados} presenta los resultados de cada etapa en el mismo orden. La Sección~\ref{sec:discusion} discute su alcance y el trabajo futuro, y la Sección~\ref{sec:conclusion} cierra con las conclusiones por objetivo.

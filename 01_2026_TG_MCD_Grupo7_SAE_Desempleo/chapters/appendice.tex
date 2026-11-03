@@ -1,860 +1,986 @@
 
-\section{Disponibilidad de datos}
-\label{sec:datos-apendice}
+\label{sec:apendice}
 
-\section{Disponibilidad de códigos y reproducibilidad}
-\label{sec:datos-reproducibilidad}
-
-\section{Linaje de tablas GEIH}
-\label{sec:apendice-linaje-geih}
-
-    \begin{figure}[H]
-    \centering
-    \shorthandoff{>}
-    \resizebox{\linewidth}{!}{%
-    \begin{tikzpicture}[
-        every node/.style={font=\small},
-        fuente/.style={
-            rectangle, rounded corners=3pt,
-            draw=gray!70, fill=gray!12,
-            minimum width=2.9cm, minimum height=0.55cm,
-            text centered, align=center, font=\scriptsize
-        },
-        bronce/.style={
-            rectangle, rounded corners=3pt,
-            draw=brown!60, fill=brown!10,
-            minimum width=3.1cm, minimum height=0.55cm,
-            text centered, align=center, font=\scriptsize\ttfamily
-        },
-        plata/.style={
-            rectangle, rounded corners=3pt,
-            draw=gray!70, fill=gray!20,
-            minimum width=3.1cm, minimum height=0.60cm,
-            text centered, align=center, font=\small\ttfamily
-        },
-        dim/.style={
-            rectangle, rounded corners=3pt,
-            draw=purple!50, fill=purple!8,
-            minimum width=3.3cm, minimum height=0.60cm,
-            text centered, align=center, font=\small\ttfamily
-        },
-        oro/.style={
-            rectangle, rounded corners=3pt,
-            draw=yellow!70!black, fill=yellow!15, line width=1pt,
-            minimum width=3.3cm, minimum height=0.85cm,
-            text centered, align=center, font=\small\ttfamily\bfseries
-        },
-        arr/.style={->, >=stealth, thick, draw=black!55, shorten >=1pt},
-        arrdim/.style={->, >=stealth, dashed, draw=purple!60, shorten >=1pt},
-        hdr/.style={font=\normalsize\bfseries, text=black},
-        note/.style={font=\tiny\itshape, text=brown!70}
-    ]
-
-    \def\xS{0}
-    \def\xB{4.5}
-    \def\xP{9.2}
-    \def\xO{13.7}
-
-    \node[hdr] at (\xS, 0.7) {Fuente (CSV)};
-    \node[hdr] at (\xB, 0.7) {Bronce};
-    \node[hdr] at (\xP, 0.7) {Plata};
-    \node[hdr] at (\xO, 0.7) {Oro};
-
-    % ── Características generales ──
-    \node[fuente] (src_cg)  at (\xS,-1.6) {Caract.\ Generales};
-    \node[bronce] (b_cg_n)  at (\xB,-1.0) {caract\_generales};
-    \node[bronce] (b_cg_c)  at (\xB,-1.6) {caract\_generales\_cabecera\_ma};
-    \node[bronce] (b_cg_r)  at (\xB,-2.2) {caract\_generales\_resto\_ma};
-    \node[plata]  (p_cg)    at (\xP,-1.6) {caract\_generales\_consolidado};
-
-    % ── Fuerza de trabajo ──
-    \node[fuente] (src_ft)  at (\xS,-3.7) {Fuerza de Trabajo};
-    \node[bronce] (b_ft_n)  at (\xB,-3.1) {fuerza\_trabajo};
-    \node[bronce] (b_ft_c)  at (\xB,-3.7) {fuerza\_trabajo\_cabecera\_ma};
-    \node[bronce] (b_ft_r)  at (\xB,-4.3) {fuerza\_trabajo\_resto\_ma};
-    \node[plata]  (p_ft)    at (\xP,-3.7) {fuerza\_trabajo\_consolidado};
-
-    % ── Inactivos (solo marco antiguo; alimenta fuerza\_trabajo) ──
-    \node[fuente] (src_in)  at (\xS,-5.5) {Inactivos};
-    \node[bronce] (b_in_c)  at (\xB,-5.2) {inactivos\_cabecera\_ma};
-    \node[bronce] (b_in_r)  at (\xB,-5.8) {inactivos\_resto\_ma};
-
-    % ── No ocupados ──
-    \node[fuente] (src_no)  at (\xS,-7.3) {No Ocupados};
-    \node[bronce] (b_no_n)  at (\xB,-6.7) {no\_ocupados};
-    \node[bronce] (b_no_c)  at (\xB,-7.3) {no\_ocupados\_cabecera\_ma};
-    \node[bronce] (b_no_r)  at (\xB,-7.9) {no\_ocupados\_resto\_ma};
-    \node[plata]  (p_no)    at (\xP,-7.3) {no\_ocupados\_consolidado};
-
-    % ── Ocupados ──
-    \node[fuente] (src_oc)  at (\xS,-9.4) {Ocupados};
-    \node[bronce] (b_oc_n)  at (\xB,-8.8) {ocupados};
-    \node[bronce] (b_oc_c)  at (\xB,-9.4) {ocupados\_cabecera\_ma};
-    \node[bronce] (b_oc_r)  at (\xB,-10.0) {ocupados\_resto\_ma};
-    \node[plata]  (p_oc)    at (\xP,-9.4) {ocupados\_consolidado};
-
-    % ── Factor de expansión ──
-    \node[fuente] (src_fx)  at (\xS,-11.2) {Factor Expansión};
-    \node[bronce] (b_fx)    at (\xB,-11.2) {dim\_fex};
-    \node[plata]  (p_fx)    at (\xP,-11.2) {dim\_fex};
-
-    % ── Oro + dimensión externa ──
-    \node[oro] (o_ml)  at (\xO,-6.4)  {mercado\_laboral};
-    \node[dim] (d_gdv) at (\xP,-12.6) {dim\_geih\_divipola};
-
-    % ════ Fuente → Bronce ════
-    \draw[arr] (src_cg) -- (b_cg_n);
-    \draw[arr] (src_cg) -- (b_cg_c);
-    \draw[arr] (src_cg) -- (b_cg_r);
-    \draw[arr] (src_ft) -- (b_ft_n);
-    \draw[arr] (src_ft) -- (b_ft_c);
-    \draw[arr] (src_ft) -- (b_ft_r);
-    \draw[arr] (src_in) -- (b_in_c);
-    \draw[arr] (src_in) -- (b_in_r);
-    \draw[arr] (src_no) -- (b_no_n);
-    \draw[arr] (src_no) -- (b_no_c);
-    \draw[arr] (src_no) -- (b_no_r);
-    \draw[arr] (src_oc) -- (b_oc_n);
-    \draw[arr] (src_oc) -- (b_oc_c);
-    \draw[arr] (src_oc) -- (b_oc_r);
-    \draw[arr] (src_fx) -- (b_fx);
-
-    % ════ Bronce → Plata ════
-    \draw[arr] (b_cg_n) -- (p_cg);
-    \draw[arr] (b_cg_c) -- (p_cg);
-    \draw[arr] (b_cg_r) -- (p_cg);
-    \draw[arr] (b_ft_n) -- (p_ft);
-    \draw[arr] (b_ft_c) -- (p_ft);
-    \draw[arr] (b_ft_r) -- (p_ft);
-    \draw[arr] (b_in_c) -- (p_ft);
-    \draw[arr] (b_in_r) -- (p_ft);
-    \draw[arr] (b_no_n) -- (p_no);
-    \draw[arr] (b_no_c) -- (p_no);
-    \draw[arr] (b_no_r) -- (p_no);
-    \draw[arr] (b_oc_n) -- (p_oc);
-    \draw[arr] (b_oc_c) -- (p_oc);
-    \draw[arr] (b_oc_r) -- (p_oc);
-    \draw[arr] (b_fx)   -- (p_fx);
-
-    % ════ Plata → Oro ════
-    \draw[arr] (p_cg) -- (o_ml);
-    \draw[arr] (p_ft) -- (o_ml);
-    \draw[arr] (p_no) -- (o_ml);
-    \draw[arr] (p_oc) -- (o_ml);
-    \draw[arr] (p_fx) -- (o_ml);
-    \draw[arrdim] (d_gdv) -- (o_ml);
-
-    \node[note] at (\xB, -13.0) {\textit{tesis.geih\_bronce}};
-    \node[note] at (\xP, -13.0) {\textit{tesis.geih\_plata} / \textit{tesis.dim}};
-    \node[note] at (\xO, -13.0) {\textit{tesis.geih\_oro}};
-
-    \end{tikzpicture}%
-    }% fin \resizebox
-    \shorthandon{>}
-    \caption{GEIH: linaje de tablas, de los archivos CSV de origen a la tabla de mercado laboral.}
-    \label{fig:linaje_geih}
-    \end{figure}
-
-    \small
-    \begin{longtable}{
-        >{\raggedright\arraybackslash\ttfamily\footnotesize}p{6.0cm}
-        >{\centering\arraybackslash}p{1.4cm}
-        >{\raggedright\arraybackslash\ttfamily\footnotesize}p{5.6cm}
-    }
-    \caption{Tablas GEIH por capa en Unity Catalog y, para la capa bronce, el volumen del que se
-    cargan. Las rutas son relativas a \texttt{/Volumes/tesis/geih\_bronce/}; las tablas plata y oro
-    se derivan de otras tablas y no de un volumen.}
-    \label{tab:tablas_geih_capa} \\
-    \toprule
-    \normalfont\textbf{Tabla} & \normalfont\textbf{Capa} & \normalfont\textbf{Volumen (ruta relativa)} \\
-    \midrule
-    \endfirsthead
-    \multicolumn{3}{c}{\tablename\ \thetable{} (continuación)} \\
-    \toprule
-    \normalfont\textbf{Tabla} & \normalfont\textbf{Capa} & \normalfont\textbf{Volumen (ruta relativa)} \\
-    \midrule
-    \endhead
-    \bottomrule
-    \endfoot
-    \bottomrule
-    \endlastfoot
-    caracteristicas\_\allowbreak generales & Bronce &
-        caracteristicas\_\allowbreak generales/\allowbreak marco\_\allowbreak nuevo/\allowbreak *.csv \\
-    caracteristicas\_\allowbreak generales\_\allowbreak area\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        caracteristicas\_\allowbreak generales/\allowbreak marco\_\allowbreak antiguo/\allowbreak area/\allowbreak *.csv \\
-    caracteristicas\_\allowbreak generales\_\allowbreak cabecera\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        caracteristicas\_\allowbreak generales/\allowbreak marco\_\allowbreak antiguo/\allowbreak cabecera/\allowbreak *.csv \\
-    caracteristicas\_\allowbreak generales\_\allowbreak resto\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        caracteristicas\_\allowbreak generales/\allowbreak marco\_\allowbreak antiguo/\allowbreak resto/\allowbreak *.csv \\
-    fuerza\_\allowbreak trabajo & Bronce &
-        fuerza\_\allowbreak de\_\allowbreak trabajo/\allowbreak marco\_\allowbreak nuevo/\allowbreak *.csv \\
-    fuerza\_\allowbreak trabajo\_\allowbreak area\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        fuerza\_\allowbreak de\_\allowbreak trabajo/\allowbreak marco\_\allowbreak antiguo/\allowbreak area/\allowbreak *.csv \\
-    fuerza\_\allowbreak trabajo\_\allowbreak cabecera\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        fuerza\_\allowbreak de\_\allowbreak trabajo/\allowbreak marco\_\allowbreak antiguo/\allowbreak cabecera/\allowbreak *.csv \\
-    fuerza\_\allowbreak trabajo\_\allowbreak resto\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        fuerza\_\allowbreak de\_\allowbreak trabajo/\allowbreak marco\_\allowbreak antiguo/\allowbreak resto/\allowbreak *.csv \\
-    inactivos\_\allowbreak area\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        inactivos/\allowbreak marco\_\allowbreak antiguo/\allowbreak area/\allowbreak *.csv \\
-    inactivos\_\allowbreak cabecera\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        inactivos/\allowbreak marco\_\allowbreak antiguo/\allowbreak cabecera/\allowbreak *.csv \\
-    inactivos\_\allowbreak resto\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        inactivos/\allowbreak marco\_\allowbreak antiguo/\allowbreak resto/\allowbreak *.csv \\
-    no\_\allowbreak ocupados & Bronce &
-        no\_\allowbreak ocupados/\allowbreak marco\_\allowbreak nuevo/\allowbreak *.csv \\
-    no\_\allowbreak ocupados\_\allowbreak area\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        no\_\allowbreak ocupados/\allowbreak marco\_\allowbreak antiguo/\allowbreak area/\allowbreak *.csv \\
-    no\_\allowbreak ocupados\_\allowbreak cabecera\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        no\_\allowbreak ocupados/\allowbreak marco\_\allowbreak antiguo/\allowbreak cabecera/\allowbreak *.csv \\
-    no\_\allowbreak ocupados\_\allowbreak resto\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        no\_\allowbreak ocupados/\allowbreak marco\_\allowbreak antiguo/\allowbreak resto/\allowbreak *.csv \\
-    ocupados & Bronce &
-        ocupados/\allowbreak marco\_\allowbreak nuevo/\allowbreak *.csv \\
-    ocupados\_\allowbreak area\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        ocupados/\allowbreak marco\_\allowbreak antiguo/\allowbreak area/\allowbreak *.csv \\
-    ocupados\_\allowbreak cabecera\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        ocupados/\allowbreak marco\_\allowbreak antiguo/\allowbreak cabecera/\allowbreak *.csv \\
-    ocupados\_\allowbreak resto\_\allowbreak marco\_\allowbreak antiguo & Bronce &
-        ocupados/\allowbreak marco\_\allowbreak antiguo/\allowbreak resto/\allowbreak *.csv \\
-    dim\_\allowbreak fex & Bronce & fex/\allowbreak *.csv \\
-    \addlinespace
-    caracteristicas\_\allowbreak generales\_\allowbreak consolidado & Plata & --- \\
-    fuerza\_\allowbreak trabajo\_\allowbreak consolidado & Plata & --- \\
-    no\_\allowbreak ocupados\_\allowbreak consolidado & Plata & --- \\
-    ocupados\_\allowbreak consolidado & Plata & --- \\
-    dim\_\allowbreak fex & Plata & --- \\
-    \addlinespace
-    mercado\_\allowbreak laboral & Oro & --- \\
-    \end{longtable}
+El apéndice reúne el material de apoyo que el cuerpo del documento cita: la reproducción del procesamiento, el linaje de las tablas, los nombres de las variables, el catálogo de covariables y las tablas y figuras complementarias de cada etapa de los Resultados.
 
 %--------------------------------------------------------------------------------------
-%--------------------------------------------------------------------------------------
-\section{Linaje de tablas TerriData}
-\label{sec:apendice-linaje-terridata}
+\section{Disponibilidad de datos y código, y reproducción}
+\label{app:reproducibilidad}
 
-    \begin{figure}[H]
-    \centering
-    \shorthandoff{>}
-    \begin{tikzpicture}[
-        every node/.style={font=\small},
-        fuente/.style={
-            rectangle, rounded corners=3pt,
-            draw=gray!70, fill=gray!12,
-            minimum width=3.2cm, minimum height=0.60cm,
-            text centered, align=center, font=\scriptsize
-        },
-        bronce/.style={
-            rectangle, rounded corners=3pt,
-            draw=brown!60, fill=brown!10,
-            minimum width=3.4cm, minimum height=0.60cm,
-            text centered, align=center, font=\small\ttfamily
-        },
-        plata/.style={
-            rectangle, rounded corners=3pt,
-            draw=gray!70, fill=gray!20,
-            minimum width=3.6cm, minimum height=0.60cm,
-            text centered, align=center, font=\small\ttfamily
-        },
-        externa/.style={
-            rectangle, rounded corners=3pt,
-            draw=purple!50, fill=purple!8,
-            minimum width=3.8cm, minimum height=0.60cm,
-            text centered, align=center, font=\small\ttfamily
-        },
-        arr/.style={->, >=stealth, thick, draw=black!55},
-        arrdim/.style={->, >=stealth, dashed, draw=purple!60},
-        hdr/.style={font=\normalsize\bfseries, text=black}
-    ]
+Esta sección indica dónde están los datos y el código y cómo se repite el procesamiento; la cita la Sección~\ref{sec:metodologia}.
 
-    \node[fuente]  (src)   at (0,-1)    {Parquet consolidado};
-    \node[bronce]  (bronc) at (4.2,-1)  {terridata\_bronce};
-    \node[plata]   (plata) at (8.6,-1)  {terridata\_extendido\_plata};
-    \node[externa] (dimi)  at (8.6,-2.6) {tesis.dim.dim\_indicadores};
+Incluye la Tabla~\ref{tab:app_jobs}.
 
-    \draw[arr]    (src)   -- (bronc);
-    \draw[arr]    (bronc) -- (plata);
-    \draw[arrdim] (plata) -- (dimi);
+Las cuatro fuentes son públicas: los microdatos de la GEIH y el anexo de mercado laboral se descargan del archivo nacional de datos del DANE, TerriData del portal del DNP y la DIVIPOLA del geoportal del DANE (Tabla~\ref{tab:fuentes_datos}). El código está en el repositorio \url{https://github.com/juanp001/Estimacion-desempleo-Colombia-SAE}. Todo corre en Databricks con tablas de Unity Catalog en el catálogo \texttt{tesis} y se despliega como un conjunto de trabajos programados (Tabla~\ref{tab:app_jobs}). Con el entorno configurado, el procesamiento completo se repite con el trabajo \texttt{pipeline\_completo}, que recibe el año y el mes de cierre y el número de meses de la ventana.
 
-    \end{tikzpicture}
-    \caption{TerriData: relación entre la fuente Parquet, la tabla bronce y la tabla plata
-             pivoteada. La flecha punteada indica la tabla dimensional que \texttt{terridata\_extendido\_plata}
-             genera en el esquema \texttt{tesis.dim}.}
-    \label{fig:linaje_terridata}
-    \end{figure}
-
-    \begin{table}[H]
-    \centering
-    \small
-    \begin{tabular}{>{\raggedright\arraybackslash\ttfamily}l >{\centering\arraybackslash}p{1.6cm}}
-    \toprule
-    \textbf{\normalfont Tabla} & \textbf{\normalfont Capa} \\
-    \midrule
-    terridata\_bronce & Bronce \\
-    terridata\_extendido\_plata & Plata \\
-    \bottomrule
-    \end{tabular}
-    \caption{Tablas del esquema \texttt{tesis.terridata}.}
-    \label{tab:tablas_terridata}
-    \end{table}
-
-%--------------------------------------------------------------------------------------
-\section{Linaje de tablas de dimensiones}
-\label{sec:apendice-linaje-dim}
-
-    \begin{figure}[H]
-    \centering
-    \shorthandoff{>}
-    \begin{tikzpicture}[
-        every node/.style={font=\small},
-        fuente/.style={
-            rectangle, rounded corners=3pt,
-            draw=gray!70, fill=gray!12,
-            minimum width=3.0cm, minimum height=0.60cm,
-            text centered, align=center, font=\scriptsize
-        },
-        dim/.style={
-            rectangle, rounded corners=3pt,
-            draw=purple!50, fill=purple!8,
-            minimum width=3.6cm, minimum height=0.60cm,
-            text centered, align=center, font=\small\ttfamily
-        },
-        externa/.style={
-            rectangle, rounded corners=3pt,
-            draw=brown!60, fill=brown!10,
-            text width=3.6cm, minimum height=0.60cm,
-            text centered, align=center, font=\scriptsize\ttfamily
-        },
-        arr/.style={->, >=stealth, thick, draw=black!55},
-        arrdim/.style={->, >=stealth, dashed, draw=purple!60}
-    ]
-
-    \node[fuente] (src)   at (0,-1)    {CSV DIVIPOLA};
-    \node[dim]    (divi)  at (3.7,-1)  {dim\_divipola};
-    \node[dim]    (gdivi) at (7.7,-1)  {dim\_geih\_divipola};
-
-    \node[externa] (tbron) at (0,-3.2)   {tesis.terridata.\\terridata\_bronce};
-    \node[dim]     (dind)  at (5.6,-3.2) {dim\_indicadores};
-
-    \draw[arr]    (src)  -- (divi);
-    \draw[arr]    (divi) -- (gdivi);
-    \draw[arrdim] (tbron) -- (dind);
-
-    \end{tikzpicture}
-    \caption{Dimensiones: \texttt{dim\_divipola} se construye desde el catálogo territorial en CSV y
-             \texttt{dim\_geih\_divipola} filtra sus 32 ciudades GEIH. \texttt{dim\_indicadores} es
-             generada externamente por la capa plata de TerriData (flecha punteada), no por un
-             notebook propio de este esquema.}
-    \label{fig:linaje_dim}
-    \end{figure}
-
-    \begin{table}[H]
-    \centering
-    \small
-    \begin{tabular}{>{\raggedright\arraybackslash\ttfamily}l}
-    \toprule
-    \textbf{\normalfont Tabla} \\
-    \midrule
-    dim\_divipola \\
-    dim\_geih\_divipola \\
-    dim\_indicadores \\
-    \bottomrule
-    \end{tabular}
-    \caption{Tablas del esquema \texttt{tesis.dim}.}
-    \label{tab:tablas_dim}
-    \end{table}
-
-%--------------------------------------------------------------------------------------
-\section{Linaje de tablas de preprocesamiento}
-\label{sec:apendice-linaje-preprocesamiento}
-
-    \begin{figure}[H]
-    \centering
-    \shorthandoff{>}
-    \resizebox{\linewidth}{!}{%
-    \begin{tikzpicture}[
-        every node/.style={font=\small},
-        plata/.style={
-            rectangle, rounded corners=3pt,
-            draw=gray!70, fill=gray!20,
-            text width=3.0cm, minimum height=0.60cm,
-            text centered, align=center, font=\scriptsize\ttfamily
-        },
-        externa/.style={
-            rectangle, rounded corners=3pt,
-            draw=purple!50, fill=purple!8,
-            text width=3.0cm, minimum height=0.60cm,
-            text centered, align=center, font=\scriptsize\ttfamily
-        },
-        arr/.style={->, >=stealth, thick, draw=black!55},
-        arrdim/.style={->, >=stealth, dashed, draw=purple!60}
-    ]
-
-    \node[plata]   (tdm)  at (0,-1)   {tasa\_\allowbreak desempleo\_\allowbreak municipal};
-    \node[plata]   (tdc)  at (4.0,-1) {tasa\_\allowbreak desempleo\_\allowbreak covariables};
-    \node[plata]   (cpf)  at (8.0,-1) {covariables\_\allowbreak prefiltradas};
-    \node[plata]   (cs)   at (12.0,-1) {covariables\_\allowbreak seleccionadas};
-
-    \node[externa] (ml)   at (0,-3.2)   {tesis.geih\_oro.\\mercado\_\allowbreak laboral};
-    \node[externa] (tdp)  at (4.0,-3.2) {tesis.terridata.\\terridata\_\allowbreak extendido\_\allowbreak plata};
-    \node[externa] (dind) at (8.0,-3.2) {tesis.dim.\\dim\_\allowbreak indicadores};
-
-    \draw[arr]    (tdm) -- (tdc);
-    \draw[arr]    (tdc) -- (cpf);
-    \draw[arr]    (cpf) -- (cs);
-    \draw[arrdim] (ml)   -- (tdm);
-    \draw[arrdim] (tdp)  -- (tdc);
-    \draw[arrdim] (dind) -- (cpf);
-
-    \end{tikzpicture}%
-    }% fin \resizebox
-    \caption{Preprocesamiento: de la tasa de desempleo municipal (estimador de Hájek sobre
-             \texttt{mercado\_laboral}) a las covariables seleccionadas por el análisis
-             exploratorio. Las flechas punteadas señalan tablas externas al esquema.}
-    \label{fig:linaje_preprocesamiento}
-    \end{figure}
-
-    \begin{table}[H]
-    \centering
-    \small
-    \begin{tabular}{>{\raggedright\arraybackslash\ttfamily}l}
-    \toprule
-    \textbf{\normalfont Tabla} \\
-    \midrule
-    tasa\_desempleo\_municipal \\
-    tasa\_desempleo\_covariables \\
-    covariables\_prefiltradas \\
-    covariables\_seleccionadas \\
-    \midrule
-    covariables\_prefiltradas\_rev \\
-    cascada\_prefiltrado\_rev \\
-    sensibilidad\_variabilidad\_rev \\
-    covariables\_candidatas\_rev \\
-    descriptivo\_univariado\_rev \\
-    descriptivo\_bivariado\_rev \\
-    diagnosticos\_covariables\_rev \\
-    robustez\_covariables\_rev \\
-    redundancia\_covariables\_rev \\
-    busqueda\_aic\_rev \\
-    verificacion\_seleccion\_rev \\
-    trazabilidad\_covariables\_rev \\
-    covariables\_seleccionadas\_rev \\
-    municipios\_sin\_encuesta\_rev \\
-    \bottomrule
-    \end{tabular}
-    \caption{Tablas del esquema \texttt{tesis.preprocesamiento}. Bajo la línea intermedia, las tablas con sufijo \texttt{\_rev} que produce el procedimiento revisado; las anteriores se conservan sin modificación para permitir la comparación entre ambos procedimientos.}
-    \label{tab:tablas_preprocesamiento}
-    \end{table}
-
-%--------------------------------------------------------------------------------------
-\section{Linaje de tablas del modelo}
-\label{sec:apendice-linaje-modelo}
-
-    \begin{figure}[H]
-    \centering
-    \shorthandoff{>}
-    \resizebox{\linewidth}{!}{%
-    \begin{tikzpicture}[
-        every node/.style={font=\small},
-        plata/.style={
-            rectangle, rounded corners=3pt,
-            draw=gray!70, fill=gray!20,
-            text width=3.4cm, minimum height=0.60cm,
-            text centered, align=center, font=\scriptsize\ttfamily
-        },
-        oro/.style={
-            rectangle, rounded corners=3pt,
-            draw=yellow!70!black, fill=yellow!15, line width=1pt,
-            text width=3.4cm, minimum height=0.70cm,
-            text centered, align=center, font=\scriptsize\ttfamily\bfseries
-        },
-        externa/.style={
-            rectangle, rounded corners=3pt,
-            draw=purple!50, fill=purple!8,
-            text width=3.4cm, minimum height=0.60cm,
-            text centered, align=center, font=\scriptsize\ttfamily
-        },
-        arr/.style={->, >=stealth, thick, draw=black!55},
-        arrdim/.style={->, >=stealth, dashed, draw=purple!60},
-        note/.style={font=\tiny\itshape, text=brown!70}
-    ]
-
-    \node[externa] (cs)  at (0,-1)     {tesis.preprocesamiento.\\covariables\_\allowbreak seleccionadas};
-    \node[plata]   (fhr) at (4.8,-1)   {fay\_\allowbreak herriot\_\allowbreak resultados};
-
-    \node[plata]   (mse) at (0,-3.4)   {municipios\_\allowbreak sin\_\allowbreak encuesta};
-    \node[plata]   (fhp) at (4.8,-3.4) {fay\_\allowbreak herriot\_\allowbreak prediccion\_\allowbreak sintetica};
-
-    \node[oro]     (fhe) at (9.6,-2.2) {fay\_\allowbreak herriot\_\allowbreak estimaciones\_\allowbreak finales};
-
-    \draw[arrdim] (cs)  -- (fhr);
-    \draw[arr]    (mse) -- (fhp);
-    \draw[arr]    (fhr) -- (fhp);
-    \draw[arr]    (fhr) -- (fhe);
-    \draw[arr]    (fhp) -- (fhe);
-
-    \node[note] at (0,-4.6) {\texttt{municipios\_sin\_encuesta} no tiene notebook propio en el repositorio.};
-
-    \end{tikzpicture}%
-    }% fin \resizebox
-    \caption{Modelo: del ajuste del Fay-Herriot ganador (\texttt{fay\_herriot\_resultados}) y la
-             predicción sintética para dominios sin encuesta a la tabla final consolidada. La
-             flecha punteada señala la tabla externa de entrada. Se excluyen del análisis
-             \texttt{cargas\_pca\_ganadoras\_opcion\_a} y
-             \texttt{cargas\_pca\_ganadoras\_opcion\_b\_hibrida}.}
-    \label{fig:linaje_modelo}
-    \end{figure}
-
-    \begin{table}[H]
-    \centering
-    \small
-    \begin{tabular}{>{\raggedright\arraybackslash\ttfamily}l}
-    \toprule
-    \textbf{\normalfont Tabla} \\
-    \midrule
-    municipios\_sin\_encuesta \\
-    fay\_herriot\_resultados \\
-    fay\_herriot\_prediccion\_sintetica \\
-    fay\_herriot\_estimaciones\_finales \\
-    \midrule
-    fh\_diagnosticos\_variantes\_rev \\
-    fh\_seleccion\_modelo\_rev \\
-    fh\_coeficientes\_rev \\
-    fay\_herriot\_resultados\_rev \\
-    fay\_herriot\_prediccion\_sintetica\_rev \\
-    fay\_herriot\_estimaciones\_finales\_rev \\
-    \bottomrule
-    \end{tabular}
-    \caption{Tablas del esquema \texttt{tesis.modelo}. Bajo la línea intermedia, las tablas con sufijo \texttt{\_rev} que produce el procedimiento revisado; las anteriores se conservan sin modificación para permitir la comparación entre ambos procedimientos.}
-    \label{tab:tablas_modelo}
-    \end{table}
-
-
-%--------------------------------------------------------------------------------------
-\section{Estimaciones sintéticas por municipio}
-\label{sec:apendice-sinteticas}
-
-    La Tabla~\ref{tab:prediccion_sintetica} reporta, municipio por municipio, las estimaciones sintéticas del modelo elegido M2 para los 82 municipios del Cauca y del Valle del Cauca sin cobertura muestral de la GEIH, obtenidas según la Sección~\ref{sec:met_sintetico}. Su resumen por departamento se presenta en la Tabla~\ref{tab:resumen_sintetico}: ninguna estimación es confiable, 40 son aceptables y 42 no confiables, y 76 llevan la marca de extrapolación.
-
+\begin{table}[!htbp]
+\centering
 \small
-\begin{longtable}{p{3.4cm} r r r l c}
-\caption{Estimación sintética de la tasa de desempleo para los 82 municipios sin cobertura
-muestral de la GEIH, obtenida con el modelo M2. Estimación: $\mathbf{x}_d^\top\hat{\boldsymbol{\beta}}$
-en porcentaje; RMSE: raíz del error cuadrático medio de la Ecuación~\ref{eq:var_sintetica}, en
-puntos porcentuales; CV: coeficiente de variación en porcentaje. La confiabilidad aplica los
-umbrales de la Tabla~\ref{tab:criterios_decision}: confiable por debajo del 5\%, aceptable entre el
-5\% y el 20\% y no confiable a partir del 20\%. Extrapola: marca de la
-Ecuación~\ref{eq:extrapolacion}. Los municipios se agrupan por departamento.}
-\label{tab:prediccion_sintetica} \\
+\caption{Trabajos programados del procesamiento y etapas de la metodología que cubren. La sensibilidad a la ventana temporal (etapa 5) se ejecuta aparte.}
+\label{tab:app_jobs}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{l p{8.6cm} l}
 \toprule
-\textbf{Municipio} & \textbf{Estimación} & \textbf{RMSE} & \textbf{CV} & \textbf{Confiabilidad} & \textbf{Extrapola} \\
+Trabajo & Tareas & Etapas \\
+\midrule
+dimensiones & Tabla de la DIVIPOLA; dominios de la GEIH y sus municipios; capitales con coordenadas & 4 \\
+ingesta\_geih & Capas bronce, plata y oro de la GEIH; cifras publicadas por el DANE & 1, 2 \\
+ingesta\_terridata & Capas bronce y plata de TerriData; diccionario de indicadores & 1, 2 \\
+preprocesamiento & Estimación directa; covariables por dominio y auditoría; pre-filtrado; municipios objetivo & 5 a 7 \\
+analisis & Análisis descriptivo; selección de covariables & 8, 9 \\
+modelo & Fay-Herriot clásico; Fay-Herriot espacial; sensibilidad a la varianza & 10 a 16 \\
+pipeline\_completo & Ejecuta los seis trabajos anteriores en orden & 1 a 16 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+%--------------------------------------------------------------------------------------
+\section{Linaje de tablas}
+\label{app:linaje}
+
+Esta sección relaciona cada tabla del procesamiento con el cuaderno que la escribe y la etapa de la metodología; la citan las Secciones~\ref{sec:metodologia} y~\ref{sec:resultados}.
+
+Incluye la Tabla~\ref{tab:app_linaje}.
+
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{p{2.8cm} p{3.6cm} p{4.8cm} p{1.2cm}}
+\caption{Linaje de las tablas del catálogo de Unity Catalog del trabajo, de la ingesta a la tabla final.}
+\label{tab:app_linaje} \\
+\toprule
+Esquema & Contenido & Cuaderno & Etapa \\
 \midrule
 \endfirsthead
-\multicolumn{6}{c}{\tablename\ \thetable{} (continuación)} \\
+\multicolumn{4}{l}{\tablename~\thetable{}, continuación} \\
 \toprule
-\textbf{Municipio} & \textbf{Estimación} & \textbf{RMSE} & \textbf{CV} & \textbf{Confiabilidad} & \textbf{Extrapola} \\
+Esquema & Contenido & Cuaderno & Etapa \\
 \midrule
 \endhead
 \bottomrule
-\endfoot
+\endlastfoot
+\texttt{geih\_bronce} & Un archivo por módulo y sección (cabecera y resto del marco antiguo; un archivo por módulo en el marco nuevo) y el factor de expansión recalculado & \texttt{geih\_bronce} & 1 \\
+\texttt{geih\_bronce} & Cifras publicadas: nacionales, por ciudad (trimestre móvil) y anuales & \texttt{datos\_publicados} & 1 \\
+\texttt{geih\_plata} & Un módulo consolidado por tabla (características generales, fuerza de trabajo, ocupados, no ocupados) y factores de expansión & \texttt{geih\_plata} & 2 \\
+\texttt{geih\_oro} & Mercado laboral (una fila por persona); llaves sin pareja; reconciliación de la fuerza de trabajo & \texttt{geih\_oro} & 2 \\
+\texttt{terridata} & Indicadores en formato largo (bronce) y ancho (plata) & \texttt{terridata\_bronce, terridata\_plata} & 1, 2 \\
+\texttt{dim} & DIVIPOLA; dominios de la GEIH; capitales con coordenadas; diccionario de indicadores & \texttt{dim\_divipola, dim\_dominio\_geih, dim\_geih\_divipola, terridata\_plata} & 1, 4 \\
+\texttt{preprocesamiento} & Tasa directa por dominio; sensibilidad de la ventana & \texttt{estimacion\_directa, sensibilidad\_ventana\_temporal} & 5 \\
+\texttt{preprocesamiento} & Tasa con covariables; reglas de agregación; auditoría de dominios & \texttt{adicion\_covariables} & 4, 6 \\
+\texttt{preprocesamiento} & Covariables pre-filtradas; cascada; sensibilidad de la variabilidad; municipios objetivo & \texttt{pre\_filtrado\_covariables, dominios\_sin\_encuesta} & 6, 7 \\
+\texttt{preprocesamiento} & Catálogo; descriptivo univariado y bivariado & \texttt{analisis\_descriptivo} & 8 \\
+\texttt{preprocesamiento} & Diagnósticos, soporte, redundancia, decisión, verificación, trazabilidad y conjunto seleccionado & \texttt{eda\_seleccion\_covariables} & 9 \\
+\texttt{modelo} & Especificaciones, coeficientes, Cook, estabilidad, validación, extrapolación, EBLUP, estimación sintética y tabla final & \texttt{fay\_herriot} & 10 a 12, 14, 15 \\
+\texttt{modelo} & Comparación espacial, Moran, perfil de $\rho$, validación, coeficientes, sensibilidades y estimación de los municipios & \texttt{fay\_herriot\_espacial} & 13, 14, 16 \\
+\texttt{modelo} & Varianzas alternativas, GVF y escenarios & \texttt{sensibilidad\_varianza} & 11 \\
+\end{longtable}
+}
+El catálogo tiene 88 tablas escritas por el código vigente, repartidas así: dim, 4; geih\_bronce, 18; geih\_oro, 3; geih\_plata, 5; modelo, 35; preprocesamiento, 21; terridata, 2. Quedan además en el catálogo tablas de versiones anteriores que ningún cuaderno vigente lee ni escribe: las del censo, las de la sección de área del marco antiguo, una lista de candidatas y una tabla de robustez de covariables, y una dimensión de tiempo.
+
+%--------------------------------------------------------------------------------------
+\section{Nombres de las variables}
+\label{app:variables}
+
+Esta sección relaciona el nombre que usa el texto con el código de TerriData o la columna del procesamiento; la citan las Secciones~\ref{sec:datos} y~\ref{sec:resultados}.
+
+Incluye la Tabla~\ref{tab:app_variables}.
+
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{p{3.5cm} p{3.5cm} p{5.7cm}}
+\caption{Nombres de las variables. Arriba, las 18 covariables candidatas con su código de TerriData; abajo, las columnas del procesamiento que el texto nombra en lenguaje natural.}
+\label{tab:app_variables} \\
+\toprule
+Nombre en el documento & Código o columna & Descripción \\
+\midrule
+\endfirsthead
+\multicolumn{3}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Nombre en el documento & Código o columna & Descripción \\
+\midrule
+\endhead
 \bottomrule
 \endlastfoot
-\multicolumn{6}{l}{\textbf{Cauca}} \\
-Almaguer & 21.04 & 3.46 & 16.43 & Aceptable & Sí \\
-Argelia & 18.02 & 2.84 & 15.78 & Aceptable & Sí \\
-Balboa & 23.50 & 4.73 & 20.14 & No confiable & Sí \\
-Bolívar & 18.79 & 3.08 & 16.41 & Aceptable & Sí \\
-Buenos Aires & 27.59 & 6.58 & 23.86 & No confiable & Sí \\
-Cajibío & 23.26 & 4.26 & 18.33 & Aceptable & Sí \\
-Caldono & 23.29 & 4.85 & 20.84 & No confiable & Sí \\
-Caloto & 14.88 & 2.57 & 17.24 & Aceptable & Sí \\
-Corinto & 18.97 & 4.31 & 22.72 & No confiable & Sí \\
-El Tambo & 29.87 & 8.37 & 28.03 & No confiable & Sí \\
-Florencia & 18.55 & 4.33 & 23.31 & No confiable & Sí \\
-Guachené & 24.35 & 6.01 & 24.67 & No confiable & Sí \\
-Guapi & 20.34 & 3.84 & 18.87 & Aceptable & Sí \\
-Inzá & 21.10 & 4.25 & 20.12 & No confiable & Sí \\
-Jambaló & 17.63 & 2.76 & 15.64 & Aceptable & Sí \\
-La Sierra & 23.64 & 5.07 & 21.43 & No confiable & Sí \\
-La Vega & 24.31 & 4.25 & 17.48 & Aceptable & Sí \\
-López & 31.54 & 6.44 & 20.42 & No confiable & Sí \\
-Mercaderes & 21.42 & 3.56 & 16.63 & Aceptable & Sí \\
-Miranda & 14.31 & 2.37 & 16.57 & Aceptable & No \\
-Morales & 24.08 & 4.77 & 19.80 & Aceptable & Sí \\
-Padilla & 25.12 & 6.84 & 27.22 & No confiable & Sí \\
-Paéz & 25.89 & 4.79 & 18.50 & Aceptable & Sí \\
-Patía & 18.68 & 3.19 & 17.09 & Aceptable & Sí \\
-Piamonte & 36.01 & 10.66 & 29.60 & No confiable & Sí \\
-Piendamó & 18.84 & 3.68 & 19.53 & Aceptable & Sí \\
-Puerto Tejada & 13.77 & 2.61 & 18.96 & Aceptable & Sí \\
-Puracé & 23.72 & 4.56 & 19.23 & Aceptable & Sí \\
-Rosas & 20.54 & 3.83 & 18.67 & Aceptable & Sí \\
-San Sebastián & 21.54 & 3.60 & 16.70 & Aceptable & Sí \\
-Santa Rosa & 21.01 & 3.50 & 16.65 & Aceptable & Sí \\
-Santander de Quilichao & 17.54 & 3.21 & 18.28 & Aceptable & Sí \\
-Silvia & 18.27 & 3.00 & 16.41 & Aceptable & Sí \\
-Sotará & 22.58 & 4.31 & 19.08 & Aceptable & Sí \\
-Suárez & 23.72 & 4.29 & 18.07 & Aceptable & Sí \\
-Sucre & 27.60 & 5.39 & 19.54 & Aceptable & Sí \\
-Timbío & 20.83 & 4.23 & 20.31 & No confiable & Sí \\
-Timbiquí & 27.82 & 5.13 & 18.43 & Aceptable & Sí \\
-Toribío & 17.93 & 2.79 & 15.55 & Aceptable & Sí \\
-Totoró & 23.83 & 4.19 & 17.57 & Aceptable & Sí \\
-Villa Rica & 19.87 & 3.69 & 18.59 & Aceptable & Sí \\
+Penetración de banda ancha & 030010003 & Penetración de banda ancha; Porcentaje (el valor está multiplicado por 100) \\
+Cobertura de acueducto & 030010004 & Cobertura de acueducto (Censo); Porcentaje (el valor está multiplicado por 100) \\
+Cobertura neta en educación media & 040010010 & Cobertura neta en educación media; Porcentaje (el valor está multiplicado por 100) \\
+Cobertura neta en educación secundaria & 040010009 & Cobertura neta en educación secundaria; Porcentaje (el valor está multiplicado por 100) \\
+Densidad de población & 010010010 & Densidad poblacional; Hab/Km2 \\
+Índice de desempeño fiscal & 070100007 & Indicador de desempeño fiscal; Puntos \\
+Índice de pobreza multidimensional & 140010004 & Índice de pobreza multidimensional - IPM; Porcentaje (el valor está multiplicado por 100) \\
+Ingresos tributarios per cápita & 070010020 & Ingresos tributarios per cápita; Pesos corrientes \\
+Población joven de 14 a 28 años & 020090021 & Porcentaje de población de jóvenes entre 14 y 28 años; Porcentaje \\
+Población urbana & 020040003 & Porcentaje población urbana; Porcentaje (el valor está multiplicado por 100) \\
+Saber 11, lectura crítica & 040040002 & Puntaje promedio Pruebas Saber 11 - Lectura crítica; Puntos \\
+Saber 11, matemáticas & 040040001 & Puntaje promedio Pruebas Saber 11 - Matemáticas; Puntos \\
+Tasa de homicidios & 060010003 & Tasa de homicidios por cada 100.000 habitantes; Tasa por cada 100.000 habitantes \\
+Tránsito a la educación superior & 040010028 & Tasa de tránsito inmediato a la educación superior; Porcentaje \\
+Valor agregado per cápita & 120210002 & Valor agregado per cápita; Pesos corrientes \\
+Valor agregado de actividades primarias & 120210008 & Porcentaje del valor agregado por actividades económicas - Actividades primarias; Porcentaje \\
+Valor agregado de actividades secundarias & 120210009 & Porcentaje del valor agregado por actividades económicas - Actividades secundarias; Porcentaje \\
+Valor agregado de actividades terciarias & 120210010 & Porcentaje del valor agregado por actividades económicas - Actividades terciarias; Porcentaje \\
 \midrule
-\multicolumn{6}{l}{\textbf{Valle del Cauca}} \\
-Alcalá & 25.83 & 6.16 & 23.84 & No confiable & Sí \\
-Andalucía & 24.17 & 5.79 & 23.94 & No confiable & Sí \\
-Ansermanuevo & 27.44 & 7.33 & 26.73 & No confiable & Sí \\
-Argelia & 29.36 & 8.49 & 28.93 & No confiable & Sí \\
-Bolívar & 27.38 & 7.62 & 27.85 & No confiable & Sí \\
-Buenaventura & 16.48 & 2.85 & 17.27 & Aceptable & Sí \\
-Bugalagrande & 17.55 & 2.98 & 17.00 & Aceptable & Sí \\
-Caicedonia & 27.82 & 7.73 & 27.79 & No confiable & Sí \\
-Calima & 13.85 & 2.23 & 16.13 & Aceptable & No \\
-Candelaria & 17.99 & 3.53 & 19.63 & Aceptable & Sí \\
-Cartago & 14.21 & 2.40 & 16.86 & Aceptable & No \\
-Dagua & 26.44 & 6.56 & 24.80 & No confiable & Sí \\
-El Águila & 27.56 & 7.32 & 26.55 & No confiable & Sí \\
-El Cairo & 30.30 & 8.76 & 28.92 & No confiable & Sí \\
-El Cerrito & 17.47 & 3.67 & 21.00 & No confiable & Sí \\
-El Dovio & 26.64 & 6.72 & 25.22 & No confiable & Sí \\
-Florida & 17.77 & 3.68 & 20.70 & No confiable & Sí \\
-Ginebra & 17.68 & 4.80 & 27.18 & No confiable & Sí \\
-Guacarí & 24.21 & 6.23 & 25.73 & No confiable & Sí \\
-Guadalajara de Buga & 13.42 & 2.34 & 17.46 & Aceptable & No \\
-Jamundí & 16.74 & 3.04 & 18.15 & Aceptable & Sí \\
-La Cumbre & 24.28 & 6.36 & 26.21 & No confiable & Sí \\
-La Unión & 20.72 & 4.88 & 23.54 & No confiable & Sí \\
-La Victoria & 20.50 & 5.75 & 28.02 & No confiable & Sí \\
-Obando & 32.76 & 9.45 & 28.85 & No confiable & Sí \\
-Palmira & 15.04 & 2.71 & 18.00 & Aceptable & Sí \\
-Pradera & 19.62 & 3.87 & 19.74 & Aceptable & Sí \\
-Restrepo & 26.40 & 9.07 & 34.35 & No confiable & Sí \\
-Riofrío & 25.32 & 7.04 & 27.80 & No confiable & Sí \\
-Roldanillo & 18.54 & 4.53 & 24.44 & No confiable & Sí \\
-San Pedro & 32.38 & 10.84 & 33.48 & No confiable & Sí \\
-Sevilla & 24.41 & 6.20 & 25.40 & No confiable & Sí \\
-Toro & 23.76 & 5.56 & 23.42 & No confiable & Sí \\
-Trujillo & 26.84 & 7.04 & 26.25 & No confiable & Sí \\
-Tuluá & 13.80 & 2.37 & 17.17 & Aceptable & No \\
-Ulloa & 26.91 & 6.85 & 25.44 & No confiable & Sí \\
-Versalles & 23.34 & 5.02 & 21.53 & No confiable & Sí \\
-Vijes & 27.97 & 8.30 & 29.66 & No confiable & Sí \\
-Yotoco & 23.68 & 6.03 & 25.46 & No confiable & Sí \\
-Yumbo & 10.60 & 2.10 & 19.78 & Aceptable & No \\
-Zarzal & 15.46 & 2.61 & 16.91 & Aceptable & Sí \\
+Tasa de desempleo directa & \texttt{TASA\_DESEMPLEO\_PCT} & Estimador de Hájek de la tasa de desempleo del dominio, en \% \\
+Error estándar bootstrap & \texttt{SE\_BOOTSTRAP\_PCT} & Desviación de 2,000 réplicas por viviendas, en puntos porcentuales; $\psi_d$ es su cuadrado \\
+Error estándar de Taylor & \texttt{SE\_TAYLOR\_PCT} & Linealización de la razón con las mismas viviendas \\
+Factor de expansión & \texttt{FEX\_C18} & Peso de la persona calibrado con el CNPV 2018 \\
+Vivienda & \texttt{ID\_VIVIENDA} & Período más directorio; conglomerado del bootstrap \\
+Código de área & \texttt{AREA} & Departamento de la ciudad del dominio en la GEIH \\
+Dominio & \texttt{CODIGO\_DOMINIO} & DIVIPOLA de la capital del dominio \\
+PEA expandida & \texttt{PEA\_EXPANDIDA} & Suma de factores de la PEA dividida por los meses; peso del benchmarking de nivel 1 \\
+Peso de la directa & \texttt{GAMMA\_SHRINKAGE} & $\hat{\gamma}_d$ del EBLUP \\
+EBLUP y su ECM & \texttt{EBLUP, MSE\_EBLUP} & Estimación del Fay-Herriot clásico y su ECM de Prasad-Rao \\
+Estimación sintética & \texttt{PRED\_SINTETICO} & $\mathbf{x}^\top\hat{\boldsymbol{\beta}}$ en un municipio objetivo \\
+Estimación espacial & \texttt{PRED\_ESPACIAL} & Predictor espacial del escenario de referencia \\
+Estado de extrapolación & \texttt{ESTADO\_EXTRAPOLACION} & Dentro del rango, fuera del rango o combinación atípica \\
+Calidad reportada & \texttt{CALIDAD\_REPORTADA} & Clase de CV más «condicional al modelo» y «extrapolado» si corresponde \\
 \end{longtable}
-\normalsize
+}
+%--------------------------------------------------------------------------------------
+\section{Catálogo de covariables}
+\label{app:catalogo}
+
+Esta sección lista las entradas del catálogo de literatura con su código, el signo esperado y la referencia que las respalda; la citan las Secciones~\ref{sec:datos}, \ref{sec:met_covariables} y~\ref{sec:res_covariables}.
+
+Incluye la Tabla~\ref{tab:app_catalogo}.
+
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{p{2.8cm} p{1.5cm} p{2.0cm} p{0.8cm} p{4.6cm}}
+\caption{Catálogo de literatura: 18 entradas activas y 6 sin dato utilizable o retiradas. Signo: relación esperada con la tasa de desempleo ($\pm$: sin signo definido).}
+\label{tab:app_catalogo} \\
+\toprule
+Covariable & Código & Dimensión & Signo & Referencia o motivo \\
+\midrule
+\endfirsthead
+\multicolumn{5}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Covariable & Código & Dimensión & Signo & Referencia o motivo \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Cobertura neta en educación media & 040010010 & Educación & $-$ & Castillo-Robayo, C. D.; García-Estévez, J. (2019). «Desempleo juvenil en Colombia: ¿la educación importa?», Revista Finanzas y Política Económica, 11(1), 101-127. DOI: 10.14718/revfinanzpolitecon.2019.11.1.7 \\
+Cobertura neta en educación secundaria & 040010009 & Educación & $-$ & Castillo-Robayo, C. D.; García-Estévez, J. (2019). «Desempleo juvenil en Colombia: ¿la educación importa?», Revista Finanzas y Política Económica, 11(1), 101-127. \\
+Saber 11, matemáticas & 040040001 & Educación & $-$ & Castillo-Robayo, C. D.; García-Estévez, J. (2019). Revista Finanzas y Política Económica, 11(1), 101-127. \\
+Saber 11, lectura crítica & 040040002 & Educación & $-$ & Castillo-Robayo, C. D.; García-Estévez, J. (2019). Revista Finanzas y Política Económica, 11(1), 101-127. \\
+Tránsito a la educación superior & 040010028 & Educación & $-$ & Castillo-Robayo, C. D.; García-Estévez, J. (2019). Revista Finanzas y Política Económica, 11(1), 101-127 (mecanismo de capital humano). Conservada por decisión del equipo del proyecto. \\
+Valor agregado per cápita & 120210002 & Economía & $-$ & Ramírez et al. (2021). «Determinantes económicos y sociales del desempleo y del empleo vulnerable», Redalyc (revista 4315), tabla 2. \\
+Valor agregado de actividades primarias & 120210008 & Economía & $\pm$ & Grupo de análisis del mercado laboral (2016). Reportes del Emisor No. 211, Banco de la República; Bonet, J. (2005). «Cambio estructural regional en Colombia», DTSERU No. 62. \\
+Valor agregado de actividades secundarias & 120210009 & Economía & $\pm$ & Grupo de análisis del mercado laboral (2016). Reportes del Emisor No. 211, Banco de la República; Bonet, J. (2005). DTSERU No. 62. \\
+Valor agregado de actividades terciarias & 120210010 & Economía & $\pm$ & Grupo de análisis del mercado laboral (2016). Reportes del Emisor No. 211, Banco de la República; Bonet, J. (2005). DTSERU No. 62. \\
+Índice de pobreza multidimensional & 140010004 & Pobreza & $+$ & DANE (2018). Medida de Pobreza Multidimensional Municipal de fuente censal 2018. \\
+Población urbana & 020040003 & Demografía y población & $+$ & DANE, Atlas estadístico (Tomo II Social), «7.4. Tasa de desempleo (TD)». \\
+Densidad de población & 010010010 & Demografía y población & $\pm$ & DNP. «Orientaciones para realizar la Medición del Desempeño de las Entidades Territoriales» (EI-G01), sección 1.4.2. \\
+Población joven de 14 a 28 años & 020090021 & Demografía y población & $+$ & Tamayo, J. A. (2008). «La tasa natural de desempleo en Colombia y sus determinantes», Borradores de Economía No. 491, Banco de la República. DOI: 10.32468/be.491 \\
+Índice de desempeño fiscal & 070100007 & Finanzas públicas & $-$ & DNP (2023). «Índice de desempeño fiscal (IDF) municipal 2023 y fortalecimiento de las finanzas territoriales». \\
+Ingresos tributarios per cápita & 070010020 & Finanzas públicas & $-$ & Fundación Felipe González (2020). «Empleo público de emergencia en municipios y departamentos» (con datos de TerriData-DNP). \\
+Tasa de homicidios & 060010003 & Conflicto armado y seguridad ciudadana & $+$ & Estudio de determinantes sociales, ambiente urbano y seguridad, Santiago de Cali 2015-2024, Revista Panamericana de Salud Pública (2024). \\
+Cobertura de acueducto & 030010004 & Vivienda y acceso a servicios públicos & $-$ & DNP (2019). Cartilla 1 «Conceptos básicos para un mejor uso de TerriData», dimensión Vivienda y Acceso a Servicios Públicos. \\
+Penetración de banda ancha & 030010003 & Vivienda y acceso a servicios públicos & $-$ & DNP (2019). Cartilla 1 «Conceptos básicos para un mejor uso de TerriData», dimensión Vivienda y Acceso a Servicios Públicos. \\
+\midrule
+\multicolumn{5}{l}{Entradas sin dato utilizable o retiradas} \\
+Tasa de Analfabetismo (Censo) & 040030003 & Educación & no aplica & Sin dato en los dominios con encuesta para 2018 \\
+Número de empresas generadoras de empleo formal por cada 10.000 habitantes & 160080001 & Economía & no aplica & La serie termina en 2016 \\
+Incidencia de la pobreza monetaria - Actualización metodológica & 140060001 & Pobreza & no aplica & Solo departamentos y 23 ciudades; no existe en los municipios objetivo \\
+Coeficiente de Gini & 140010003 & Pobreza & no aplica & Solo departamental \\
+Víctimas de Desplazamiento Forzado ubicadas & 260030002 & Conflicto armado y seguridad ciudadana & no aplica & Solo 2022 y 2023 \\
+Índice de Incidencia del Conflicto Armado - IICA & 260020003 & Conflicto armado y seguridad ciudadana & no aplica & Retirado: mide el conflicto en el propio municipio y no la llegada de población desplazada; $r = 0.92$ con la tasa de homicidios en los dominios; 13 valores distintos \\
+\end{longtable}
+}
+%--------------------------------------------------------------------------------------
+\section{Auditoría de los dominios}
+\label{app:auditoria}
+
+Esta sección detalla, por dominio, la correspondencia entre la geografía de la GEIH y la de las covariables; la cita la Sección~\ref{sec:res_dominios}.
+
+Incluye la Tabla~\ref{tab:app_auditoria}.
+
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{p{2.0cm} p{1.0cm} p{1.7cm} p{2.3cm} p{1.9cm} r r}
+\caption{Auditoría de los 23 dominios, Ene-Dic 2018. Área: código de área de la GEIH; DIVIPOLA: código de la capital; Covariables: valor municipal o razón de totales con el denominador propio (Ecuación~\ref{eq:agregacion}); TD en \%. La tasa describe las cabeceras y las covariables el municipio completo.}
+\label{tab:app_auditoria} \\
+\toprule
+Dominio & Área & DIVIPOLA & Municipios & Covariables & TD & TD DANE \\
+\midrule
+\endfirsthead
+\multicolumn{7}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Dominio & Área & DIVIPOLA & Municipios & Covariables & TD & TD DANE \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Armenia & 63 & 63001 & Armenia & Valor municipal & 15.49 & 15.49 \\
+Barranquilla A.M. & 08 & 08001 & Barranquilla, Soledad & Razón de totales & 8.15 & 8.15 \\
+Bogotá & 11 & 11001 & Bogotá, D.C. & Valor municipal & 10.37 & 10.37 \\
+Bucaramanga A.M. & 68 & 68001 & Bucaramanga, Floridablanca, Girón, Piedecuesta & Razón de totales & 8.74 & 8.74 \\
+Cali A.M. & 76 & 76001 & Santiago De Cali, Yumbo & Razón de totales & 11.65 & 11.65 \\
+Cartagena & 13 & 13001 & Cartagena De Indias & Valor municipal & 8.35 & 8.35 \\
+Cúcuta A.M. & 54 & 54001 & San José De Cúcuta, El Zulia, Los Patios, Villa Del Rosario & Razón de totales & 15.98 & 15.98 \\
+Florencia & 18 & 18001 & Florencia & Valor municipal & 12.94 & 12.94 \\
+Ibagué & 73 & 73001 & Ibagué & Valor municipal & 13.99 & 13.99 \\
+Manizales A.M. & 17 & 17001 & Manizales, Villamaría & Razón de totales & 11.24 & 11.24 \\
+Medellín A.M. & 05 & 05001 & Medellín, Barbosa, Bello, Caldas, Copacabana, Envigado, Girardota, Itagüí, La Estrella, Sabaneta & Razón de totales & 11.84 & 11.84 \\
+Montería & 23 & 23001 & Montería & Valor municipal & 9.47 & 9.47 \\
+Neiva & 41 & 41001 & Neiva & Valor municipal & 11.53 & 11.53 \\
+Pasto & 52 & 52001 & Pasto & Valor municipal & 8.82 & 8.82 \\
+Pereira A.M. & 66 & 66001 & Pereira, Dosquebradas, La Virginia & Razón de totales & 8.87 & 8.87 \\
+Popayán & 19 & 19001 & Popayán & Valor municipal & 10.68 & 10.68 \\
+Quibdó & 27 & 27001 & Quibdó & Valor municipal & 17.81 & 17.81 \\
+Riohacha & 44 & 44001 & Riohacha & Valor municipal & 13.88 & 13.88 \\
+Santa Marta & 47 & 47001 & Santa Marta & Valor municipal & 8.32 & 8.32 \\
+Sincelejo & 70 & 70001 & Sincelejo & Valor municipal & 9.61 & 9.61 \\
+Tunja & 15 & 15001 & Tunja & Valor municipal & 11.31 & 11.31 \\
+Valledupar & 20 & 20001 & Valledupar & Valor municipal & 14.45 & 14.45 \\
+Villavicencio & 50 & 50001 & Villavicencio & Valor municipal & 11.87 & 11.87 \\
+\end{longtable}
+}
+%--------------------------------------------------------------------------------------
+\section{Análisis descriptivo de las candidatas}
+\label{app:descriptivo}
+
+Esta sección reúne la estadística univariada de las 18 candidatas y las figuras del análisis descriptivo; la cita la Sección~\ref{sec:res_descriptivo}.
+
+Incluye la Tabla~\ref{tab:app_univariado}, la Figura~\ref{fig:app_territorial}, la Figura~\ref{fig:app_boxplots}, la Figura~\ref{fig:app_dispersion} y la Figura~\ref{fig:app_correlacion}.
+
+{\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{longtable}{p{2.8cm} r r r r r r r r}
+\caption{Estadística univariada de las candidatas en los 23 dominios. DE: desviación estándar; CV en \%; Asim.: asimetría; Ext.: valores señalados por la regla del diagrama de caja (Ecuación~\ref{eq:iqr}).}
+\label{tab:app_univariado} \\
+\toprule
+Covariable & Media & Mediana & DE & Mín. & Máx. & CV & Asim. & Ext. \\
+\midrule
+\endfirsthead
+\multicolumn{9}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Covariable & Media & Mediana & DE & Mín. & Máx. & CV & Asim. & Ext. \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Cobertura neta en educación media & 48.32 & 48.10 & 5.63 & 33.80 & 57.01 & 11.65 & $-0.76$ & 1 \\
+Cobertura neta en educación secundaria & 83.79 & 84.43 & 6.18 & 75.17 & 98.36 & 7.38 & 0.59 & 0 \\
+Saber 11, matemáticas & 51.56 & 52.04 & 3.21 & 43.64 & 57.49 & 6.23 & $-0.65$ & 2 \\
+Saber 11, lectura crítica & 53.87 & 54.43 & 2.33 & 47.89 & 57.67 & 4.33 & $-1.00$ & 2 \\
+Tránsito a la educación superior & 46.16 & 46.22 & 7.30 & 30.48 & 61.48 & 15.82 & $-0.08$ & 3 \\
+Valor agregado per cápita & 15784533.33 & 14912392.01 & 5100896.65 & 10000311.98 & 30632130.72 & 32.32 & 1.22 & 1 \\
+Valor agregado de actividades primarias & 3.35 & 2.98 & 2.77 & 0.02 & 9.54 & 82.59 & 0.81 & 0 \\
+Valor agregado de actividades secundarias & 18.07 & 15.45 & 6.57 & 6.62 & 36.95 & 36.36 & 0.99 & 1 \\
+Valor agregado de actividades terciarias & 78.59 & 78.74 & 6.09 & 62.95 & 86.41 & 7.75 & $-0.63$ & 0 \\
+Índice de pobreza multidimensional & 20.88 & 17.60 & 9.85 & 9.00 & 45.10 & 47.17 & 1.28 & 2 \\
+Población urbana & 90.19 & 92.40 & 7.58 & 67.07 & 99.87 & 8.40 & $-1.46$ & 1 \\
+Densidad de población & 1339.79 & 521.43 & 1855.67 & 42.03 & 7769.60 & 138.50 & 2.32 & 2 \\
+Población joven de 14 a 28 años & 25.79 & 25.75 & 1.47 & 23.13 & 28.88 & 5.70 & 0.38 & 1 \\
+Índice de desempeño fiscal & 76.83 & 77.23 & 3.63 & 68.79 & 85.32 & 4.73 & 0.02 & 0 \\
+Ingresos tributarios per cápita & 424684.65 & 352173.66 & 214918.02 & 108474.55 & 1095947.75 & 50.61 & 1.47 & 1 \\
+Tasa de homicidios & 23.55 & 21.38 & 14.12 & 4.06 & 71.96 & 59.98 & 2.26 & 2 \\
+Cobertura de acueducto & 90.33 & 95.94 & 15.89 & 25.21 & 99.48 & 17.60 & $-3.50$ & 3 \\
+Penetración de banda ancha & 17.28 & 17.69 & 4.71 & 7.59 & 24.11 & 27.27 & $-0.23$ & 0 \\
+\end{longtable}
+}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/desc_territorial_respuesta.png}
+\caption{Tasa directa de los 23 dominios ordenada de mayor a menor, con su intervalo del 95~\%. Fuente: tablas del análisis descriptivo.}
+\label{fig:app_territorial}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/desc_boxplots_candidatas.png}
+\caption{Diagramas de caja de las 18 candidatas en escala estandarizada. Fuente: tablas del análisis descriptivo.}
+\label{fig:app_boxplots}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/desc_dispersion_candidatas.png}
+\caption{Tasa directa frente a cada candidata en los 23 dominios. Fuente: tablas del análisis descriptivo.}
+\label{fig:app_dispersion}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/desc_correlacion_candidatas.png}
+\caption{Matriz de correlaciones de las candidatas, reordenada por agrupamiento. Fuente: tablas del análisis descriptivo.}
+\label{fig:app_correlacion}
+\end{figure}
+%--------------------------------------------------------------------------------------
+\section{Detalle de la selección de covariables}
+\label{app:seleccion}
+
+Esta sección presenta el Fay-Herriot univariado de cada candidata y los diagnósticos del conjunto elegido; la cita la Sección~\ref{sec:res_seleccion}.
+
+Incluye la Tabla~\ref{tab:app_seleccion}, la Figura~\ref{fig:app_correlacion_finales} y la Figura~\ref{fig:app_residuos_parciales}.
+
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{p{2.4cm} r p{2.3cm} r r r p{1.9cm} r}
+\caption{Fay-Herriot univariado de cada candidata (REML y GLS). IC: intervalo de Wald; $q$: Benjamini-Hochberg; Cook: distancia máxima; Dominio: el que más cambia $r_w$ al retirarlo; $\Delta r_w$: ese cambio. Los coeficientes están en la unidad de cada covariable.}
+\label{tab:app_seleccion} \\
+\toprule
+Covariable & $\hat{\beta}_1$ & IC 95~\% & $p$ & $q$ & Cook & Dominio & $\Delta r_w$ \\
+\midrule
+\endfirsthead
+\multicolumn{8}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Covariable & $\hat{\beta}_1$ & IC 95~\% & $p$ & $q$ & Cook & Dominio & $\Delta r_w$ \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Tasa de homicidios & 0.0993 & [0.0288, 0.1697] & 0.006 & 0.079 & 0.601 & Quibdó & 0.270 \\
+Cobertura de acueducto & $-0.0833$ & [$-0.1473$, $-0.0193$] & 0.011 & 0.079 & 1.297 & Quibdó & 0.388 \\
+Cobertura neta en educación media & $-0.2288$ & [$-0.4095$, $-0.0480$] & 0.013 & 0.079 & 0.625 & Armenia & 0.177 \\
+Índice de pobreza multidimensional & 0.1207 & [0.0149, 0.2264] & 0.025 & 0.101 & 0.577 & Quibdó & 0.198 \\
+Valor agregado de actividades primarias & 0.4217 & [0.0450, 0.7985] & 0.028 & 0.101 & 0.278 & Quibdó & 0.082 \\
+Ingresos tributarios per cápita & 0.0000 & [0.0000, 0.0000] & 0.034 & 0.101 & 0.845 & Bogotá & 0.069 \\
+Cobertura neta en educación secundaria & $-0.1627$ & [$-0.3364$, 0.0109] & 0.066 & 0.135 & 0.212 & Armenia & 0.109 \\
+Valor agregado de actividades secundarias & $-0.1505$ & [$-0.3143$, 0.0133] & 0.072 & 0.135 & 0.411 & Quibdó & 0.146 \\
+Valor agregado per cápita & 0.0000 & [0.0000, 0.0000] & 0.074 & 0.135 & 0.286 & Santa Marta & 0.070 \\
+Tránsito a la educación superior & 0.1338 & [$-0.0135$, 0.2812] & 0.075 & 0.135 & 0.163 & Santa Marta & 0.080 \\
+Índice de desempeño fiscal & $-0.2344$ & [$-0.5362$, 0.0674] & 0.128 & 0.202 & 0.130 & Santa Marta & 0.058 \\
+Población joven de 14 a 28 años & 0.5675 & [$-0.1829$, 1.3179] & 0.138 & 0.202 & 0.637 & Quibdó & 0.206 \\
+Saber 11, lectura crítica & $-0.3517$ & [$-0.8258$, 0.1223] & 0.146 & 0.202 & 0.962 & Quibdó & 0.271 \\
+Densidad de población & $-0.0004$ & [$-0.0010$, 0.0002] & 0.177 & 0.228 & 0.172 & Barranquilla A.M. & 0.162 \\
+Saber 11, matemáticas & $-0.2243$ & [$-0.5720$, 0.1233] & 0.206 & 0.247 & 0.953 & Quibdó & 0.270 \\
+Valor agregado de actividades terciarias & 0.0880 & [$-0.0979$, 0.2740] & 0.353 & 0.398 & 0.315 & Cartagena & 0.130 \\
+Penetración de banda ancha & $-0.0687$ & [$-0.3122$, 0.1749] & 0.581 & 0.615 & 0.241 & Armenia & 0.125 \\
+Población urbana & $-0.0061$ & [$-0.1586$, 0.1465] & 0.938 & 0.938 & 0.524 & Riohacha & 0.166 \\
+\end{longtable}
+}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.6\linewidth]{img/eda_correlacion_finales.png}
+\caption{Correlación entre las covariables seleccionadas (tasa de homicidios y cobertura de acueducto). Fuente: tabla de verificación de la selección.}
+\label{fig:app_correlacion_finales}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/eda_residuos_parciales.png}
+\caption{Residuos parciales de las covariables seleccionadas en el Fay-Herriot con ambas. Fuente: tabla de verificación de la selección.}
+\label{fig:app_residuos_parciales}
+\end{figure}
+%--------------------------------------------------------------------------------------
+\section{Especificaciones del Fay-Herriot clásico}
+\label{app:especificaciones}
+
+Esta sección presenta los coeficientes y los diagnósticos de las cuatro especificaciones candidatas; la citan las Secciones~\ref{sec:res_fh_clasico} y~\ref{sec:res_supuestos}.
+
+Incluye la Tabla~\ref{tab:app_ec_coeficientes}, la Tabla~\ref{tab:app_ec_diagnosticos}, la Figura~\ref{fig:app_ec3}, la Figura~\ref{fig:app_ec1}, la Figura~\ref{fig:app_ec2}, la Figura~\ref{fig:app_ec0} y la Figura~\ref{fig:app_cook}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Coeficientes de las cuatro especificaciones candidatas. Fuente: salida del cuaderno del Fay-Herriot clásico.}
+\label{tab:app_ec_coeficientes}
+\begin{tabular}{l l r r r}
+\toprule
+Especificación & Parámetro & $\hat{\beta}$ & EE & $p$ \\
+\midrule
+EC1 & Intercepto & 13.758 & 4.997 & 0.006 \\
+EC1 & Tasa de homicidios & 0.066 & 0.051 & 0.190 \\
+EC1 & Cobertura de acueducto & $-0.042$ & 0.045 & 0.351 \\
+EC2 & Intercepto & 19.053 & 2.994 & $<0.001$ \\
+EC2 & Cobertura de acueducto & $-0.083$ & 0.033 & 0.011 \\
+EC3 & Intercepto & 9.191 & 0.979 & $<0.001$ \\
+EC3 & Tasa de homicidios & 0.099 & 0.036 & 0.006 \\
+EC0 & Intercepto & 11.527 & 0.563 & $<0.001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Diagnósticos de las especificaciones. DE resid.: desviación de los residuos estandarizados; SW: Shapiro-Wilk; $\psi/{\rm ECM}$: razón media entre la varianza directa y el ECM del EBLUP; Influyentes: dominios con Cook $> 4/n$.}
+\label{tab:app_ec_diagnosticos}
+\begin{tabular}{l r r r r r r r}
+\toprule
+Especificación & $R^2$ & DE resid. & $p$ SW & $\bar{\gamma}$ & $\psi/{\rm ECM}$ & Cook & Influyentes \\
+\midrule
+EC1 & 0.299 & 0.954 & 0.391 & 0.984 & 1.011 & 0.526 & 2 \\
+EC2 & 0.239 & 0.978 & 0.317 & 0.985 & 1.011 & 1.297 & 1 \\
+EC3 & 0.269 & 0.977 & 0.357 & 0.984 & 1.012 & 0.601 & 2 \\
+EC0 & 0.000 & 1.002 & 0.139 & 0.988 & 1.010 & 0.250 & 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.48\linewidth]{img/fh_ec3_suavizador.png}
+\hfill
+\includegraphics[width=0.48\linewidth]{img/fh_ec3_histograma.png}
+\caption{Especificación EC3 (benchmark): a la izquierda, residuo del EBLUP frente a la tasa directa (contracción); a la derecha, histograma de los residuos estandarizados. Fuente: cuaderno del Fay-Herriot clásico.}
+\label{fig:app_ec3}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.48\linewidth]{img/fh_ec1_suavizador.png}
+\hfill
+\includegraphics[width=0.48\linewidth]{img/fh_ec1_histograma.png}
+\caption{Especificación EC1: a la izquierda, residuo del EBLUP frente a la tasa directa (contracción); a la derecha, histograma de los residuos estandarizados. Fuente: cuaderno del Fay-Herriot clásico.}
+\label{fig:app_ec1}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.48\linewidth]{img/fh_ec2_suavizador.png}
+\hfill
+\includegraphics[width=0.48\linewidth]{img/fh_ec2_histograma.png}
+\caption{Especificación EC2: a la izquierda, residuo del EBLUP frente a la tasa directa (contracción); a la derecha, histograma de los residuos estandarizados. Fuente: cuaderno del Fay-Herriot clásico.}
+\label{fig:app_ec2}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.48\linewidth]{img/fh_ec0_suavizador.png}
+\hfill
+\includegraphics[width=0.48\linewidth]{img/fh_ec0_histograma.png}
+\caption{Especificación EC0: a la izquierda, residuo del EBLUP frente a la tasa directa (contracción); a la derecha, histograma de los residuos estandarizados. Fuente: cuaderno del Fay-Herriot clásico.}
+\label{fig:app_ec0}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.85\linewidth]{img/fh_ganador_cook.png}
+\caption{Distancia de Cook de cada dominio en el benchmark; la línea marca $4/n$. Fuente: tabla de Cook del Fay-Herriot clásico.}
+\label{fig:app_cook}
+\end{figure}
+\FloatBarrier
 
 %--------------------------------------------------------------------------------------
-\section{Variantes del modelo Fay-Herriot}
-\label{sec:apendice-variantes}
+\section{Estimaciones de los dominios}
+\label{app:dominios_modelo}
 
-    Esta sección reúne las cifras de las cinco variantes de la Tabla~\ref{tab:variantes_modelo}, de las que el capítulo de resultados presenta solo el modelo elegido M2. Todas se ajustaron con el procedimiento de la Sección~\ref{subsec:met_estimacion} y se evaluaron con los diagnósticos de las Secciones~\ref{subsec:met_validacion} y~\ref{subsec:met_robustez_fh}.
+Esta sección presenta, para los 23 dominios, la tasa directa, el EBLUP del benchmark, el SEBLUP del escenario espacial de referencia y el EBLUP ajustado por benchmarking; la citan las Secciones~\ref{sec:res_fh_clasico} y~\ref{sec:res_espacial}.
 
-    La Tabla~\ref{tab:coef_variantes} reporta los coeficientes de cada variante. En ninguna todas las covariables son significativas al 5\%, condición que se discute en la Sección~\ref{subsec:res_criterio_seleccion}. Cada covariable conserva su signo en todas las variantes que la incluyen. La varianza de los efectos aleatorios va de 3.960 en M2 a 4.595 en M4.
+Incluye la Tabla~\ref{tab:app_dominios_modelo}.
 
-    \begin{table}[!htbp]
-    \centering
-    \footnotesize
-    \caption{Coeficientes de las cinco variantes del modelo de Fay-Herriot, estimados por mínimos
-             cuadrados generalizados, con el error estándar entre paréntesis y el valor $p$ de la
-             Ecuación~\ref{eq:cov_beta} debajo. Media: cobertura neta en educación media;
-             Secundaria: cobertura neta en educación secundaria; VA primario: participación de
-             las actividades primarias en el valor agregado; IPM: índice de pobreza
-             multidimensional. Las celdas vacías corresponden a covariables que no forman parte
-             de la variante. M2 es el modelo elegido.}
-    \label{tab:coef_variantes}
-    \renewcommand{\arraystretch}{1.15}
-    \setlength{\tabcolsep}{4pt}
-    \begin{tabular}{l r r r r r}
-    \toprule
-    \textbf{Parámetro} & \textbf{M1} & \textbf{M2} & \textbf{M3} & \textbf{M4} & \textbf{M5} \\
-    \midrule
-    Intercepto  & 23.475 & 23.332 & 18.251 & 25.394 & 25.516 \\
-                & (7.976) & (7.681) & (6.676) & (8.136) & (6.810) \\
-                & $p=0.003$ & $p=0.002$ & $p=0.006$ & $p=0.002$ & $p<0.001$ \\[3pt]
-    Media       & $-$0.023 &  & $-$0.162 & $-$0.083 & $-$0.066 \\
-                & (0.164) &  & (0.113) & (0.164) & (0.139) \\
-                & $p=0.888$ &  & $p=0.152$ & $p=0.612$ & $p=0.637$ \\[3pt]
-    Secundaria  & $-$0.146 & $-$0.159 &  & $-$0.126 & $-$0.137 \\
-                & (0.125) & (0.083) &  & (0.129) & (0.121) \\
-                & $p=0.244$ & $p=0.056$ &  & $p=0.327$ & $p=0.259$ \\[3pt]
-    VA primario & 0.292 & 0.299 & 0.267 &  & 0.302 \\
-                & (0.196) & (0.185) & (0.197) &  & (0.191) \\
-                & $p=0.137$ & $p=0.106$ & $p=0.175$ &  & $p=0.114$ \\[3pt]
-    IPM         & 0.037 & 0.041 & 0.025 & 0.048 &  \\
-                & (0.070) & (0.059) & (0.070) & (0.072) &  \\
-                & $p=0.601$ & $p=0.486$ & $p=0.719$ & $p=0.510$ &  \\
-    \midrule
-    $\hat{\sigma}_u^2$ & 4.232 & 3.960 & 4.346 & 4.595 & 4.006 \\
-    AIC                & 110.348 & 108.376 & 110.026 & 111.013 & 108.663 \\
-    \bottomrule
-    \end{tabular}
-    \end{table}
-    \FloatBarrier
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{l r r r r r r r r}
+\caption{Estimaciones de los 23 dominios, Ene-Dic 2018, en \%. CV en \%. EBLUP: benchmark EC3; SEBLUP: 3 vecinos, estructura completa, con ECM por bootstrap (cálculo propio sobre las tablas del modelo); Ajustada: EBLUP tras el benchmarking de nivel 1.}
+\label{tab:app_dominios_modelo} \\
+\toprule
+Dominio & Directa & EBLUP & CV & $\hat{\gamma}_d$ & SEBLUP & CV & $\hat{\gamma}^S_d$ & Ajustada \\
+\midrule
+\endfirsthead
+\multicolumn{9}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Dominio & Directa & EBLUP & CV & $\hat{\gamma}_d$ & SEBLUP & CV & $\hat{\gamma}^S_d$ & Ajustada \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Armenia & 15.49 & 15.42 & 2.20 & 0.979 & 15.43 & 2.23 & 0.978 & 15.42 \\
+Barranquilla A.M. & 8.15 & 8.17 & 2.48 & 0.993 & 8.18 & 2.38 & 0.991 & 8.17 \\
+Bogotá & 10.37 & 10.37 & 2.25 & 0.990 & 10.38 & 2.33 & 0.988 & 10.37 \\
+Bucaramanga A.M. & 8.74 & 8.76 & 3.13 & 0.986 & 8.79 & 3.01 & 0.984 & 8.76 \\
+Cali A.M. & 11.65 & 11.69 & 2.42 & 0.986 & 11.69 & 2.47 & 0.986 & 11.69 \\
+Cartagena & 8.35 & 8.39 & 3.10 & 0.988 & 8.37 & 3.13 & 0.985 & 8.38 \\
+Cúcuta A.M. & 15.98 & 15.88 & 2.28 & 0.976 & 15.89 & 2.33 & 0.972 & 15.88 \\
+Florencia & 12.94 & 12.90 & 2.85 & 0.976 & 12.90 & 2.77 & 0.976 & 12.90 \\
+Ibagué & 13.99 & 13.93 & 2.35 & 0.981 & 13.93 & 2.39 & 0.978 & 13.93 \\
+Manizales A.M. & 11.24 & 11.23 & 2.52 & 0.986 & 11.23 & 2.43 & 0.984 & 11.23 \\
+Medellín A.M. & 11.84 & 11.83 & 2.01 & 0.990 & 11.83 & 1.92 & 0.988 & 11.83 \\
+Montería & 9.47 & 9.49 & 2.78 & 0.987 & 9.47 & 2.72 & 0.985 & 9.48 \\
+Neiva & 11.53 & 11.53 & 2.67 & 0.983 & 11.53 & 2.80 & 0.983 & 11.53 \\
+Pasto & 8.82 & 8.84 & 3.20 & 0.986 & 8.84 & 3.25 & 0.986 & 8.84 \\
+Pereira A.M. & 8.87 & 8.90 & 3.01 & 0.987 & 8.91 & 2.98 & 0.986 & 8.90 \\
+Popayán & 10.68 & 10.69 & 2.75 & 0.984 & 10.69 & 2.74 & 0.984 & 10.68 \\
+Quibdó & 17.81 & 17.76 & 2.46 & 0.966 & 17.77 & 2.44 & 0.964 & 17.76 \\
+Riohacha & 13.88 & 13.86 & 2.31 & 0.982 & 13.85 & 2.39 & 0.979 & 13.86 \\
+Santa Marta & 8.32 & 8.35 & 2.78 & 0.990 & 8.35 & 2.88 & 0.989 & 8.34 \\
+Sincelejo & 9.61 & 9.62 & 2.60 & 0.989 & 9.60 & 2.60 & 0.987 & 9.61 \\
+Tunja & 11.31 & 11.28 & 2.87 & 0.981 & 11.28 & 2.83 & 0.977 & 11.28 \\
+Valledupar & 14.45 & 14.38 & 2.27 & 0.981 & 14.37 & 2.29 & 0.977 & 14.38 \\
+Villavicencio & 11.87 & 11.87 & 2.67 & 0.982 & 11.88 & 2.89 & 0.979 & 11.86 \\
+\end{longtable}
+}
+%--------------------------------------------------------------------------------------
+\section{Varianza de muestreo}
+\label{app:varianza}
 
-    La Tabla~\ref{tab:diagnosticos_variantes} reúne los diagnósticos de las cinco variantes. Todas presentan residuos con media compatible con cero, desviación estándar entre 0.902 y 0.928 y normalidad no rechazada por la prueba de Shapiro-Wilk. En todas el error cuadrático medio del EBLUP es inferior a la varianza directa en los 23 dominios, con razón media entre 1.155 y 1.180. La correlación del efecto suavizador va de 0.723 en M1 a 0.792 en M4, y el $R^2$ del predictor sintético de 0.331 en M4 a 0.403 en M1. M4 es la única variante con un dominio por encima del umbral de Cook, Valledupar, con 0.181.
+Esta sección presenta las varianzas alternativas de cada dominio y las figuras de la GVF y de los escenarios; la cita la Sección~\ref{sec:res_supuestos}.
 
-    \begin{table}[!htbp]
-    \centering
-    \small
-    \caption{Diagnósticos de las cinco variantes. $R^2$: coeficiente de determinación del predictor
-             sintético; Media y DE: media y desviación estándar de los residuos estandarizados de
-             la Ecuación~\ref{eq:residuos}; SW: valor $p$ de Shapiro-Wilk; $\bar{\gamma}$: factor
-             de contracción promedio; $\bar{R}_d$: razón media de la Ecuación~\ref{eq:ratio_mse},
-             con $R_d > 1$ en los 23 dominios de todas las variantes y valor $p$ de Wilcoxon
-             inferior a 0.001; $r_{\text{suav}}$: correlación del efecto suavizador, con valor $p$
-             inferior a 0.001; Cook: distancia de Cook máxima de la Ecuación~\ref{eq:cook_gls},
-             con umbral 0.174.}
-    \label{tab:diagnosticos_variantes}
-    \renewcommand{\arraystretch}{1.25}
-    \begin{tabular}{l r r r r r r r r}
-    \toprule
-    \textbf{Modelo} & \textbf{$R^2$} & \textbf{Media} & \textbf{DE} & \textbf{SW} &
-    \textbf{$\bar{\gamma}$} & \textbf{$\bar{R}_d$} & \textbf{$r_{\text{suav}}$} & \textbf{Cook} \\
-    \midrule
-    M1 & 0.403 & 0.020 & 0.902 & 0.508 & 0.788 & 1.155 & 0.723 & 0.158 \\
-    M2 & 0.402 & 0.021 & 0.926 & 0.577 & 0.777 & 1.178 & 0.724 & 0.122 \\
-    M3 & 0.360 & 0.019 & 0.925 & 0.484 & 0.792 & 1.163 & 0.756 & 0.139 \\
-    M4 & 0.331 & 0.022 & 0.925 & 0.358 & 0.801 & 1.156 & 0.792 & 0.181 \\
-    M5 & 0.390 & 0.022 & 0.928 & 0.498 & 0.779 & 1.180 & 0.746 & 0.141 \\
-    \bottomrule
-    \end{tabular}
-    \end{table}
-    \FloatBarrier
+Incluye la Tabla~\ref{tab:app_varianza}, la Figura~\ref{fig:app_gvf} y la Figura~\ref{fig:app_escenarios_varianza}.
 
-    Las Figuras~\ref{fig:ap_suavizador_variantes} y~\ref{fig:ap_histograma_variantes} presentan el efecto suavizador y el histograma de residuos de las cuatro variantes no elegidas, con la misma lectura que las Figuras~\ref{fig:fh_suavizador} y~\ref{fig:fh_histograma} del modelo elegido.
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{l r r r r r}
+\caption{Varianza de muestreo por dominio: $\psi_d$ del bootstrap por viviendas (puntos porcentuales al cuadrado) y razones frente a las alternativas: bootstrap por personas, Taylor y las dos GVF (Ecuación~\ref{eq:gvf}; razón GVF/bootstrap).}
+\label{tab:app_varianza} \\
+\toprule
+Dominio & $\psi_d$ & Viv./pers. & Boot./Taylor & GVF A & GVF B \\
+\midrule
+\endfirsthead
+\multicolumn{6}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Dominio & $\psi_d$ & Viv./pers. & Boot./Taylor & GVF A & GVF B \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Armenia & 0.117 & 1.142 & 0.996 & 1.067 & 1.021 \\
+Barranquilla A.M. & 0.041 & 1.026 & 1.014 & 1.028 & 1.023 \\
+Bogotá & 0.055 & 1.087 & 0.974 & 1.029 & 1.044 \\
+Bucaramanga A.M. & 0.076 & 1.154 & 1.041 & 0.901 & 0.876 \\
+Cali A.M. & 0.081 & 1.129 & 1.032 & 0.933 & 0.931 \\
+Cartagena & 0.068 & 1.005 & 1.008 & 1.010 & 0.977 \\
+Cúcuta A.M. & 0.134 & 1.105 & 0.965 & 1.033 & 0.993 \\
+Florencia & 0.138 & 1.155 & 1.038 & 0.896 & 0.964 \\
+Ibagué & 0.108 & 1.076 & 1.006 & 1.038 & 1.028 \\
+Manizales A.M. & 0.081 & 1.036 & 0.996 & 1.088 & 1.099 \\
+Medellín A.M. & 0.057 & 1.141 & 1.053 & 0.921 & 0.981 \\
+Montería & 0.070 & 0.997 & 0.954 & 1.036 & 1.024 \\
+Neiva & 0.096 & 1.109 & 1.010 & 0.948 & 0.961 \\
+Pasto & 0.081 & 1.126 & 1.034 & 0.969 & 0.969 \\
+Pereira A.M. & 0.072 & 1.173 & 1.010 & 1.007 & 0.990 \\
+Popayán & 0.087 & 1.082 & 0.972 & 0.980 & 0.993 \\
+Quibdó & 0.193 & 1.145 & 0.995 & 0.985 & 0.975 \\
+Riohacha & 0.104 & 1.065 & 0.975 & 0.999 & 0.980 \\
+Santa Marta & 0.054 & 0.975 & 0.976 & 1.149 & 1.099 \\
+Sincelejo & 0.063 & 1.114 & 1.016 & 1.022 & 1.007 \\
+Tunja & 0.106 & 0.939 & 0.938 & 1.025 & 1.115 \\
+Valledupar & 0.108 & 1.080 & 0.954 & 1.063 & 1.040 \\
+Villavicencio & 0.102 & 1.104 & 1.000 & 0.953 & 0.972 \\
+\end{longtable}
+}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/fh_gvf_ajuste.png}
+\caption{Varianza de muestreo observada frente a la ajustada por las GVF A y B. Fuente: tabla de ajuste de la GVF.}
+\label{fig:app_gvf}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=1.0\linewidth]{img/fh_escenarios_varianza.png}
+\caption{Cambio del EBLUP de cada dominio frente al escenario base en los ocho escenarios alternativos de la varianza de muestreo. Fuente: tabla de sensibilidad a la varianza por dominio.}
+\label{fig:app_escenarios_varianza}
+\end{figure}
+%--------------------------------------------------------------------------------------
+\section{Validación predictiva por dominio}
+\label{app:validacion}
 
-    \begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=0.48\textwidth]{img/fh_var1_suavizador.png}
-    \hfill
-    \includegraphics[width=0.48\textwidth]{img/fh_var3_suavizador.png}
-    \\[6pt]
-    \includegraphics[width=0.48\textwidth]{img/fh_var4_suavizador.png}
-    \hfill
-    \includegraphics[width=0.48\textwidth]{img/fh_var5_suavizador.png}
-    \caption{Efecto suavizador de las variantes no elegidas: arriba a la izquierda M1, arriba a la
-             derecha M3, abajo a la izquierda M4 y abajo a la derecha M5. Cada panel enfrenta la
-             estimación directa $\hat{\theta}_d$ con la corrección
-             $\hat{\theta}_d - \hat{\theta}_d^{\text{EBLUP}}$ de la
-             Ecuación~\ref{eq:correccion_eblup}; los puntos rojos son dominios cuya estimación el
-             EBLUP modera y los azules dominios cuya estimación eleva.}
-    \label{fig:ap_suavizador_variantes}
-    \end{figure}
-    \FloatBarrier
+Esta sección presenta el error de cada dominio retirado en los dos ejercicios de la validación predictiva dejar-un-dominio-fuera; la cita la Sección~\ref{sec:res_validacion}.
 
-    \begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=0.48\textwidth]{img/fh_var1_histograma.png}
-    \hfill
-    \includegraphics[width=0.48\textwidth]{img/fh_var3_histograma.png}
-    \\[6pt]
-    \includegraphics[width=0.48\textwidth]{img/fh_var4_histograma.png}
-    \hfill
-    \includegraphics[width=0.48\textwidth]{img/fh_var5_histograma.png}
-    \caption{Histograma de los residuos estandarizados de la Ecuación~\ref{eq:residuos} de las
-             variantes no elegidas, con la misma disposición de la
-             Figura~\ref{fig:ap_suavizador_variantes}: M1, M3, M4 y M5. La curva naranja es la
-             densidad normal estándar de referencia y la línea roja punteada marca el cero.}
-    \label{fig:ap_histograma_variantes}
-    \end{figure}
-    \FloatBarrier
+Incluye la Tabla~\ref{tab:app_validacion} y la Figura~\ref{fig:app_validacion}.
 
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{l r r r r r r r p{2.3cm}}
+\caption{Validación predictiva dejar-un-dominio-fuera por dominio: estimación sintética del dominio retirado con las covariables fijas y con el procedimiento completo, error frente a la directa (puntos porcentuales) y error estandarizado.}
+\label{tab:app_validacion} \\
+\toprule
+Dominio & Directa & Fijas & Error & $Z_{\text{pred}}$ & Completo & Error & $Z_{\text{pred}}$ & Covariables (completo) \\
+\midrule
+\endfirsthead
+\multicolumn{9}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Dominio & Directa & Fijas & Error & $Z_{\text{pred}}$ & Completo & Error & $Z_{\text{pred}}$ & Covariables (completo) \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Armenia & 15.49 & 11.96 & $-3.53$ & $-1.49$ & 8.48 & $-7.01$ & $-3.17$ & Cobertura neta en educación media \\
+Barranquilla A.M. & 8.15 & 11.87 & 3.72 & 1.60 & 11.87 & 3.72 & 1.60 & Tasa de homicidios \\
+Bogotá & 10.37 & 10.63 & 0.26 & 0.10 & 5.39 & $-4.98$ & $-1.67$ & Tasa de homicidios, Ingresos tributarios per cápita \\
+Bucaramanga A.M. & 8.74 & 10.57 & 1.83 & 0.74 & 10.57 & 1.83 & 0.74 & Tasa de homicidios \\
+Cali A.M. & 11.65 & 15.40 & 3.75 & 1.40 & 15.40 & 3.75 & 1.40 & Tasa de homicidios \\
+Cartagena & 8.35 & 11.54 & 3.20 & 1.35 & 11.54 & 3.20 & 1.35 & Tasa de homicidios \\
+Cúcuta A.M. & 15.98 & 11.62 & $-4.36$ & $-1.90$ & 11.04 & $-4.94$ & $-2.15$ & Cobertura de acueducto \\
+Florencia & 12.94 & 11.24 & $-1.70$ & $-0.69$ & 11.46 & $-1.48$ & $-0.52$ & ninguna \\
+Ibagué & 13.99 & 10.53 & $-3.47$ & $-1.46$ & 10.53 & $-3.47$ & $-1.46$ & Tasa de homicidios \\
+Manizales A.M. & 11.24 & 10.84 & $-0.40$ & $-0.16$ & 10.84 & $-0.40$ & $-0.16$ & Tasa de homicidios \\
+Medellín A.M. & 11.84 & 11.42 & $-0.42$ & $-0.17$ & 11.42 & $-0.42$ & $-0.17$ & Tasa de homicidios \\
+Montería & 9.47 & 11.11 & 1.64 & 0.67 & 11.11 & 1.64 & 0.67 & Tasa de homicidios \\
+Neiva & 11.53 & 11.49 & $-0.04$ & $-0.02$ & 14.35 & 2.82 & 1.07 & Tasa de homicidios, Valor agregado de actividades primarias \\
+Pasto & 8.82 & 10.55 & 1.74 & 0.70 & 11.65 & 2.83 & 1.03 & ninguna \\
+Pereira A.M. & 8.87 & 11.65 & 2.79 & 1.16 & 11.65 & 2.79 & 1.16 & Tasa de homicidios \\
+Popayán & 10.68 & 11.25 & 0.57 & 0.23 & 11.25 & 0.57 & 0.23 & Tasa de homicidios \\
+Quibdó & 17.81 & 14.35 & $-3.46$ & $-0.94$ & 11.24 & $-6.57$ & $-2.66$ & ninguna \\
+Riohacha & 13.88 & 12.42 & $-1.46$ & $-0.59$ & 11.42 & $-2.46$ & $-0.89$ & ninguna \\
+Santa Marta & 8.32 & 11.42 & 3.10 & 1.30 & 12.82 & 4.50 & 1.91 & Cobertura de acueducto \\
+Sincelejo & 9.61 & 10.69 & 1.08 & 0.43 & 10.69 & 1.08 & 0.43 & Tasa de homicidios \\
+Tunja & 11.31 & 9.34 & $-1.98$ & $-0.77$ & 9.34 & $-1.98$ & $-0.77$ & Tasa de homicidios \\
+Valledupar & 14.45 & 10.52 & $-3.93$ & $-1.67$ & 10.52 & $-3.93$ & $-1.67$ & Tasa de homicidios \\
+Villavicencio & 11.87 & 11.39 & $-0.48$ & $-0.19$ & 11.39 & $-0.48$ & $-0.19$ & Tasa de homicidios \\
+\end{longtable}
+}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/fh_validacion_cruzada.png}
+\caption{Estimación del dominio retirado frente a su estimación directa en los dos ejercicios. Fuente: tabla de validación cruzada del Fay-Herriot clásico.}
+\label{fig:app_validacion}
+\end{figure}
+%--------------------------------------------------------------------------------------
+\section{Detalle del modelo espacial}
+\label{app:espacial}
+
+Esta sección presenta las ocho especificaciones espaciales, su validación, sus coeficientes y las sensibilidades del parámetro $\rho$; la cita la Sección~\ref{sec:res_espacial}.
+
+Incluye la Tabla~\ref{tab:app_espacial}, la Tabla~\ref{tab:app_espacial_validacion}, la Tabla~\ref{tab:app_espacial_coeficientes}, la Tabla~\ref{tab:app_espacial_rho}, la Tabla~\ref{tab:app_espacial_centroide}, la Figura~\ref{fig:app_perfil_rho} y la Figura~\ref{fig:app_fhe_validacion}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Las ocho especificaciones espaciales con la tasa de homicidios fija. AIC del clásico: 108.904; $\Delta$AIC = AIC clásico $-$ AIC espacial.}
+\label{tab:app_espacial}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{l l r r r r r r r}
+\toprule
+Matriz & Estructura & $\hat{\sigma}_u^2$ & $\hat{\rho}$ & AIC & $\Delta$AIC & LRT & $p$ & $R^2$ \\
+\midrule
+3 vecinos & muestra & 5.383 & 0.234 & 110.572 & $-1.669$ & 0.331 & 0.565 & 0.268 \\
+3 vecinos & completa & 4.825 & 0.372 & 109.403 & $-0.500$ & 1.500 & 0.221 & 0.269 \\
+5 vecinos & muestra & 5.541 & 0.206 & 110.901 & $-1.998$ & 0.002 & 0.960 & 0.269 \\
+5 vecinos & completa & 5.469 & 0.222 & 110.862 & $-1.958$ & 0.042 & 0.838 & 0.268 \\
+Inversa, potencia 1 & muestra & 5.631 & 0.326 & 110.790 & $-1.887$ & 0.113 & 0.737 & 0.269 \\
+Inversa, potencia 1 & completa & 5.479 & 0.891 & 110.894 & $-1.990$ & 0.010 & 0.922 & 0.268 \\
+Inversa, potencia 2 & muestra & 5.529 & 0.187 & 110.890 & $-1.987$ & 0.013 & 0.909 & 0.269 \\
+Inversa, potencia 2 & completa & 5.101 & 0.607 & 110.105 & $-1.201$ & 0.799 & 0.371 & 0.265 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{p{3.2cm} l r r r r r r}
+\caption{Validación dejar-un-dominio-fuera con la tasa de homicidios fija, por especificación y estimador. Errores en puntos porcentuales; Cob.: cobertura del intervalo del 95~\% en \%; habilidad frente al modelo de solo intercepto (RMSE 2.77).}
+\label{tab:app_espacial_validacion} \\
+\toprule
+Especificación & Estimador & RMSE & MAE & Sesgo & RMSE$_c$ & Cob. & Habilidad \\
+\midrule
+\endfirsthead
+\multicolumn{8}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Especificación & Estimador & RMSE & MAE & Sesgo & RMSE$_c$ & Cob. & Habilidad \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+todos & Sintético clásico & 2.52 & 2.13 & $-0.07$ & 2.51 & 100.00 & 0.17 \\
+3 vecinos, muestra & Sintético espacial & 2.53 & 2.12 & $-0.02$ & 2.51 & 100.00 & 0.17 \\
+3 vecinos, completa & Sintético espacial & 2.48 & 2.09 & $-0.07$ & 2.46 & 100.00 & 0.20 \\
+3 vecinos, completa & Espacial con efecto & 2.35 & 1.99 & $-0.03$ & 2.33 & 100.00 & 0.28 \\
+5 vecinos, muestra & Sintético espacial & 2.53 & 2.13 & $-0.10$ & 2.51 & 100.00 & 0.17 \\
+5 vecinos, completa & Sintético espacial & 2.52 & 2.12 & $-0.07$ & 2.50 & 100.00 & 0.17 \\
+5 vecinos, completa & Espacial con efecto & 2.59 & 2.20 & $-0.02$ & 2.57 & 100.00 & 0.13 \\
+Inversa, potencia 1, muestra & Sintético espacial & 2.48 & 2.07 & $-0.25$ & 2.46 & 100.00 & 0.20 \\
+Inversa, potencia 1, completa & Sintético espacial & 2.57 & 2.13 & $-0.02$ & 2.55 & 100.00 & 0.14 \\
+Inversa, potencia 1, completa & Espacial con efecto & 2.60 & 2.16 & 0.02 & 2.58 & 100.00 & 0.12 \\
+Inversa, potencia 2, muestra & Sintético espacial & 2.52 & 2.12 & $-0.03$ & 2.50 & 100.00 & 0.17 \\
+Inversa, potencia 2, completa & Sintético espacial & 2.50 & 2.11 & 0.12 & 2.48 & 100.00 & 0.19 \\
+Inversa, potencia 2, completa & Espacial con efecto & 2.86 & 2.26 & 0.24 & 2.84 & 91.30 & $-0.06$ \\
+\end{longtable}
+}
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Coeficiente de la tasa de homicidios en cada especificación espacial. Clásico: 0.099 (EE 0.036, $p = 0.006$); cambio medido en errores estándar del clásico.}
+\label{tab:app_espacial_coeficientes}
+\begin{tabular}{l l r r r r}
+\toprule
+Matriz & Estructura & $\hat{\beta}_1$ & EE & $p$ & Cambio en EE \\
+\midrule
+3 vecinos & muestra & 0.104 & 0.035 & 0.003 & 0.118 \\
+3 vecinos & completa & 0.102 & 0.035 & 0.004 & 0.069 \\
+5 vecinos & muestra & 0.101 & 0.036 & 0.005 & 0.042 \\
+5 vecinos & completa & 0.104 & 0.036 & 0.004 & 0.126 \\
+Inversa, potencia 1 & muestra & 0.099 & 0.036 & 0.006 & 0.006 \\
+Inversa, potencia 1 & completa & 0.099 & 0.036 & 0.006 & 0.000 \\
+Inversa, potencia 2 & muestra & 0.100 & 0.036 & 0.005 & 0.012 \\
+Inversa, potencia 2 & completa & 0.099 & 0.035 & 0.005 & $-0.021$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+{\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{longtable}{l l r r r}
+\caption{Sensibilidad de $\hat{\rho}$ de la estructura completa a los municipios objetivo incluidos como nodos.}
+\label{tab:app_espacial_rho} \\
+\toprule
+Matriz & Nodos sin dato & Nodos & $\hat{\rho}$ & $p$ \\
+\midrule
+\endfirsthead
+\multicolumn{5}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Matriz & Nodos sin dato & Nodos & $\hat{\rho}$ & $p$ \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+3 vecinos & todos & 81 & 0.372 & 0.221 \\
+5 vecinos & todos & 81 & 0.222 & 0.838 \\
+Inversa, potencia 1 & todos & 81 & 0.891 & 0.922 \\
+Inversa, potencia 2 & todos & 81 & 0.607 & 0.371 \\
+3 vecinos & solo Valle & 40 & 0.398 & 0.228 \\
+5 vecinos & solo Valle & 40 & 0.273 & 0.787 \\
+Inversa, potencia 1 & solo Valle & 40 & 0.990 & 0.913 \\
+Inversa, potencia 2 & solo Valle & 40 & 0.690 & 0.364 \\
+3 vecinos & solo Cauca & 41 & 0.262 & 0.448 \\
+5 vecinos & solo Cauca & 41 & 0.157 & 0.947 \\
+Inversa, potencia 1 & solo Cauca & 41 & 0.589 & 0.938 \\
+Inversa, potencia 2 & solo Cauca & 41 & 0.275 & 0.735 \\
+3 vecinos & ninguno & 0 & 0.234 & 0.565 \\
+5 vecinos & ninguno & 0 & 0.206 & 0.960 \\
+Inversa, potencia 1 & ninguno & 0 & 0.326 & 0.737 \\
+Inversa, potencia 2 & ninguno & 0 & 0.187 & 0.909 \\
+\end{longtable}
+}
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Sensibilidad a la ubicación del nodo de cada área metropolitana: en la capital o en la media de sus municipios.}
+\label{tab:app_espacial_centroide}
+\begin{tabular}{l l r r r r}
+\toprule
+Matriz & Estructura & $\hat{\rho}$ capital & $\hat{\rho}$ media & $p$ capital & $p$ media \\
+\midrule
+3 vecinos & muestra & 0.234 & 0.234 & 0.565 & 0.565 \\
+3 vecinos & completa & 0.372 & 0.372 & 0.221 & 0.227 \\
+5 vecinos & muestra & 0.206 & 0.278 & 0.960 & 0.767 \\
+5 vecinos & completa & 0.222 & 0.353 & 0.838 & 0.522 \\
+Inversa, potencia 1 & muestra & 0.326 & 0.403 & 0.737 & 0.788 \\
+Inversa, potencia 1 & completa & 0.891 & 0.911 & 0.922 & 0.906 \\
+Inversa, potencia 2 & muestra & 0.187 & 0.239 & 0.909 & 0.814 \\
+Inversa, potencia 2 & completa & 0.607 & 0.616 & 0.371 & 0.354 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.85\linewidth]{img/fhe_perfil_rho.png}
+\caption{Perfil de verosimilitud de $\rho$ en los cuatro escenarios de la matriz. Fuente: tabla de perfil de $\rho$.}
+\label{fig:app_perfil_rho}
+\end{figure}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/fhe_validacion_cruzada.png}
+\caption{Estimación del dominio retirado frente a la directa: sintético clásico y espacial con efecto, escenario de referencia. Fuente: tabla de validación cruzada del modelo espacial.}
+\label{fig:app_fhe_validacion}
+\end{figure}
+\FloatBarrier
 
 %--------------------------------------------------------------------------------------
-\section{Catálogo conceptual de covariables}
-\label{sec:apendice-catalogo}
+\section{Estimaciones de los 83 municipios}
+\label{app:municipios}
 
-    La Tabla~\ref{tab:catalogo_literatura} reúne las veinticuatro entradas del catálogo conceptual de la Sección~\ref{subsec:met_elegibilidad}, con su código de indicador en TerriData, el signo esperado de su asociación con la tasa de desempleo y la referencia que sustenta su mecanismo. Las diecinueve primeras son las candidatas activas; las cinco últimas carecen de dato utilizable y su motivo se registra en la Tabla~\ref{tab:trazabilidad_covariables}.
+Esta sección presenta la estimación de cada municipio objetivo en la tabla final y con el modelo espacial; la citan las Secciones~\ref{sec:res_sin_muestra}, \ref{sec:res_benchmarking} y~\ref{sec:res_patrones}.
 
-    {\footnotesize
-    \renewcommand{\arraystretch}{1.2}
-    \setlength{\tabcolsep}{4pt}
-    \begin{longtable}{>{\raggedright\arraybackslash}p{3.7cm} l
-                      >{\raggedright\arraybackslash}p{3.9cm} c
-                      >{\raggedright\arraybackslash}p{4.3cm}}
-    \caption{Catálogo conceptual de covariables. Signo: $+$ la covariable se asocia con mayor
-             desempleo, $-$ con menor desempleo y $\pm$ la literatura no fija una dirección
-             única; las entradas sin dato utilizable no tienen signo asignado.}
-    \label{tab:catalogo_literatura} \\
-    \toprule
-    \textbf{Covariable} & \textbf{Código} & \textbf{Indicador de TerriData} & \textbf{Signo} &
-    \textbf{Referencia} \\
-    \midrule
-    \endfirsthead
-    \toprule
-    \textbf{Covariable} & \textbf{Código} & \textbf{Indicador de TerriData} & \textbf{Signo} &
-    \textbf{Referencia} \\
-    \midrule
-    \endhead
-    \bottomrule
-    \endfoot
-    \multicolumn{5}{l}{\textit{Educación}} \\
-    COB\_NET\_MEDIA & 040010010 & Cobertura neta en educación media & $-$ &
-        Castillo-Robayo y García-Estévez (2019), \textit{Revista Finanzas y Política Económica}, 11(1) \\
-    COB\_NET\_SEC & 040010009 & Cobertura neta en educación secundaria & $-$ &
-        Castillo-Robayo y García-Estévez (2019) \\
-    SABER11\_MAT & 040040001 & Puntaje promedio Pruebas Saber 11, Matemáticas & $-$ &
-        Castillo-Robayo y García-Estévez (2019) \\
-    SABER11\_LEC & 040040002 & Puntaje promedio Pruebas Saber 11, Lectura crítica & $-$ &
-        Castillo-Robayo y García-Estévez (2019) \\
-    TASA\_TRAN\_EDU\_SUP & 040010028 & Tasa de tránsito inmediato a la educación superior & $-$ &
-        Castillo-Robayo y García-Estévez (2019), mecanismo de capital humano \\
-    \addlinespace
-    \multicolumn{5}{l}{\textit{Economía}} \\
-    VA\_PC & 120210002 & Valor agregado per cápita & $-$ &
-        Ramírez et al. (2021), determinantes del desempleo y del empleo vulnerable \\
-    VA\_PCT\_PRIM & 120210008 & Porcentaje del valor agregado, actividades primarias & $\pm$ &
-        Banco de la República (2016), Reportes del Emisor 211; Bonet (2005), DTSERU 62 \\
-    VA\_PCT\_SEC & 120210009 & Porcentaje del valor agregado, actividades secundarias & $\pm$ &
-        Banco de la República (2016); Bonet (2005) \\
-    VA\_PCT\_TERC & 120210010 & Porcentaje del valor agregado, actividades terciarias & $\pm$ &
-        Banco de la República (2016); Bonet (2005) \\
-    \addlinespace
-    \multicolumn{5}{l}{\textit{Pobreza}} \\
-    IND\_POB\_MULT & 140010004 & Índice de pobreza multidimensional (IPM) & $+$ &
-        DANE (2018), medida de pobreza multidimensional municipal de fuente censal \\
-    \addlinespace
-    \multicolumn{5}{l}{\textit{Demografía y población}} \\
-    PCT\_URBANA & 020040003 & Porcentaje de población urbana & $+$ &
-        DANE, Atlas estadístico, tomo II \\
-    DENS\_POB & 010010010 & Densidad poblacional & $\pm$ &
-        DNP, orientaciones para la medición del desempeño de las entidades territoriales \\
-    PCT\_JOVENES & 020090021 & Porcentaje de población entre 14 y 28 años & $+$ &
-        Tamayo (2008), Borradores de Economía 491 \\
-    \addlinespace
-    \multicolumn{5}{l}{\textit{Finanzas públicas}} \\
-    IDF & 070100007 & Indicador de desempeño fiscal & $-$ &
-        DNP (2023), índice de desempeño fiscal municipal \\
-    ING\_TRIB\_PC & 070010020 & Ingresos tributarios per cápita & $-$ &
-        Fundación Felipe González (2020), empleo público de emergencia \\
-    \addlinespace
-    \multicolumn{5}{l}{\textit{Conflicto armado y seguridad ciudadana}} \\
-    IICA\_CONFLICTO & 260020003 & Índice de Incidencia del Conflicto Armado & $+$ &
-        Ibáñez (2008), desplazamiento forzoso; sustituye a las víctimas de desplazamiento \\
-    TASA\_HOMICIDIOS & 060010003 & Tasa de homicidios por 100,000 habitantes & $+$ &
-        \textit{Revista Panamericana de Salud Pública} (2024), determinantes sociales en Cali \\
-    \addlinespace
-    \multicolumn{5}{l}{\textit{Vivienda y acceso a servicios públicos}} \\
-    COB\_ACUEDUCTO & 030010004 & Cobertura de acueducto (Censo) & $-$ &
-        DNP (2019), Cartilla 1 de TerriData \\
-    BANDA\_ANCHA & 030010003 & Penetración de banda ancha & $-$ &
-        DNP (2019), Cartilla 1 de TerriData \\
-    \addlinespace
-    \multicolumn{5}{l}{\textit{Entradas sin dato utilizable}} \\
-    TASA\_ANALFABETISMO & 040030003 & Tasa de analfabetismo (Censo) & --- & --- \\
-    DENS\_EMPRESARIAL & 160080001 & Empresas generadoras de empleo formal por 10,000 habitantes & --- & --- \\
-    POBREZA\_MONETARIA & 140060001 & Incidencia de la pobreza monetaria & --- & --- \\
-    GINI & 140010003 & Coeficiente de Gini & --- & --- \\
-    VICTIMAS\_DESPLAZAMIENTO & 260030002 & Víctimas de desplazamiento forzado ubicadas & --- & --- \\
-    \end{longtable}
-    }
+Incluye la Tabla~\ref{tab:app_municipios} y la Figura~\ref{fig:app_sensibilidad_extrapolacion}.
 
+{\scriptsize\setlength{\tabcolsep}{2pt}
+\begin{longtable}{l p{3.0cm} l r r r l l r r}
+\caption{Estimaciones de los 83 municipios objetivo, 2018, en \%. Sin ajuste: estimación sintética del benchmark; Final: tras el benchmarking (solo cambian Cali y Yumbo); CV en \%; Clase: por el CV final; Rango: estado de extrapolación; Espacial: predictor espacial del escenario de referencia y su CV. Toda estimación es condicional al modelo.}
+\label{tab:app_municipios} \\
+\toprule
+Código & Municipio & Depto. & Sin ajuste & Final & CV & Clase & Rango & Espacial & CV \\
+\midrule
+\endfirsthead
+\multicolumn{10}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Código & Municipio & Depto. & Sin ajuste & Final & CV & Clase & Rango & Espacial & CV \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+19022 & Almaguer & Cauca & 14.57 & 14.57 & 18.15 & Aceptable & dentro & 14.59 & 18.78 \\
+19050 & Argelia & Cauca & 20.96 & 20.96 & 19.93 & Aceptable & fuera & 21.17 & 20.92 \\
+19075 & Balboa & Cauca & 16.71 & 16.71 & 18.25 & Aceptable & fuera & 16.75 & 18.96 \\
+19100 & Bolívar & Cauca & 15.45 & 15.45 & 18.07 & Aceptable & dentro & 15.14 & 19.51 \\
+19110 & Buenos Aires & Cauca & 16.77 & 16.77 & 18.27 & Aceptable & fuera & 16.87 & 18.53 \\
+19130 & Cajibío & Cauca & 12.97 & 12.97 & 18.96 & Aceptable & dentro & 12.88 & 18.84 \\
+19137 & Caldono & Cauca & 10.43 & 10.43 & 23.34 & No confiable & dentro & 10.39 & 23.11 \\
+19142 & Caloto & Cauca & 17.74 & 17.74 & 18.56 & Aceptable & fuera & 17.84 & 18.86 \\
+19212 & Corinto & Cauca & 31.17 & 31.17 & 24.09 & No confiable & fuera & 31.60 & 24.63 \\
+19256 & El Tambo & Cauca & 17.66 & 17.66 & 18.53 & Aceptable & fuera & 17.69 & 18.28 \\
+19290 & Florencia & Cauca & 13.01 & 13.01 & 18.93 & Aceptable & dentro & 12.59 & 19.61 \\
+19300 & Guachené & Cauca & 18.27 & 18.27 & 18.76 & Aceptable & fuera & 18.32 & 18.09 \\
+19318 & Guapi & Cauca & 10.99 & 10.99 & 21.94 & No confiable & dentro & 10.95 & 22.37 \\
+19355 & Inzá & Cauca & 9.88 & 9.88 & 25.06 & No confiable & dentro & 10.14 & 24.77 \\
+19364 & Jambaló & Cauca & 10.86 & 10.86 & 22.23 & No confiable & dentro & 10.84 & 21.05 \\
+19392 & La Sierra & Cauca & 11.96 & 11.96 & 20.13 & No confiable & dentro & 11.95 & 20.79 \\
+19397 & La Vega & Cauca & 10.41 & 10.41 & 23.42 & No confiable & dentro & 10.40 & 23.93 \\
+19418 & López & Cauca & 15.07 & 15.07 & 18.08 & Aceptable & dentro & 15.12 & 17.49 \\
+19450 & Mercaderes & Cauca & 16.19 & 16.19 & 18.14 & Aceptable & dentro & 15.85 & 19.08 \\
+19455 & Miranda & Cauca & 15.84 & 15.84 & 18.10 & Aceptable & dentro & 15.88 & 18.28 \\
+19473 & Morales & Cauca & 11.49 & 11.49 & 20.91 & No confiable & dentro & 11.45 & 20.55 \\
+19513 & Padilla & Cauca & 12.19 & 12.19 & 19.81 & Aceptable & dentro & 12.07 & 20.58 \\
+19532 & Patía & Cauca & 20.50 & 20.50 & 19.72 & Aceptable & fuera & 20.70 & 20.37 \\
+19533 & Piamonte & Cauca & 11.44 & 11.44 & 21.00 & No confiable & dentro & 11.88 & 20.54 \\
+19548 & Piendamó & Cauca & 11.14 & 11.14 & 21.61 & No confiable & dentro & 11.10 & 22.07 \\
+19573 & Puerto Tejada & Cauca & 24.46 & 24.46 & 21.52 & No confiable & fuera & 24.08 & 20.78 \\
+19585 & Puracé & Cauca & 9.19 & 9.19 & 27.71 & No confiable & fuera & 9.01 & 28.06 \\
+19517 & Paéz & Cauca & 10.71 & 10.71 & 22.61 & No confiable & dentro & 10.73 & 22.96 \\
+19622 & Rosas & Cauca & 12.65 & 12.65 & 19.26 & Aceptable & dentro & 12.63 & 20.83 \\
+19693 & San Sebastián & Cauca & 10.10 & 10.10 & 24.34 & No confiable & dentro & 10.10 & 24.32 \\
+19701 & Santa Rosa & Cauca & 11.05 & 11.05 & 21.80 & No confiable & dentro & 11.39 & 20.81 \\
+19698 & Santander de Quilichao & Cauca & 15.21 & 15.21 & 18.07 & Aceptable & dentro & 15.27 & 18.65 \\
+19743 & Silvia & Cauca & 9.19 & 9.19 & 27.71 & No confiable & fuera & 9.16 & 28.64 \\
+19760 & Sotará & Cauca & 11.33 & 11.33 & 21.22 & No confiable & dentro & 11.27 & 22.10 \\
+19785 & Sucre & Cauca & 11.28 & 11.28 & 21.31 & No confiable & dentro & 11.26 & 21.42 \\
+19780 & Suárez & Cauca & 16.66 & 16.66 & 18.24 & Aceptable & fuera & 16.76 & 18.34 \\
+19809 & Timbiquí & Cauca & 14.52 & 14.52 & 18.16 & Aceptable & dentro & 14.57 & 18.55 \\
+19807 & Timbío & Cauca & 11.43 & 11.43 & 21.03 & No confiable & dentro & 11.30 & 21.29 \\
+19821 & Toribío & Cauca & 10.60 & 10.60 & 22.89 & No confiable & dentro & 10.55 & 23.14 \\
+19824 & Totoró & Cauca & 11.21 & 11.21 & 21.45 & No confiable & dentro & 11.22 & 20.97 \\
+19845 & Villa Rica & Cauca & 17.34 & 17.34 & 18.43 & Aceptable & fuera & 17.24 & 17.88 \\
+76020 & Alcalá & Valle & 13.43 & 13.43 & 18.62 & Aceptable & dentro & 14.01 & 16.46 \\
+76036 & Andalucía & Valle & 17.60 & 17.60 & 18.51 & Aceptable & fuera & 17.73 & 19.13 \\
+76041 & Ansermanuevo & Valle & 20.00 & 20.00 & 19.49 & Aceptable & fuera & 20.22 & 18.36 \\
+76054 & Argelia & Valle & 20.23 & 20.23 & 19.59 & Aceptable & fuera & 20.71 & 18.50 \\
+76100 & Bolívar & Valle & 16.01 & 16.01 & 18.12 & Aceptable & dentro & 16.12 & 18.10 \\
+76109 & Buenaventura & Valle & 12.12 & 12.12 & 19.90 & Aceptable & dentro & 12.12 & 20.66 \\
+76113 & Bugalagrande & Valle & 15.72 & 15.72 & 18.09 & Aceptable & dentro & 15.82 & 18.88 \\
+76122 & Caicedonia & Valle & 15.73 & 15.73 & 18.09 & Aceptable & dentro & 16.53 & 17.34 \\
+76126 & Calima & Valle & 11.94 & 11.94 & 20.16 & No confiable & dentro & 11.93 & 20.11 \\
+76130 & Candelaria & Valle & 15.57 & 15.57 & 18.08 & Aceptable & dentro & 15.02 & 17.23 \\
+76147 & Cartago & Valle & 12.55 & 12.55 & 19.37 & Aceptable & dentro & 12.20 & 19.87 \\
+76233 & Dagua & Valle & 11.85 & 11.85 & 20.29 & No confiable & dentro & 11.84 & 19.67 \\
+76246 & El Cairo & Valle & 10.64 & 10.64 & 22.78 & No confiable & dentro & 10.89 & 22.31 \\
+76248 & El Cerrito & Valle & 16.05 & 16.05 & 18.12 & Aceptable & dentro & 16.12 & 18.43 \\
+76250 & El Dovio & Valle & 13.66 & 13.66 & 18.48 & Aceptable & dentro & 13.70 & 18.74 \\
+76243 & El Águila & Valle & 27.02 & 27.02 & 22.59 & No confiable & fuera & 27.65 & 21.54 \\
+76275 & Florida & Valle & 12.30 & 12.30 & 19.66 & Aceptable & dentro & 12.18 & 19.74 \\
+76306 & Ginebra & Valle & 9.19 & 9.19 & 27.71 & No confiable & fuera & 9.11 & 28.02 \\
+76318 & Guacarí & Valle & 19.36 & 19.36 & 19.21 & Aceptable & fuera & 19.53 & 19.31 \\
+76111 & Guadalajara de Buga & Valle & 14.72 & 14.72 & 18.12 & Aceptable & dentro & 14.78 & 18.23 \\
+76364 & Jamundí & Valle & 15.65 & 15.65 & 18.08 & Aceptable & dentro & 14.91 & 17.15 \\
+76377 & La Cumbre & Valle & 11.02 & 11.02 & 21.87 & No confiable & dentro & 10.98 & 22.12 \\
+76400 & La Unión & Valle & 14.75 & 14.75 & 18.11 & Aceptable & dentro & 14.82 & 18.13 \\
+76403 & La Victoria & Valle & 15.71 & 15.71 & 18.08 & Aceptable & dentro & 15.81 & 18.35 \\
+76497 & Obando & Valle & 14.83 & 14.83 & 18.10 & Aceptable & dentro & 14.86 & 18.04 \\
+76520 & Palmira & Valle & 13.62 & 13.62 & 18.50 & Aceptable & dentro & 13.52 & 18.98 \\
+76563 & Pradera & Valle & 15.03 & 15.03 & 18.08 & Aceptable & dentro & 14.95 & 17.62 \\
+76606 & Restrepo & Valle & 11.78 & 11.78 & 20.40 & No confiable & dentro & 11.77 & 20.69 \\
+76616 & Riofrío & Valle & 11.74 & 11.74 & 20.47 & No confiable & dentro & 11.73 & 22.30 \\
+76622 & Roldanillo & Valle & 11.62 & 11.62 & 20.68 & No confiable & dentro & 11.62 & 21.01 \\
+76670 & San Pedro & Valle & 13.29 & 13.29 & 18.71 & Aceptable & dentro & 13.32 & 19.78 \\
+76001 & Cali & Valle & 14.36 & 11.60 & 29.96 & No confiable & dentro & 11.57 & 21.35 \\
+76736 & Sevilla & Valle & 11.55 & 11.55 & 20.81 & No confiable & dentro & 11.67 & 21.16 \\
+76823 & Toro & Valle & 18.70 & 18.70 & 18.93 & Aceptable & fuera & 18.92 & 18.88 \\
+76828 & Trujillo & Valle & 11.26 & 11.26 & 21.36 & No confiable & dentro & 11.23 & 23.10 \\
+76834 & Tuluá & Valle & 13.90 & 13.90 & 18.36 & Aceptable & dentro & 13.95 & 17.82 \\
+76845 & Ulloa & Valle & 12.82 & 12.82 & 19.09 & Aceptable & dentro & 13.49 & 17.13 \\
+76863 & Versalles & Valle & 11.92 & 11.92 & 20.19 & No confiable & dentro & 11.96 & 21.43 \\
+76869 & Vijes & Valle & 9.97 & 9.97 & 24.75 & No confiable & dentro & 9.91 & 24.38 \\
+76890 & Yotoco & Valle & 11.05 & 11.05 & 21.80 & No confiable & dentro & 11.02 & 22.15 \\
+76892 & Yumbo & Valle & 16.96 & 13.70 & 30.03 & No confiable & fuera & 14.24 & 20.72 \\
+76895 & Zarzal & Valle & 14.40 & 14.40 & 18.19 & Aceptable & dentro & 14.56 & 17.83 \\
+\end{longtable}
+}
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{img/fh_sensibilidad_extrapolacion.png}
+\caption{Municipios que extrapolan: estimación publicada, estimación con la tasa de homicidios recortada al rango de los dominios y franja de la estimación al retirar cada dominio. Fuente: tabla de sensibilidad de la extrapolación.}
+\label{fig:app_sensibilidad_extrapolacion}
+\end{figure}
 %--------------------------------------------------------------------------------------
-\section{Repositorio de github}
-\label{sec:repositorio-github}
+\section{Material complementario de Resultados}
+\label{app:resultados}
 
-https://github.com/juanp001/Estimacion-desempleo-Colombia-SAE
+Esta sección reúne tablas de apoyo de la Sección~\ref{sec:resultados} que no responden por sí solas a un objetivo; cada una se cita desde la sección de Resultados que complementa.
+
+\subsection{Tratamiento de faltantes y atípicos}
+
+Complementa la Sección~\ref{sec:res_faltantes}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Resultado del tratamiento de faltantes y atípicos.}
+\label{tab:res_faltantes}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{4.6cm} >{\raggedright\arraybackslash}X}
+\toprule
+Caso & Resultado \\
+\midrule
+Factor de expansión faltante & 0 personas; el procesamiento no se detuvo \\
+Registros sin código de área & \num{152314} personas de 2018 (762,753 menos 610,439 con área) no se usan; 9 capitales no tienen registros con código de área en 2018 \\
+Indicadores de TerriData con faltantes en los dominios & \num{1073} de \num{1582}; salen en el pre-filtrado \\
+Candidatas con faltantes en los municipios objetivo & 0 de 18 \\
+Valores atípicos en las candidatas (regla del diagrama de caja) & 22 casos en 13 de las 18; Quibdó y Riohacha son los dominios que más se repiten; ninguno se eliminó \\
+Valores atípicos en la tasa directa & Ninguno \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Variables de la literatura sin dato utilizable}
+
+Complementa la Sección~\ref{sec:res_covariables}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Variables de la revisión de literatura sin dato utilizable.}
+\label{tab:res_excluidas}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{5.2cm} >{\raggedright\arraybackslash}X}
+\toprule
+Variable & Motivo \\
+\midrule
+Tasa de analfabetismo (censo) & Sin dato en los dominios con encuesta para 2018 \\
+Empresas generadoras de empleo formal por cada 10,000 habitantes & La serie termina en 2016 \\
+Incidencia de la pobreza monetaria & Solo departamentos y 23 ciudades; no existe en los municipios objetivo \\
+Coeficiente de Gini & Solo departamental \\
+Víctimas de desplazamiento forzado ubicadas & Solo 2022 y 2023 \\
+Índice de incidencia del conflicto armado & Retirado: mide el conflicto en el propio municipio; $r = 0.92$ con la tasa de homicidios en los dominios; 13 valores distintos \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Sensibilidad de las covariables de las áreas metropolitanas a la regla de agregación}
+
+Complementa la Sección~\ref{sec:res_covariables}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Cambio relativo máximo en los 7 dominios con A.M. entre la agregación con el denominador propio y la agregación con la población de 15 años y más. Solo se muestran las variables con cambio de 1~\% o más; en las otras 14 es menor.}
+\label{tab:res_agregacion_am}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{l l r l}
+\toprule
+Covariable & Denominador propio & Cambio máximo (\%) & Dominio \\
+\midrule
+Densidad de población & Superficie & 67.67 & Bucaramanga A.M. \\
+Valor agregado de actividades secundarias & Valor agregado & 43.94 & Cali A.M. \\
+Valor agregado de actividades primarias & Valor agregado & 14.23 & Manizales A.M. \\
+Valor agregado de actividades terciarias & Valor agregado & 8.04 & Cali A.M. \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\subsection{Frecuencia de selección en la validación con el procedimiento completo}
+
+Complementa la Sección~\ref{sec:res_validacion}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Frecuencia con que cada covariable entra en las 23 iteraciones del procedimiento completo, en la selección de covariables y en el benchmark.}
+\label{tab:res_frecuencia}
+\begin{tabular}{l r r}
+\toprule
+Covariable & Selección (\%) & Benchmark (\%) \\
+\midrule
+Tasa de homicidios & 78.26 & 69.57 \\
+Cobertura de acueducto & 56.52 & 8.70 \\
+Cobertura neta en educación media & 8.70 & 4.35 \\
+Ingresos tributarios per cápita & 4.35 & 4.35 \\
+Valor agregado de actividades primarias & 4.35 & 4.35 \\
+Ninguna (solo intercepto) & 17.39 & 17.39 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Validación dejar-un-dominio-fuera del modelo espacial}
+
+Complementa la Sección~\ref{sec:res_espacial}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Validación predictiva dejar-un-dominio-fuera con la tasa de homicidios fija, escenario de referencia (3 vecinos, estructura completa). Errores en puntos porcentuales. Las métricas de los cuatro escenarios están en el Apéndice~\ref{app:espacial}.}
+\label{tab:res_validacion_espacial}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{l r r r r r}
+\toprule
+Estimador del dominio retirado & RMSE & MAE & Sesgo & Cobertura (\%) & Habilidad \\
+\midrule
+Sintético clásico & 2.52 & 2.13 & $-0.07$ & 100.00 & 0.17 \\
+Sintético espacial & 2.48 & 2.09 & $-0.07$ & 100.00 & 0.20 \\
+Espacial con efecto & 2.35 & 1.99 & $-0.03$ & 100.00 & 0.28 \\
+Solo intercepto & 2.77 & 2.23 & $-0.01$ & 95.65 & no aplica \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\FloatBarrier
 

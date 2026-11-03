@@ -1,19 +1,41 @@
-
-
 \label{sec:problema}
-
 
 \section{Planteamiento del problema}
 \label{sec:planteamiento}
 
-La obtención de datos precisos y desagregados sobre el desempleo en Colombia constituye una de las principales limitaciones para el análisis territorial y para la formulación de políticas públicas focalizadas. La raíz de esa limitación no es un defecto de las encuestas oficiales, sino una propiedad de su diseño. Una encuesta por muestreo se planifica fijando de antemano los dominios sobre los que se quiere informar y asignando a cada uno el tamaño de muestra que garantice un error de estimación tolerable. Como el costo del operativo crece con el número de dominios que se desea cubrir, el diseño concentra la muestra en los agregados de mayor interés y deja el resto del territorio con tamaños muestrales residuales. Fuentes consolidadas como la GEIH y la Encuesta Multipropósito comparten esta característica: sus diseños no están planificados para generar estimaciones confiables en áreas geográficas pequeñas, tales como municipios o Unidades de Planeamiento Zonal (UPZ), lo que impide obtener indicadores laborales con el detalle suficiente para identificar las dinámicas locales del mercado de trabajo \cite{MendozaZea2019}.
+La tasa de desempleo de un municipio colombiano mediano o pequeño no se conoce. La fuente oficial del mercado laboral, la GEIH, es una encuesta por muestreo probabilístico, estratificado y de conglomerados, y su diseño fija de antemano los territorios para los que publica resultados: mensualmente, el conjunto de las 13 grandes ciudades con sus áreas metropolitanas, las 11 ciudades intermedias y el total nacional; trimestral y semestralmente, cada ciudad capital con su área metropolitana, las grandes regiones y las zonas de cabecera y resto; y anualmente, además, cada departamento \cite[p.~9]{DANE_GEIH_Metodologia2016}. El municipio no es un dominio de la encuesta. La muestra se asigna para alcanzar una precisión fijada en esos dominios, un error estándar relativo no mayor al 5~\% para una tasa de desempleo del 10~\% \cite[p.~12]{DANE_GEIH_Metodologia2016}, y lo que queda en cada municipio es una muestra pequeña o ninguna.
 
-La GEIH, fuente oficial para el seguimiento del mercado laboral, realiza levantamientos mensuales y permite desagregar resultados a nivel nacional, por zona de cabecera y resto, para 13 áreas metropolitanas, 24 ciudades principales y los departamentos.
-Su estructura muestral, sin embargo, no garantiza estimaciones robustas en dominios más específicos, de modo que los estimadores directos de la tasa de desempleo presentan alta varianza y baja precisión estadística cuando se intentan calcular para municipios o UPZ. La Encuesta Multipropósito, que mide las condiciones socioeconómicas de los hogares en Bogotá y en 37 municipios de Cundinamarca, tampoco permite obtener resultados confiables a nivel de UPZ, dado que su diseño probabilístico multietápico está orientado a niveles de agregación mayores \cite{MendozaZea2019,VargasLemusAlejo2018}.
+En el Cauca y el Valle del Cauca la situación es clara. De sus 84 municipios, solo tres tienen una tasa directa de la GEIH en 2018, y ninguno por separado: Popayán, como ciudad capital, y Cali y Yumbo, que la encuesta mide juntos como Cali A.M. Los otros 81 no tienen registros que permitan identificarlos en los microdatos con código de área, y la cifra departamental, que sí existe, no distingue entre un municipio del norte del Cauca y uno de la costa pacífica.
 
-El caso de Cundinamarca ilustra tanto la magnitud del problema como la vía de solución. Aun cuando la Encuesta Multipropósito de 2017 cubre 37 municipios, la estimación de la tasa de desempleo presentó dificultades atribuibles al comportamiento de las variables y al tamaño insuficiente de las muestras, que limitaron la obtención de resultados precisos incluso para el ingreso medio. En varios municipios el número de encuestas disponibles no permitió calcular estimaciones estadísticamente sólidas, por lo que se recurrió a técnicas de estimación en áreas pequeñas (SAE) apoyadas en componentes principales de variables altamente correlacionadas \cite{VargasLemusAlejo2018}. Este antecedente muestra el mecanismo que hace viable la estimación en dominios sin muestra suficiente, que consiste en articular la información de la encuesta con información auxiliar disponible para todo el territorio, y al mismo tiempo delimita sus alcances: incluso con modelos avanzados como el Fay-Herriot espacial, la mejora en el coeficiente de variación estimado (CVE) frente al modelo estándar fue solo leve, lo que evidencia que la técnica reduce el problema pero no lo elimina \cite{VargasLemusAlejo2018}.
+\subsection{Síntomas, causas y consecuencias}
 
-A esta limitación técnica se suman factores institucionales y estructurales asociados a la
-disponibilidad de información auxiliar, que es el insumo del que depende cualquier método SAE. El último censo con datos de acceso abierto es el de 2018, lo que obliga a trabajar con una fotografía territorial cada vez más distante del presente. A ello se añade la baja disponibilidad de registros administrativos utilizables, que suelen considerarse propiedad de las entidades responsables y cuya calidad y pertinencia resultan en muchos casos deficientes
-\cite{DNP2019}. Esta combinación de limitaciones estadísticas, metodológicas y de acceso a la
-información no solo dificulta la estimación precisa del desempleo a nivel local, sino que además restringe la capacidad de los gobiernos territoriales para diseñar estrategias efectivas de desarrollo económico y reducción de la pobreza \cite{DNP2019}.
+La Tabla~\ref{tab:problema} organiza el problema. El síntoma es la ausencia de una cifra municipal; la causa principal es de diseño y de costo, no un defecto de la encuesta; y la consecuencia es que las diferencias de desempleo dentro de un departamento quedan sin medir.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Síntomas, causas y consecuencias del problema.}
+\label{tab:problema}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.4cm} >{\raggedright\arraybackslash}X}
+\toprule
+Componente & Descripción \\
+\midrule
+Síntomas & No hay tasa de desempleo oficial para 81 de los 84 municipios del Cauca y del Valle del Cauca; la más desagregada disponible es la departamental o la de la ciudad capital con su área metropolitana \\
+Causas & El costo de la encuesta crece con el número de dominios, así que el diseño concentra la muestra en ciudades y departamentos; el último censo de población es de 2018 y no se repite cada año; los registros administrativos municipales no miden el desempleo directamente \\
+Consecuencias & Los programas de empleo y las políticas locales se diseñan con la cifra del departamento o de la capital; las diferencias entre municipios, que la literatura documenta como grandes y persistentes, no se ven; un municipio con desempleo alto no se distingue de uno con desempleo bajo en el mismo departamento \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Las diferencias que quedan ocultas no son menores. Con los censos de 1993 y 2005, Díaz analizó la tasa de desempleo de 522 áreas urbanas del país y encontró un proceso de polarización: los municipios con tasas muy altas o muy bajas frente al promedio nacional tendieron a mantenerse así, y municipios cercanos formaron clústeres con tasas parecidas \cite[pp.~124--125]{Diaz2016}. Las diferencias en la demanda de trabajo, la inmigración y la urbanización explican parte de esas disparidades \cite[p.~124]{Diaz2016}. Si esa heterogeneidad existe entre municipios, una cifra departamental la promedia y la esconde. La demanda por información desagregada tampoco es solo local: el marco de indicadores de los Objetivos de Desarrollo Sostenible pide desagregar por área geográfica, entre otras dimensiones \cite[p.~9]{Molina2019}.
+
+Aumentar la muestra de la GEIH hasta cubrir cada municipio no es una salida viable: multiplicaría el costo del operativo sin que la precisión por municipio llegue a la exigida. Repetir un censo cada año, tampoco. El problema es, por tanto, cómo obtener una estimación municipal a partir de la información que ya existe.
+
+\subsection{El problema desde la ciencia de datos}
+
+Visto desde la ciencia de datos, el problema tiene tres partes. La primera es de integración: la información útil está repartida en fuentes con unidades distintas. La GEIH mide personas en ciudades y áreas metropolitanas, TerriData publica más de 1,500 indicadores por municipio con cortes y denominadores diferentes, la DIVIPOLA codifica los municipios y el DANE publica sus cifras oficiales en anexos separados. Ninguna de ellas, por sí sola, permite estimar el desempleo de un municipio sin muestra.
+
+La segunda parte es de modelación con pocos datos. Las ciudades con estimación directa son pocas, unas dos decenas, y de ellas debe salir la relación entre el desempleo y las características del territorio que luego se aplica a los municipios que no tienen muestra. Con tan pocas observaciones, elegir las variables con los mismos datos que sirven para estimar la relación puede producir asociaciones que no se sostienen fuera de la muestra, y los municipios objetivo pueden tener valores de esas variables que las ciudades nunca toman. La cercanía geográfica entre municipios es una fuente de información adicional, pero no se sabe de antemano si aporta.
+
+La tercera parte es de incertidumbre. Una cifra municipal sin una medida de su error, o con una que no advierta cuándo depende de supuestos que los datos no pueden verificar, puede llevar a decisiones peores que no tener cifra. La estimación en áreas pequeñas ya se usa en Colombia, sobre todo en trabajos académicos, y su uso en la producción oficial es reciente \cite[pp.~407, 413]{OrtizTellezRamirez2024}; el DANE, por ejemplo, la aplica a la pobreza municipal partiendo de estimaciones directas municipales de la GEIH \cite[pp.~21--22]{DANE_SAE_2025}. Para el desempleo de municipios que no tienen ninguna estimación directa, en un territorio con la diversidad del Cauca y del Valle del Cauca, no hay una metodología documentada que integre las fuentes, construya el modelo con estas restricciones y reporte la calidad de cada cifra.
