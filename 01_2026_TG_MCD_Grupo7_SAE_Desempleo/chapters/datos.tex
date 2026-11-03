@@ -1,0 +1,271 @@
+
+\label{sec:datos} 
+
+El desarrollo metodológico de la presente investigación se sustenta en la integración de diversas fuentes estadísticas oficiales, cuyo propósito es garantizar la solidez y representatividad de los resultados obtenidos. La combinación de encuestas, censos y sistemas de información territorial permite construir un panorama integral de las condiciones sociales, económicas y educativas de la población, con especial énfasis en los departamentos de Cauca y Valle del Cauca.
+
+En primer lugar, la Gran Encuesta Integrada de Hogares (GEIH) constituye la fuente principal para el análisis del mercado laboral, al proporcionar microdatos detallados sobre ocupación, fuerza de trabajo y características sociodemográficas. Sin embargo, dado que su diseño muestral está optimizado para niveles nacionales y departamentales, se hace necesario complementar la información con fuentes auxiliares que permitan mejorar la precisión de las estimaciones a nivel municipal.
+
+En este sentido, se incorporan los indicadores del Sistema de Estadísticas Territoriales – Terridata, desarrollado por el Departamento Nacional de Planeación (DNP), el cual aporta más de 800 indicadores estandarizados y comparables en múltiples dimensiones del desarrollo territorial.
+
+%--------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------
+\section{Gran encuesta integrada de hogares}
+    La Gran Encuesta Integrada de Hogares (GEIH) es la principal encuesta de hogares de
+    Colombia, producida mensualmente por el Departamento Administrativo Nacional de
+    Estadística (DANE). Su objetivo es medir las condiciones del mercado laboral a nivel
+    nacional, regional (principales áreas metropolitanas) y, con limitaciones de
+    representatividad, subnacional.
+
+    La GEIH utiliza un \textit{diseño muestral complejo} de dos etapas con estratificación
+    y conglomeración. Las unidades primarias de muestreo (UPM) son segmentos cartográficos,
+    y las unidades secundarias son los hogares dentro de cada segmento. Para cada individuo
+    se reporta un \textit{factor de expansión} ($w_i$, denominado \texttt{FEX\_C18} en el
+    marco nuevo y \textit{FEX\_C\_2011} en el marco antiguo), que representa el número de
+    personas de la población que dicha observación representa.
+
+    La encuesta se estructura en \textit{módulos temáticos} que se almacenan en archivos CSV separados:
+
+    \begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Dimensiones y estructura de módulos de la GEIH 2018}
+    \label{tab:dimensiones-geih-modulos}
+    \renewcommand{\arraystretch}{1.25} 
+    \begin{tabular}{c l c p{6.2cm}} 
+    \hline
+    \textbf{No.} & \textbf{Módulo GEIH} & \textbf{Cantidad de Variables} & \textbf{Descripción Breve} \\ \hline
+    
+    1  & Vivienda y Hogares
+       & 59
+       & Datos sobre tipo de vivienda, materiales de construcción y acceso a servicios públicos básicos. \\
+    
+    2  & Características Generales
+       & 59
+       & Información demográfica fundamental: sexo, edad, parentesco, estado civil, etnia y seguridad social.\\
+    
+    3  & Fuerza de Trabajo 
+       & 24
+       & Estructura de la población (PET, PEA) y filtros iniciales para clasificar el estado laboral. \\
+    
+    4  & Ocupados
+       & 299
+       & Módulo más extenso; detalla cargos, ingresos, horas de trabajo, estabilidad y seguridad social laboral. \\
+    
+    5  & Desocupados
+       & 62
+       & Información sobre el tiempo de búsqueda de empleo y las causas de la cesantía o inactividad previa. \\
+    
+    6  & Inactivos
+       & 24
+       & Causas de no participación laboral y actividades realizadas (estudio, hogar, rentistas). \\
+    
+    7  & Otras Actividades
+       & 29
+       & Trabajo no remunerado en el hogar, cuidado de niños o ancianos y servicios a la comunidad.\\
+    
+    8  & Otros Ingresos
+       & 44
+       & Rentas, pensiones, intereses, remesas y ayudas gubernamentales o de terceros. \\
+    \hline
+    \end{tabular}
+    \end{table}
+    %-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    % Hay que citar la tabla en el texto, usar label y ref para \label{tab:dimensiones-geih-modulos}
+    %-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+    
+    Adicionalmente, la GEIH ha utilizado dos \textit{marcos muestrales distintos}:
+    \begin{itemize}
+        \item 
+            \textit{Marco antiguo}: empleado para los datos hasta 2021. Cada módulo se
+                  distribuye en dos archivos separados por sección geográfica:
+                  \textit{cabecera} y \textit{resto}, que hacen referencia a la zona urbana y rural respectivamente.
+        \item 
+            \textit{Marco nuevo}: empleado para datos de 2022 en adelante. Cada módulo
+                  se distribuye en un único archivo que cubre todo el territorio, con variables
+                  \texttt{PER} y \texttt{MES} explícitas.
+    \end{itemize}
+    
+    Para garantizar la interoperabilidad entre los microdatos de la GEIH y las fuentes auxiliares (Censo y Terridata), se utilizará como identificador único el código de la División Político-Administrativa de Colombia (DIVIPOLA). Este código consta de cinco dígitos: los dos primeros corresponden al departamento (19 para Cauca y 76 para Valle del Cauca) y los tres últimos al municipio. Esta codificación es crítica por dos razones:
+
+    \begin{itemize}
+        \item 
+            \textit{Vínculo espacial:} Permite asignar a cada registro de la encuesta         las características estructurales de su municipio (como el IPM o la                 ruralidad).
+        \item 
+            \textit{Análisis de vecindad:} Facilita la construcción de la matriz de           contigüidad (W) necesaria para los modelos mixtos con componentes espaciales,       identificando qué municipios comparten fronteras físicas.
+    \end{itemize}
+
+    La variable dependiente del modelo, la Tasa de Desempleo (TDD), se calculará siguiendo los lineamientos internacionales de la OIT adoptados por el DANE.
+
+%--------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------
+\section{Sistema de estadísticas territoriales}
+    El Sistema de estadísticas territoriales (TerriData) fué desarrollado por el Departamento Nacional de Planeación (DNP) con el objetivo de fortalecer las capacidades de los gobiernos locales. Su propósito central es promover la gestión del conocimiento en la administración pública mediante el uso de datos estadísticos oficiales a nivel municipal, departamental y regional.
+
+    La plataforma facilita la consulta y el aprovechamiento de indicadores estandarizados y comparables que reflejan el desempeño de las entidades territoriales en múltiples dimensiones. Además, cumple una función pedagógica al apoyar las distintas etapas del ciclo de la gestión pública, desde la planeación hasta el monitoreo y la evaluación de resultados.
+
+    TerriData también actúa como un canal de acceso a la información pública, permitiendo que cualquier ciudadano consulte de manera gratuita y ágil la situación de su territorio, lo que contribuye a fortalecer la transparencia y el control social. En este sentido, el sistema busca transformar los datos en información clara y útil que facilite la toma de decisiones informadas y promueva el bienestar de la población.
+
+    La plataforma organiza la información en 22 dimensiones, lo que facilita su análisis a lo largo de las diferentes etapas del ciclo de gestión pública. Estas dimensiones, a su vez, agrupan más de 800 indicadores, tanto simples como compuestos, que permiten monitorear de manera integral el comportamiento y la evolución de los territorios.
+
+    Para el desarrollo del caso de estudio, se extrajeron de la base de datos general los registros correspondientes a los departamentos de Valle del Cauca y Cauca. El conjunto de datos resultante, cuya estructura se presenta en la Tabla ~\ref{tab:tab-variables-originales-terridata}, está conformado por un total de 996{,}292 registros.
+
+    Con el fin de facilitar la comprensión del análisis, y dado que estos conceptos serán utilizados en la construcción de variables auxiliares, es necesario definir algunos elementos clave de la base de datos:
+
+    \begin{itemize}
+        \item 
+            \textit{Dimensión:} Corresponde a una temática general que agrupa            indicadores         asociados a un sector o aspecto específico del          territorio. TerriData se organiza       en 22 dimensiones como Salud, Educación y Economía y Finanzas Públicas lo       que permite estructurar la información de acuerdo con las necesidades de la             estión pública.
+        \item 
+            \textit{Subcategoría (o categoría):} Constituye un nivel de clasificación             intermedio dentro de cada dimensión, cuyo propósito es organizar los indicadores       de manera lógica y facilitar consultas más específicas. Este nivel permite             filtrar la información y seleccionar variables relevantes para análisis                particulares.
+         \item 
+             \textit{Indicador:} Es la unidad básica de información y representa datos             estadísticos agregados, que pueden ser simples o compuestos. TerriData dispone de      más de 800 indicadores estandarizados y comparables entre municipios y           departamentos.
+    \end{itemize}
+    
+    La comprensión de estos elementos es fundamental, ya que los indicadores servirán como insumo para la construcción de las variables necesarias en la estimación de la tasa de desempleo.
+
+    Entre los indicadores más relevantes para el desarrollo del proyecto se destacan:
+
+    \begin{itemize}[noitemsep, topsep=0pt]
+        \item Porcentaje de personas ocupadas formalmente con respecto a la población total
+        \item Trabajadores cotizantes al Sistema General de Seguridad Social (promedio mensual)
+        \item Coeficiente de Gini
+        \item Índice de pobreza
+        \item Afiliados al Sistema General de Seguridad Social en Salud (SGSSS)
+        \item Afiliados al régimen contributivo
+    \end{itemize}
+
+    Para sintetizar la información, cada indicador se registra a nivel municipal con periodicidad mensual para cada año. En el presente proyecto, se utilizarán exclusivamente los datos correspondientes al año 2018, con el fin de garantizar la consistencia con la información proporcionada por el censo.
+    
+    \begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Variables contenidas en la base de datos completa de TerriData}
+    \label{tab:tab-variables-originales-terridata}
+    \renewcommand{\arraystretch}{1.25} 
+    \begin{tabular}{c l c p{6.2cm}} 
+    \hline
+    \textbf{No.} & \textbf{Nombre de la variable} & \textbf{Tipo de dato} & \textbf{Descripción} \\ \hline
+    
+    1  & Código Departamento
+       & Texto
+       & Número asignado al departamento por el DNP. \\
+    
+    2  & Departamento
+       & Texto
+       & Nombre del departamento.\\
+    
+    3  & Código Entidad 
+       & Texto
+       & Número asignado al municipio por el DNP. \\
+    
+    4  & Entidad
+       & Texto
+       & Nombre del municipio. \\
+    
+    5  & Dimensión
+       & Texto
+       & Nombre de la dimensión. \\
+    
+    6  & Subcategoría
+       & Texto
+       & Nombre de la subcategoría. \\
+    
+    7  & Indicador
+       & Texto
+       & Nombre del indicador\\
+    
+    8  & Dato Numérico
+       & Numérico
+       & Valor numérico. Este valor solo aplica cuando los indicadores son numéricos. \\
+    
+    9  & Dato Cualitativo
+       & Texto
+       & Valor cualitativo. Este valor solo aplica cuando los indicadores son cualitativos. \\
+    
+    10 & Año
+       & Numérico
+       & Año al cual corresponde el valor medido. \\
+    
+    11 & Mes
+       & Numérico
+       & Mes al cual corresponde el valor medido. \\
+    
+    12 & Fuente
+       & Texto
+       & Origen del dato que se encuentra en la base de datos.\\
+    
+    13 & Unidad de Medida
+       & Texto
+       & Detalla que se está midiendo en el indicador. \\
+    \hline
+    \end{tabular}
+    \end{table}
+
+
+
+
+    
+%--------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------
+%--------------------------------------------------------------------------------------
+\section{Censo Nacional de Población y Vivienda 2018}
+
+    El Censo Nacional de Población y Vivienda (CNPV) del 2018, elaborado por el Departamento Administrativo Nacional de Estadística (DANE), el cual consistió en caracterizar a todas las personas residentes de Colombia, las viviendas y hogares. De este modo el CNPV nos muestra el estado del territorio en un momento dado u especifico.
+    Por tal motivo, cada registro corresponde a un individuo (persona), la cual incluye información de caracterización general, del hogar y de la vivienda, todo esto acompañado con información georreferenciada, de acuerdo con el Marco Geoestadístico Nacional (MGN) del DANE.
+    La base de datos constituida de DANE producto del CNPV 2018 genero un total de 44.164.417 personas efectivamente censadas en todo el territorio nacional, sin embargo, y de la mano con el objetivo de la presente investigación se realizó un subconjuto de la base original, manteniendo solamente los registros de los departamentos del Cauca y Valle del Cauca, la cual nos deja un total de registros de 5.033.377 personas censadas las cuales están distribuidas en 84 municipios.
+    En la tabla  ~\ref{tab:tab-variables-censo} se presenta un resumen de las principales variables contenidas en la base de datos original.
+
+\usepackage{longtable} % en el preámbulo
+
+\renewcommand{\arraystretch}{1.25}
+
+% Bloque con tamaño reducido solo para la tabla
+{\footnotesize
+\begin{longtable}{c l c p{6.2cm}}
+\caption{Descripción de las variables} \label{tab:tab-variables-censo} \\
+
+\hline
+\textbf{No.} & \textbf{Nombre de la variable} & \textbf{Etiqueta} & \textbf{Descripción} \\ \hline
+\endfirsthead
+
+\hline
+\textbf{No.} & \textbf{Nombre de la variable} & \textbf{Etiqueta} & \textbf{Descripción} \\ \hline
+\endhead
+
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+\multicolumn{4}{l}{\textbf{Características demográficas}} \\ \hline
+1 & Edad en grupos quinquenales & P\_EDADR & Edad del individuo censado agrupada por quinquenios (de 00 a 04 años). \\
+2 & Lugar de residencia hace 12 meses & PA\_VIVIA\_1ANO & Ubicación del censado 12 meses antes: No había nacido; En este municipio; En otro municipio colombiano; En otro país; No informa; No aplica. \\ \hline
+
+\multicolumn{4}{l}{\textbf{Educación}} \\ \hline
+3 & Sabe leer y escribir & P\_ALFABETA & Variable dicótoma que identifica a las personas analfabetas. \\
+4 & Nivel educativo más alto alcanzado & P\_NIVEL\_ANOSR & Variable recodificada: Preescolar; Básica primaria; Básica secundaria; Media académica o clásica; Media técnica; Normalista; Técnica profesional o tecnológica; Universitario; Especialización, maestría, doctorado; Ninguno; No aplica. \\ \hline
+
+\multicolumn{4}{l}{\textbf{Actividad económica}} \\ \hline
+5 & Qué hizo durante la semana pasada & P\_TRABAJO & Variable recodificada: Trabajó al menos una hora; Ayudó sin pago; No trabajó pero tenía empleo; Buscó trabajo; Vivió de renta/pensión; Oficios del hogar; Incapacitado; Otra situación; No informa; No aplica. \\ \hline
+
+\multicolumn{4}{l}{\textbf{Condiciones de la vivienda y servicios}} \\ \hline
+6 & Tipo de vivienda & V\_TIPO\_VIV & Variable recodificada: Casa; Apartamento; Tipo cuarto; Vivienda tradicional indígena; Vivienda étnica; Otro. \\
+7 & Servicio de energía eléctrica & VA\_EE & Variable dicótoma sobre acceso a energía eléctrica. \\
+8 & Servicio de acueducto & VB\_ACU & Variable dicótoma sobre acceso a acueducto. \\
+9 & Servicio de alcantarillado & VC\_ALC & Variable dicótoma sobre acceso a alcantarillado. \\
+10 & Servicio de gas natural & VD\_GAS & Variable dicótoma sobre acceso a gas natural. \\
+11 & Servicio de recolección de basura & VE\_RECBAS & Variable dicótoma sobre acceso a recolección de basura. \\
+
+\end{longtable}
+} % cierre del bloque de \footnotesize
+
+\vspace{2mm}
+\normalsize % aquí vuelves al tamaño normal para el resto del documento
+
+
+
+
+

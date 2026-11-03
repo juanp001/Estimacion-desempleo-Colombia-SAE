@@ -1,0 +1,1053 @@
+
+
+\label{sec:metodologia}
+
+
+Este capítulo describe el procedimiento seguido para estimar la tasa de desempleo de los municipios del Cauca y del Valle del Cauca, desde la obtención de las fuentes primarias hasta la estimación en los dominios sin cobertura muestral. La evidencia empírica de cada etapa se presenta en la Sección~\ref{sec:resultados}, cuyas secciones llevan los mismos títulos y el mismo orden que las de este capítulo.
+
+Toda la infraestructura se implementó sobre Databricks, con Apache Spark como motor de cómputo distribuido y Unity Catalog como capa de gobierno de datos que garantiza linaje, control de acceso y trazabilidad entre tablas. Los datos procesados se almacenaron en tablas Delta bajo el catálogo \texttt{tesis}, con la organización lógica \texttt{catálogo.esquema.tabla}, donde los esquemas \texttt{geih\_bronce}, \texttt{geih\_plata}, \texttt{geih\_oro}, \texttt{terridata}, \texttt{dim},
+\texttt{preprocesamiento} y \texttt{modelo} corresponden a cada capa de la arquitectura.
+
+El flujo sigue la arquitectura medallón, que estructura el procesamiento en capas incrementales de calidad. La capa bronce almacena los datos tal como fueron recibidos y opera como punto de verdad inmutable que permite reejecutar cualquier transformación posterior; la capa plata contiene datos limpios y consolidados, con nombres de columna canónicos, tipos normalizados y resolución de inconsistencias entre versiones del instrumento; y la capa oro contiene las tablas analíticas orientadas a los casos de uso del estudio, insumo directo de la estimación. La Figura~\ref{fig:medallon} ilustra el flujo adoptado.
+
+        \begin{figure}[!htbp]
+        \centering
+        \shorthandoff{>}
+        \resizebox{\linewidth}{!}{%
+        \begin{tikzpicture}[
+            every node/.style={font=\small},
+            fuente/.style={
+                rectangle, rounded corners=3pt,
+                draw=gray!70, fill=gray!12,
+                minimum width=3.0cm, minimum height=0.70cm,
+                text centered, align=center
+            },
+            bronce/.style={
+                rectangle, rounded corners=3pt,
+                draw=brown!60, fill=brown!10,
+                minimum width=3.2cm, minimum height=0.70cm,
+                text centered, align=center, font=\small\ttfamily
+            },
+            plata/.style={
+                rectangle, rounded corners=3pt,
+                draw=gray!70, fill=gray!20,
+                minimum width=3.2cm, minimum height=0.70cm,
+                text centered, align=center, font=\small\ttfamily
+            },
+            dim/.style={
+                rectangle, rounded corners=3pt,
+                draw=purple!50, fill=purple!8,
+                minimum width=3.2cm, minimum height=0.70cm,
+                text centered, align=center, font=\small\ttfamily
+            },
+            oro/.style={
+                rectangle, rounded corners=3pt,
+                draw=yellow!70!black, fill=yellow!15,
+                minimum width=3.2cm, minimum height=0.75cm,
+                text centered, align=center, font=\small\ttfamily
+            },
+            modelo/.style={
+                rectangle, rounded corners=5pt,
+                draw=green!50!black, fill=green!12, line width=1.2pt,
+                minimum width=3.4cm, minimum height=0.80cm,
+                text centered, align=center, font=\small\ttfamily\bfseries
+            },
+            arr/.style={->, >=stealth, thick, draw=black!55},
+            arrdim/.style={->, >=stealth, dashed, draw=purple!60},
+            hdr/.style={font=\normalsize\bfseries, text=black},
+            note/.style={font=\tiny\itshape, text=brown!70}
+        ]
+        
+        % ── Coordenadas X: 0 / 3.8 / 7.6 / 11.4 / 15.2 ─────────────
+        \def\xS{0}      % Fuente
+        \def\xB{3.8}    % Bronce
+        \def\xP{7.6}    % Plata
+        \def\xO{11.4}   % Oro
+        \def\xM{15.2}   % Modelo
+        
+        % ── Encabezados ──────────────────────────────────────────────
+        \node[hdr] at (\xS, 0.9) {Fuente};
+        \node[hdr] at (\xB, 0.9) {Bronce};
+        \node[hdr] at (\xP, 0.9) {Plata};
+        \node[hdr] at (\xO, 0.9) {Oro};
+        \node[hdr] at (\xM, 0.9) {Modelo};
+        
+        % ── Nota bajo encabezado Bronce ──────────────────────────────
+        \node[note] at (\xB, 0.35) {(nuevo/antiguo; ver Tabla~\ref{tab:tablas_proyecto})};
+        
+        % ── Nota bajo encabezado Plata ──────────────────────────────
+        \node[note] at (\xP, 0.35) {(consolidado; ver Tabla~\ref{tab:tablas_proyecto})};
+        
+        % ════ FUENTES GEIH ═══════════════════════════════════════════
+        \node[fuente] (src_cg) at (\xS, -0.7)  {CSV Caract.\ Generales};
+        \node[fuente] (src_ft) at (\xS, -1.7)  {CSV Fuerza de Trabajo};
+        \node[fuente] (src_oc) at (\xS, -2.7)  {CSV Ocupados};
+        \node[fuente] (src_no) at (\xS, -3.7)  {CSV No Ocupados};
+        \node[fuente] (src_in) at (\xS, -4.7)  {CSV Inactivos};
+        \node[fuente] (src_fx) at (\xS, -5.7)  {CSV Factor Expansión};
+        
+        % ════ BRONCE GEIH (una caja por módulo, resume ambos marcos) ═
+        \node[bronce] (b_cg) at (\xB, -0.7)  {caract\_generales};
+        \node[bronce] (b_ft) at (\xB, -1.7)  {fuerza\_trabajo};
+        \node[bronce] (b_oc) at (\xB, -2.7)  {ocupados};
+        \node[bronce] (b_no) at (\xB, -3.7)  {no\_ocupados};
+        \node[bronce] (b_in) at (\xB, -4.7)  {inactivos};
+        \node[bronce] (b_fx) at (\xB, -5.7)  {dim\_fex};
+        
+        % ════ PLATA GEIH ═════════════════════════════════════════════
+        \node[plata] (p_cg) at (\xP, -0.7)  {caract\_generales};
+        \node[plata] (p_ft) at (\xP, -1.7)  {fuerza\_trabajo};
+        \node[plata] (p_oc) at (\xP, -2.7)  {ocupados};
+        \node[plata] (p_no) at (\xP, -3.7)  {no\_ocupados};
+        \node[plata] (p_fx) at (\xP, -5.7)  {dim\_fex};
+        
+        % ════ ORO GEIH ═══════════════════════════════════════════════
+        \node[oro] (o_ml) at (\xO, -2.7) {mercado\_laboral};
+        
+        % ════ RAMA TERRIDATA ═════════════════════════════════════════
+        \node[fuente] (src_td) at (\xS,  -8.0) {Parquet TerriData};
+        \node[bronce] (b_td)   at (\xB,  -8.0) {terridata\_bronce};
+        \node[plata]  (p_td)   at (\xP,  -8.0) {terridata\_plata};
+        
+        % ════ DIMENSIONES ════════════════════════════════════════════
+        \node[dim] (d_div) at (\xP, -9.7)  {dim\_divipola};
+        \node[dim] (d_gdv) at (\xP, -10.6) {dim\_geih\_divipola};
+        \node[dim] (d_ind) at (\xP, -12.4) {dim\_indicadores};
+        
+        % ════ MODELO ═════════════════════════════════════════════════
+        \node[modelo] (m_td)  at (\xM, -2.7) {tasa\_desempleo\\\_municipal};
+        \node[modelo] (m_cov) at (\xM, -8.0) {tasa\_desempleo\\\_covariables};
+        
+        % ════ FLECHAS ════════════════════════════════════════════════
+        
+        % Fuente → Bronce GEIH
+        \draw[arr] (src_cg.east) -- (b_cg.west);
+        \draw[arr] (src_ft.east) -- (b_ft.west);
+        \draw[arr] (src_oc.east) -- (b_oc.west);
+        \draw[arr] (src_no.east) -- (b_no.west);
+        \draw[arr] (src_in.east) -- (b_in.west);
+        \draw[arr] (src_fx.east) -- (b_fx.west);
+        
+        % Bronce → Plata GEIH
+        \draw[arr] (b_cg.east) -- (p_cg.west);
+        \draw[arr] (b_ft.east) -- (p_ft.west);
+        \draw[arr] (b_oc.east) -- (p_oc.west);
+        \draw[arr] (b_no.east) -- (p_no.west);
+        \draw[arr] (b_in.east) -- ++(0.4,0) |- (p_ft.west); % inactivos → ft_consolidado
+        \draw[arr] (b_fx.east) -- (p_fx.west);
+        
+        % Plata → Oro GEIH
+        \draw[arr] (p_cg.east) -- ++(0.4,0) |- (o_ml.west);
+        \draw[arr] (p_ft.east) -- ++(0.4,0) |- (o_ml.west);
+        \draw[arr] (p_oc.east) -- ++(0.4,0) |- (o_ml.west);
+        \draw[arr] (p_no.east) -- ++(0.4,0) |- (o_ml.west);
+        \draw[arr] (p_fx.east) -- ++(0.4,0) |- (o_ml.west);
+        
+        % TerriData
+        \draw[arr] (src_td.east) -- (b_td.west);
+        \draw[arr] (b_td.east)   -- (p_td.west);
+        
+        % Dimensiones → tablas destino
+        \draw[arrdim] (d_div.west) -- ++(-0.5,0) |- (o_ml.south);
+        \draw[arrdim] (d_gdv.west) -- ++(-0.8,0) |- (o_ml.south);
+        \draw[arrdim] (d_ind.west) -- ++(-0.5,0) |- (p_td.south);
+        
+        % Oro → Modelo
+        \draw[arr] (o_ml.east)  -- (m_td.west);
+        \draw[arr] (m_td.south) -- ++(0,-0.4) -| (m_cov.north);
+        \draw[arr] (p_td.east)  -- (m_cov.west);
+        
+        % ════ SEPARADORES ════════════════════════════════════════════
+        \foreach \x in {1.75, 5.55, 9.35, 13.15}{
+            \draw[dotted, black!25] (\x, 1.1) -- (\x, -13.0);
+        }
+        
+        % ── Etiquetas Unity Catalog ──────────────────────────────────
+        \node[font=\tiny, text=brown!70]        at (\xB, -6.6)  {\textit{tesis.geih\_bronce}};
+        \node[font=\tiny, text=gray!70]         at (\xP, -6.6)  {\textit{tesis.geih\_plata}};
+        \node[font=\tiny, text=brown!70]        at (\xB, -8.8)  {\textit{tesis.terridata}};
+        \node[font=\tiny, text=gray!70]         at (\xP, -8.8)  {\textit{tesis.terridata}};
+        \node[font=\tiny, text=purple!60]       at (\xP, -9.2)  {\textit{tesis.dim}};
+        \node[font=\tiny, text=yellow!60!black] at (\xO, -6.6)  {\textit{tesis.geih\_oro}};
+        \node[font=\tiny, text=green!50!black]  at (\xM, -6.6)  {\textit{tesis.modelo}};
+        
+        \end{tikzpicture}%
+        }% fin \resizebox
+        \shorthandon{>}
+        \caption{Arquitectura medallón implementada en Databricks para el procesamiento de GEIH
+                 y TerriData. Cada caja en la capa Bronce agrupa las tablas del marco muestral
+                 nuevo y del marco antiguo; los detalles se presentan en la
+                 Tabla~\ref{tab:tablas_proyecto}. Las flechas sólidas indican transformaciones
+                 directas y las punteadas el uso de tablas de dimensión.}
+        \label{fig:medallon}
+        \end{figure}
+
+%--------------------------------------------------------------------------------------
+\section{Obtención de datos}
+\label{sec:met_obtencion}
+
+    La primera etapa incorpora al entorno de procesamiento las dos fuentes primarias descritas en la Sección~\ref{sec:datos}, preservando su contenido original y añadiendo únicamente los metadatos técnicos necesarios para la trazabilidad.
+
+    Los microdatos de la GEIH se obtuvieron del portal de datos abiertos del DANE en formato de valores separados por punto y coma y se depositaron en volúmenes de Unity Catalog bajo la ruta \path{/Volumes/tesis/geih_bronce/}, organizada por módulo temático y por marco muestral. Se incorporaron los módulos de características generales, fuerza de trabajo, ocupados, no ocupados e inactivos, este último solo en el marco antiguo, junto con el archivo de factores de expansión actualizados.
+
+    La lectura se realizó con Spark especificando el delimitador y la presencia de encabezados, y en la carga se añadió a cada registro la columna \texttt{archivo\_origen}, derivada del metadato interno del motor de lectura, que permite rastrear la procedencia de cada fila incluso después de consolidar los módulos. Ningún otro campo fue modificado, de modo que las tablas resultantes conservan el esquema original de la fuente.
+
+    Los indicadores de TerriData se obtuvieron del portal del DNP como archivos en formato Parquet consolidados en el volumen \path{/Volumes/tesis/terridata/terridata_archivos/consolidado/}. Su estructura es de formato largo, con una fila por combinación de municipio, año, mes e indicador
+    y con el valor almacenado en uno de dos campos mutuamente excluyentes según su naturaleza  numérica o cualitativa. Se extrajeron los registros del Cauca y del Valle del Cauca.
+
+    Se incorporó además el catálogo oficial DIVIPOLA, publicado por el DANE y el Instituto
+    Geográfico Agustín Codazzi, que provee el código, el nombre y las coordenadas geográficas de cada municipio del país y permite vincular las dos fuentes anteriores, que emplean  codificaciones territoriales distintas. Las tablas resultantes conforman la capa bronce, cuyo inventario y volumen de registros se reportan en la Sección~\ref{sec:res_obtencion}.
+
+%--------------------------------------------------------------------------------------
+\section{Limpieza y estandarización de datos}
+\label{sec:met_limpieza}
+
+    Sobre la capa bronce se aplicó un conjunto de reglas explícitas de depuración, definidas de antemano y ejecutadas de manera sistemática para asegurar la trazabilidad del proceso. Son correcciones estructurales y de formato, previas a cualquier transformación estadística.
+
+    En los microdatos de la GEIH las correcciones siguieron un flujo secuencial. En el módulo de fuerza de trabajo del marco antiguo, las cadenas vacías del campo de factor de expansión se sustituyeron por nulos y su separador decimal se reemplazó de coma a punto antes de convertirlo a doble precisión. En la sección de resto de ese mismo marco, la columna de área geográfica no existe en el archivo de origen y se inicializó con valor nulo para mantener uniforme el esquema, mientras que la pertenencia a la fuerza de trabajo, implícita porque la cumple la totalidad de las personas registradas, se hizo explícita mediante una columna indicadora constante. Los campos de edad y de fecha de nacimiento se convirtieron a entero con una conversión tolerante a fallos, que asigna nulo a los registros no interpretables en lugar de interrumpir el procesamiento. El catálogo DIVIPOLA recibió el mismo tratamiento del separador decimal en sus
+    campos de latitud y longitud.
+
+    En los indicadores de TerriData la limpieza se concentró en normalizar los campos de texto que sirven como llave de cruce. Los nombres de departamento y de entidad territorial se convirtieron a mayúsculas y se les eliminaron las tildes, generando versiones normalizadas que coexisten con los campos originales, dado que las variantes de escritura de un mismo nombre impedirían el cruce posterior con la GEIH. Se descartaron además los registros con ambos campos de valor vacíos, por corresponder a combinaciones sin información reportada, y se retuvieron únicamente las columnas necesarias para el procesamiento posterior.
+
+    El resultado es un conjunto de tablas con esquema canónico, tipos de datos correctos y campos de cruce normalizados, sobre las que operan las transformaciones descritas más adelante.
+
+%--------------------------------------------------------------------------------------
+\section{Tratamiento de datos faltantes}
+\label{sec:met_faltantes}
+
+    El tratamiento de los valores faltantes se definió según el rol de cada variable en el modelo, dado que las consecuencias de una imputación incorrecta no son las mismas para un indicador de condición laboral que para una covariable auxiliar.
+
+    En los indicadores binarios de condición de actividad de la capa oro, es decir, pertenencia a la población económicamente activa, a la inactiva y a la población en edad de trabajar, junto con las condiciones de ocupado y desocupado, los valores nulos se imputaron con cero. Esta imputación traduce una relación lógica antes que una decisión estadística, ya que cada indicador proviene de un módulo temático distinto y la ausencia del registro de una persona en un módulo significa que no cumple la condición que ese módulo caracteriza. El mismo criterio se aplicó al factor de expansión actualizado, disponible solo para un subconjunto de los períodos.
+
+    En las covariables auxiliares de TerriData el criterio fue el opuesto y consistió en no imputar en ningún caso. El modelo de Fay-Herriot requiere una matriz de diseño completa y, con solo 23 dominios de ajuste, cualquier imputación introduciría una estructura artificial que podría correlacionarse espuriamente con la variable respuesta. En su lugar se descartaron las covariables con algún dato faltante, primer filtro del protocolo de la Sección~\ref{sec:met_prefiltrado}. El costo es una reducción considerable del espacio de candidatas, aceptada a cambio de no introducir supuestos no verificables sobre el mecanismo de ausencia.
+
+    Los valores no interpretables de los campos numéricos de TerriData, entre ellos la anotación administrativa de dato preliminar, se convirtieron a nulo mediante una conversión tolerante a fallos, con lo que quedan sujetos a ese mismo descarte en lugar de contaminar la columna con un valor arbitrario.
+
+    Los valores atípicos no se eliminaron ni se sustituyeron. En un estudio territorial los valores extremos no son ruido de medición sino información sustantiva sobre municipios genuinamente distintos, como las grandes capitales o los territorios con presencia histórica de conflicto armado, y su influencia se controla mediante los diagnósticos de apalancamiento de la Sección~\ref{sec:met_eda}, no mediante su remoción.
+
+%--------------------------------------------------------------------------------------
+\section{Transformación e integración de datos}
+\label{sec:met_transformacion}
+
+    Esta etapa transforma las tablas depuradas en las estructuras analíticas sobre las que operan la estimación directa y el modelo, mediante la estandarización de los módulos de la GEIH, la pivotación de TerriData y la integración de ambas fuentes por el código territorial.
+
+    \subsection{Estandarización y consolidación de los módulos de la GEIH}
+    \label{subsec:met_geih_plata}
+
+        Esta transformación produce una representación canónica de cada módulo, independiente del marco muestral y de la sección geográfica de origen, de modo que el análisis posterior no tenga que distinguir entre ambos formatos. Su elemento central es una llave primaria sintética que identifica de forma unívoca a cada persona encuestada, necesaria porque los módulos se distribuyen en archivos separados y deben recomponerse. Se construye concatenando los identificadores propios de la encuesta según la Ecuación~\ref{eq:pk}.
+
+            \begin{equation}
+                \texttt{PK} = \texttt{PERIODO} \, \| \, \texttt{DIRECTORIO} \, \| \,
+                \texttt{SECUENCIA\_P} \, \| \, \texttt{ORDEN},
+                \label{eq:pk}
+            \end{equation}
+
+        donde $\|$ denota la concatenación de cadenas, \texttt{DIRECTORIO} identifica la vivienda, \texttt{SECUENCIA\_P} el hogar dentro de la vivienda y \texttt{ORDEN} la persona dentro del hogar. En el marco nuevo \texttt{PERIODO} está disponible de forma explícita; en el antiguo se reconstruye con el año y el mes de referencia, este último extraído por expresión regular sobre \texttt{archivo\_origen}, ya que figura en el nombre del archivo y no entre sus columnas.
+
+        Junto con la llave se definieron los campos núcleo comunes a todos los módulos, a saber, el  año y el mes de referencia, el código del departamento, el código del área geográfica y el  factor de expansión, que en el marco nuevo corresponde al calibrado con el censo de 2018 y en el antiguo al calibrado con la proyección de 2011. Sobre esa base, características generales aporta sexo, edad y fecha de nacimiento, armonizando los códigos de pregunta que cada marco emplea para la misma variable, y ocupados y no ocupados aportan los indicadores de condición de ocupación y de desocupación.
+
+        El módulo de fuerza de trabajo exigió un tratamiento particular. En el marco nuevo los indicadores de población económicamente activa, población económicamente inactiva y población en edad de trabajar están disponibles de forma directa; en el antiguo no existe un indicador explícito de población económicamente activa y se deriva por complemento desde el módulo de inactivos, distribuido allí de forma separada, mediante un cruce por la izquierda con la llave primaria y la regla de la Ecuación~\ref{eq:pea}.
+
+            \begin{equation}
+                \texttt{PEA}_i =
+                \begin{cases}
+                1 & \text{si } \texttt{PEI}_i \text{ es nulo o vacío}, \\
+                0 & \text{en otro caso},
+                \end{cases}
+                \label{eq:pea}
+            \end{equation}
+
+        Es decir, una persona en edad de trabajar que no figura como inactiva se considera
+        económicamente activa, lo que permite que ambos marcos entreguen la misma variable de clasificación pese a organizar la información de manera distinta.
+
+        Las tablas de las tres secciones geográficas del marco antiguo se apilaron con las del marco nuevo mediante una unión por nombre de columna, que respeta la correspondencia entre columnas homónimas en lugar de su posición. En características generales se excluyó la sección de área, por ser un consolidado de cabecera y resto cuya inclusión duplicaría registros.
+
+        La integración final produce la tabla analítica de mercado laboral mediante una cadena de cruces por la izquierda que toma características generales como tabla base, con un registro por persona, y le añade los demás módulos por la llave primaria, según la Ecuación~\ref{eq:join_oro}.
+
+            \begin{equation}
+            \begin{aligned}
+            \texttt{mercado\_laboral} &= \texttt{CG} \;\bowtie_{\texttt{PK}}^{L}\; \texttt{FT}
+                \;\bowtie_{\texttt{PK}}^{L}\; \texttt{NO}
+                \;\bowtie_{\texttt{PK}}^{L}\; \texttt{FEX}
+                \;\bowtie_{\texttt{PK}}^{L}\; \texttt{OC} \\
+                &\quad\;\bowtie_{\texttt{CODIGO\_DPTO}}^{L}\; \texttt{DIM\_DEP}
+                \;\bowtie_{\texttt{CODIGO\_AREA}}^{L}\; \texttt{DIM\_MUN},
+            \end{aligned}
+            \label{eq:join_oro}
+            \end{equation}
+
+        Donde $\bowtie^{L}$ denota el cruce por la izquierda y las siglas corresponden a
+        características generales, fuerza de trabajo, no ocupados, factores de expansión
+        actualizados y ocupados, seguidas de las dos tablas de dimensión que traducen los códigos geográficos. Los valores nulos que generan estos cruces se tratan según el criterio de la Sección~\ref{sec:met_faltantes}.
+
+        La GEIH identifica la ubicación del encuestado mediante un código de área de dos dígitos que no coincide con el código municipal de cinco dígitos de DIVIPOLA, por lo que se construyó una tabla de dimensión que asocia cada código de área con el código DIVIPOLA de la ciudad capital correspondiente. Sin esa correspondencia no sería posible cruzar los registros de la encuesta con los indicadores municipales de TerriData.
+
+    \subsection{Pivotación de los indicadores de TerriData}
+    \label{subsec:met_terridata_plata}
+
+        Los indicadores de TerriData se reciben en formato largo, con una fila por combinación de municipio, año, mes e indicador, mientras que un modelo de regresión requiere un formato ancho con una fila por dominio y una columna por variable explicativa. La transformación central de esta fuente es, por tanto, su pivotación en cuatro pasos. El primero unifica el campo de valor, ya que cada registro almacena su contenido en el campo numérico o en el cualitativo según su naturaleza, creando un campo único de tipo texto que toma el valor numérico cuando está presente y el cualitativo en caso contrario, según la Ecuación~\ref{eq:valor_terridata}.
+
+            \begin{equation}
+                \texttt{VALOR}_i =
+                \begin{cases}
+                \texttt{DATO\_NUMERICO}_i & \text{si no es nulo}, \\
+                \texttt{DATO\_CUALITATIVO}_i & \text{si el anterior es nulo y este no lo es}, \\
+                \texttt{NULL} & \text{en otro caso}.
+                \end{cases}
+                \label{eq:valor_terridata}
+            \end{equation}
+
+        El segundo paso clasifica cada indicador según su tipo de dato dominante, para asignar el tipo correcto tras la pivotación. Un indicador se considera numérico cuando al menos el 95\% de sus registros presenta un valor numérico no nulo, según la Ecuación~\ref{eq:clasificacion_tipo}.
+
+            \begin{equation}
+                \text{tipo}(j) =
+                \begin{cases}
+                \text{numérico} & \text{si } \dfrac{n_j^{\text{num}}}
+                    {n_j^{\text{num}} + n_j^{\text{cual}}} \geq 0.95, \\[8pt]
+                \text{cualitativo} & \text{en otro caso},
+                \end{cases}
+                \label{eq:clasificacion_tipo}
+            \end{equation}
+
+        donde $n_j^{\text{num}}$ es el número de registros con valor numérico no nulo para el indicador $j$ y $n_j^{\text{cual}}$ el número con valor cualitativo no nulo. Del conteo de cualitativos se excluye la anotación de dato preliminar, por ser una marca administrativa y no un valor observado. El umbral admite que un indicador esencialmente numérico contenga una proporción menor de estas anotaciones sin ser reclasificado.
+
+        El tercer paso ejecuta la pivotación, agrupando por las claves de identificación territorial y temporal y generando una columna por cada código de indicador, según la Ecuación~\ref{eq:pivot}.
+
+            \begin{equation}
+                \texttt{terridata\_extendido\_plata}[(k,a,m), j] =
+                \max\left\{\texttt{VALOR} \;\middle|\;
+                \begin{aligned}
+                &\texttt{CODIGO\_ENTIDAD}=k, \\
+                &\texttt{ANO}=a,\; \texttt{MES}=m, \\
+                &\texttt{CODIGO\_INDICADOR}=j
+                \end{aligned}
+                \right\},
+                \label{eq:pivot}
+            \end{equation}
+
+        donde la función máximo actúa como desambiguador ante duplicados en la fuente y, dado que el esquema esperado contempla un único valor por combinación, en la práctica selecciona el único valor existente. El cuarto paso asigna el tipo definitivo a cada columna, convirtiendo a doble precisión los indicadores numéricos mediante una conversión tolerante a fallos y conservando como texto los cualitativos.
+
+        Sobre el resultado se ejecutaron cuatro verificaciones automáticas de integridad, que comprueban la igualdad del número de combinaciones únicas de municipio, año y mes antes y después de pivotar, la coincidencia de un valor de referencia tomado al azar en ambos formatos, la unicidad de la llave de departamento, entidad, año y mes, y la igualdad del total de valores no nulos, con una diferencia máxima admitida del 1\% por las anotaciones de dato preliminar convertidas a nulo.
+
+        En paralelo se construyó una tabla de dimensión con el nombre descriptivo, la dimensión temática, la subcategoría, la unidad de medida y el tipo de dato de cada indicador. Opera como diccionario de variables y permite interpretar los códigos alfanuméricos de las columnas durante la selección de covariables.
+
+
+    \subsection{Integración de las fuentes en la tabla analítica}
+    \label{subsec:met_tabla_final}
+
+        Ambas fuentes se integran mediante un cruce por la izquierda entre las estimaciones directas y los indicadores pivotados, con llave compuesta por el código DIVIPOLA del municipio, el año y el mes, según la Ecuación~\ref{eq:join_final}.
+
+            \begin{equation}
+                \texttt{TDC} = \texttt{TDM} \;\bowtie^{L}_{
+                \{\texttt{COD\_MUN}=\texttt{COD\_ENT},\;
+                  \texttt{PER}=\texttt{ANO},\;
+                  \texttt{MES}=\texttt{MES}\}}\; \texttt{TEP},
+                \label{eq:join_final}
+            \end{equation}
+
+        donde \texttt{TDM} es la tabla de tasa de desempleo municipal, \texttt{TEP} la tabla
+        extendida de TerriData y \texttt{TDC} la tabla analítica resultante. El cruce por la
+        izquierda garantiza que todos los dominios con estimación directa se preserven aun cuando no dispongan de covariables, y las columnas de identificación de TerriData que duplicarían columnas ya presentes en las estimaciones se excluyen para evitar ambigüedades.
+
+        La Figura~\ref{fig:flujo_fh} sintetiza la correspondencia entre las estructuras de datos construidas en esta etapa y los componentes del modelo de Fay-Herriot formulado en la Sección~\ref{subsec:fay-herriot}.
+
+            \begin{figure}[!htbp]
+            \centering
+            \shorthandoff{>}% Necesario: babel español convierte '>' en carácter activo, rompiendo >=stealth
+            \begin{tikzpicture}[
+                % ── node styles ──────────────────────────────────────────
+                data/.style={
+                    rectangle, rounded corners=4pt,
+                    draw=black!60, fill=blue!10,
+                    minimum width=3.6cm, minimum height=0.85cm,
+                    font=\small\ttfamily, text centered
+                },
+                comp/.style={
+                    rectangle, rounded corners=4pt,
+                    draw=black!60, fill=orange!15,
+                    minimum width=3.6cm, minimum height=0.85cm,
+                    font=\small\itshape, text centered
+                },
+                model/.style={
+                    rectangle, rounded corners=6pt,
+                    draw=black!80, fill=green!15, line width=1.2pt,
+                    minimum width=3.8cm, minimum height=1cm,
+                    font=\small\bfseries, text centered
+                },
+                arrow/.style={->, >=stealth, thick, draw=black!70},
+                label/.style={font=\footnotesize, text=black!70},
+                header/.style={font=\small\bfseries, text=black!80}
+            ]
+            
+            % ── Column headers ──────────────────────────────────────────
+            \node[header] at (0,    0) {Datos del pipeline};
+            \node[header] at (5.2,  0) {Componente FH};
+            \node[header] at (9.8,  0) {Símbolo};
+            
+            % ── Row 1: Direct estimate ──────────────────────────────────
+            \node[data]   (td1) at (0,   -1.2) {\texttt{TASA\_DESEMPLEO\_PCT}};
+            \node[comp]   (fh1) at (5.2, -1.2) {Estimación directa};
+            \node[label]  at    (9.8, -1.2) {$\hat{\theta}_d$};
+            
+            % ── Row 2: Sampling variance ────────────────────────────────
+            \node[data]   (td2) at (0,   -2.7) {\texttt{SE\_BOOTSTRAP\_PCT}$^2$};
+            \node[comp]   (fh2) at (5.2, -2.7) {Varianza muestral};
+            \node[label]  at    (9.8, -2.7) {$\hat{\psi}_d$ (fija)};
+            
+            % ── Row 3: Covariates ───────────────────────────────────────
+            \node[data]   (td3) at (0,   -4.2) {TerriData ($\approx$1,584 vars.)};
+            \node[comp]   (fh3) at (5.2, -4.2) {Vector de covariables};
+            \node[label]  at    (9.8, -4.2) {$\mathbf{x}_d \in \mathbb{R}^p$};
+            
+            % ── Row 4: Domains ──────────────────────────────────────────
+            \node[data]   (td4) at (0,   -5.7) {23 municipios (dic.\ 2018)};
+            \node[comp]   (fh4) at (5.2, -5.7) {Dominios de estimación};
+            \node[label]  at    (9.8, -5.7) {$d = 1,\ldots,D$};
+            
+            % ── Output: EBLUP ───────────────────────────────────────────
+            \node[model]  (eblup) at (5.2, -7.4) {Predictor EBLUP};
+            \node[label]  at    (9.8, -7.4) {$\hat{\theta}_d^{\text{EBLUP}}$};
+            
+            % ── Arrows: data → FH component ─────────────────────────────
+            \draw[arrow] (td1.east) -- (fh1.west);
+            \draw[arrow] (td2.east) -- (fh2.west);
+            \draw[arrow] (td3.east) -- (fh3.west);
+            \draw[arrow] (td4.east) -- (fh4.west);
+            
+            % ── Arrows: FH components → EBLUP ───────────────────────────
+            \draw[arrow] (fh1.south) -- ++(0,-0.35) -| (eblup.north);
+            \draw[arrow] (fh2.south) -- ++(0,-0.20) -| (eblup.north);
+            \draw[arrow] (fh3.south) -- ++(0,-0.20) -| (eblup.north);
+            \draw[arrow] (fh4.south) -- ++(0,-0.35) -| (eblup.north);
+            
+            % ── Divider line ─────────────────────────────────────────────
+            \draw[dashed, black!40] (2.3, 0.4) -- (2.3, -6.3);
+            
+            \end{tikzpicture}
+            \shorthandon{>}% Restaurar el carácter '>' para babel
+            \caption{Correspondencia entre los datos construidos en el pipeline de ingeniería y los
+                     componentes del modelo de Fay-Herriot. Las flechas indican qué tabla alimenta
+                     cada elemento del modelo y los cuatro insumos convergen en el predictor EBLUP
+                     final. $\hat{\theta}_d$ es la estimación directa en puntos porcentuales;
+                     $\hat{\psi}_d$ la varianza de muestreo, igual al cuadrado del error estándar
+                     bootstrap y tratada como conocida; $\mathbf{x}_d$ el vector de covariables de
+                     TerriData, sobre el que aún debe operar la selección; y $D$ el número de
+                     dominios, es decir, las ciudades capitales con estimación directa disponible.}
+            \label{fig:flujo_fh}
+            \end{figure}
+
+%--------------------------------------------------------------------------------------
+\section{Construcción de la variable respuesta}
+\label{sec:met_variable_respuesta}
+
+    La variable respuesta del estudio es la tasa de desempleo municipal. No proviene de un registro administrativo de desocupación sino que se construye como estimación directa a partir de los microdatos de la GEIH, aplicando el estimador de Hájek de la Sección~\ref{subsec:hajek}.
+
+    El dominio de estimación se definió por la combinación de año, mes, código y nombre de
+    departamento, y código y nombre de municipio. Sobre la tabla de mercado laboral se retuvieron los registros con municipio identificado y con indicador de pertenencia a la población económicamente activa igual a uno, ya que la tasa de desempleo se define sobre esa subpoblación.
+    Con el factor de expansión de esa tabla como ponderador se evaluó la Ecuación~\ref{eq:hajek} en cada dominio, multiplicando el resultado por cien para expresarlo en puntos porcentuales.
+
+    El período de estimación se fijó en diciembre de 2018. La elección de un único corte transversal  responde a la coherencia temporal entre la variable respuesta y las covariables auxiliares, que  están ancladas al año censal según se argumentó en la
+    Sección~\ref{subsec:encuestas-censos}. Estimar el desempleo de un año distinto obligaría a explicarlo con covariables de un momento diferente del territorio, con un desfase que debilitaría la interpretación de los coeficientes.
+
+    \subsection{Estimación de la varianza por bootstrap}
+    \label{subsec:met_bootstrap}
+
+        La incertidumbre de la estimación directa se cuantificó con el bootstrap de la
+        Sección~\ref{subsec:varianza-hajek}, adoptado ante la imposibilidad de calcular
+        analíticamente la varianza del estimador sin las variables del diseño muestral
+        \cite{VanDerLeeden1997}.
+
+        Se generaron $B = 2{,}000$ réplicas, extrayendo en cada una muestra con reemplazo del mismo tamaño que la original y recalculando el estimador de Hájek por dominio para obtener $\hat{\theta}_d^{(b)}$. Sobre ellas se evaluaron la varianza de la
+        ecuación~\ref{eq:var_bootstrap}, el error estándar de la ecuación~\ref{eq:se} y el intervalo de confianza por percentiles de la ecuación~\ref{eq:ic_bootstrap}, con semilla fija para garantizar la reproducibilidad. Ese número de réplicas estabiliza los percentiles extremos del intervalo, los estadísticos más exigentes en número de remuestreos, con un costo computacional razonable.
+
+        El remuestreo es simple y no reproduce la estratificación ni la conglomeración del diseño de la encuesta, por lo que, como se advirtió en la sección~\ref{subsec:varianza-hajek}, los errores estándar obtenidos tienden a subestimar la varianza real. Esta limitación se asume de forma explícita y condiciona la lectura de las métricas de calidad. Una cuantificación
+        más precisa requeriría un bootstrap que respete el diseño, como el método de grupos de  eliminación o el bootstrap de Rao-Wu-Yue, lo que exige variables de diseño no publicadas.
+
+    \subsection{Métricas de calidad de la estimación directa}
+    \label{subsec:met_metricas_calidad}
+
+        Para cada dominio se calcularon, además de la estimación puntual, el error estándar
+        bootstrap, los límites inferior y superior del intervalo de confianza al 95\%, la amplitud de dicho intervalo y el coeficiente de variación definido en la Ecuación~\ref{eq:cve}, todos expresados en puntos porcentuales.
+
+        Siguiendo los umbrales institucionales de la Tabla~\ref{tab:criterios_decision}, una
+        estimación se considera confiable cuando su coeficiente de variación es inferior al 15\%, aceptable entre el 15\% y el 30\%, y no confiable cuando alcanza o supera el 30\%. Estas métricas permiten juzgar cuáles estimaciones directas son utilizables por sí mismas y, además, el cuadrado del error estándar es la varianza de muestreo $\hat{\psi}_d$ que Fay-Herriot recibe como dato conocido, de modo que la calidad de esta etapa se propaga al análisis posterior.
+
+%--------------------------------------------------------------------------------------
+\section{Pre-filtrado de covariables auxiliares}
+\label{sec:met_prefiltrado}
+
+    La incorporación de TerriData plantea un problema de alta dimensionalidad, ya que el número de covariables candidatas excede en dos órdenes de magnitud al de dominios disponibles para el ajuste, situación en la que resulta imposible estimar un modelo sin reducir antes el espacio de variables. El pre-filtrado atiende ese problema con un propósito deliberadamente limitado, descartar las covariables inutilizables, y no el de identificar las mejores. Por esa razón sus dos criterios son independientes de la variable respuesta: ninguna covariable se descarta en esta etapa por su relación con la tasa de desempleo.
+
+    \subsection{Filtro de completitud}
+    \label{subsec:met_filtro_na}
+
+        El primer filtro conserva únicamente las covariables sin ningún dato faltante en los
+        dominios de ajuste, en aplicación del criterio de la Sección~\ref{sec:met_faltantes}. El
+        conjunto resultante se define según la Ecuación~\ref{eq:filtro_na}.
+
+            \begin{equation}
+                \mathcal{X}_{\text{completo}} = \left\{ X_j \in \mathcal{X}_{\text{inicial}}
+                \;\middle|\; \sum_{i=1}^{n} \mathbb{I}(X_{ij} = \text{NA}) = 0 \right\},
+                \label{eq:filtro_na}
+            \end{equation}
+
+        donde $\mathbb{I}(\cdot)$ es la función indicadora de ausencia de registro y $n$ el número de dominios. Previamente a la evaluación, las columnas cuyo tipo de dato quedó como texto tras la pivotación se sometieron a una conversión numérica tolerante a fallos, de modo que  cualquier contenido no interpretable se convierte en dato faltante y queda sujeto a este  mismo filtro. Con 23 dominios, una covariable con un solo registro ausente deja sin información a un dominio completo y no admite uso en la regresión sintética.
+
+    \subsection{Filtro de variabilidad}
+    \label{subsec:met_filtro_varianza}
+
+        El segundo filtro descarta los indicadores constantes o prácticamente constantes entre  dominios. Su justificación es numérica antes que estadística, ya que una columna sin  variación es linealmente dependiente del intercepto y produce una matriz de diseño singular, lo que impide invertir la matriz de la Ecuación~\ref{eq:gls} y estimar los coeficientes.
+
+        El criterio se formula sobre dos cantidades adimensionales, de modo que no dependa de las  unidades en que esté medido cada indicador. La primera es el coeficiente de variación descriptivo de la Ecuación~\ref{eq:cv_descriptivo}; la segunda es la proporción de dominios que comparten el valor más frecuente del indicador, definida como$\pi(X_j) = \max_v \#\{i : X_{ij} = v\} / n$. El conjunto resultante se define según la
+        Ecuación~\ref{eq:filtro_var}.
+
+            \begin{equation}
+                \mathcal{X}_{\text{útil}} = \left\{ X_j \in \mathcal{X}_{\text{completo}}
+                \;\middle|\; \text{CV}(X_j) \geq \gamma \;\wedge\; \pi(X_j) \leq \pi_{\max}
+                \right\},
+                \qquad \gamma = 0.1\%, \quad \pi_{\max} = 90\%.
+                \label{eq:filtro_var}
+            \end{equation}
+
+        Los dos criterios son complementarios y detectan formas distintas de ausencia de variación. El coeficiente de variación captura los indicadores que fluctúan de manera despreciable alrededor de su nivel; la proporción modal captura los que toman un único valor en casi todos los dominios y varían solo en unos pocos, caso en el que el coeficiente de variación puede ser apreciable pese a que la columna sea informativamente constante. El primero se evalúa únicamente cuando la media del indicador está lejos de cero, condición bajo la cual el cociente de la Ecuación~\ref{eq:cv_descriptivo} tiene interpretación; en los indicadores centrados en cero la decisión recae sobre el criterio de concentración.
+        
+%--------------------------------------------------------------------------------------
+\section{Análisis descriptivo de los datos}
+\label{sec:met_descriptivo}
+
+    Antes de cualquier decisión sobre qué covariables ingresan al modelo se realizó una
+    caracterización descriptiva de los datos disponibles. Su finalidad es comprender el
+    comportamiento de la variable respuesta, de su medida de precisión y de las covariables
+    candidatas, y describir cómo se relacionan entre sí. El aparato estadístico empleado se
+    desarrolla en la Subsección~\ref{subsec:analisis-descriptivo}.
+
+    Esta etapa se distingue de la selección de covariables tanto en su propósito como en sus
+    consecuencias. El análisis descriptivo responde a las preguntas de cómo son los datos y cómo se relacionan, y produce tablas y figuras de caracterización; la selección, desarrollada en la Sección~\ref{sec:met_eda}, responde a la pregunta de qué covariables ingresan al modelo y produce un subconjunto. Un estadístico descriptivo no opera como criterio de exclusión, una covariable asimétrica no se descarta por serlo, y un dominio con un valor extremo no se elimina por tenerlo. Lo que la descripción aporta a las etapas siguientes son los patrones que orientan qué diagnósticos conviene realizar.
+
+    \subsection{Elegibilidad conceptual de las covariables}
+    \label{subsec:met_elegibilidad}
+
+        El conjunto que supera el pre-filtrado sigue siendo demasiado numeroso para una
+        caracterización individual. Su reducción a un tamaño manejable se realiza mediante un criterio conceptual, independiente de los datos: se exige que cada covariable cuente con un mecanismo documentado que la vincule con la dinámica del mercado laboral y con un  significado interpretable en términos de desarrollo territorial \cite{ArroyoMina2016}. La exigencia responde a que un indicador puede presentar asociación con la tasa de desempleo sin aportar capacidad explicativa genuina, ya sea por relación espuria o por colinealidad con un determinante real, riesgo considerable cuando se dispone de pocos dominios.
+
+        El criterio se operacionalizó mediante un catálogo de covariables construido a partir de la revisión de literatura del proyecto. Solo se admiten indicadores con una referencia bibliográfica verificable que describa su mecanismo; ninguno entra por simple plausibilidad. El catálogo se organiza en siete dimensiones. En educación, el capital humano, medido por la cobertura, la calidad y la continuidad educativas, determina la empleabilidad. En economía, el nivel de actividad genera demanda de trabajo y la composición sectorial condiciona su absorción. En pobreza, el índice de pobreza multidimensional incorpora privaciones propias del mercado laboral. En demografía y población, la urbanización, la densidad y la proporción de jóvenes modifican la estructura del desempleo y el emparejamiento entre oferta y demanda. En finanzas públicas, la capacidad fiscal y el recaudo financian inversión y empleo local. En conflicto armado y seguridad ciudadana, la violencia desplaza población y deteriora la actividad económica. En vivienda y acceso a servicios públicos, la infraestructura básica y la conectividad facilitan la actividad productiva y la búsqueda de empleo. El catálogo completo, con el mecanismo y la referencia de cada entrada, se presenta en la Sección~\ref{sec:apendice-catalogo} del apéndice.
+
+        Cada entrada declara, antes de calcular cualquier métrica empírica, el signo esperado de su asociación con la tasa de desempleo según el mecanismo que la respalda: positivo, negativo, o indeterminado ($\pm$) cuando la literatura no fija una dirección única, como ocurre con la composición sectorial del valor agregado o con la densidad poblacional. Ese signo es la única información del catálogo que interviene después en una decisión, según se describe en la Sección~\ref{subsec:met_decision}. El catálogo no asigna puntajes ni niveles de respaldo a sus entradas.
+
+        Cada entrada se resuelve contra el diccionario de indicadores de TerriData y queda activa solo si cumple tres condiciones: tener dato para el año de estimación, haber superado el pre-filtrado en los dominios con encuesta y estar completa en los municipios objetivo sin encuesta, requisito sin el cual no admite predicción sintética. Las entradas que incumplen alguna condición se registran con su motivo, de modo que la trazabilidad del catálogo sea completa. Cuando una variable de la revisión de literatura carece de dato utilizable y existe otro indicador que mide la misma dimensión, se sustituye por este y la sustitución se declara.
+
+    \subsection{Análisis descriptivo univariado}
+    \label{subsec:met_univariado}
+
+        La caracterización individual responde a la pregunta de cómo se comporta cada variable por sí sola. Se aplicó sobre tres bloques.
+
+        El primero es la variable respuesta, la tasa de desempleo estimada directamente en cada dominio. El segundo es su medida de precisión, es decir, el error estándar bootstrap y la varianza de muestreo $\hat{\psi}_d$ que resulta de elevarlo al cuadrado. Caracterizar este  segundo bloque no es accesorio: el modelo Fay-Herriot recibe $\hat{\psi}_d$ como dato conocido y de su magnitud relativa frente a la varianza de los efectos aleatorios depende el peso $\gamma_d$ que cada dominio otorga a su estimación directa frente al predictor sintético, de modo que la dispersión de esta cantidad determina cuánto suaviza el modelo. El tercer bloque son las covariables candidatas.
+
+        Para cada variable se calcularon el número de observaciones, la cantidad y el porcentaje de datos faltantes, la media, la mediana, la desviación estándar, el mínimo, el máximo, el primer y el tercer cuartil, el rango intercuartílico y el coeficiente de asimetría de la Ecuación~\ref{eq:asimetria}. El coeficiente de variación de la Ecuación~\ref{eq:cv_descriptivo} se calculó únicamente sobre las variables estrictamente positivas, que son aquellas en las que expresa dispersión relativa. Los valores alejados del cuerpo de la distribución se identificaron con el criterio de la Ecuación~\ref{eq:iqr} y se anotaron con el territorio al que corresponden, de modo que pueda juzgarse si obedecen a una característica sustantiva del dominio.
+
+        Las visualizaciones se limitaron a las necesarias para interpretar el conjunto. La variable respuesta y su error estándar se presentan mediante histogramas y diagramas de caja, y la distribución territorial de la tasa de desempleo mediante un gráfico ordenado por dominio,  que es una descripción del territorio y no un contraste de dependencia espacial. Las  covariables candidatas se presentan en un único panel de diagramas de caja en escala estandarizada, en lugar de una figura por covariable; la estandarización es exclusivamente gráfica y no altera los datos que ingresan al modelo.
+
+    \subsection{Análisis descriptivo bivariado}
+    \label{subsec:met_bivariado}
+
+        El análisis bivariado responde a la pregunta de cómo se relacionan las variables entre sí y, en particular, cómo se relaciona cada covariable candidata con la tasa de desempleo. Para cada par se calcularon el coeficiente de Pearson de la Ecuación~\ref{eq:pearson} y el de  Spearman de la Ecuación~\ref{eq:spearman}, y se acompañan de un panel de diagramas de dispersión que muestra la forma de la relación.
+
+        Ambos coeficientes se reportan, pero no se interpretan indistintamente. Se declara para cada covariable cuál de los dos es la medida pertinente, con el criterio siguiente: cuando la covariable presenta valores extremos según la Ecuación~\ref{eq:iqr} y la diferencia entre ambos coeficientes supera 0.10 en valor absoluto, la asociación lineal está condicionada por esas observaciones y la medida interpretable es la de rangos; en cualquier otro caso se interpreta Pearson, que es la que corresponde a la forma lineal supuesta por el componentesintético del modelo. Este criterio sustituye la práctica de presentar ambos coeficientes
+        sin declarar cuál gobierna la lectura.
+
+        La relación entre las propias covariables se describe mediante su matriz de correlaciones, que permite anticipar qué indicadores contienen información solapada. Ninguna covariable se descarta en esta etapa por presentar una correlación elevada, ni con la respuesta ni con otra covariable: la asociación observada es descriptiva y no establece causalidad, y la decisión formal sobre redundancia se toma en la Sección~\ref{subsec:met_redundancia}.
+
+    \subsection{Análisis descriptivo multivariado}
+    \label{subsec:met_multivariado}
+
+        El análisis por pares no revela qué grupos de covariables miden conjuntamente un mismo aspecto del territorio. Para describir esa estructura conjunta se reordenó la matriz de correlaciones mediante el agrupamiento jerárquico de la
+        Subsección~\ref{subsec:estructura-multivariada}, tomando como distancia entre covariables la cantidad de la Ecuación~\ref{eq:distancia_correlacion} y enlace promedio, y se tabularon los pares cuya correlación supera 0.80 en valor absoluto.
+
+        La técnica se eligió por tres razones. Responde a una pregunta que el proyecto necesita contestar, la de qué indicadores están midiendo lo mismo; no introduce ninguna decisión adicional, puesto que no requiere fijar un número de dimensiones ni ponderaciones; y su resultado alimenta directamente el criterio de redundancia de la etapa de selección.
+
+        No se empleó análisis de componentes principales. Su aplicación produciría combinaciones lineales sin interpretación territorial directa y exigiría una decisión adicional sobre cuántas componentes retener, sin que ninguna de las dos cosas sea necesaria para caracterizar el conjunto de datos. Esta técnica queda reservada como escenario alternativo de modelamiento sobre el conjunto ya depurado, fuera del alcance del procedimiento descrito aquí.
+
+%--------------------------------------------------------------------------------------
+\section{Diagnóstico y selección final de covariables}
+\label{sec:met_eda}
+
+    Con los datos ya caracterizados, esta sección describe el procedimiento que determina qué covariables ingresan al modelo. A diferencia de la anterior, cada uno de sus pasos produce una decisión. El procedimiento es secuencial y cualitativo: cada paso descarta covariables por una razón única y verificable con estadística básica, no interviene ningún puntaje agregado ni ponderación entre criterios de naturaleza distinta, y el recorrido de cada covariable queda registrado. Parte de las candidatas activas del catálogo conceptual y consta de cinco pasos: la cuantificación de la asociación de cada candidata con la respuesta, el filtro de robustez, la resolución de redundancia, la ficha de decisión y la verificación de multicolinealidad del conjunto elegido.
+
+    El procedimiento no incluye una búsqueda de especificaciones por criterio de información. Con 23 dominios, una búsqueda exhaustiva por AIC produce numerosas especificaciones equivalentes entre las que la elección vuelve a depender de una regla añadida, y reutiliza los mismos datos que después ajustan el modelo. La comparación por AIC se reserva para las variantes del conjunto elegido y se describe en la Sección~\ref{sec:met_seleccion}.
+
+    \subsection{Precisión de las asociaciones observadas}
+    \label{subsec:met_precision}
+
+        Antes de decidir se cuantifica la incertidumbre de cada coeficiente de correlación. Con 23 dominios el error estándar de una correlación es considerable, y su valor puntual comunica más certeza de la que autoriza la evidencia. Para cada covariable candidata se construyó el intervalo de confianza al 95\% del coeficiente de Pearson mediante la transformación de Fisher, según la Ecuación~\ref{eq:ic_fisher}.
+            \begin{equation}
+                \text{IC}_{95\%}(\rho) = \left[\tanh\!\left(z_r - \frac{z_{0.975}}{\sqrt{n-3}}\right),\;
+                \tanh\!\left(z_r + \frac{z_{0.975}}{\sqrt{n-3}}\right)\right],
+                \qquad z_r = \operatorname{arctanh}(r),
+                \label{eq:ic_fisher}
+            \end{equation}
+        donde $r$ es el coeficiente de Pearson de la Ecuación~\ref{eq:pearson}, $n$ el número de dominios y $z_{0.975}$ el percentil 97.5 de la normal estándar. La transformación $z_r$ tiene distribución aproximadamente normal con varianza $1/(n-3)$, de modo que el intervalo se construye en esa escala y se devuelve a la escala de la correlación, donde deja de ser simétrico alrededor de $r$. Un intervalo que contiene el cero indica que la evidencia no determina siquiera el sentido de la asociación.
+
+        No se reportan valores $p$ para estas correlaciones. Se evalúan simultáneamente varias covariables sin corrección por multiplicidad, de modo que su interpretación nominal no sería válida.
+
+        Junto al intervalo se registra el signo observado de la asociación, medido con el coeficiente que el análisis bivariado declaró interpretable para cada covariable (Sección~\ref{subsec:met_bivariado}), y se compara con el signo esperado del catálogo conceptual.
+
+    \subsection{Robustez frente a dominios individuales}
+    \label{subsec:met_robustez}
+
+        Con 23 observaciones un único territorio puede determinar la pendiente de una regresión.
+        Esta etapa establece si la asociación entre una covariable y la tasa de desempleo descansa sobre un solo dominio, combinando dos evidencias que deben verificarse simultáneamente.
+
+        La primera es la distancia de Cook de la Ecuación~\ref{eq:cook}, calculada sobre la regresión simple por mínimos cuadrados ordinarios de la tasa de desempleo sobre la covariable, con el umbral convencional $4/n$ de la Tabla~\ref{tab:criterios_decision}, equivalente a 0.174 con 23 dominios. La segunda es la exclusión de un dominio a la vez, que recalcula la correlación sin cada dominio y mide la variación $\Delta = r_{\text{LOO}} - r_{\text{completo}}$. La covariable se descarta cuando supera el umbral de Cook \emph{y} además la exclusión de un dominio altera la correlación en más de 0.10 en valor absoluto o invierte su signo.
+
+        Exigir ambas condiciones evita descartar una covariable por presentar un valor extremo que, siendo grande, no modifica la relación. La exclusión recorre la totalidad de los dominios y no un subconjunto elegido por inspección de las figuras.
+
+        Ninguna observación se elimina. Los dominios que aparecen en los extremos corresponden a territorios reales, con características sustantivas que explican su posición, y no a errores de medición; la consecuencia de este diagnóstico recae sobre la covariable, que deja de considerarse utilizable, y nunca sobre el dato.
+
+    \subsection{Resolución de redundancia}
+    \label{subsec:met_redundancia}
+
+        Los bloques identificados en el análisis multivariado se resuelven en esta etapa, sobre las covariables que superaron el filtro de robustez. Las candidatas se agrupan en las componentes conexas del grafo cuyas aristas unen los pares con correlación mayor o igual que 0.80 en valor absoluto, y de cada grupo se conserva una sola covariable. Una covariable sin pares por encima del umbral forma un grupo propio y pasa íntegra.
+
+        El representante de cada grupo se determina con un desempate determinista: la menor distancia de Cook máxima, es decir, la asociación menos dependiente de un dominio individual, y a igualdad, el orden del código de indicador. El criterio no utiliza la magnitud de la correlación con la variable respuesta, de modo que resolver la redundancia no reintroduce selección sobre la variable dependiente. Los miembros no elegidos de cada grupo quedan descartados por redundancia.
+
+    \subsection{Ficha de decisión}
+    \label{subsec:met_decision}
+
+        La evidencia de los pasos anteriores se reúne en una ficha con una fila por candidata: signo esperado y observado, coeficiente interpretable, intervalo de la correlación, resultado de robustez y de redundancia. Sobre ella se aplican, en este orden, las reglas siguientes, y cada covariable queda clasificada por la primera que la alcanza.
+
+        \begin{enumerate}[leftmargin=*]
+            \item \textit{Robustez.} Si fue descartada por el filtro de robustez, queda descartada.
+            \item \textit{Redundancia.} Si no es representante de su grupo, queda descartada.
+            \item \textit{Precisión.} Si el intervalo de Fisher de la Ecuación~\ref{eq:ic_fisher} contiene el cero, queda como no elegible: la evidencia no determina el sentido de la asociación.
+            \item \textit{Coherencia de signo.} Si el catálogo fija una dirección y el signo observado la contradice, queda como no elegible: la covariable no puede sustentarse con la referencia por la que se propuso. Las entradas con signo esperado $\pm$ no se someten a esta regla.
+            \item \textit{Parsimonia.} Las restantes son elegibles. Se ordenan por el valor absoluto del coeficiente interpretable y se seleccionan las primeras hasta la cota $p_{\max} = 4$ de la Ecuación~\ref{eq:pmax}; las demás quedan como elegibles no seleccionadas.
+        \end{enumerate}
+
+        Las elegibles que quedan fuera por la cota no se consideran inservibles. Cumplen el criterio conceptual, su asociación es robusta y no son redundantes con ninguna otra; quedan fuera únicamente porque la restricción de parsimonia limita el tamaño del modelo, y se conservan como candidatas legítimas si el número de dominios con encuesta aumenta.
+
+    \subsection{Verificación del conjunto seleccionado}
+    \label{subsec:met_verificacion}
+
+        El conjunto elegido se somete a una comprobación de multicolinealidad con consecuencia declarada de antemano. Se calculó el factor de inflación de la varianza de la Ecuación~\ref{eq:vif} de cada covariable seleccionada y se contrastó con el umbral de 5 de la Tabla~\ref{tab:criterios_decision}. Si el mayor factor lo supera, la covariable responsable sale del conjunto y entra la siguiente elegible en el orden de la ficha de decisión; el proceso se repite hasta que ningún factor supere el umbral o no queden sustitutas, y cada sustitución se registra. El factor se calcula sobre el conjunto seleccionado y no sobre el universo de candidatas, ya que con 23 dominios un sistema con muchas más covariables que grados de libertad produce un valor sin sentido; para juzgar redundancia dentro del conjunto amplio se emplea la correlación por pares, según se describió en la Sección~\ref{subsec:met_redundancia}.
+
+        Los coeficientes estimados, su signo frente al mecanismo del catálogo y su precisión no se evalúan en esta etapa, sino sobre el modelo Fay-Herriot ajustado, en la Sección~\ref{sec:met_seleccion}. Esta versión del procedimiento tampoco incluye un contraste de dependencia espacial: el modelo ajustado es el Fay-Herriot clásico con efectos aleatorios independientes y no se estiman variantes espaciales, de modo que el contraste no modificaría ninguna decisión del procedimiento.
+
+    \subsection{Trazabilidad de las decisiones}
+    \label{subsec:met_trazabilidad_cov}
+
+        El procedimiento deja registro del recorrido completo de cada entrada del catálogo conceptual: si llegó a candidata, qué mostró cada diagnóstico, en qué paso quedó fuera y por qué motivo. Las covariables descartadas durante el pre-filtrado no se registran individualmente, ya que su exclusión queda explicada por el criterio del filtro correspondiente y por el reporte de variabilidad.
+
+        La Figura~\ref{fig:flujo_eda} resume la secuencia completa, desde los indicadores originales hasta el conjunto que ingresa al modelo, distinguiendo las etapas descriptivas de las que producen una decisión.
+
+            \begin{figure}[!htbp]
+            \centering
+            \shorthandoff{>}% Necesario: babel español convierte '>' en carácter activo, rompiendo >=stealth
+            \begin{tikzpicture}[
+                % ── node styles ──────────────────────────────────────────
+                fuente/.style={
+                    rectangle, rounded corners=4pt,
+                    draw=black!60, fill=blue!10,
+                    minimum width=5.2cm, minimum height=0.8cm,
+                    font=\small, text centered
+                },
+                descr/.style={
+                    rectangle, rounded corners=4pt,
+                    draw=black!60, fill=gray!12,
+                    minimum width=5.2cm, minimum height=0.8cm,
+                    font=\small, text centered
+                },
+                decision/.style={
+                    rectangle, rounded corners=4pt,
+                    draw=black!60, fill=orange!15,
+                    minimum width=5.2cm, minimum height=0.8cm,
+                    font=\small, text centered
+                },
+                modelo/.style={
+                    rectangle, rounded corners=6pt,
+                    draw=black!80, fill=green!15, line width=1.2pt,
+                    minimum width=5.2cm, minimum height=0.9cm,
+                    font=\small\bfseries, text centered
+                },
+                arrow/.style={->, >=stealth, thick, draw=black!70},
+                nota/.style={font=\footnotesize, text=black!70, align=left}
+            ]
+
+            \node[fuente]   (n1) at (0,  0.0)  {Indicadores de TerriData};
+            \node[decision] (n2) at (0, -1.3)  {Filtro de completitud};
+            \node[decision] (n3) at (0, -2.6)  {Filtro de variabilidad};
+            \node[decision] (n4) at (0, -3.9)  {Elegibilidad conceptual};
+            \node[descr]    (n5) at (0, -5.2)  {Descripción univariada};
+            \node[descr]    (n6) at (0, -6.5)  {Descripción bivariada};
+            \node[descr]    (n7) at (0, -7.8)  {Descripción multivariada};
+            \node[descr]    (n8) at (0, -9.1)  {Asociación: intervalo de Fisher y signo};
+            \node[decision] (n9) at (0, -10.4) {Robustez frente a dominios};
+            \node[decision] (n10) at (0, -11.7) {Resolución de redundancia};
+            \node[decision] (n11) at (0, -13.0) {Ficha de decisión};
+            \node[decision] (n12) at (0, -14.3) {Verificación de multicolinealidad};
+            \node[modelo]   (n13) at (0, -15.7) {Modelo Fay-Herriot};
+
+            \foreach \a/\b in {n1/n2, n2/n3, n3/n4, n4/n5, n5/n6, n6/n7,
+                               n7/n8, n8/n9, n9/n10, n10/n11, n11/n12, n12/n13}
+                \draw[arrow] (\a) -- (\b);
+
+            \node[nota] at (4.6, -2.6)  {Independiente de la\\variable respuesta};
+            \node[nota] at (4.6, -6.5)  {Caracterización:\\no descarta covariables};
+            \node[nota] at (4.6, -11.7) {Decisión: cada paso\\descarta por un motivo};
+
+            \end{tikzpicture}
+            \caption{Secuencia metodológica desde los indicadores originales hasta el modelo. Las
+                     etapas en color naranja producen una decisión sobre el conjunto de covariables;
+                     las de color gris caracterizan los datos sin descartar ninguna. La etapa de
+                     asociación calcula el intervalo y el signo observado de cada candidata, que
+                     la ficha de decisión aplica después como reglas. Los dos primeros filtros y
+                     el criterio de elegibilidad conceptual son independientes de la variable
+                     respuesta.}
+            \label{fig:flujo_eda}
+            \end{figure}
+            \FloatBarrier
+
+%--------------------------------------------------------------------------------------
+\section{Especificación y ajuste del modelo Fay-Herriot}
+\label{sec:met_modelo}
+
+    Con la variable respuesta, su varianza de muestreo y el conjunto de covariables que entrega la Sección~\ref{sec:met_eda}, se especificó y ajustó el modelo de Fay-Herriot clásico de la Sección~\ref{subsec:fay-herriot}, con efectos aleatorios independientes entre dominios según la Ecuación~\ref{eq:fh_enlace_a}.
+
+    El ajuste se realiza sobre los 23 dominios con cobertura muestral de la GEIH, es decir, sobre las ciudades capitales con estimación directa en el período de referencia, y no solo sobre los dos departamentos que delimitan el alcance del estudio. Dentro del Cauca y del Valle del Cauca únicamente Popayán y Santiago de Cali cuentan con estimación directa, número insuficiente para estimar cualquier regresión. Los coeficientes estimados con las 23 capitales se aplican después sobre las covariables de los municipios de ambos departamentos. Este es el mecanismo de préstamo de información de la Sección~\ref{subsec:sae}, válido en la medida en que la relación entre la tasa de desempleo y las covariables sea común a los territorios.
+
+    \subsection{Variantes comparadas}
+    \label{subsec:met_variantes}
+
+        Se parte del conjunto que eligió el análisis exploratorio y se construyen, de forma automática, el conjunto completo y una variante del modelo por cada covariable excluida. Con $k$ covariables se obtienen $k+1$ especificaciones, según la Ecuación~\ref{eq:variantes}.
+            \begin{equation}
+                \mathcal{M} = \left\{ \mathcal{S} \right\} \cup
+                \left\{ \mathcal{S} \setminus \{x_j\} : x_j \in \mathcal{S} \right\},
+                \label{eq:variantes}
+            \end{equation}
+        donde $\mathcal{S}$ es el conjunto de covariables seleccionado en la Sección~\ref{sec:met_eda} y $\mathcal{S} \setminus \{x_j\}$ es ese mismo conjunto sin la covariable $x_j$.
+
+        La construcción responde a una pregunta concreta, si cada covariable aporta al modelo una vez que las demás están presentes. Cada variante difiere del conjunto completo en una sola covariable, de modo que la diferencia de AIC entre ambas mide la contribución de esa covariable descontado el parámetro que consume.
+
+    \subsection{Varianzas de muestreo conocidas}
+    \label{subsec:met_varianzas}
+
+        El modelo de la Ecuación~\ref{eq:fh_muestreo_a} trata las varianzas de muestreo $\psi_d$ como cantidades conocidas. \cite{morales2021smallarea} ofrece dos maneras de fijarlas, igualarlas a la varianza estimada con los microdatos de la encuesta y tratarlas como constantes, o suavizarlas con una función de varianza generalizada . Se adoptó la primera alternativa, de modo que $\psi_d$ es la varianza bootstrap de la Ecuación~\ref{eq:var_bootstrap} calculada en la Sección~\ref{sec:met_variable_respuesta}, sin suavizar.
+
+        La elección tiene una limitación que conviene declarar. El bootstrap simple no incorpora los estratos ni los conglomerados del diseño de la GEIH, cuyas variables no se publican. Si esa omisión subestima $\psi_d$, el factor de contracción $\hat{\gamma}_d$ de la Ecuación~\ref{eq:eblup_a} queda sobrestimado y el EBLUP otorga a la estimación directa un peso algo mayor que el que le correspondería.
+
+    \subsection{Procedimiento de estimación}
+    \label{subsec:met_estimacion}
+
+        Cada variante se ajusta con la misma secuencia de cálculos, resumida en la Figura~\ref{fig:flujo_ajuste_fh}. La varianza de los efectos aleatorios se estimó por máxima verosimilitud restringida (REML), optimizando sobre $\log \sigma_u^2$ para garantizar una solución estrictamente positiva sin restricciones adicionales. Condicionados a $\hat{\sigma}_u^2$, los coeficientes se estimaron por mínimos cuadrados generalizados según la Ecuación~\ref{eq:gls}. Bajo condiciones de regularidad el estimador $\hat{\boldsymbol{\beta}}$ es asintóticamente normal con la matriz de covarianza de la Ecuación~\ref{eq:cov_beta}, y la significancia de cada coeficiente se evaluó con el estadístico $z$ y su valor $p$ bajo esa aproximación \cite{morales2021smallarea}.
+            \begin{equation}
+                \widehat{\text{Cov}}(\hat{\boldsymbol{\beta}}) = \left(\sum_{d=1}^{D}
+                \frac{\mathbf{x}_d \mathbf{x}_d^\top}{\hat{\sigma}_u^2 + \psi_d}\right)^{-1}
+                = (q_{jk}), \qquad
+                z_j = \frac{\hat{\beta}_j}{\sqrt{q_{jj}}}, \qquad
+                p_j = 2\left[1 - \Phi(|z_j|)\right],
+                \label{eq:cov_beta}
+            \end{equation}
+        donde $\Phi$ es la función de distribución normal estándar.
+
+        Con $\hat{\sigma}_u^2$ y $\hat{\boldsymbol{\beta}}$ se calcularon el factor de contracción y el EBLUP de la Ecuación~\ref{eq:eblup_a}, su error cuadrático medio con la aproximación de Prasad-Rao de la Ecuación~\ref{eq:ecm_eblup}, en la versión para REML de la Ecuación~\ref{eq:ecm_componentes} \cite{morales2021smallarea}, y de él el RMSE de la Ecuación~\ref{eq:rmse} y el coeficiente de variación de la Ecuación~\ref{eq:cve}.
+
+        Para el AIC de la Ecuación~\ref{eq:aic} la varianza de los efectos aleatorios se reestimó por máxima verosimilitud ordinaria y se evaluó la log verosimilitud de la Ecuación~\ref{eq:loglik}. La verosimilitud restringida contiene términos que dependen de la matriz de diseño \cite{morales2021smallarea}, de modo que su valor no es comparable entre especificaciones con distintas covariables, mientras que la verosimilitud ordinaria sí lo es.
+
+            \begin{figure}[!htbp]
+            \centering
+            \shorthandoff{>}% babel español convierte '>' en carácter activo
+            \begin{tikzpicture}[
+                fuente/.style={rectangle, rounded corners=4pt, draw=black!60, fill=blue!10,
+                    text width=5.6cm, minimum height=0.8cm, font=\small, align=center},
+                descr/.style={rectangle, rounded corners=4pt, draw=black!60, fill=gray!12,
+                    text width=5.6cm, minimum height=0.8cm, font=\small, align=center},
+                lateral/.style={rectangle, rounded corners=4pt, draw=black!60, fill=orange!15,
+                    text width=3.6cm, minimum height=0.8cm, font=\small, align=center},
+                arrow/.style={->, >=stealth, thick, draw=black!70}
+            ]
+            \node[fuente] (s)  at (0, 0.0)   {Conjunto $\mathcal{S}$ del análisis exploratorio};
+            \node[fuente] (m)  at (0, -1.4)  {Variantes $\mathcal{M}$: conjunto completo y dejando una covariable fuera (Ec.~\ref{eq:variantes})};
+            \node[descr]  (r)  at (0, -2.9)  {REML: $\hat{\sigma}_u^2$};
+            \node[descr]  (g)  at (0, -4.2)  {GLS: $\hat{\boldsymbol{\beta}}$, $\widehat{\text{Cov}}(\hat{\boldsymbol{\beta}})$ y prueba $z$ (Ec.~\ref{eq:gls} y~\ref{eq:cov_beta})};
+            \node[descr]  (e)  at (0, -5.7)  {EBLUP y factor $\hat{\gamma}_d$ (Ec.~\ref{eq:eblup_a})};
+            \node[descr]  (c)  at (0, -7.0)  {ECM de Prasad-Rao, \mbox{RMSE} y CVE (Ec.~\ref{eq:ecm_eblup}, \ref{eq:rmse} y~\ref{eq:cve})};
+            \node[lateral] (a) at (5.4, -2.9) {ML: $\hat{\sigma}_{u,\text{ML}}^2$ y AIC (Ec.~\ref{eq:loglik} y~\ref{eq:aic})};
+            \draw[arrow] (s) -- (m);
+            \draw[arrow] (m) -- (r);
+            \draw[arrow] (r) -- (g);
+            \draw[arrow] (g) -- (e);
+            \draw[arrow] (e) -- (c);
+            \draw[arrow] (m.east) -| (a.north);
+            \end{tikzpicture}
+            \caption{Secuencia de ajuste aplicada a cada variante del modelo de Fay-Herriot. La columna
+                     gris es la estimación con REML que produce las estimaciones y su precisión; el
+                     recuadro naranja es la reestimación por máxima verosimilitud ordinaria que se
+                     usa solo para calcular el AIC.}
+            \label{fig:flujo_ajuste_fh}
+            \end{figure}
+            \FloatBarrier
+
+%--------------------------------------------------------------------------------------
+\section{Selección del modelo y validación de supuestos}
+\label{sec:met_seleccion}
+
+    Esta etapa elige una de las variantes y examina si el modelo elegido cumple los supuestos que lo sustentan. 
+
+    \subsection{Criterio de selección}
+    \label{subsec:met_criterio_seleccion}
+
+        El criterio parte del uso que tendrá el modelo. Sus coeficientes se aplican a municipios sin encuesta, es decir, el modelo se usa para predecir fuera de la muestra de ajuste. Para ese propósito en \cite{morales2021smallarea} se advierte que no conviene sobreparametrizar, porque una predicción perfecta de lo observado puede conducir a predicciones absurdas de lo no observado, y recomienda un modelo en el que todas las covariables sean significativas con valor $p$ inferior a 0.05. La misma fuente señala que un modelo de área cuyas covariables son todas significativas puede suavizar en exceso, y propone como punto de consenso incluir las covariables significativas más alguna otra con valor $p$ superior a 0.05 y una interpretación razonable. La regla de selección, resumida en la Ecuación~\ref{eq:regla_seleccion} y en la Figura~\ref{fig:regla_seleccion_fh}, recoge ambas indicaciones en tres pasos.
+            \begin{equation}
+            \begin{aligned}
+                \mathcal{C} &= \left\{ m \in \mathcal{M} : p_j^{(m)} < 0.05 \;\; \forall j \right\},
+                    \quad \text{o bien } \mathcal{C} = \mathcal{M} \text{ si ese conjunto es vacío}, \\
+                \mathcal{E} &= \left\{ m \in \mathcal{C} : \text{AIC}_m - \min_{m' \in \mathcal{C}}
+                    \text{AIC}_{m'} \leq 2 \right\}, \\
+                m^{*} &= \operatorname*{arg\,min}_{m \in \mathcal{E}} \; \left( k_m,\; \text{AIC}_m \right),
+            \end{aligned}
+            \label{eq:regla_seleccion}
+            \end{equation}
+        donde $p_j^{(m)}$ es el valor $p$ de la Ecuación~\ref{eq:cov_beta} para la covariable $j$ de la variante $m$, sin contar el intercepto, $k_m$ es su número de covariables y el mínimo sobre el par $(k_m, \text{AIC}_m)$ se toma en orden lexicográfico.
+
+        \begin{enumerate}[leftmargin=*]
+            \item \textit{Candidatas.} Compiten las variantes cuyas covariables son todas significativas al 5\%. Si ninguna variante cumple la condición compiten todas, y el incumplimiento de la recomendación se reporta de forma explícita junto con los valores $p$ observados, que se leen a la luz del punto de consenso descrito arriba.
+            \item \textit{Equivalentes.} Entre las candidatas se identifican las que distan a lo sumo dos unidades de AIC de la mejor, umbral que la Tabla~\ref{tab:criterios_decision} asigna a especificaciones equivalentes.
+            \item \textit{Ganadora.} Entre las equivalentes se retiene la de menor número de covariables, conforme al principio de parsimonia de la Sección~\ref{subsec:parsimonia}, y a igualdad de número la de menor AIC.
+        \end{enumerate}
+
+        El error cuadrático medio del EBLUP y la distancia de Cook no intervienen en la elección. El primero no discrimina entre variantes: como $g_{1d} = \gamma_d \psi_d < \psi_d$, el ECM del EBLUP tiende a quedar por debajo de la varianza directa en cualquier especificación, y en dominios con muestras grandes ambos tienden a coincidir \cite{morales2021smallarea}. Ambas cantidades se reportan como descripción de la ganancia de precisión y de la robustez del modelo elegido.
+
+            \begin{figure}[!htbp]
+            \centering
+            \shorthandoff{>}% babel español convierte '>' en carácter activo
+            \begin{tikzpicture}[
+                caja/.style={rectangle, rounded corners=4pt, draw=black!60, fill=blue!10,
+                    text width=5.4cm, minimum height=0.8cm, font=\small, align=center},
+                decision/.style={diamond, aspect=2.6, draw=black!60, fill=orange!15,
+                    text width=3.2cm, inner sep=0pt, font=\footnotesize, align=center},
+                lateral/.style={rectangle, rounded corners=4pt, draw=black!60, fill=gray!12,
+                    text width=3.4cm, minimum height=0.8cm, font=\small, align=center},
+                modelo/.style={rectangle, rounded corners=6pt, draw=black!80, fill=green!15,
+                    line width=1.2pt, text width=5.4cm, minimum height=0.9cm,
+                    font=\small\bfseries, align=center},
+                arrow/.style={->, >=stealth, thick, draw=black!70},
+                etiqueta/.style={font=\footnotesize, text=black!70}
+            ]
+            \node[caja]     (v)  at (0, 0)     {Variantes ajustadas $\mathcal{M}$};
+            \node[decision] (q)  at (0, -2.3)  {¿Alguna variante con todas sus covariables con $p<0.05$?};
+            \node[lateral]  (si) at (-4.6, -4.6) {$\mathcal{C}$: variantes que cumplen};
+            \node[lateral]  (no) at (4.6, -4.6)  {$\mathcal{C} = \mathcal{M}$ y aviso de incumplimiento};
+            \node[caja]     (eq) at (0, -6.0)  {Equivalentes $\mathcal{E}$: $\Delta_{\text{AIC}} \leq 2$ frente a la mejor de $\mathcal{C}$};
+            \node[modelo]   (g)  at (0, -7.5)  {Ganadora $m^{*}$: menos covariables y, en empate, menor AIC};
+            \node[lateral]  (d)  at (0, -9.1)  {Diagnósticos del modelo elegido, sin papel en la decisión};
+            \draw[arrow] (v) -- (q);
+            \draw[arrow] (q.west) -| node[etiqueta, above, pos=0.25] {sí} (si.north);
+            \draw[arrow] (q.east) -| node[etiqueta, above, pos=0.25] {no} (no.north);
+            \draw[arrow] (si.south) |- (eq.west);
+            \draw[arrow] (no.south) |- (eq.east);
+            \draw[arrow] (eq) -- (g);
+            \draw[arrow, dashed] (g) -- (d);
+            \end{tikzpicture}
+            \caption{Regla de selección del modelo de Fay-Herriot según la
+                     Ecuación~\ref{eq:regla_seleccion}. El rombo aplica la recomendación de
+                     significancia para modelos que predicen fuera de la muestra; los dos pasos
+                     siguientes aplican la equivalencia por AIC y el principio de parsimonia. La
+                     flecha punteada indica que los diagnósticos se calculan después de elegir.}
+            \label{fig:regla_seleccion_fh}
+            \end{figure}
+            \FloatBarrier
+
+    \subsection{Validación de supuestos}
+    \label{subsec:met_validacion}
+
+        Sobre el modelo elegido se verificaron los supuestos del marco teórico con los criterios de la Tabla~\ref{tab:criterios_decision}. Los mismos cálculos se aplicaron a las demás variantes y se reportan en el apéndice, para que la elección pueda contrastarse con el comportamiento de las alternativas.
+
+        \paragraph{Normalidad y media cero de los residuos.}
+            Se calcularon los residuos estandarizados de la Ecuación~\ref{eq:residuos}. Bajo el modelo marginal de la Ecuación~\ref{eq:fh_marginal_a} deben distribuirse como una normal estándar, de modo que su media se contrasta con cero, su desviación estándar con uno y su normalidad con la prueba de Shapiro-Wilk de la Ecuación~\ref{eq:shapiro}. El histograma de los residuos con la densidad normal estándar superpuesta permite distinguir si un eventual rechazo proviene de asimetría, de colas pesadas o de un dominio aislado.
+
+        \paragraph{Efecto suavizador.}
+            De la Ecuación~\ref{eq:eblup_a} se obtiene la corrección que el EBLUP aplica a la estimación directa, según la Ecuación~\ref{eq:correccion_eblup}.
+                \begin{equation}
+                    \hat{\theta}_d - \hat{\theta}_d^{\text{EBLUP}} = (1 - \hat{\gamma}_d)
+                    \left(\hat{\theta}_d - \mathbf{x}_d^\top \hat{\boldsymbol{\beta}}\right).
+                    \label{eq:correccion_eblup}
+                \end{equation}
+            La corrección es positiva, es decir, el EBLUP modera la estimación, cuando la estimación directa supera al predictor sintético, y negativa en el caso contrario. Si el modelo contrae los valores extremos, la corrección debe crecer con la estimación directa, lo que se resume con el coeficiente de correlación de Pearson de la Ecuación~\ref{eq:pearson} entre $\hat{\theta}_d$ y la corrección, y su valor $p$. Es una descripción del mecanismo de contracción hacia el predictor sintético y no una prueba de validez del modelo.
+
+        \paragraph{Ganancia de precisión frente al estimador directo.}
+            Se calculó la razón $R_d$ de la Ecuación~\ref{eq:ratio_mse} en cada dominio, su media y su mediana, la proporción de dominios con $R_d > 1$ y la prueba de rangos con signo de Wilcoxon, unilateral, sobre las diferencias $\psi_d - \text{ECM}_d$. Se contrastó además el coeficiente de variación directo con el del EBLUP en cada dominio, ordenando los dominios de menor a mayor $\psi_d$. La ganancia debe concentrarse en los dominios de mayor varianza directa y ser casi nula donde la muestra es grande, porque allí $g_{1d} \to \psi_d$ y $g_{2d}, g_{3d} \to 0$ \cite{morales2021smallarea}. Como $g_{1d} < \psi_d$ por construcción, la magnitud de la ganancia es informativa, pero su existencia no constituye una validación independiente del modelo.
+
+        \paragraph{Coherencia de los signos.}
+            El signo de cada coeficiente estimado se contrastó con el signo esperado que declara el catálogo de literatura de la Sección~\ref{subsec:met_elegibilidad}. Un signo contrario al esperado no invalida el modelo, pero exige una interpretación explícita.
+
+    \subsection{Robustez frente a dominios influyentes}
+    \label{subsec:met_robustez_fh}
+
+        Con 23 dominios un único territorio puede sostener los coeficientes estimados. La influencia de cada dominio sobre el modelo elegido se midió con la distancia de Cook de la Ecuación~\ref{eq:cook}, particularizada al ajuste por mínimos cuadrados generalizados. Con $\hat{\sigma}_u^2$ fijo, el modelo es una regresión ponderada con pesos conocidos $1/(\psi_d + \hat{\sigma}_u^2)$, y la distancia toma la forma de la Ecuación~\ref{eq:cook_gls}.
+            \begin{equation}
+                C_d = \frac{r_d^2\, h_{dd}}{p\,(1 - h_{dd})^2}, \qquad
+                h_{dd} = \frac{\mathbf{x}_d^\top \widehat{\text{Cov}}(\hat{\boldsymbol{\beta}})\,
+                \mathbf{x}_d}{\psi_d + \hat{\sigma}_u^2},
+                \label{eq:cook_gls}
+            \end{equation}
+        donde $r_d$ es el residuo estandarizado de la Ecuación~\ref{eq:residuos}, $h_{dd}$ es el apalancamiento del dominio $d$ y $p$ es la dimensión de $\boldsymbol{\beta}$. Esta expresión coincide con el cambio en $\hat{\boldsymbol{\beta}}$ que produce excluir el dominio $d$ manteniendo fija la varianza de los efectos aleatorios, y se compara con el umbral $4/n$ de la Tabla~\ref{tab:criterios_decision}.
+
+        Como la Ecuación~\ref{eq:cook_gls} mantiene fijo $\hat{\sigma}_u^2$, se completó el diagnóstico reajustando el modelo entero, incluida la varianza de los efectos aleatorios, sin el dominio de mayor distancia. Para cada coeficiente se registró el cambio relativo, si cambia de signo y si cruza el umbral de significancia de 0.05 en cualquiera de los dos sentidos. Registrar también el paso de no significativo a significativo es necesario cuando ninguna covariable es significativa en el modelo completo, porque en ese caso perder significancia es imposible y solo el cruce contrario revela dependencia de un dominio. Ningún dominio se elimina, la consecuencia del diagnóstico es declarar el grado en que las conclusiones dependen de un territorio.
+
+        La Tabla~\ref{tab:salidas_diagnostico} enumera las salidas de esta etapa y la sección en que se presenta cada una.
+
+        \begin{table}[!htbp]
+        \centering
+        \small
+        \caption{Salidas producidas en la etapa de selección y validación del modelo, con su alcance y la sección que las presenta. El alcance indica si la salida se reporta para todas las variantes o para el modelo elegido; en el segundo caso, las cifras de las demás variantes se presentan en el apéndice.}
+        \label{tab:salidas_diagnostico}
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabular}{p{5.6cm} p{2.9cm} p{3.6cm}}
+        \toprule
+        \textbf{Salida} & \textbf{Alcance} & \textbf{Presentación} \\
+        \midrule
+        AIC, valores $p$ y regla de selección & Todas las variantes &
+            Sección~\ref{subsec:res_criterio_seleccion} \\
+        Coeficientes estimados y su significancia & Modelo elegido &
+            Sección~\ref{subsec:res_criterio_seleccion} y Sección~\ref{sec:apendice-variantes} \\
+        Residuos, Shapiro-Wilk e histograma & Modelo elegido &
+            Sección~\ref{subsec:res_validacion} y Sección~\ref{sec:apendice-variantes} \\
+        Efecto suavizador del EBLUP & Modelo elegido &
+            Sección~\ref{subsec:res_validacion} y Sección~\ref{sec:apendice-variantes} \\
+        Razón $R_d$, Wilcoxon y CVE directo frente a EBLUP & Modelo elegido &
+            Sección~\ref{subsec:res_validacion} y Sección~\ref{sec:apendice-variantes} \\
+        Distancia de Cook y reajuste sin el dominio más influyente & Modelo elegido &
+            Sección~\ref{subsec:res_robustez_fh} y Sección~\ref{sec:apendice-variantes} \\
+        \bottomrule
+        \end{tabular}
+        \end{table}
+        \FloatBarrier
+
+%--------------------------------------------------------------------------------------
+\section{Estimación en dominios sin cobertura muestral}
+\label{sec:met_sintetico}
+
+    La etapa final produce la estimación de la tasa de desempleo en los municipios del Cauca y del Valle del Cauca que la GEIH no cubre, la acompaña de medidas de calidad y la integra con las estimaciones de los dominios con encuesta. La Figura~\ref{fig:flujo_sintetico} resume la secuencia.
+
+    \subsection{Predictor sintético y su error}
+    \label{subsec:met_prediccion_sintetica}
+
+        En un municipio sin encuesta no existen la estimación directa ni su varianza, de modo que el EBLUP de la Ecuación~\ref{eq:eblup_a} se reduce a su componente sintético $\hat{\theta}_d^{\text{SIN}} = \mathbf{x}_d^\top \hat{\boldsymbol{\beta}}$, que equivale a fijar $\hat{\gamma}_d = 0$. Basta evaluar los coeficientes del modelo elegido sobre el vector de covariables de TerriData de cada municipio. Antes de hacerlo se verifica que ningún municipio objetivo carezca de valor en alguna covariable del modelo; si faltara alguno, el procedimiento se detiene en lugar de imputarlo.
+
+        El error cuadrático medio del predictor sintético se calculó con la Ecuación~\ref{eq:var_sintetica}, que suma la incertidumbre por estimar $\boldsymbol{\beta}$ y la varianza del efecto aleatorio no observado \cite{morales2021smallarea}. El segundo término no desaparece al aumentar el número de dominios de ajuste, en un municipio sin encuesta el efecto $u_d$ es desconocido y su varianza $\hat{\sigma}_u^2$ es un piso para el error de cualquier estimación sintética. De ese error se derivó el coeficiente de variación de la Ecuación~\ref{eq:cve} y cada estimación se clasificó por confiabilidad con los umbrales de la Tabla~\ref{tab:criterios_decision}, confiable por debajo del 5\%, aceptable entre el 5\% y el 20\%, y no confiable a partir del 20\%.
+
+    \subsection{Avisos de extrapolación y de rango}
+    \label{subsec:met_avisos}
+
+        Cada estimación sintética lleva dos marcas que advierten al usuario sobre su lectura. La primera identifica la extrapolación, un municipio cuyas covariables se alejan del centro de los datos de ajuste más que cualquiera de los 23 dominios observados. Se usa el término de la Ecuación~\ref{eq:var_sintetica} asociado a $\hat{\boldsymbol{\beta}}$, que crece con esa distancia, según la Ecuación~\ref{eq:extrapolacion}.
+            \begin{equation}
+                \text{Extrapola}_d = \mathbb{I}\left[\,\mathbf{x}_d^\top
+                \widehat{\text{Cov}}(\hat{\boldsymbol{\beta}})\,\mathbf{x}_d \;>\;
+                \max_{d' \in s} \mathbf{x}_{d'}^\top \widehat{\text{Cov}}(\hat{\boldsymbol{\beta}})\,
+                \mathbf{x}_{d'} \right],
+                \label{eq:extrapolacion}
+            \end{equation}
+        donde $s$ es el conjunto de dominios con encuesta. Una predicción marcada descansa en el supuesto de que la relación lineal estimada se mantiene fuera del rango observado, supuesto que los datos de ajuste no pueden verificar.
+
+        La segunda marca identifica estimaciones fuera del intervalo $[0, 100]$, que una tasa en porcentaje no puede tomar y que un predictor lineal no excluye por construcción. Se verificó también que la varianza estimada de los efectos aleatorios no fuera prácticamente nula, situación en la que $\hat{\gamma}_d \approx 0$ en todos los dominios, el EBLUP coincide con el predictor sintético y la encuesta deja de influir en las estimaciones; el aviso se activa si el mayor $\hat{\gamma}_d$ no supera 0.01.
+
+    \subsection{Consolidación de las estimaciones}
+    \label{subsec:met_consolidacion}
+
+        Finalmente se construyó una tabla única que asigna el EBLUP a los dominios con encuesta y la estimación sintética a los demás. Los dominios se identifican por período, mes y código DIVIPOLA, no por nombre, porque las fuentes escriben los nombres con formatos distintos, y los nombres oficiales de departamento y municipio se toman de la dimensión DIVIPOLA. Si un dominio apareciera en ambos conjuntos prevalecería el EBLUP, que incorpora la información de la encuesta además del modelo. Cada fila conserva su tipo de estimación, su coeficiente de variación, su clasificación de confiabilidad y las marcas de la Sección~\ref{subsec:met_avisos}.
+
+            \begin{figure}[!htbp]
+            \centering
+            \shorthandoff{>}% babel español convierte '>' en carácter activo
+            \begin{tikzpicture}[
+                fuente/.style={rectangle, rounded corners=4pt, draw=black!60, fill=blue!10,
+                    text width=4.6cm, minimum height=0.8cm, font=\small, align=center},
+                descr/.style={rectangle, rounded corners=4pt, draw=black!60, fill=gray!12,
+                    text width=5.4cm, minimum height=0.8cm, font=\small, align=center},
+                aviso/.style={rectangle, rounded corners=4pt, draw=black!60, fill=orange!15,
+                    text width=3.4cm, minimum height=0.8cm, font=\small, align=center},
+                modelo/.style={rectangle, rounded corners=6pt, draw=black!80, fill=green!15,
+                    line width=1.2pt, text width=5.4cm, minimum height=0.9cm,
+                    font=\small\bfseries, align=center},
+                arrow/.style={->, >=stealth, thick, draw=black!70}
+            ]
+            \node[fuente] (mg) at (-3.0, 0)   {Modelo elegido: $\hat{\boldsymbol{\beta}}$, $\widehat{\text{Cov}}(\hat{\boldsymbol{\beta}})$ y $\hat{\sigma}_u^2$};
+            \node[fuente] (cv) at (3.0, 0)    {Covariables de los municipios sin encuesta};
+            \node[descr]  (ps) at (0, -1.6)   {Predictor sintético $\mathbf{x}_d^\top\hat{\boldsymbol{\beta}}$};
+            \node[descr]  (er) at (0, -3.0)   {ECM (Ec.~\ref{eq:var_sintetica}), CVE y confiabilidad};
+            \node[aviso]  (av) at (4.7, -3.0) {Avisos: extrapolación (Ec.~\ref{eq:extrapolacion}) y rango $[0,100]$};
+            \node[fuente, text width=3.4cm] (eb) at (-4.7, -4.5) {EBLUP de los dominios con encuesta};
+            \node[modelo] (tf) at (0, -4.5)   {Tabla consolidada por código DIVIPOLA};
+            \draw[arrow] (mg) -- (ps);
+            \draw[arrow] (cv) -- (ps);
+            \draw[arrow] (ps) -- (er);
+            \draw[arrow] (er) -- (av);
+            \draw[arrow] (er) -- (tf);
+            \draw[arrow] (eb) -- (tf);
+            \end{tikzpicture}
+            \caption{Secuencia de la estimación en dominios sin cobertura muestral: el modelo elegido
+                     se evalúa sobre las covariables de los municipios sin encuesta, cada estimación
+                     recibe su error, su clasificación de confiabilidad y sus avisos, y el resultado
+                     se consolida con el EBLUP de los dominios con encuesta.}
+            \label{fig:flujo_sintetico}
+            \end{figure}
+            \FloatBarrier
+
+%--------------------------------------------------------------------------------------
+\section{Trazabilidad con los objetivos del proyecto}
+\label{sec:met_trazabilidad}
+
+    La Tabla~\ref{tab:trazabilidad} relaciona cada etapa metodológica con el objetivo específico de
+    la Sección~\ref{sec:objetivos} que atiende y con la sección de resultados que presenta la
+    evidencia correspondiente, con el fin de facilitar la verificación de su cumplimiento.
+
+    \begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Trazabilidad entre las etapas metodológicas, los objetivos específicos del proyecto y
+             la sección de resultados que presenta la evidencia. OE1: evaluar el desempeño de
+             distintos modelos de estimación de áreas pequeñas; OE2: determinar las variables
+             explicativas con mayor incidencia en la tasa de desempleo; OE3: analizar la
+             distribución y los patrones espaciales del desempleo. Las etapas marcadas como soporte
+             no atienden directamente un objetivo específico, sino que habilitan las que sí lo
+             hacen.}
+    \label{tab:trazabilidad}
+    \renewcommand{\arraystretch}{1.25}
+    \begin{tabular}{p{5.1cm} c p{5.3cm}}
+    \toprule
+    \textbf{Etapa metodológica} & \textbf{Objetivo} & \textbf{Evidencia en resultados} \\
+    \midrule
+    Obtención de datos & Soporte &
+        Sección~\ref{sec:res_obtencion} \\
+    Limpieza y estandarización de datos & Soporte &
+        Sección~\ref{sec:res_limpieza} \\
+    Tratamiento de datos faltantes & Soporte &
+        Sección~\ref{sec:res_faltantes} \\
+    Transformación e integración de datos & Soporte &
+        Sección~\ref{sec:res_transformacion} \\
+    Construcción de la variable respuesta & OE1 &
+        Sección~\ref{sec:res_variable_respuesta} \\
+    Pre-filtrado de covariables auxiliares & OE2 &
+        Sección~\ref{sec:res_prefiltrado} \\
+    Análisis descriptivo de los datos & OE2, OE3 &
+        Sección~\ref{sec:res_descriptivo} \\
+    Diagnóstico y selección final de covariables & OE2 &
+        Sección~\ref{sec:res_eda} \\
+    Especificación y ajuste del modelo Fay-Herriot & OE1, OE2 &
+        Sección~\ref{sec:res_modelo} \\
+    Selección del modelo y validación de supuestos & OE1, OE3 &
+        Sección~\ref{sec:res_seleccion} \\
+    Estimación en dominios sin cobertura muestral & OE1, OE3 &
+        Sección~\ref{sec:res_sintetico} \\
+    \bottomrule
+    \end{tabular}
+    \end{table}
+
+    El primer objetivo se atiende con la comparación de las variantes de la
+    Sección~\ref{subsec:met_variantes} bajo los criterios de la
+    Sección~\ref{subsec:met_criterio_seleccion} y con el contraste entre las estimaciones del modelo
+    y las directas en coeficiente de variación; el segundo, con el pre-filtrado de la
+    Sección~\ref{sec:met_prefiltrado}, la ficha de decisión de la
+    Sección~\ref{subsec:met_decision} y
+    la interpretación de los coeficientes; y el tercero, con la descripción territorial de la
+    tasa de desempleo de la Sección~\ref{subsec:met_univariado} y con la distribución
+    territorial de las estimaciones finales.

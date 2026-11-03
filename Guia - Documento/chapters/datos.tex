@@ -1,0 +1,97 @@
+El proyecto se desarrolló a partir de la base de datos transaccional de la Sociedad Bíblica Colombiana (SBC), la cual consolida información detallada de ventas a nivel de línea de factura para los años 2022, 2023 y 2024. Cada registro corresponde a una línea individual de venta e incluye información del cliente, del producto adquirido y de las condiciones comerciales asociadas a la operación.
+
+La base de datos original contiene un total de 106{,}254 registros a nivel de línea de factura e integra información tanto de clientes personas naturales como de clientes empresariales. En una etapa posterior del análisis, el estudio se restringe al subconjunto de clientes empresariales, dado que el objetivo del trabajo es modelar el comportamiento de compra de este segmento específico. No obstante, en esta sección se describe la estructura completa de la base de datos tal como es recibida originalmente, antes de aplicar filtros por tipo de cliente o procesos de agregación.
+
+A nivel de contenido, cada registro incluye identificadores del cliente, características del producto (como SKU, grupo, clase y subclase), variables monetarias (valor bruto, descuentos aplicados, valor neto, costos y utilidad), información geográfica (país, departamento y ciudad de la compra) y atributos comerciales relevantes (tipo de factura, condición de pago y categoría del producto). Esta estructura permite reconstruir el historial transaccional de cada cliente y constituye el insumo fundamental para las etapas posteriores de limpieza, agregación y construcción de variables analíticas.
+En la Tabla~\ref{tab:tab-variables-originales} se presenta un resumen de las principales variables contenidas en la base de datos original. 
+
+
+\begin{table}[H]
+\centering
+\small
+\caption{Variables contenidas en la base de datos transaccional original de la SBC.}
+\label{tab:tab-variables-originales}
+\renewcommand{\arraystretch}{1.25} 
+\begin{tabular}{c l c p{6.2cm}} 
+\hline
+\textbf{No.} & \textbf{Nombre de la variable} & \textbf{Notación} & \textbf{Descripción} \\ \hline
+
+1  & Valor bruto           
+   & VB 
+   & Valor total del producto antes de aplicar descuentos, registrado a nivel de línea de factura. \\
+
+2  & Descuento             
+   & DS 
+   & Descuento aplicado al valor bruto del producto en la línea de factura. \\
+
+3  & Valor neto            
+   & VN
+   & Valor final pagado por el cliente una vez aplicado el descuento sobre el valor bruto. \\
+
+4  & Costo total           
+   & CT
+   & Costo directo incurrido por la SBC para producir o adquirir el producto vendido. \\
+
+5  & Utilidad bruta        
+   & UB
+   & Diferencia entre el valor neto y el costo total del producto en la línea de factura. \\
+
+6  & Código de cliente     
+   & CC
+   & Identificador numérico único del cliente, generado por la SBC. \\
+
+7  & Tipo de empresa       
+   & TE
+   & Clasificación del cliente empresarial (editorial, fundación, institución religiosa, comercial, entre otros). \\
+
+8  & Mes                  
+   & MS
+   & Mes calendario en el que se registró la transacción. \\
+
+9  & País                 
+   & PA
+   & País donde se realizó la compra. \\
+
+10 & Departamento          
+   & DP
+   & Departamento asociado a la ciudad donde se efectuó la compra. \\
+
+11 & Ciudad               
+   & CI
+   & Ciudad donde fue realizada la transacción. \\
+
+12 & Tipo de factura      
+   & TF
+   & Tipo de documento de facturación que define la modalidad comercial de la venta (por ejemplo, nacional o exterior). \\
+
+13 & Grupo                
+   & GR
+   & Grupo de producto al que pertenece el artículo vendido. \\
+
+14 & Clase                
+   & CL
+   & Clasificación específica del producto dentro del grupo correspondiente. \\
+
+15 & Clase 2              
+   & C2
+   & Agrupación general derivada de la descripción del producto (por ejemplo, BIBLIAS). \\
+
+16 & Tamaño               
+   & TM
+   & Tamaño o formato del producto adquirido. \\
+
+17 & SKU                  
+   & SKU
+   & Código único que identifica el producto dentro del inventario de la SBC. \\
+
+18 & Condición            
+   & CD
+   & Condición de pago asociada a la transacción (contado, crédito, anticipado, entre otros). \\
+
+19 & Categoría            
+   & CAT
+   & Clasificación del producto según su nivel de calidad (económica, línea, semifina, fina, etc.). \\
+
+\hline
+\end{tabular}
+\end{table}

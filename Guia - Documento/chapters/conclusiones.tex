@@ -1,0 +1,132 @@
+%--------------------------------------------------
+
+
+\section{Conclusión asociada al objetivo general}
+
+El objetivo general de este trabajo fue desarrollar una metodología de ciencia de datos, basada en información transaccional parcial, para estimar la \emph{participación en la billetera} (\emph{Share--of--Wallet}, SoW) y el \emph{tamaño de la billetera} (\emph{Size--of--Wallet}, SioW) de clientes empresariales de una empresa distribuidora de biblias y literatura cristiana, en ausencia de información proveniente de encuestas o de transacciones con empresas competidoras.
+
+Los resultados obtenidos permiten concluir que este objetivo fue alcanzado de manera satisfactoria. La metodología propuesta posibilita la inferencia de cantidades latentes económica y estadísticamente coherentes a partir de datos internos, mediante un modelo jerárquico \emph{pogit} que separa explícitamente el mecanismo de asignación del gasto hacia la empresa focal del mecanismo de intensidad total de consumo en la categoría. Esta estructura resulta especialmente adecuada para contextos B2B reales, donde la información disponible es inherentemente incompleta y limitada al portafolio de ventas de la empresa focal.
+
+%--------------------------------------------------
+\section{Conclusión asociada al objetivo específico 1}
+
+El primer objetivo específico consistió en identificar las variables transaccionales y de perfilamiento del cliente relevantes para explicar la SoW y el SioW de los clientes empresariales, utilizando exclusivamente información observable.
+
+Los resultados muestran que ambos tipos de variables cumplen funciones diferenciadas y complementarias dentro del modelo. Las variables transaccionales —como recencia, frecuencia, gasto monetario, diversidad de productos y regularidad del consumo. Las variables transaccionales resultan particularmente informativas en términos estructurales para explicar el mecanismo de asignación del gasto hacia la empresa focal (SoW), aun cuando no todas ellas exhiben efectos marginales estadísticamente significativos de manera individual. En contraste, las variables de perfilamiento, como el tipo de empresa y la zona geográfica, capturan heterogeneidad estructural asociada al tamaño total de la billetera del cliente en la categoría (SioW). Esta evidencia respalda empíricamente la separación conceptual entre ambos mecanismos y justifica el uso de matrices de covariables diferenciadas en la especificación del modelo.
+
+%--------------------------------------------------
+\section{Conclusión asociada al objetivo específico 2}
+
+El segundo objetivo específico buscó comparar distintas especificaciones del conjunto de covariables transaccionales utilizadas en el modelo \emph{pogit}, incluyendo una especificación basada en variables originales y una alternativa basada en reducción de dimensionalidad mediante Análisis de Componentes Principales (PCA).
+
+Se concluye que ambas especificaciones presentan ventajas complementarias. La especificación basada en variables originales ofrece una interpretación directa y facilita la traducción de los resultados en acciones comerciales concretas. Por su parte, la especificación basada en PCA proporciona mayor parsimonia y estabilidad numérica, al sintetizar la información contenida en variables altamente correlacionadas. En consecuencia, la elección entre ambas especificaciones depende del objetivo analítico —interpretabilidad o simplificación del modelo— más que de un criterio único de desempeño, lo que refuerza la flexibilidad metodológica del enfoque propuesto.
+
+%--------------------------------------------------
+\section{Conclusión asociada al objetivo específico 3}
+
+El tercer objetivo específico se orientó a analizar la estructura de segmentación de los clientes obtenida mediante técnicas de aprendizaje no supervisado y su correspondencia con los patrones emergentes en el espacio conjunto SoW--SioW estimado por el modelo \emph{pogit}.
+
+Los resultados indican que los métodos de segmentación empleados (k-means y k-medoids) permiten identificar grupos de clientes con perfiles observables homogéneos y patrones consistentes —aunque no perfectamente separables— en términos de participación e intensidad de gasto estimadas. La correspondencia observada entre los segmentos derivados de variables transaccionales y las regiones emergentes del espacio SoW--SioW aporta evidencia adicional de la coherencia estructural del modelo fuera de muestra. Este análisis confirma que la segmentación no supervisada constituye una herramienta útil para apoyar la interpretación económica de las estimaciones del modelo, sin intervenir directamente en su proceso de estimación.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% El presente trabajo tuvo como propósito central desarrollar y validar una metodología para estimar el \textit{Share of Wallet} (SoW) de los clientes de la Sociedad Bíblica Colombiana (SBC), a partir de información transaccional y de perfilamiento, evitando la dependencia exclusiva de encuestas declarativas. La contribución se inscribe en la línea propuesta por Glady \& Croux \cite{glady2009predicting} y en la literatura sobre Wallet Allocation Rule (WAR) y métricas de satisfacción–participación, integrando dichos marcos conceptuales en un contexto B2B específico de distribución de literatura cristiana.
+
+% \subsection{Síntesis metodológica y coherencia con el marco teórico}
+
+% En primer lugar, se destaca la coherencia lograda entre el marco conceptual, la metodología propuesta y los resultados obtenidos. La metodología implementada siguió las etapas definidas en la sección de Metodología (\ref{sec:metodologia}), que abarcan: (i) pre-procesamiento y depuración de datos, (ii) análisis exploratorio univariado y multivariado, (iii) transformación logarítmica y estandarización, (iv) reducción de dimensionalidad mediante PCA, (v) segmentación por K-means y K-medoids con distancia de Gower, (vi) construcción de las matrices transaccional \(\mathbf{W}\) y de perfilamiento \(\mathbf{V}\), (vii) definición de la variable respuesta discreta a partir del gasto monetario, y (viii) estimación del SoW mediante un modelo compuesto tipo GBinM (Glady \& Croux) y modelos comparadores (GLM/Tweedie, GAM con splines).
+
+% En términos formales, la estrategia se apoyó en la representación del gasto total del cliente (\(W_i\)) y de la participación de la SBC en dicho gasto (\(\mathrm{SoW}_i\)), cuyas definiciones y formulaciones se presentan en el Marco Teórico (\ref{sec:marco-teorico}, subsecciones sobre ``Conceptos formales y notación'' y ``Wallet Allocation Rule (visión conceptual y operacional)''). En lugar de incluir las expresiones matemáticas completas en el cuerpo de las conclusiones, se hace referencia explícita a dichas ecuaciones, donde se detalla la forma funcional de \(\mathrm{SoW}_i\), \(\mathrm{PoW}_i\) y del gasto total estimado \(\widehat{W}_i\).
+
+% Asimismo, el modelo compuesto adoptado —basado en la factorización de la media \(\mu_i\) en una componente de escala (\(\lambda_i\)) y una componente de asignación o preferencia (\(\pi_i\))— sigue la propuesta original de Glady \& Croux y se encuentra formalizado en el Marco Teórico (\ref{sec:marco-teorico}, subsección ``Modelos para estimar SioW y SoW: enfoque de dos componentes'') y detallado en la Metodología. En dichas secciones se presentan las ecuaciones que describen: (i) la distribución de la variable discreta de respuesta \(Y_i\) que aproxima el gasto monetario, (ii) la forma de las funciones de enlace que relacionan \(\lambda_i\) con \(\mathbf{W}_i\) y \(\pi_i\) con \(\mathbf{V}_i\), y (iii) la manera en que, a partir de \(\widehat{\lambda}_i\) y \(\widehat{\pi}_i\), se obtienen los estimadores de \(W_i\), \(\mathrm{SoW}_i\) y \(\mathrm{PoW}_i\).
+
+% Esta separación explícita entre el desarrollo matemático (ubicado en el Marco Teórico) y la interpretación empírica (ubicada en Resultados y Conclusiones) atiende la recomendación de la profesora acerca de centralizar las fórmulas en un solo apartado y garantiza consistencia y trazabilidad conceptual en todo el documento.
+
+% \subsection{Hallazgos sobre SioW, SoW y potencial de wallet (PoW)}
+
+% En segundo lugar, los resultados permiten concluir que la metodología propuesta es capaz de generar estimaciones razonables y accionables del SoW y del potencial de wallet (PoW) de los clientes de la SBC, sin recurrir a datos declarativos de encuestas. El componente observacional de desempeño (\(\mathrm{SioW}\)) —definido y formalizado también en el Marco Teórico (\ref{sec:marco-teorico})— se derivó directamente del comportamiento histórico de compra, lo que permitió medir la participación efectiva de la SBC en el gasto realizado, mientras que el componente esperado (\(\mathrm{SoW}\)) se obtuvo a partir de la estructura del modelo compuesto.
+
+% En particular, la variable discreta de respuesta \(Y_i\) se construyó a partir del valor monetario total del cliente (\(Y2_i\)) en el periodo de evaluación (año 2024), utilizando una constante de escala \(C\) basada en la razón entre la varianza y la media de dicho gasto, siguiendo la lógica descrita por Glady \& Croux. La fórmula utilizada para \(C\) y para \(Y_i\) se presenta íntegramente en el Marco Teórico y en la Metodología, de forma que cualquier lector pueda verificar paso a paso la transformación aplicada. Este procedimiento permitió llevar un gasto continuo con fuerte asimetría a una variable de conteo más adecuada para la parte Poisson del modelo compuesto.
+
+% A partir de las estimaciones de \(\widehat{W}_i\) y \(\widehat{\mathrm{SoW}}_i\), se derivó \(\widehat{\mathrm{PoW}}_i\), entendida como el potencial de wallet no capturado por la SBC. Formalmente, la relación entre estas magnitudes se detalla en las ecuaciones respectivas del Marco Teórico, mientras que en esta sección se enfatiza la interpretación: clientes con alta \(\widehat{\mathrm{PoW}}_i\) representan oportunidades claras para incrementar ingresos sin necesidad de adquirir nuevos clientes, simplemente profundizando la relación con quienes ya son compradores actuales.
+
+% Los resultados muestran, además, la presencia de un patrón de tipo Pareto en el portafolio de clientes, donde un subconjunto reducido concentra una fracción desproporcionada del wallet y del PoW, coherente con lo observado en el análisis exploratorio de variables monetarias y de cantidad. Este hallazgo refuerza la utilidad de las estimaciones de SoW para identificar clientes de alto impacto potencial y para priorizar acciones comerciales de manera más estratégica.
+
+% \subsection{Desempeño de los modelos y comparación de especificaciones}
+
+% En tercer lugar, el desempeño del modelo compuesto se contrastó con el de modelos alternativos (GLM/Tweedie y modelos con splines), utilizando métricas tales como el error absoluto medio (MAE) y la raíz del error cuadrático medio (RMSE), cuyas definiciones se encuentran en el Marco Teórico (\ref{sec:marco-teorico}, subsección ``Validación, métricas y criterios operativos''). Esta decisión fue coherente con el objetivo de evaluar no solo la capacidad explicativa, sino también la calidad predictiva del enfoque propuesto.
+
+% En términos generales, el modelo compuesto basado en \(\mathbf{W}\) y \(\mathbf{V}\) mostró un desempeño competitivo, particularmente en la estimación de \(\widehat{W}_i\) y \(\widehat{\mathrm{SoW}}_i\), frente a alternativas más simples basadas en modelos lineales generalizados. La inclusión de una componente de asignación \(\pi_i\) vinculada a variables de perfilamiento (matriz \(\mathbf{V}\)) aportó flexibilidad adicional para capturar diferencias de comportamiento entre segmentos distintos de clientes (por ejemplo, tipo de empresa, categoría de producto, ciudad, tipo de factura, entre otros).
+
+% Asimismo, la evaluación por segmentos (clusters obtenidos por K-means y K-medoids + Gower) permitió identificar que el ajuste del modelo no es uniforme en todos los grupos. Algunos clusters, en particular aquellos asociados a clientes de muy alto gasto y baja sensibilidad al descuento, resultan más complejos de predecir con precisión, pero al mismo tiempo constituyen el núcleo de mayor valor potencial para la organización. Esta observación sugiere la conveniencia de seguir profundizando en modelos específicos por segmento —una línea que se detalla en las recomendaciones de trabajo futuro— y al mismo tiempo confirma que el enfoque compuesto aporta un marco robusto para capturar la heterogeneidad estructural en la base de clientes.
+
+% \subsection{Implicaciones comerciales y de gestión de clientes}
+
+% Desde una perspectiva de negocio, los resultados del modelo y de la segmentación ofrecen insumos concretos para la gestión de clientes de la SBC. La combinación de:
+
+% \begin{itemize}
+%     \item métricas históricas de desempeño (\(\mathrm{SioW}\)), 
+%     \item métricas estimadas de participación futura (\(\widehat{\mathrm{SoW}}_i\)), y 
+%     \item métricas de potencial (\(\widehat{\mathrm{PoW}}_i\)), 
+% \end{itemize}
+
+% permite construir vistas de portafolio orientadas a la acción, tal como se ilustra conceptualmente en el Marco Teórico (subsección ``Conexión explícita con el presente trabajo y prioridades (B2B)''). En particular, la identificación de clientes con alto PoW posibilita:
+
+% \begin{enumerate}
+%     \item Priorizar esfuerzos comerciales y de acompañamiento pastoral donde el incremento marginal de SoW tenga mayor impacto en ventas.
+%     \item Diseñar estrategias diferenciadas por cluster (por ejemplo, clientes premium, clientes inactivos, clientes en riesgo de abandono), alineando el tipo de intervención con el comportamiento transaccional y el perfil del cliente.
+%     \item Evaluar, ex ante, el efecto potencial de determinadas acciones (mejoras de servicio, ajustes en condiciones comerciales, programas de fidelización) sobre el SoW esperado y, por ende, sobre el crecimiento en ventas.
+% \end{enumerate}
+
+% Estas implicaciones resultan particularmente relevantes para una organización como la SBC, cuyo propósito trasciende el plano estrictamente comercial y se orienta a maximizar el impacto de su misión a través de una distribución más efectiva de la literatura bíblica. En ese sentido, la herramienta analítica desarrollada contribuye a responder de manera cuantitativa a la pregunta ``¿en qué clientes debemos invertir más para amplificar tanto el impacto espiritual como el resultado financiero?''
+
+% \subsection{Limitaciones del estudio}
+
+% A pesar de los aportes, es importante reconocer varias limitaciones que condicionan la interpretación de los resultados y abren oportunidades de mejora futura:
+
+% \begin{itemize}
+%     \item \textbf{Horizonte temporal de los datos:} el modelo se entrenó y evaluó con información concentrada en un periodo reciente (2023–2024). Aunque esto asegura relevancia temporal, limita la capacidad de capturar patrones de muy largo plazo (por ejemplo, clientes que compran solo en ciclos litúrgicos de varios años). Extender el horizonte temporal podría mejorar la robustez de las estimaciones de \(\lambda_i\) y \(\pi_i\).
+%     \item \textbf{Ausencia de variables externas:} la metodología se basó exclusivamente en información transaccional interna y variables de perfil del cliente, sin incorporar factores externos (dinámica macroeconómica, competencia, cambios regulatorios, etc.). En el Marco Teórico se mencionan marcos como WAR que, idealmente, se complementan con percepciones de satisfacción y recomendación; no obstante, en este trabajo se optó deliberadamente por un enfoque no declarativo. En futuros estudios podría explorarse la integración de estas fuentes para enriquecer la componente \(\pi_i\).
+%     \item \textbf{Supuestos del modelo compuesto:} como todo modelo paramétrico, el enfoque de Glady \& Croux descansa en supuestos específicos sobre la distribución de la variable respuesta y la forma funcional de las relaciones entre \(\mathbf{W}\), \(\mathbf{V}\) y \(\mu_i\). Aunque el ajuste observado es adecuado, la validez de dichos supuestos podría explorarse más a fondo mediante diagnósticos adicionales de residuos, pruebas de sobre/infra-dispersión y comparación con modelos no paramétricos.
+%     \item \textbf{Segmentación y estabilidad de clusters:} si bien la segmentación mediante K-means y K-medoids + Gower resultó útil para interpretar comportamientos diferenciados, algunos clusters presentan un índice silhouette relativamente bajo, lo que sugiere solapamiento entre grupos. La estabilidad de estos clusters frente a nuevas muestras o periodos podría analizarse con mayor profundidad antes de utilizarlos como base única para decisiones estratégicas de largo plazo.
+% \end{itemize}
+
+% Reconocer estas limitaciones no invalida los resultados, sino que contextualiza su alcance y orienta las líneas de investigación y refinamiento metodológico.
+
+% \subsection{Recomendaciones y líneas de trabajo futuro}
+
+% Con base en lo anterior, se plantean varias recomendaciones, tanto de carácter operativo para la SBC como de investigación aplicada:
+
+% \begin{enumerate}
+%     \item \textbf{Consolidar el uso del modelo como herramienta recurrente de gestión:} Se recomienda institucionalizar el cálculo periódico de \(\widehat{W}_i\), \(\widehat{\mathrm{SoW}}_i\) y \(\widehat{\mathrm{PoW}}_i\), de manera que el modelo deje de ser un ejercicio puntual y se convierta en un insumo habitual para la planificación comercial y de recaudación de fondos. Esto implica automatizar el pipeline descrito en la Metodología (desde la extracción de datos hasta la generación de reportes).
+%     \item \textbf{Profundizar en modelos por segmento:} Dado que algunos clusters muestran comportamientos claramente diferenciados y niveles de error distintos, resulta recomendable estimar versiones del modelo compuesto específicas por segmento (por ejemplo, un modelo para clientes premium, otro para clientes inactivos, etc.). Esto permitiría capturar de manera más fina las elasticidades y sensibilidades presentes en cada grupo.
+%     \item \textbf{Explorar la integración de variables declarativas y externas:} Aunque el valor de esta tesis radica precisamente en prescindir de encuestas para estimar SoW, en el futuro podría ser útil complementar el enfoque con variables de satisfacción, recomendación (NPS) u otras métricas típicamente asociadas a WAR, así como con indicadores macroeconómicos o de mercado. Esto permitiría contrastar el SoW ``no declarado'' con el SoW derivado de percepciones del cliente.
+%     \item \textbf{Refinar la construcción de la variable respuesta y el parámetro de escala:} La elección de la constante \(C\) para discretizar el gasto, siguiendo la razón entre varianza y media, se apoyó en la literatura y se formalizó matemáticamente en el Marco Teórico y la Metodología. No obstante, futuras investigaciones podrían explorar alternativas (por ejemplo, optimización de \(C\) vía criterios de ajuste predictivo) y comparar su impacto en la estabilidad y precisión de las estimaciones de SoW.
+%     \item \textbf{Evaluar extensiones no paramétricas o híbridas:} Finalmente, se sugiere explorar modelos que combinen la interpretabilidad del enfoque compuesto con la flexibilidad de métodos no paramétricos (árboles de decisión, bosques aleatorios, gradient boosting, redes neuronales), utilizando las estructuras \(\mathbf{W}\) y \(\mathbf{V}\) como insumos y manteniendo la lógica de separación entre escala del wallet y asignación de gasto. Estas extensiones podrían mejorar el desempeño predictivo en contextos de alta complejidad, aunque a costa de mayor dificultad interpretativa.
+% \end{enumerate}
+
+% \subsection{Reflexión final}
+
+% En síntesis, el trabajo demuestra que es posible estimar de manera rigurosa y útil el \textit{Share of Wallet} y el potencial de wallet de los clientes de la Sociedad Bíblica Colombiana a partir de sus patrones reales de compra y de su perfil, sin depender de métricas declarativas. La articulación entre el modelo compuesto de Glady \& Croux, los desarrollos conceptuales vinculados a WAR y un pipeline de análisis de datos cuidadosamente diseñado permite pasar de preguntas intuitivas del tipo ``¿cuánto más podría estar comprando este cliente?'' a respuestas cuantitativas accionables.
+
+% Al centralizar las fórmulas y definiciones formales en el Marco Teórico y dejar en Resultados y Conclusiones la interpretación y las implicaciones, se logra un documento más ordenado, transparente y consistente, que responde al mismo tiempo a las exigencias académicas y a las necesidades prácticas de gestión de clientes en la SBC.

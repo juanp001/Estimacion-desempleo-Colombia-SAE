@@ -1,0 +1,317 @@
+
+
+%--------------------------------------------------
+\section{Limpieza, filtrado y reglas explícitas}
+    Con el fin de garantizar la consistencia interna de la base de datos y la validez de los análisis posteriores, se aplicó un conjunto de reglas explícitas de limpieza y filtrado sobre los registros transaccionales originales. Estas reglas se definieron ex ante y se aplicaron de manera sistemática, con el objetivo de asegurar la trazabilidad y reproducibilidad del proceso de preparación de datos.
+
+    En primer lugar, se excluyeron todas las observaciones asociadas a devoluciones, notas crédito o anulaciones, identificadas a partir del tipo de documento registrado en la variable \texttt{TIPO\_FACT} (por ejemplo, \texttt{NC}, \texttt{DEV} y categorías equivalentes). Esta exclusión responde a la necesidad de trabajar exclusivamente con transacciones que representen ventas efectivas, evitando que operaciones de reversión distorsionen las magnitudes económicas analizadas.
+    
+    En una segunda etapa, se realizó un diagnóstico sistemático de registros duplicados utilizando como clave la combinación de \texttt{COD\_CLIENTE}, \texttt{NUM\_FACT} y \texttt{LINEA}. Cuando los duplicados correspondían a fragmentaciones de un mismo registro transaccional, estos se consolidaron mediante la suma de los montos asociados. En contraste, los duplicados exactos se eliminaron conservando una única observación. Las reglas aplicadas en cada caso se documentaron de manera explícita para garantizar la trazabilidad del procedimiento.
+    
+    Adicionalmente, se identificaron y eliminaron aquellas filas que carecían de un identificador válido de cliente (\texttt{COD\_CLIENTE}), dado que la ausencia de este campo impide la correcta asignación de las transacciones a unidades de análisis a nivel individual.
+    
+    Finalmente, se verificó la validez de las fechas registradas en las transacciones. Este procedimiento incluyó la corrección de formatos inconsistentes y la eliminación de observaciones con fechas imposibles de interpretar o ubicadas fuera de un rango temporal razonable para el estudio.
+    
+    Cabe señalar que las reglas descritas en esta sección corresponden exclusivamente a procedimientos de depuración estructural y validación básica de los registros transaccionales originales. Estas etapas se aplican con anterioridad a cualquier transformación estadística, construcción de variables o decisión de modelamiento, las cuales se describen en secciones posteriores.
+
+%--------------------------------------------------
+\section{Identificación de datos faltantes}
+    Como parte del proceso de validación y preparación de los datos, se definió un procedimiento sistemático para evaluar la presencia de valores faltantes en todas las variables consideradas para el análisis. Esta verificación se realizó a nivel de columna y de observación, con el objetivo de determinar la necesidad de aplicar técnicas de imputación o de exclusión de registros.
+
+    El diagnóstico de datos faltantes se aplicó una vez concluido el proceso de limpieza y filtrado estructural, y abarcó tanto las variables transaccionales como las variables de perfilamiento del cliente y las magnitudes monetarias utilizadas posteriormente en la construcción de la variable respuesta del modelo \emph{pogit}.
+    
+    En caso de detectarse valores faltantes, el diseño metodológico contemplaba la aplicación de reglas explícitas de imputación o exclusión, debidamente documentadas. No obstante, cuando el diagnóstico no evidencia la presencia de datos faltantes, se evita la introducción de supuestos adicionales asociados a mecanismos de datos incompletos, preservando así la simplicidad y coherencia del pipeline de preprocesamiento.
+    
+
+%--------------------------------------------------
+\section{Ventanas temporales y partición de los datos en conjuntos de entrenamiento y prueba}
+
+    Es importante destacar que la definición de las ventanas temporales y la partición en conjuntos de entrenamiento y prueba cumplen roles conceptualmente distintos dentro del diseño metodológico. Las ventanas temporales \(T_1\) y \(T_2\) determinan \emph{qué información} se utiliza para la construcción de las variables predictoras y de la variable respuesta, respectivamente, mientras que la partición en entrenamiento y prueba define \emph{sobre qué clientes} se ajusta el modelo y se evalúan sus estimaciones fuera de muestra. En consecuencia, tanto el conjunto de entrenamiento como el conjunto de prueba contienen observaciones en ambas ventanas temporales: en \(T_1\), ambos conjuntos se utilizan para la construcción de predictores, y en \(T_2\), ambos conjuntos se emplean para la definición de la variable respuesta, manteniendo siempre una separación estricta entre los datos utilizados para el aprendizaje de parámetros y aquellos reservados para la evaluación estructural fuera de muestra.
+
+    El diseño muestral y de modelamiento se estructura a partir de dos ventanas temporales no superpuestas, definidas con el objetivo de garantizar una separación estricta entre la información utilizada para la construcción de variables predictoras y aquella empleada para la evaluación del modelo. En particular, se define una \emph{ventana de características} \(T_{1}\), que abarca el periodo comprendido entre el 1 de enero de 2022 y el 31 de diciembre de 2023, y una \emph{ventana de respuesta o evaluación} \(T_{2}\), correspondiente al intervalo entre el 1 de enero de 2024 y el 31 de diciembre de 2024.
+    
+    Las variables predictoras del modelo se construyen exclusivamente a partir de la información observada durante \(T_{1}\). Estas incluyen medidas agregadas de comportamiento transaccional (RFM), intensidades por categoría, señales derivadas del historial de compra y atributos estructurales del cliente. La variable respuesta del modelo se define únicamente a partir de las transacciones observadas en \(T_{2}\), garantizando así la ausencia de superposición temporal entre predictores y respuesta.
+    
+    Con el fin de asegurar que las magnitudes latentes de asignación e intensidad estén bien definidas, la muestra analítica se restringe a aquellos clientes que realizaron al menos una compra a la empresa focal durante la ventana \(T_{1}\). Esta restricción define la cohorte de análisis sobre la cual se desarrolla el proceso de modelamiento.
+    
+    Sobre dicha cohorte, se establece una partición aleatoria a nivel de identificador de cliente en dos subconjuntos disjuntos: un conjunto de entrenamiento, que contiene el 70\% de los clientes, y un conjunto de prueba, que agrupa el 30\% restante. Esta partición se define \emph{ex ante} y se mantiene fija a lo largo de todo el proceso metodológico.
+    
+    Todos los procedimientos que implican aprendizaje a partir de los datos —incluyendo la construcción de transformaciones, la estandarización de variables, el tratamiento de valores extremos y la estimación del modelo \emph{pogit}— se realizan exclusivamente utilizando el conjunto de entrenamiento. El conjunto de prueba se reserva para el análisis posterior de las estimaciones fuera de muestra.
+    
+%--------------------------------------------------
+\section{Construcción de variables predictoras}
+
+    Los registros transaccionales depurados se consolidan en una matriz a nivel de cliente, con una fila por cliente y columnas correspondientes a las variables predictoras construidas a partir de la información observada durante la ventana de características \(T_1\). La muestra analítica se restringe a clientes que realizaron al menos una compra a la Empresa Distribuidora de Literatura Cristiana durante dicha ventana, con el fin de garantizar que las variables transaccionales específicas de la empresa focal, utilizadas en el componente de asignación del modelo, estén bien definidas.
+    
+    Las variables categóricas incluidas como predictores se codifican mediante esquemas \emph{one--hot}, eliminando un nivel de referencia por factor con el objetivo de evitar problemas de colinealidad e identificar de manera adecuada los parámetros del modelo. Este procedimiento se aplica a atributos estructurales del cliente, tales como ubicación geográfica, tipo de empresa, categoría de producto y condiciones comerciales.
+    
+    Para capturar la heterogeneidad en el componente de asignación del gasto (\emph{Share--of--Wallet}), se construyen las variables del esquema clásico RFM (\emph{Recency, Frequency, Monetary}) de manera específica para la empresa focal. La frecuencia corresponde al número de transacciones realizadas por el cliente durante \(T_1\); la variable monetaria se define como la suma del valor total de los ítems adquiridos, calculada como \(\textit{precio\_unitario} \times \textit{cantidad}\), neta de descuentos a nivel de producto y excluyendo impuestos y costos de envío; la recencia se mide como el número de días transcurridos entre la fecha final de \(T_1\) (31 de diciembre de 2023) y la fecha de la compra más reciente del cliente en dicho periodo.
+    
+    Todas las variables predictoras descritas en esta sección se construyen exclusivamente a partir de información observada durante la ventana \(T_1\). Ninguna información proveniente de la ventana de evaluación \(T_2\) interviene en su definición, garantizando la ausencia de fuga de información entre las etapas de construcción de predictores y estimación del modelo.
+    
+%--------------------------------------------------
+\section{Construcción de la variable respuesta}
+    Siguiendo a \cite{glady2009predicting}, cuando se observan volúmenes monetarios de gasto, estos pueden discretizarse en unidades tipo conteo antes de la estimación. En esta aplicación, se utiliza el gasto del cliente \(i\) en libros y revistas cristianas adquiridos a la Empresa Distribuidora de Literatura Cristiana dentro del universo de productos \(\mathcal{U}\) durante la ventana de evaluación \(T_2\), el cual se denota por
+    \[
+    \mathrm{spend}_{i}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}}.
+    \]
+    
+    Con el fin de evitar fuga de información, todas las cantidades necesarias para determinar la escala de discretización se calculan exclusivamente utilizando los clientes del conjunto de entrenamiento. Sea \(\mathcal{I}_{\mathrm{tr}}\) el conjunto de índices de los clientes de entrenamiento, con tamaño \(N_{\mathrm{tr}} = |\mathcal{I}_{\mathrm{tr}}|\). La media y la varianza muestral del gasto en la empresa focal dentro del conjunto de entrenamiento se definen como
+    \begin{align*}
+    \overline{\mathrm{spend}}_{\mathrm{tr}}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}}
+    &=
+    \frac{1}{N_{\mathrm{tr}}}\sum_{j\in\mathcal{I}_{\mathrm{tr}}}
+    \mathrm{spend}_{j}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}},\\[0.5em]
+    \widehat{\sigma}^2_{\mathrm{tr}}{}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}}
+    &=
+    \frac{1}{N_{\mathrm{tr}}-1}\sum_{j\in\mathcal{I}_{\mathrm{tr}}}
+    \Bigl(
+    \mathrm{spend}_{j}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}}
+    -
+    \overline{\mathrm{spend}}_{\mathrm{tr}}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}}
+    \Bigr)^2.
+    \end{align*}
+    
+    A diferencia de \cite{glady2009predicting}, se define la constante de discretización como el cociente entre la varianza y la media del gasto transversal en el conjunto de entrenamiento,
+    \[
+    c
+    =
+    \frac{
+    \widehat{\sigma}^2_{\mathrm{tr}}{}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}}
+    }{
+    \overline{\mathrm{spend}}_{\mathrm{tr}}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}}
+    },
+    \]
+    lo cual está motivado por la suposición Poisson subyacente en el componente de intensidad del modelo, según la cual la media y la varianza coinciden en la escala del modelo.
+
+    Es importante señalar que el tratamiento de valores extremos descrito a continuación se aplica \emph{exclusivamente} a la variable de gasto utilizada para la construcción de la variable respuesta \(y_i\). Este procedimiento tiene como único objetivo estabilizar la estimación de la constante de discretización \(c\) y no forma parte del preprocesamiento general de las covariables del modelo. El tratamiento de valores extremos aplicado posteriormente a las variables predictoras se describe de manera independiente en la subsección de Preprocesamiento.
+
+    Antes de calcular la constante \(c\), los valores extremos del gasto en la Empresa Distribuidora de Literatura Cristiana durante \(T_2\) se tratan en dos etapas. En primer lugar, se eliminan un número reducido de observaciones severamente anómalas mediante una regla de Tukey extrema definida a nivel de aplicación (\(k = 5\)). En segundo lugar, la cola superior de la distribución se winsoriza utilizando una regla de Tukey con \(k = 3\). Para evitar fuga de información, tanto los umbrales de eliminación como los de winsorización se estiman exclusivamente a partir del conjunto de entrenamiento y luego se aplican sin modificaciones al conjunto de prueba. La constante de discretización \(c\) se calcula únicamente a partir del gasto del conjunto de entrenamiento una vez filtrado y winsorizado, y se mantiene fija en todas las etapas posteriores del análisis.
+    
+    La variable respuesta del modelo se define entonces como
+    \[
+    y_i
+    =
+    \operatorname{round}\!\left(
+    \frac{\mathrm{spend}_{i}^{\mathrm{EDLC}\mid\mathrm{focal},\mathcal{U}}}{c}
+    \right),
+    \]
+    y debe interpretarse como un \emph{proxy normalizado y discretizado del gasto}, no como un conteo literal de unidades, pedidos o transacciones.
+    
+    Con fines estrictamente interpretativos, se introduce la noción de un \emph{proxy empírico} del tamaño de la billetera en la categoría, el cual solo podría construirse en un escenario ideal en el que se dispusiera de información completa sobre el gasto del cliente en todas las distribuidoras de libros y revistas cristianas, y no únicamente en la empresa focal. En dicha situación hipotética, este proxy se definiría como
+    \[
+    n_i^{\mathrm{emp}}
+    =
+    \operatorname{round}\!\left(
+    \frac{\mathrm{spend}_{i}^{\mathcal{U}}}{c}
+    \right),
+    \]
+    donde \(\mathrm{spend}_{i}^{\mathcal{U}}\) denota el gasto total del cliente \(i\) en libros y revistas cristianas dentro del universo \(\mathcal{U}\) durante la ventana \(T_2\).
+    
+    En la aplicación considerada en este trabajo, \(\mathrm{spend}_{i}^{\mathcal{U}}\) no es observable, por lo que \(n_i^{\mathrm{emp}}\) no puede calcularse y no se utiliza en ninguna etapa del análisis empírico. Su inclusión aquí tiene únicamente un propósito conceptual: clarificar la interpretación de la variable latente \(n_i\) del modelo \emph{pogit}. En particular, \(n_i\) debe entenderse como el tamaño total de la billetera del cliente en la categoría, expresado en la misma escala normalizada y discretizada que la variable observada \(y_i\). Bajo esta interpretación, el modelo vincula un proxy observable del gasto en la empresa focal (\(y_i\)) con un volumen total latente en la categoría (\(n_i\)), aun cuando este último no pueda observarse directamente. Este proxy hipotético no forma parte de la función de verosimilitud ni del proceso de estimación del modelo \emph{pogit}.
+
+    Esta construcción permite compatibilizar datos monetarios continuos con un marco de conteo discreto, manteniendo coherencia con los supuestos del modelo pogit.
+
+%--------------------------------------------------
+\section{Análisis exploratorio}
+    Una vez completadas las etapas de limpieza, validación y construcción de variables, se realizó un análisis exploratorio de los datos con el objetivo de caracterizar las distribuciones de las variables, identificar patrones relevantes y apoyar las decisiones de selección y depuración de covariables para el modelo \emph{pogit}. Esta etapa se concibió como un análisis diagnóstico previo al modelamiento, orientado a garantizar la estabilidad e interpretabilidad de los resultados.
+    
+    Para las variables cuantitativas, se calcularon medidas de tendencia central y dispersión, así como la proporción de valores atípicos. Adicionalmente, se construyeron histogramas y diagramas de caja para examinar la forma de las distribuciones y detectar posibles asimetrías o colas largas que pudieran afectar la estimación de los componentes del modelo. En el caso de las variables categóricas, se analizaron las frecuencias absolutas y relativas de cada categoría, con el fin de identificar concentraciones excesivas o niveles con baja representatividad.
+    
+    Posteriormente, se evaluó el grado de asociación entre variables cuantitativas mediante el coeficiente de correlación de Spearman y entre variables cualitativas mediante el estadístico de Cramér. Estos análisis se utilizaron como insumo para identificar redundancias entre covariables y apoyar decisiones de depuración, con el propósito de evitar problemas de multicolinealidad en la estimación del modelo.
+    
+    De manera complementaria, se analizó la distribución del gasto y de los precios por categoría de producto, así como la concentración de clientes en cada una de ellas, con el objetivo de comprender la estructura del portafolio atendido por la Empresa Distribuidora de Literatura Cristiana. Asimismo, se examinó la relación entre los descuentos otorgados y el monto total gastado por los clientes; este análisis no evidenció una asociación sistemática, por lo que dichas variables se consideraron únicamente desde una perspectiva descriptiva.
+    
+    Finalmente, con base en los resultados del análisis exploratorio, se depuró el conjunto de variables predictoras eliminando o ajustando aquellas cuya correlación superaba el umbral de 0.70. Esta decisión permitió reducir redundancias y mejorar la estabilidad numérica y la interpretabilidad de los componentes de asignación (SoW) e intensidad (SioW) del modelo.
+
+    El análisis exploratorio permite caracterizar de manera descriptiva la estructura de las variables predictoras construidas a partir de la ventana \(T_1\). Los resultados muestran distribuciones altamente asimétricas, presencia significativa de valores extremos y una marcada heterogeneidad transversal entre clientes empresariales, así como patrones claros de concentración por tipo de empresa, categoría de producto y localización geográfica.
+%--------------------------------------------------
+%--------------------------------------------------
+\section{Preprocesamiento}
+
+    Con el fin de evitar fuga de información, todos los pasos de preprocesamiento que dependen de los datos se estiman exclusivamente a partir del conjunto de clientes de entrenamiento y posteriormente se aplican sin modificaciones al conjunto de prueba retenido. La partición entre entrenamiento y prueba se realiza a nivel de identificador de cliente, garantizando que todas las observaciones asociadas a un mismo cliente pertenezcan al mismo conjunto.
+    
+    El preprocesamiento se estructura en cuatro etapas secuenciales: (i) tratamiento de valores extremos en variables cuantitativas, (ii) análisis de asociación y depuración de covariables cuantitativas y cualitativas, (iii) codificación de variables categóricas y (iv) estandarización de variables continuas. Este orden responde a criterios de estabilidad numérica, identificabilidad del modelo y coherencia con los supuestos del modelo \emph{pogit}.
+
+\subsection{Tratamiento de valores extremos en variables cuantitativas}
+
+    Las variables cuantitativas fueron sometidas a un tratamiento de valores extremos con el objetivo de mitigar la influencia de observaciones severamente anómalas sobre las etapas posteriores de análisis y modelamiento. En particular, se aplicó un procedimiento en dos fases: (i) eliminación de observaciones extremadamente atípicas utilizando una regla de Tukey con umbral $k = 5$, y (ii) winsorización de la cola superior de la distribución mediante una regla de Tukey con $k = 3$.
+    
+    Los umbrales correspondientes se estimaron exclusivamente a partir del conjunto de entrenamiento y se aplicaron sin modificación al conjunto de prueba, preservando así la separación temporal y evitando la incorporación de información futura en el proceso de aprendizaje.
+
+\subsection{Análisis de asociación y depuración de variables cuantitativas}
+
+    Una vez controlado el efecto de valores extremos, se evaluó el grado de asociación entre las variables cuantitativas predictoras con el objetivo de identificar redundancias informativas y reducir problemas de multicolinealidad en el modelo. Para este fin, se empleó el coeficiente de correlación de Spearman, dado su carácter no paramétrico y su robustez frente a distribuciones asimétricas y colas pesadas, típicas de datos transaccionales empresariales.
+    
+    Las correlaciones se calcularon exclusivamente sobre el conjunto de entrenamiento y se adoptó un umbral fijo de $|\rho| \geq 0.70$ para identificar asociaciones fuertes. 
+    Este umbral se adopta como un criterio operativo conservador, comúnmente utilizado en análisis exploratorio, orientado a identificar redundancias sustantivas sin eliminar relaciones moderadas que pueden aportar información complementaria al modelo.
+
+
+\subsection{Análisis de asociación y depuración de variables cualitativas}
+
+    De manera complementaria, se evaluó la asociación entre variables cualitativas mediante el estadístico V de Cramér, el cual es apropiado para medir la intensidad de asociación entre variables categóricas nominales y ordinales. Dado que los valores de este estadístico suelen ser moderados incluso en presencia de relaciones estructuralmente fuertes, se adoptó un umbral conservador de $V \geq 0.50$ para identificar redundancias sustantivas.
+    
+    Este análisis permitió detectar jerarquías y solapamientos entre variables categóricas asociadas a dimensiones similares del comportamiento del cliente (por ejemplo, estructura del producto, localización geográfica u origen de la transacción). En presencia de asociaciones elevadas, se conservó la variable que ofrecía un mayor equilibrio entre capacidad explicativa, interpretabilidad económica y control de la dimensionalidad del modelo, excluyendo las restantes.
+    
+\subsection{Codificación de variables categóricas}
+
+    Las covariables categóricas de selección única retenidas tras el proceso de depuración se codificaron mediante variables indicadoras (\emph{dummies}), omitiendo un nivel de referencia por factor con el fin de garantizar la identificabilidad de los parámetros del modelo. En el caso de constructos de selección múltiple, cada categoría se codificó como un indicador binario independiente, dado que dichas categorías pueden coexistir para un mismo cliente.
+
+\subsection{Estandarización de variables cuantitativas}
+
+    Finalmente, las variables cuantitativas seleccionadas tras el proceso de depuración se estandarizaron utilizando las medias y desviaciones estándar calculadas exclusivamente sobre el conjunto de entrenamiento. Los mismos parámetros de centrado y escalamiento se aplicaron posteriormente al conjunto de prueba.
+    
+    Este paso es necesario para garantizar que todas las covariables continuas contribuyan de manera comparable en procedimientos sensibles a la escala, como el análisis de componentes principales (PCA), los algoritmos de segmentación exploratoria y la estimación del modelo \emph{pogit}. La estandarización no altera las relaciones ordinales entre observaciones ni introduce información futura, y constituye la base común para las etapas posteriores de reducción de dimensionalidad y modelamiento.
+
+%--------------------------------------------------
+\section{Construcción de matrices de diseño del modelo \emph{pogit}}
+
+    En esta sección se describe la construcción de las matrices de diseño utilizadas en la estimación del modelo \emph{pogit}. De acuerdo con la estructura conceptual del modelo, se definen dos matrices de covariables con funciones claramente diferenciadas: la matriz $\mathbf{W}$, asociada al mecanismo de asignación del gasto y, por tanto, al componente de \emph{Share--of--Wallet} (SoW), y la matriz $\mathbf{V}$, vinculada al mecanismo de intensidad latente de consumo y al componente de \emph{Size--of--Wallet} (SioW).
+    
+    La matriz $\mathbf{W}$ se construye a partir de variables transaccionales directamente observadas y resume distintos aspectos del comportamiento de compra de cada cliente. En particular, incluye medidas del tipo RFM (\emph{recency, frequency, monetary}), así como otros indicadores cuantitativos derivados de las transacciones que capturan la intensidad, recurrencia y magnitud económica de la relación comercial entre el cliente y la empresa focal. Adicionalmente, se incorporan en $\mathbf{W}$ aquellas denominadas \emph{condiciones del cliente} —por ejemplo, consignación, crédito o distribución— únicamente en la medida en que representan modalidades operativas directamente asociadas al comportamiento transaccional, y no como atributos estructurales del perfil del cliente.
+    
+    Con el fin de garantizar condiciones adecuadas de diseño del modelo, las variables candidatas a integrar la matriz $\mathbf{W}$ son sometidas previamente a un proceso sistemático de preprocesamiento y selección. En este proceso, las asociaciones entre variables cuantitativas se evalúan mediante el coeficiente de correlación de Spearman, mientras que las asociaciones entre variables categóricas se analizan utilizando el estadístico $V$ de Cramér. Estos análisis no tienen un propósito inferencial, sino que se emplean exclusivamente como criterios operativos para identificar redundancias informativas y reducir problemas de multicolinealidad, sobreparametrización e inestabilidad numérica en la estimación del modelo.
+    
+    Sobre la base de estos criterios, se define una primera especificación de la matriz $\mathbf{W}$ construida directamente a partir de un subconjunto parsimonioso de variables transaccionales originales. Esta especificación conserva la interpretación económica directa de las medidas RFM y de los indicadores transaccionales seleccionados, y constituye la referencia principal para la estimación del componente de asignación del modelo \emph{pogit}.
+    
+    Adicionalmente, se considera una segunda especificación alternativa de la matriz $\mathbf{W}$, obtenida mediante un Análisis de Componentes Principales (PCA) aplicado exclusivamente a las variables transaccionales cuantitativas previamente estandarizadas. El PCA se utiliza como un mecanismo de reducción de dimensionalidad que permite sintetizar la información contenida en variables potencialmente correlacionadas, manteniendo una proporción sustancial de la variabilidad total de los datos. En particular, se retienen aquellas componentes principales que, en conjunto, explican al menos el 70\% de la variabilidad total. Las variables categóricas codificadas mediante indicadores no se incluyen en el procedimiento de PCA y se incorporan de manera separada en la matriz de diseño.
+    
+    Esta segunda especificación se introduce como una alternativa parsimoniosa para representar la información transaccional sin alterar la interpretación conceptual de la matriz $\mathbf{W}$, y permite evaluar la robustez de las inferencias del modelo \emph{pogit} frente a distintas representaciones del comportamiento de compra. Las componentes principales definidas en esta etapa constituyen, además, el insumo básico para las técnicas de reducción de dimensionalidad y segmentación exploratoria presentadas en la sección siguiente.
+    
+    Por su parte, la matriz $\mathbf{V}$ contiene exclusivamente variables de perfilamiento del cliente o de la empresa, las cuales describen características estructurales y contextuales relativamente estables en el tiempo. Estas variables incluyen, entre otras, el tipo de empresa, la localización geográfica y atributos generales del cliente o de la categoría de producto. Al igual que en el caso de la matriz $\mathbf{W}$, las covariables que integran $\mathbf{V}$ son sometidas a procesos de depuración y selección orientados a evitar redundancias y garantizar condiciones adecuadas de identificabilidad y estabilidad numérica del modelo.
+    
+    A diferencia de las variables incluidas en $\mathbf{W}$, las covariables de la matriz $\mathbf{V}$ no capturan intensidad ni recurrencia de compra, sino que introducen heterogeneidad transversal en el perfil de los clientes, permitiendo explicar diferencias sistemáticas en el tamaño de la billetera (SioW) dentro del marco del modelo \emph{pogit}. Las distintas combinaciones de $\mathbf{W}$ y $\mathbf{V}$ definidas en esta etapa dan lugar a un conjunto de especificaciones alternativas del modelo, que se implementan y comparan en la sección de resultados con el objetivo de evaluar la estabilidad estructural de las inferencias sobre SoW y SioW.
+
+%--------------------------------------------------
+\subsection{Reducción de dimensionalidad y segmentación exploratoria}
+\label{sec:pca_segmentacion}
+
+    Con el propósito de explorar la estructura subyacente de las variables transaccionales cuantitativas, caracterizar perfiles de clientes y apoyar la interpretación económica de los resultados del modelo \emph{pogit}, se emplearon técnicas de reducción de dimensionalidad y segmentación no supervisada. Estas herramientas cumplen un rol complementario dentro de la metodología: (i) el Análisis de Componentes Principales (PCA) se utiliza tanto con fines exploratorios como para definir una especificación alternativa y parsimoniosa de la matriz de covariables transaccionales $\mathbf{W}$, y (ii) los algoritmos de segmentación se emplean exclusivamente para la caracterización descriptiva de clientes y la evaluación estructural de las estimaciones del modelo, sin intervenir directamente en su proceso de estimación.
+    
+    En primer lugar, se aplicó un Análisis de Componentes Principales (PCA) sobre el conjunto completo de variables transaccionales cuantitativas construidas a partir de la ventana de características $T_1$. En particular, el PCA incluyó las siguientes variables: \textit{Recency}, \textit{Frequency}, \textit{Monetary}, \textit{Valor Bruto}, \textit{Valor Neto}, \textit{SKUs Distintos}, \textit{Descuentos}, \textit{Cantidad}, \textit{Costo Total} y \textit{Utilidad Bruta}. Todas las variables fueron previamente transformadas y estandarizadas de acuerdo con el esquema de preprocesamiento descrito en la sección metodológica, con el fin de garantizar comparabilidad en escala y evitar la dominancia de variables de mayor magnitud.
+    
+    La inclusión de este conjunto ampliado de variables permite capturar de manera integral distintas dimensiones del comportamiento económico del cliente, incluyendo la recurrencia de compra, la magnitud del gasto, la diversidad del portafolio adquirido, la estructura de costos y la política de descuentos. En este contexto, el PCA cumple una doble función metodológica. Por un lado, permite analizar empíricamente la estructura de dependencia y redundancia entre las variables cuantitativas. Por otro, define una representación alternativa y de menor dimensionalidad de la matriz $\mathbf{W}$ del modelo \emph{pogit}, en la cual las variables transaccionales originales son reemplazadas por un conjunto reducido de componentes ortogonales que preservan una proporción sustancial de la variabilidad total. En particular, se retuvieron aquellas componentes principales que, en conjunto, explican al menos el 70\% de la variabilidad total observada.
+    
+    De manera complementaria, se implementaron técnicas de segmentación no supervisada con el objetivo de identificar perfiles homogéneos de clientes y apoyar la interpretación estructural de las estimaciones del modelo \emph{pogit}. En este caso, el énfasis no se coloca en la reducción de dimensionalidad, sino en la identificación de agrupaciones basadas en información de naturaleza mixta, combinando variables cuantitativas y categóricas.
+    
+    En particular, se aplicó el algoritmo \emph{k-medoids} utilizando la distancia de Gower, lo cual permite integrar variables continuas y cualitativas dentro de una misma matriz de disimilitud. Para este procedimiento se consideraron como variables cuantitativas \textit{Monetary}, \textit{Frequency}, \textit{Recency} y \textit{Descuentos}, las cuales capturan dimensiones centrales del comportamiento transaccional del cliente. Adicionalmente, se incorporaron variables categóricas asociadas al contexto operativo y estructural del cliente, incluyendo el \textit{Tipo} de cliente, el \textit{Departamento}, la \textit{Categoría} de producto, el \textit{Tamaño} del producto, el \textit{Mes} de compra, el \textit{Tipo de Empresa} y la \textit{Condición} comercial.
+    
+    Esta diferenciación explícita en la selección de variables refleja los distintos objetivos metodológicos de cada técnica. Mientras que el PCA se orienta a la exploración de la estructura latente de las variables cuantitativas y a la definición de especificaciones alternativas de la matriz $\mathbf{W}$ del modelo \emph{pogit}, los algoritmos de segmentación se emplean exclusivamente con fines descriptivos e interpretativos. En consecuencia, los resultados de clustering no modifican el proceso de estimación del modelo \emph{pogit}, sino que se utilizan posteriormente para evaluar la coherencia, estabilidad e interpretabilidad económica de las estimaciones de \emph{Share--of--Wallet} y \emph{Size--of--Wallet}.
+
+%--------------------------------------------------
+\section{Estimación de SoW and SioW}
+
+\subsubsection{Modelo}
+    El modelo predice la \emph{participación en la billetera} (\emph{Share--of--Wallet}, SoW) de los clientes para la Empresa Distribuidora de Literatura Cristiana y su \emph{tamaño de la billetera} (\emph{Size--of--Wallet}, SioW) en la categoría de venta de libros y revistas, sin recurrir a datos de encuestas en las que los clientes reportan directamente sus participaciones de gasto.
+    
+    Suponemos la disponibilidad de una muestra
+    \[
+    \{(y_i, \boldsymbol{W}_i, \boldsymbol{V}_i, E_i)\}_{i=1}^N.
+    \]
+    En esta muestra, \(y_i\) denota un \emph{proxy} discretizado, de naturaleza similar a un conteo (expresado en una escala discreta por conveniencia modelística), construido a partir del gasto del cliente \(i\) en libros y revistas adquiridos a la Empresa Distribuidora de Literatura Cristiana, observado dentro del universo de venta de libros y revistas durante la ventana de evaluación. Es importante destacar que \(y_i\) se obtiene reescalando el gasto monetario mediante una constante \(c\) estimada en el conjunto de entrenamiento y posteriormente redondeando el resultado; por tanto, debe interpretarse como un proxy de gasto normalizado y no como un conteo literal de transacciones o de ejemplares adquiridos. La cantidad \(n_i\) representa el volumen total (latente) de compras del cliente en la categoría de libros y revistas, agregando todas las editoriales, distribuidoras y canales de venta, y expresado en la misma escala normalizada (discretizada) que \(y_i\).
+    
+    Los registros transaccionales disponibles corresponden exclusivamente a las compras realizadas a la Empresa Distribuidora de Literatura Cristiana; en consecuencia, las variables predictoras derivadas de transacciones se construyen únicamente a partir de esta información. Este esquema refleja de manera fiel el entorno informacional de una empresa focal, que típicamente observa solo las interacciones de sus clientes con su propio portafolio de productos y carece de información directa sobre las ventas de competidores o las compras efectuadas a través de otros canales. Precisamente, este tipo de estructura de información parcial es la que motiva el uso de modelos \emph{pogit}, los cuales permiten inferir el tamaño total de la billetera y la participación de gasto de la empresa focal a partir de datos transaccionales incompletos.
+    
+    El vector \(\boldsymbol{W}_i = (W_{ij}) \in \mathbb{R}^J\) contiene los \(J\) regresores asociados con el \emph{mecanismo de asignación} que gobierna la SoW del cliente \(i\) hacia la Empresa Distribuidora de Literatura Cristiana. Estas covariables corresponden a resúmenes transaccionales específicos de la empresa (por ejemplo, frecuencia de compra, diversidad de títulos adquiridos o regularidad del consumo) y capturan la variación en el comportamiento de asignación del gasto entre distintos proveedores de libros y revistas. De manera análoga, el vector \(\boldsymbol{V}_i = (V_{i\ell}) \in \mathbb{R}^L\) contiene los \(L\) regresores asociados con el \emph{mecanismo de intensidad}, el cual gobierna la demanda total del cliente en la categoría de libros y revistas (SioW).
+    
+    El escalar \(E_i > 0\) denota un \emph{offset} (o exposición) que captura diferencias exógenas en las oportunidades de compra, tales como el tiempo de permanencia del cliente en el mercado o su nivel de acceso a los puntos de venta. En el contexto empírico considerado, todos los clientes son observados durante la misma ventana temporal y se asume que enfrentan una exposición comparable. En consecuencia, se fija \(E_i \equiv 1\) para todo \(i\), de modo que la heterogeneidad transversal en la intensidad total de la categoría se modela completamente a través de las covariables en \(\boldsymbol{V}_i\) y del intercepto del componente de intensidad.
+    
+    El modelo se especifica jerárquicamente como
+    \[
+    \begin{aligned}
+    y_i \mid n_i, \theta_i
+    & \sim
+    \mathrm{Bin}\!\left(n_i, \theta_i\right),
+    \qquad
+    i = 1, \ldots, N,
+    \\
+    n_i \mid \lambda_i
+    & \sim
+    \mathrm{Poisson}\!\left(\lambda_i\right),
+    \\
+    \log(\lambda_i)
+    &=
+    \log(E_i) + \boldsymbol{V}_i^{\prime}\boldsymbol{\beta}_2,
+    \\
+    \theta_i
+    &=
+    \operatorname{sigmoid}\!\left(\boldsymbol{W}_i^{\prime}\boldsymbol{\beta}_1\right),
+    \end{aligned}
+    \]
+    donde \(\operatorname{sigmoid}(x) = \{1+\exp(-x)\}^{-1}\) denota la función sigmoide.
+    
+\subsubsection{Configuraciones alternativas de covariables y reducción de dimensionalidad}
+
+    Dado que el modelo \emph{pogit} se estima bajo información transaccional parcial y que los componentes de asignación (\(\boldsymbol{W}_i\)) e intensidad (\(\boldsymbol{V}_i\)) representan procesos latentes conceptualmente distintos, la especificación empírica del modelo no se restringe a una única configuración de covariables. En su lugar, se consideran múltiples especificaciones alternativas con el objetivo de evaluar la estabilidad estructural de las inferencias sobre la participación en la billetera (SoW) y el tamaño de la billetera (SioW), así como la robustez de su interpretación económica frente a distintas representaciones del comportamiento del cliente.
+    
+    En particular, se exploran configuraciones en las que el componente de asignación \(\boldsymbol{W}_i\) se construye a partir de variables transaccionales originales del tipo RFM, y configuraciones alternativas en las que dichas variables se reemplazan por un conjunto reducido de componentes principales obtenidas mediante Análisis de Componentes Principales (PCA). La reducción de dimensionalidad se introduce exclusivamente en el componente de asignación, dado que este captura la estructura relativa de preferencias del cliente hacia la empresa focal, mientras que el componente de intensidad \(\boldsymbol{V}_i\) se mantiene especificado en términos de variables categóricas estructurales asociadas al perfil del cliente, la empresa y el contexto de compra.
+    
+    La incorporación de PCA no persigue mejorar el desempeño predictivo del modelo, sino evaluar si las inferencias sobre SoW se mantienen cuando el comportamiento transaccional se representa en un espacio latente de menor dimensión. De este modo, las componentes principales permiten sintetizar patrones económicos globales —como el tamaño relativo del cliente o la estructura de su gasto— y contrastar su efecto sobre la asignación del gasto frente a la empresa focal.
+    
+    De forma análoga, el componente de intensidad se estima bajo distintas configuraciones de \(\boldsymbol{V}_i\), incorporando subconjuntos alternativos de variables categóricas (por ejemplo, tipo de cliente, tipo de empresa, categoría de producto o estacionalidad), con el fin de capturar heterogeneidad estructural en el tamaño total de la billetera y evaluar su interacción con el componente de asignación.
+    
+    Este enfoque de especificaciones múltiples permite identificar una configuración de referencia del modelo \emph{pogit} que combine parsimonia, coherencia económica e interpretabilidad, y proporciona el marco metodológico para comparar de manera sistemática los resultados empíricos presentados en la sección de Resultados.
+
+
+\subsection{Conjuntos de entrenamiento y prueba en modelos con variables latentes}
+    En el aprendizaje estadístico, es habitual dividir la información disponible en un conjunto de entrenamiento y un conjunto de prueba con el fin de evaluar la estabilidad y el desempeño de los modelos estimados fuera de muestra. El conjunto de entrenamiento se utiliza para ajustar los parámetros del modelo y aprender las relaciones entre variables, mientras que el conjunto de prueba se reserva para analizar el comportamiento del modelo en observaciones no utilizadas durante la estimación.
+
+    En modelos supervisados clásicos, esta evaluación suele realizarse comparando predicciones puntuales con valores observados de la variable respuesta. Sin embargo, en modelos con variables latentes —como el modelo Poisson--logístico (\emph{pogit})— esta lógica debe adaptarse. En este tipo de modelos, las cantidades de interés no son directamente observables, sino que se infieren a partir de la estructura probabilística del modelo y de los datos disponibles.
+
+    En el modelo \emph{pogit}, tanto la probabilidad de asignación del gasto a la empresa focal como el tamaño total de la cartera del cliente corresponden a variables latentes. En consecuencia, no existe un valor empírico observado con el cual contrastar directamente las estimaciones fuera de muestra. Esta característica impide una validación predictiva tradicional basada en errores de predicción y requiere enfoques alternativos de evaluación.
+
+    En consecuencia, en este estudio la validación del modelo \emph{pogit} no se concibe
+    como un ejercicio de precisión predictiva puntual, sino como un proceso de validación
+    estructural y conceptual, coherente con la naturaleza latente de las cantidades de
+    interés. Esta validación se articula en torno a tres criterios complementarios:
+    (i) coherencia interna de las estimaciones con la estructura probabilística del modelo;
+    (ii) estabilidad de las inferencias frente a distintas configuraciones de covariables y
+    representaciones del comportamiento del cliente; y (iii) consistencia estructural de
+    las estimaciones fuera de muestra al contrastarlas con segmentaciones no supervisadas
+    basadas en información observable.
+
+
+\subsubsection{Estimaciones para los componentes de asignación  e intensidad}
+    Esta subsección presenta cómo se estiman los dos mecanismos latentes del modelo \emph{pogit} en la aplicación a la Empresa Distribuidora de Literatura Cristiana: (i) el componente de \emph{asignación}, que gobierna la participación en la billetera (\emph{Share--of--Wallet}, SoW), y (ii) el componente de \emph{intensidad}, que gobierna el tamaño de la billetera (\emph{Size--of--Wallet}, SioW). Estos dos componentes representan procesos latentes conceptualmente distintos: el primero captura la probabilidad de que la demanda total en la categoría de libros y revistas cristianas se asigne a la empresa focal, mientras que el segundo describe la intensidad global de consumo del cliente en dicha categoría.
+    
+    El mecanismo de asignación se especifica como
+    \[
+    \theta_i 
+    = 
+    \operatorname{sigmoid}\!\left(\boldsymbol{W}_i' \boldsymbol{\beta}_1\right),
+    \]
+    de modo que los coeficientes \(\boldsymbol{\beta}_1\) actúan sobre los \emph{log--odds} de asignar el gasto de la categoría a la Empresa Distribuidora de Literatura Cristiana. En este contexto, coeficientes positivos incrementan,  la probabilidad de que el cliente destine una mayor fracción de su gasto en libros y revistas cristianas a la empresa focal, mientras que coeficientes negativos la reducen.
+    
+    En esta aplicación empírica de este estudio, la exposición se normaliza fijando \(E_i \equiv 1\), de manera que la intensidad \(\lambda_i\) depende exclusivamente de las covariables incluidas en \(\boldsymbol{V}_i\).
+    
+    Sea \(\hat{\boldsymbol{\beta}}_1\) y \(\hat{\boldsymbol{\beta}}_2\) los estimadores de los parámetros de los componentes de asignación e intensidad, respectivamente. Para cada cliente \(i = 1, \ldots, N\), las cantidades latentes ajustadas se obtienen como
+    \begin{equation*}
+    \begin{aligned}
+    \hat{\theta}_i 
+    &= 
+    \operatorname{sigmoid}(\hat{\eta}_{i1}),
+    &
+    \hat{\eta}_{i1} 
+    &= 
+    \boldsymbol{W}_i' \hat{\boldsymbol{\beta}}_1,
+    \\
+    \hat{\lambda}_i 
+    &= 
+    \exp(\hat{\eta}_{i2}),
+    &
+    \hat{\eta}_{i2} 
+    &= 
+    \boldsymbol{V}_i' \hat{\boldsymbol{\beta}}_2.
+    \end{aligned}
+    \end{equation*}
+    
+    El estimador ajustado del SioW para el cliente \(i\) se obtiene como
+    \[
+    \hat{n}_i 
+    = 
+    \hat{\lambda}_i (1 - \hat{\theta}_i) + y_i,
+    \]
+    lo cual permite caracterizar simultáneamente la intensidad total de consumo del cliente en la categoría y la fracción de dicho consumo asignada a la Empresa Distribuidora de Literatura Cristiana.
+    
+    
+    

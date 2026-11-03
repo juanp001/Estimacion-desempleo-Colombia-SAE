@@ -1,0 +1,549 @@
+
+
+\label{sec:marco-referencia}
+
+%--------------------------------------------------------------------------------------
+\section{Marco teórico}
+\label{sec:marco-teorico}
+
+El análisis y la estimación de parámetros en dominios con tamaños muestrales reducidos han sido objeto de estudio en diversas áreas. Este marco de referencia presenta los conceptos fundamentales, las técnicas estadísticas y los antecedentes que sustentan la propuesta metodológica del presente trabajo. 
+
+%---------------------------------------------------------------------------------------
+\subsection{Tasa de desempleo}
+\label{subsec:tasa-desempleo}
+
+    La tasa de desempleo es un indicador central para evaluar la dinámica del mercado laboral y el bienestar económico de una población. En Colombia, su medición oficial se realiza a través de la GEIH, que permite estimarla para las ciudades principales del país porque recoge las variables necesarias para clasificar la condición de actividad de cada persona encuestada. 
+
+    \begin{description}
+        \item[Población económicamente activa (PEA).] Personas en edad de trabajar que se encuentran trabajando o buscando empleo. También se denomina fuerza laboral, y es el denominador del indicador \cite{DANE_GEIH_Glosario}. 
+        \item[Población desempleada (DS).] Personas que en la semana de referencia se encontraban en alguna de las siguientes situaciones. La primera es el desempleo abierto, que exige simultáneamente no tener empleo en la semana de referencia, haber realizado diligencias de búsqueda en el último mes y estar disponible para trabajar. La segunda es el desempleo oculto, que exige no tener empleo en la semana de referencia, no haber realizado diligencias en el último mes pero sí en los últimos doce, tener una razón válida de desaliento y estar disponible para trabajar \cite{DANE_GEIH_Glosario}.
+    \end{description}
+
+    La tasa de desempleo (TD), como se menciona en \cite{DANE_GEIH_Glosario} es la relación porcentual entre el número de personas que buscan trabajo y el número de personas que integran la fuerza laboral, como se expresa en la ecuación~\ref{eq:tasa_desempleo}.
+
+        \begin{equation}
+            \text{TD} = \frac{\text{DS}}{\text{PEA}} \times 100,
+            \label{eq:tasa_desempleo}
+        \end{equation}
+
+    donde DS es el número de personas desempleadas y PEA el número de personas económicamente
+    activas, ambos referidos al mismo dominio geográfico y al mismo período de referencia. En este trabajo el dominio es el municipio y el período de referencia es diciembre de 2018, y ambos agregados se obtienen expandiendo los registros de la GEIH mediante el factor de expansión de la encuesta, procedimiento que se formaliza en la sección~\ref{subsec:hajek}.
+
+
+%---------------------------------------------------------------------------------------
+\subsection{Encuestas y censos en Colombia}
+\label{subsec:encuestas-censos}
+
+    La estimación en áreas pequeñas requiere dos insumos de naturaleza distinta, una encuesta que provea estimaciones directas en los dominios donde hay muestra, y una fuente de cobertura exhaustiva que provea covariables para todos los dominios, incluidos aquellos sin muestra. En el caso colombiano, el primer insumo es la GEIH y el segundo se apoya en el Censo Nacional de Población y Vivienda de 2018 y en los sistemas de información territorial del Departamento Nacional de Planeación (DNP).
+
+    La GEIH es la principal encuesta de hogares del país, producida mensualmente por el DANE. Su objetivo es medir las condiciones del mercado laboral, y su diseño muestral es complejo, probabilístico, estratificado, de conglomerados y bietápico; las unidades primarias de muestreo son segmentos cartográficos y las unidades secundarias son los hogares dentro de cada segmento.
+    A cada individuo se le asigna un factor de expansión que representa el número de personas de la población que dicha observación representa. La encuesta publica resultados para el total nacional, para las zonas de cabecera y resto, para 13 áreas metropolitanas, para 24 ciudades principales y para los departamentos. Este conjunto de dominios de publicación es el que delimita el problema abordado en este trabajo, de los más de mil municipios del país, únicamente las ciudades capitales cuentan con muestra suficiente para sostener una estimación directa, y son estos dominios los que conforman el conjunto sobre el que se ajusta el modelo.
+
+%--------------------------------------------------------------------------------------
+\subsubsection{Fuentes de información auxiliar}
+\label{subsec:fuentes-auxiliares}
+
+    Las variables auxiliares son información externa a la encuesta, típicamente obtenida de censos, registros administrativos o bases de datos oficiales. Para ser útiles en un modelo SAE deben cumplir dos condiciones; estar disponibles para todos los dominios de interés, incluidos aquellos sin muestra, y estar correlacionadas con el parámetro que se desea estimar. Su incorporación reduce el error de las estimaciones al permitir que el modelo explique parte de la variabilidad entre dominios \cite{ColeyTellez2024}. Entre las más utilizadas en la literatura se encuentran los datos censales de población, educación y vivienda; los registros administrativos de afiliación a seguridad social o de empresas registradas; los indicadores socioeconómicos como los índices de pobreza o de informalidad laboral; y la información geoespacial de distancia a centros urbanos y densidad poblacional.
+
+    En este trabajo la fuente de información auxiliar es TerriData, el sistema de estadísticas territoriales desarrollado por el Departamento Nacional de Planeación (DNP). TerriData consolida, en un formato estandarizado y comparable entre entidades territoriales, indicadores provenientes de distintas entidades del Estado, con el propósito de apoyar la planeación, el monitoreo y la evaluación de la gestión pública. 
+
+    La característica que hace a TerriData apropiada como fuente auxiliar para este estudio es su cobertura exhaustiva a nivel municipal. A diferencia de la GEIH, que solo observa las ciudades capitales, TerriData reporta sus indicadores para la totalidad de los municipios del Cauca y del Valle del Cauca, incluidos aquellos donde la encuesta no tiene presencia. Esta cobertura completa es la condición que permite evaluar el modelo de enlace del Fay-Herriot, descrito en la Ecuación~\ref{eq:fh_enlace_a}, en dominios sin muestra: el vector de covariables $\mathbf{x}_d$ de un municipio no encuestado se obtiene de TerriData, y al multiplicarlo por los coeficientes estimados se produce la estimación sintética de su tasa de desempleo. El procedimiento mediante el cual se selecciona, de entre el conjunto completo de indicadores, el subconjunto que efectivamente ingresa al modelo se describe en las Secciones~\ref{sec:met_prefiltrado},
+    \ref{sec:met_descriptivo} y~\ref{sec:met_eda}.
+
+%---------------------------------------------------------------------------------------
+\subsection{Análisis descriptivo y medidas de asociación}
+\label{subsec:analisis-descriptivo}
+
+    Antes de especificar el modelo es necesario caracterizar los datos disponibles, tanto la
+    variable respuesta y su medida de precisión como las covariables auxiliares candidatas. Esta subsección reúne los estadísticos y las medidas de asociación que sustentan esa
+    caracterización, cuya aplicación concreta se detalla en la Sección~\ref{sec:met_descriptivo}.
+
+    Conviene fijar desde el marco teórico una distinción que se mantiene a lo largo del trabajo. Los procedimientos de esta subsección tienen una finalidad \emph{descriptiva}, comprender cómo se distribuyen las variables y cómo se relacionan entre sí, y no constituyen por sí mismos un criterio de inclusión o exclusión de covariables. Una variable asimétrica no se descarta por ser asimétrica y un valor extremo no se elimina por ser extremo; la descripción identifica patrones y los diagnósticos posteriores, definidos en la Subsección~\ref{subsec:evaluacion-desempeno}, determinan si esos patrones tienen consecuencias sobre la estimación.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Estadísticos descriptivos univariados}
+\label{subsec:descriptivos-univariados}
+
+    La caracterización individual de cada variable se apoya en los estadísticos habituales de
+    tendencia central, dispersión y posición. Se formalizan a continuación únicamente los tres cuyo uso exige precisar su interpretación o su criterio de aplicación en este trabajo.
+
+        \paragraph{Coeficiente de variación descriptivo.}
+            Expresa la dispersión de una variable en relación con su propia magnitud, según la
+            Ecuación~\ref{eq:cv_descriptivo}.
+                \begin{equation}
+                    \text{CV}(X) = \frac{s_X}{|\bar{X}|} \times 100,
+                    \label{eq:cv_descriptivo}
+                \end{equation}
+            donde $s_X$ es la desviación estándar muestral y $\bar{X}$ la media. Al ser adimensional permite comparar la variabilidad de indicadores medidos en unidades distintas, propiedad que un umbral sobre la varianza no posee. Su interpretación exige que la variable sea estrictamente positiva y esté medida en una escala de razón; cuando la media se aproxima a cero el cociente carece de sentido.
+
+            Esta medida no debe confundirse con el coeficiente de variación estimado de la
+            Ecuación~\ref{eq:cve}. Aquélla describe la dispersión de una variable entre dominios;  ésta cuantifica la precisión de un estimador y su denominador es la propia estimación.
+
+        \paragraph{Asimetría.}
+            El coeficiente de asimetría muestral resume la falta de simetría de una distribución respecto de su media, según la Ecuación~\ref{eq:asimetria}.
+                \begin{equation}
+                    g_1 = \frac{\frac{1}{n}\sum_{i=1}^{n}\left(X_i - \bar{X}\right)^3}
+                    {\left[\frac{1}{n}\sum_{i=1}^{n}\left(X_i - \bar{X}\right)^2\right]^{3/2}}.
+                    \label{eq:asimetria}
+                \end{equation}
+            Valores positivos indican una cola derecha más extensa y valores negativos una cola izquierda más extensa. En este trabajo la asimetría cumple una función descriptiva y no constituye un requisito del modelo: el Fay-Herriot supone normalidad de los efectos aleatorios y de los errores de muestreo, según las Ecuaciones~\ref{eq:fh_muestreo_a} y~\ref{eq:fh_enlace_a}, pero no impone ninguna distribución a las covariables.
+
+        \paragraph{Rango intercuartílico e identificación de valores extremos.}
+            El rango intercuartílico, $\text{IQR} = Q_3 - Q_1$, mide la dispersión del cincuenta por ciento central de las observaciones y, a diferencia de la desviación estándar, no se ve afectado por los valores de los extremos. Sobre él se define el criterio de la  Ecuación~\ref{eq:iqr} para señalar observaciones alejadas del cuerpo de la distribución
+            \cite{Cochran1977}.
+                \begin{equation}
+                    X_i \notin \left[\, Q_1 - 1.5\,\text{IQR}\;,\;\; Q_3 + 1.5\,\text{IQR} \,\right].
+                    \label{eq:iqr}
+                \end{equation}
+            El criterio es descriptivo. Señalar una observación como extrema no equivale a
+            calificarla de errónea ni justifica su eliminación: en este trabajo los dominios son territorios reales y sus valores extremos corresponden a características sustantivas del territorio. Determinar si una de esas observaciones altera de forma apreciable la relación entre una covariable y la variable respuesta es una cuestión distinta, que se  resuelve con la distancia de Cook de la Ecuación~\ref{eq:cook}.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Medidas de asociación bivariada}
+\label{subsec:asociacion-bivariada}
+
+    La relación entre una covariable auxiliar y la variable respuesta se describe mediante dos coeficientes de correlación que capturan aspectos distintos de la asociación.
+
+        \paragraph{Coeficiente de correlación de Pearson.}
+            Mide la intensidad y el sentido de la asociación \emph{lineal} entre dos variables, según la Ecuación~\ref{eq:pearson}.
+                \begin{equation}
+                    r_{XY} = \frac{\sum_{i=1}^{n}\left(X_i - \bar{X}\right)
+                    \left(Y_i - \bar{Y}\right)}
+                    {\sqrt{\sum_{i=1}^{n}\left(X_i - \bar{X}\right)^2}
+                     \sqrt{\sum_{i=1}^{n}\left(Y_i - \bar{Y}\right)^2}}.
+                    \label{eq:pearson}
+                \end{equation}
+            Toma valores en $[-1,1]$. Es la medida que corresponde a la forma funcional supuesta por el componente sintético $\mathbf{x}_d^\top\boldsymbol{\beta}$ del modelo de enlace de la Ecuación~\ref{eq:fh_enlace_a}, y por esa razón es la de interpretación preferente cuando la relación observada es aproximadamente lineal. Su desventaja es la sensibilidad a observaciones alejadas: con pocos dominios, un solo punto puede determinar su magnitud.
+
+        \paragraph{Coeficiente de correlación de Spearman.}
+            Es el coeficiente de Pearson calculado sobre los rangos de las observaciones, y mide por tanto la asociación \emph{monótona} sin exigir linealidad, según la
+            Ecuación~\ref{eq:spearman}.
+                \begin{equation}
+                    \rho_{XY} = 1 - \frac{6\sum_{i=1}^{n} d_i^2}{n\left(n^2 - 1\right)},
+                    \label{eq:spearman}
+                \end{equation}
+            donde $d_i$ es la diferencia entre el rango de $X_i$ y el rango de $Y_i$, y la expresión es válida cuando no hay empates. Al operar sobre rangos, la distancia entre un valor extremo y el resto de las observaciones deja de influir en el resultado, lo que lo hace robusto frente a los valores extremos que Pearson acusa.
+
+        Ambos coeficientes describen la misma relación desde supuestos distintos, de modo que su comparación es informativa, una discrepancia apreciable entre $r$ y $\rho$ en una variable que presenta valores extremos según la Ecuación~\ref{eq:iqr} indica que la asociación lineal está condicionada por esas observaciones, y en tal caso la medida interpretable es la de rangos. Cuando ambos coinciden, la relación es aproximadamente lineal y se interpreta Pearson.
+
+        Un coeficiente de correlación no establece causalidad, y su magnitud puntual comunica más certeza de la que autoriza un número reducido de dominios. Por ello se acompaña de un intervalo de confianza construido mediante la transformación de Fisher, $z_r = \operatorname{arctanh}(r)$, cuya distribución es aproximadamente normal con varianza $1/(n-3)$; su expresión se presenta en la Ecuación~\ref{eq:ic_fisher}.
+        Un intervalo que contiene el cero indica que la evidencia disponible no determina siquiera  el sentido de la asociación.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Estructura multivariada de las covariables}
+\label{subsec:estructura-multivariada}
+
+    El análisis por pares no revela qué grupos de covariables miden conjuntamente un mismo aspecto del territorio. Para describir esa estructura se organiza la matriz de correlaciones mediante  agrupamiento jerárquico, tomando como distancia entre dos covariables la cantidad definida en la Ecuación~\ref{eq:distancia_correlacion}.
+        \begin{equation}
+            d(X_j, X_k) = 1 - \left| r_{X_j X_k} \right|.
+            \label{eq:distancia_correlacion}
+        \end{equation}
+    Dos covariables fuertemente asociadas, en cualquiera de los dos sentidos, quedan a distancia próxima a cero. Aplicando enlace promedio sobre esta distancia y reordenando filas y columnas según el recorrido del dendrograma resultante, las covariables que comparten información quedan contiguas y los bloques se hacen visibles.
+
+    El procedimiento es descriptivo y no transforma los datos, no crea variables nuevas ni sustituye a las originales, y no introduce ninguna decisión sobre cuántas dimensiones retener. Los bloques que identifica son el insumo del criterio de redundancia descrito en la Sección~\ref{sec:met_eda}, donde sí producen una decisión sobre qué covariables pueden coexistir en el modelo.
+
+%---------------------------------------------------------------------------------------
+\subsection{Métodos y modelos}
+\label{subsec:metodos-modelos}
+
+    Esta subsección presenta el aparato estadístico del trabajo. Cada método se acompaña de su formulación y de la especificación del significado de sus términos en el contexto de la estimación del desempleo municipal.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Estimación en áreas pequeñas}
+\label{subsec:sae}
+
+    La estimación en áreas pequeñas  es una metodología estadística para obtener información confiable sobre subpoblaciones o áreas geográficas en las que el diseño muestral original no garantiza tamaños de muestra suficientes. Cuando el dominio de interés es pequeño, los estimadores directos presentan errores estándar inaceptablemente altos. La SAE resuelve esta situación mediante modelos estadísticos que incorporan información auxiliar y toman prestada información de otras áreas, al tiempo que permiten realizar diagnósticos del modelo y obtener medidas estables de variabilidad para cada dominio \cite{BernalGonzalez2017}.
+    La creciente demanda de esta metodología está impulsada, entre otros factores, por la necesidad de monitorear indicadores de los Objetivos de Desarrollo Sostenible (ODS) a niveles de desagregación elevados \cite{Molina2019}.
+
+    Existen dos enfoques principales según el nivel de agregación de los datos disponibles.
+
+    \begin{itemize}
+        \item \textit{Modelos basados en unidades:} utilizan microdatos de la encuesta con
+              covariables individuales. Son adecuados cuando se dispone de registros desagregados tanto en la encuesta como en la fuente auxiliar.
+        \item \textit{Modelos basados en áreas:} emplean estimadores agregados por dominio y
+              covariables a nivel geográfico. El más representativo es el modelo Fay-Herriot, que incorpora efectos aleatorios para capturar la variabilidad no explicada por las covariables \cite{Molina2019}.
+    \end{itemize}
+
+    El presente trabajo adopta el enfoque basado en áreas. La razón es que las covariables
+    auxiliares de TerriData están publicadas únicamente como agregados municipales, sin microdatos por hogar o persona, lo que impide vincularlas a los registros individuales de la GEIH y, por tanto, descarta un modelo a nivel de unidad.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Estimadores directos}
+\label{subsec:estimadores-directos}
+
+    Los estimadores directos son aquellos propuestos por la teoría clásica del muestreo. Su
+    característica definitoria es que se basan únicamente en la información muestral obtenida de las unidades seleccionadas dentro del dominio de interés \cite{BernalGonzalez2017}. Aunque son insesgados y consistentes cuando el tamaño de la muestra es grande, su limitación en el contexto de SAE es que, al enfrentarse a áreas pequeñas, los tamaños de muestra son insuficientes, lo que provoca errores estándar inaceptablemente altos \cite{ColeyTellez2024}. Un ejemplo de estos estimadores es el de Horvitz-Thompson. Como se menciona en \cite{BernalGonzalez2017}, la estimación asistida por modelos, aunque incorpora modelos de regresión, se sigue basando en el diseño muestral para la evaluación de sus propiedades y por lo tanto se considera también un tipo de estimador directo.
+
+    La relación entre este concepto y el indicador de interés de este trabajo es directa. El
+    estimador directo de la tasa de desempleo de un municipio no es otra cosa que la aplicación de la Ecuación~\ref{eq:tasa_desempleo} restringida a la submuestra de la GEIH correspondiente a ese municipio se cuentan las personas desempleadas y las personas económicamente activas observadas allí, ponderadas por su factor de expansión, y se calcula su cociente porcentual. Todo lo que entra en ese cálculo proviene del propio municipio, sin recurrir a información de otros dominios, y es precisamente esa autosuficiencia la que lo hace insostenible cuando la submuestra municipal es pequeña. La forma concreta que adopta este estimador bajo el diseño de la GEIH se presenta a continuación.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Estimador de Hájek}
+\label{subsec:hajek}
+
+    La tasa de desempleo poblacional en un dominio $d$, que en este trabajo corresponde a un
+    municipio en un mes específico, se define como la proporción de la PEA que se encuentra
+    desocupada, según la Ecuación~\ref{eq:tasa_poblacional}.
+
+        \begin{equation}
+            \theta_d = \frac{\sum_{i \in U_d} D_i}{\sum_{i \in U_d} A_i},
+            \label{eq:tasa_poblacional}
+        \end{equation}
+
+    donde $U_d$ es el conjunto de todos los individuos del dominio $d$, $D_i \in \{0,1\}$ es el indicador de que la persona $i$ está desempleada y $A_i \in \{0,1\}$ es el indicador de que la persona $i$ pertenece a la PEA. La correspondencia con la Ecuación~\ref{eq:tasa_desempleo} es exacta, el numerador $\sum_{i \in U_d} D_i$ es el agregado DS y el denominador $\sum_{i \in U_d} A_i$ es el agregado PEA, ambos referidos al municipio $d$.
+
+    Dado que la GEIH es una encuesta y no un censo, $\theta_d$ no puede calcularse directamente porque no se observan todos los individuos de $U_d$, sino solo los seleccionados en la muestra. Su estimador muestral es el estimador de razón de Hájek de la Ecuación~\ref{eq:hajek}.
+
+        \begin{equation}
+            \hat{\theta}_d^{\text{H}} = \frac{\sum_{i \in s_d} w_i D_i}{\sum_{i \in s_d} w_i A_i},
+            \label{eq:hajek}
+        \end{equation}
+
+    donde $s_d \subset s$ es el subconjunto de la muestra correspondiente al dominio $d$ y $w_i$ es el factor de expansión del individuo $i$. Cada término tiene una lectura concreta en este trabajo: $w_i$ es la columna de factor de expansión de la GEIH, $D_i$ es el indicador de desocupado construido a partir del módulo de fuerza de trabajo, y $A_i$ es el indicador de pertenencia a la PEA. Puesto que el cálculo se restringe a la submuestra que cumple $A_i = 1$, el denominador se reduce a $\sum_{i \in s_d} w_i$, que es la PEA expandida del municipio, y el numerador $\sum_{i \in s_d} w_i D_i$ es el número expandido de personas desempleadas. En otras palabras, la Ecuación~\ref{eq:hajek} es la versión ponderada por diseño de la Ecuación~\ref{eq:tasa_desempleo}, y multiplicada por 100 entrega la tasa en puntos porcentuales.
+
+    De acuerdo con \cite{morales2021smallarea}, el estimador de Hájek es consistente y
+    aproximadamente insesgado para muestras grandes en el dominio. Se recomienda para la tasa de  desempleo por tratarse de un parámetro de tipo razón, lo que otorga estabilidad frente a muestras variables, compensa valores extremos y reduce el sesgo relativo al utilizar un denominador estimado en lugar de una constante.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Varianza del estimador de Hájek}
+\label{subsec:varianza-hajek}
+
+    La varianza del estimador de Hájek bajo un diseño muestral complejo es analíticamente difícil de calcular, porque su expresión exacta requiere conocer las probabilidades de inclusión de segundo orden, es decir, la probabilidad conjunta de que dos unidades cualesquiera de la población sean seleccionadas simultáneamente. Los microdatos públicos de la GEIH no publican los identificadores de estrato y de unidad primaria de muestreo necesarios para reconstruir esas probabilidades. Como alternativa se emplea el método de bootstrap simple, siguiendo el procedimiento descrito en \cite{Molina2019} ante la misma restricción de información.
+
+    El bootstrap sustituye el cálculo analítico por uno empírico. La idea es tratar la muestra observada como si fuera la población y extraer de ella $B$ nuevas muestras del mismo tamaño, con reemplazo. En cada una de esas remuestras, indexadas por $b = 1, \ldots, B$, se recalcula el estimador de Hájek de la Ecuación~\ref{eq:hajek}, obteniendo una réplica $\hat{\theta}_d^{(b)}$. El conjunto de las $B$ réplicas constituye una aproximación empírica de la distribución muestral del estimador, es decir, de cómo variaría la estimación si el operativo de campo se repitiera muchas veces. La dispersión de ese conjunto de réplicas es entonces una estimación de la variabilidad del estimador, como se expresa en la Ecuación~\ref{eq:var_bootstrap}.
+
+        \begin{equation}
+            \widehat{\text{Var}}_B(\hat{\theta}_d) = \frac{1}{B-1}
+            \sum_{b=1}^{B} \left(\hat{\theta}_d^{(b)} - \bar{\theta}_d^{(B)}\right)^2,
+            \label{eq:var_bootstrap}
+        \end{equation}
+
+    donde $\bar{\theta}_d^{(B)} = B^{-1}\sum_{b=1}^{B} \hat{\theta}_d^{(b)}$ es el promedio de las réplicas. El error estándar bootstrap es su raíz cuadrada, según la Ecuación~\ref{eq:se}.
+
+        \begin{equation}
+            \widehat{\text{SE}}_B(\hat{\theta}_d) = \sqrt{\widehat{\text{Var}}_B(\hat{\theta}_d)}.
+            \label{eq:se}
+        \end{equation}
+
+    El intervalo de confianza del 95\% se construye por el método de percentiles, como en la
+    Ecuación~\ref{eq:ic_bootstrap}.
+
+        \begin{equation}
+            \text{IC}_{95\%}(\theta_d) = \left[Q_{2.5}\!\left(\hat{\theta}_d^{(1)},
+            \ldots, \hat{\theta}_d^{(B)}\right),\;
+            Q_{97.5}\!\left(\hat{\theta}_d^{(1)}, \ldots,
+            \hat{\theta}_d^{(B)}\right)\right],
+            \label{eq:ic_bootstrap}
+        \end{equation}
+
+    donde $Q_{\alpha}(\cdot)$ denota el percentil de orden $\alpha$ del conjunto de réplicas. Una vez que las $B$ réplicas se interpretan como una muestra de la distribución muestral del estimador, el intervalo de confianza deja de requerir un supuesto distribucional y pasa a leerse directamente sobre esa distribución empírica, basta ordenar las réplicas de menor a mayor y recortar una fracción igual en cada cola. Los percentiles 2.5 y 97.5 son los que dejan por fuera el 2.5\% de las réplicas más bajas y el 2.5\% de las más altas, de modo que entre ellos queda contenido el 95\% central de la distribución empírica, que es exactamente el nivel de confianza buscado. El reparto simétrico del 5\% restante, con 2.5\% en cada extremo, corresponde a un intervalo de dos colas con igual probabilidad de error por exceso y por defecto. La ventaja de este procedimiento sobre el intervalo tradicional basado en la distribución normal es que no impone simetría, si la distribución de las réplicas es asimétrica, situación esperable en una razón calculada sobre submuestras pequeñas, el intervalo resultante también lo será, reflejando esa asimetría en lugar de forzarla.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Modelos mixtos}
+\label{subsec:modelos-mixtos}
+
+    Los modelos lineales mixtos son modelos estadísticos con estructura jerárquica que resultan especialmente adecuados para la SAE, ya que permiten capturar el efecto de conglomeración de las unidades dentro de un mismo dominio. Se denominan mixtos porque incorporan dos fuentes de variación: los efectos fijos $\boldsymbol{\beta}$, que explican la variación sistemática asociada a las variables auxiliares, y los efectos aleatorios $\mathbf{u}$, que representan la variabilidad adicional entre áreas no capturada por los predictores. Estos modelos asumen que tanto $\mathbf{u}$ como los errores del modelo $\boldsymbol{\epsilon}$ siguen distribuciones normales con media cero y son independientes entre sí.
+
+    La técnica de estimación asociada a este marco es el mejor predictor lineal insesgado empírico (EBLUP, por sus siglas en inglés), cuya estimación de la varianza del efecto aleatorio se obtiene típicamente mediante máxima verosimilitud restringida (REML) \cite{Montoya2019}.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Modelo Fay-Herriot}
+\label{subsec:fay-herriot}
+
+    El modelo de Fay y Herriot \cite{FayHerriot1979} es el más influyente dentro de las técnicas de estimación en áreas pequeñas basadas en modelos a nivel de área \cite{Montoya2019}. Opera sobre estimadores directos agregados por dominio, vinculándolos con covariables auxiliares observables e incorporando un efecto aleatorio de área para capturar la variabilidad no explicada.
+
+    El modelo consta de dos partes articuladas, y esa articulación es lo que le permite estimar en dominios sin muestra. La primera parte es el modelo de muestreo, también llamado modelo directo, el cual aporta la estimación directa de la tasa de desempleo de cada ciudad capital encuestada junto con su varianza. La segunda parte es el modelo de enlace, que se construye a partir de las covariables municipales. El modelo de muestreo solo existe donde hay encuesta, mientras que el modelo de enlace puede evaluarse en cualquier municipio del Cauca y del Valle del Cauca, y es esa asimetría la que hace posible la estimación en dominios sin cobertura muestral. Un supuesto clave del modelo es que las varianzas muestrales $\psi_d$ se consideran conocidas; en la práctica se utilizan las varianzas estimadas por bootstrap de la Ecuación~\ref{eq:var_bootstrap}.
+
+        \paragraph{Formulación del modelo.}
+            El modelo opera en dos niveles jerárquicos.
+
+           \subparagraph{Nivel 1, modelo de muestreo.}
+               La estimación directa $\hat{\theta}_d$ del dominio $d$ es una observación con error del parámetro poblacional verdadero $\theta_d$, según la
+               Ecuación~\ref{eq:fh_muestreo_a}.
+                    \begin{equation}
+                        \hat{\theta}_d = \theta_d + e_d, \quad e_d \sim \mathcal{N}(0,\, \psi_d),
+                        \quad d=1,\ldots,D,
+                        \label{eq:fh_muestreo_a}
+                    \end{equation}
+                donde $\psi_d > 0$ es la varianza de muestreo del dominio $d$ y los errores $e_d$ son independientes entre dominios. En este trabajo $\hat{\theta}_d$ es la tasa de desempleo estimada por Hájek en la ciudad capital $d$, $\psi_d$ es el cuadrado de su error estándar bootstrap y $D$ es el número de dominios con encuesta.
+
+            \subparagraph{Nivel 2, modelo de enlace.}
+                El parámetro verdadero $\theta_d$ se modela como una función lineal de covariables observables $\mathbf{x}_d \in \mathbb{R}^p$ más un efecto aleatorio de área, según la Ecuación~\ref{eq:fh_enlace_a}.
+                    \begin{equation}
+                        \theta_d = \mathbf{x}_d^\top \boldsymbol{\beta} + u_d, \quad
+                        u_d \stackrel{\text{iid}}{\sim} \mathcal{N}(0,\, \sigma_u^2), \quad
+                        d=1,\ldots,D,
+                        \label{eq:fh_enlace_a}
+                    \end{equation}
+                donde $\boldsymbol{\beta} \in \mathbb{R}^p$ es el vector de coeficientes de
+                regresión, $\sigma_u^2 > 0$ es la varianza del efecto aleatorio, y los $u_d$ son independientes de los $e_d$. En este trabajo $\mathbf{x}_d$ es el vector de indicadores de TerriData del municipio $d$, y $u_d$ recoge la parte de la tasa de desempleo municipal que las covariables territoriales no logran explicar.
+                Sustituyendo la Ecuación~\ref{eq:fh_enlace_a} en la                Ecuación~\ref{eq:fh_muestreo_a}, el modelo marginal queda como en la
+                Ecuación~\ref{eq:fh_marginal_a}.
+                    \begin{equation}
+                        \hat{\theta}_d = \mathbf{x}_d^\top \boldsymbol{\beta} + u_d + e_d, \qquad
+                        \text{Var}(\hat{\theta}_d) = \sigma_u^2 + \psi_d.
+                        \label{eq:fh_marginal_a}
+                    \end{equation}
+
+        \paragraph{Los predictores BLUP y EBLUP.}
+            Bajo el modelo de la Ecuación~\ref{eq:fh_marginal_a} y dado $\sigma_u^2$ conocido, el mejor predictor lineal insesgado (BLUP) de $\theta_d$ está dado por la Ecuación~\ref{eq:blup}.
+                \begin{equation}
+                    \tilde{\theta}_d^{\text{BLUP}} = \gamma_d \hat{\theta}_d +
+                    (1 - \gamma_d)\, \mathbf{x}_d^\top \tilde{\boldsymbol{\beta}},
+                    \label{eq:blup}
+                \end{equation}
+            donde el factor de contracción es $\gamma_d = \sigma_u^2 / (\sigma_u^2 + \psi_d) \in(0,1)$, y $\tilde{\boldsymbol{\beta}}$ es el estimador de mínimos cuadrados
+            generalizados dado en la Ecuación~\ref{eq:gls}.
+                \begin{equation}
+                    \tilde{\boldsymbol{\beta}} = \left(\sum_{d=1}^{D}
+                    \frac{\mathbf{x}_d \mathbf{x}_d^\top}{\sigma_u^2 + \psi_d}\right)^{-1}
+                    \sum_{d=1}^{D} \frac{\mathbf{x}_d \hat{\theta}_d}{\sigma_u^2 + \psi_d}.
+                    \label{eq:gls}
+                \end{equation}
+
+            La interpretación del factor $\gamma_d$ es fundamental: cuando $\sigma_u^2 \gg \psi_d$ se confía en la estimación directa y $\gamma_d \to 1$; cuando $\psi_d \gg \sigma_u^2$, situación típica en dominios pequeños, se toma prestada información del modelo auxiliar
+            y $\gamma_d \to 0$. En este trabajo, $\gamma_d$ indica cuánto peso conserva la encuesta  frente al modelo territorial en cada ciudad capital.
+
+            En la práctica $\sigma_u^2$ es desconocido y se reemplaza por un estimador
+            $\hat{\sigma}_u^2$, dando lugar al EBLUP de la Ecuación~\ref{eq:eblup_a}.
+                \begin{equation}
+                    \hat{\theta}_d^{\text{EBLUP}} = \hat{\gamma}_d \hat{\theta}_d +
+                    (1 - \hat{\gamma}_d)\, \mathbf{x}_d^\top
+                    \hat{\boldsymbol{\beta}}(\hat{\sigma}_u^2), \qquad
+                    \hat{\gamma}_d = \frac{\hat{\sigma}_u^2}{\hat{\sigma}_u^2 + \psi_d}.
+                    \label{eq:eblup_a}
+                \end{equation}
+
+            En los dominios sin cobertura muestral no existen $\hat{\theta}_d$ ni $\psi_d$, por lo que la Ecuación~\ref{eq:eblup_a} se reduce a su componente sintético
+            $\hat{\theta}_d^{\text{SIN}} = \mathbf{x}_d^\top \hat{\boldsymbol{\beta}}$, que
+            corresponde a fijar $\hat{\gamma}_d = 0$. Este es el mecanismo mediante el cual se obtiene la estimación para los municipios del Cauca y del Valle del Cauca que la GEIH no visita, y su varianza se compone de la incertidumbre del predictor lineal más la varianza del efecto aleatorio no observado, según la Ecuación~\ref{eq:var_sintetica}.
+                \begin{equation}
+                    \widehat{\text{Var}}(\hat{\theta}_d^{\text{SIN}}) = \mathbf{x}_d^\top
+                    \widehat{\text{Cov}}(\hat{\boldsymbol{\beta}})\, \mathbf{x}_d +
+                    \hat{\sigma}_u^2 .
+                    \label{eq:var_sintetica}
+                \end{equation}
+
+        \paragraph{Estimación de \texorpdfstring{$\sigma_u^2$}{la varianza del efecto aleatorio}.}
+            Los métodos más utilizados en la literatura SAE para estimar $\sigma_u^2$ son los
+            siguientes.
+            \begin{description}
+                \item[Método de Fay-Herriot de momentos.] Propuesto en el artículo original,
+                      resuelve iterativamente la Ecuación~\ref{eq:momentos}.
+                      \begin{equation}
+                          \hat{\sigma}_u^2 = \max\!\left(0,\;
+                          \frac{\sum_{d=1}^D \tilde{e}_d^2 - (D-p)}
+                          {\sum_{d=1}^D (\sigma_u^2 + \psi_d)^{-1} /
+                          \sum_{d=1}^D (\sigma_u^2 + \psi_d)^{-2}}\right),
+                          \label{eq:momentos}
+                      \end{equation}
+                      donde $\tilde{e}_d = \hat{\theta}_d - \mathbf{x}_d^\top
+                      \tilde{\boldsymbol{\beta}}$.
+                \item[Máxima verosimilitud restringida (REML).] Maximiza la verosimilitud
+                      restringida de los residuos, produciendo un estimador con menor sesgo que el de máxima verosimilitud ordinaria. Es el método empleado en este trabajo para estimar $\sigma_u^2$.
+                \item[Máxima verosimilitud (ML).] Maximiza la log-verosimilitud del modelo marginal, que bajo normalidad está dada por la Ecuación~\ref{eq:loglik}. En este trabajo se utiliza únicamente para el cálculo del criterio de información de Akaike, que requiere una verosimilitud comparable entre modelos con distinto número de covariables.
+                      \begin{equation}
+                          \ell(\boldsymbol{\beta}, \sigma_u^2) = -\frac{D}{2}\log(2\pi)
+                          -\frac{1}{2}\sum_{d=1}^D
+                          \left[\log(\sigma_u^2 + \psi_d) +
+                          \frac{(\hat{\theta}_d - \mathbf{x}_d^\top \boldsymbol{\beta})^2}
+                          {\sigma_u^2 + \psi_d}\right].
+                      \label{eq:loglik}
+                      \end{equation}
+            \end{description}
+
+        \paragraph{Error cuadrático medio del EBLUP.}
+            El error cuadrático medio (ECM) del BLUP dado $\sigma_u^2$ está dado por la
+            Ecuación~\ref{eq:ecm_blup}.
+                \begin{equation}
+                    \text{ECM}(\tilde{\theta}_d^{\text{BLUP}}) = g_{1d}(\sigma_u^2) =
+                    \gamma_d \psi_d = \frac{\sigma_u^2 \psi_d}{\sigma_u^2 + \psi_d}.
+                    \label{eq:ecm_blup}
+                \end{equation}
+
+            Para el EBLUP, la aproximación de Prasad-Rao \cite{PrasadRao1990,morales2021smallarea} descompone el ECM en tres términos que cuantifican, respectivamente, la incertidumbre del efecto aleatorio, la de $\hat{\boldsymbol{\beta}}$ y la de $\hat{\sigma}_u^2$, como en la Ecuación~\ref{eq:ecm_eblup}.
+                \begin{equation}
+                    \text{ECM}(\hat{\theta}_d^{\text{EBLUP}}) \approx g_{1d}(\sigma_u^2) +
+                    g_{2d}(\sigma_u^2) + 2\,g_{3d}(\sigma_u^2),
+                    \label{eq:ecm_eblup}
+                \end{equation}
+                donde los tres componentes están dados por la Ecuación~\ref{eq:ecm_componentes}.
+                \begin{equation}
+                \begin{aligned}
+                    g_{1d}(\sigma_u^2) &= \gamma_d \psi_d, \\
+                    g_{2d}(\sigma_u^2) &= (1-\gamma_d)^2 \mathbf{x}_d^\top
+                        \left(\sum_{d'} \frac{\mathbf{x}_{d'}\mathbf{x}_{d'}^\top}
+                        {\sigma_u^2 + \psi_{d'}}\right)^{-1}\!\!\mathbf{x}_d, \\
+                    g_{3d}(\sigma_u^2) &= \frac{\psi_d^2}{(\sigma_u^2+\psi_d)^3}\,
+                        \text{Var}(\hat{\sigma}_u^2), \qquad
+                    \text{Var}(\hat{\sigma}_u^2) = 2\left(\sum_{d'=1}^{D}
+                        \frac{1}{(\sigma_u^2+\psi_{d'})^{2}}\right)^{-1}.
+                \end{aligned}
+                \label{eq:ecm_componentes}
+                \end{equation}
+            El factor 2 que acompaña a $g_{3d}$ en la Ecuación~\ref{eq:ecm_eblup} corresponde a la corrección de segundo orden por el hecho de estimar $\sigma_u^2$ en lugar de conocerlo.
+
+%---------------------------------------------------------------------------------------
+\subsubsection{Extensiones del modelo Fay-Herriot}
+\label{subsec:extensiones-fh}
+
+    La necesidad de incluir correlación geográfica surge porque municipios cercanos tienden a
+    compartir características socioeconómicas; ignorar esta dependencia puede comprometer el
+    supuesto de independencia de los efectos aleatorios del modelo clásico. El modelo Fay-Herriot espacial (SEBLUP) extiende la versión clásica sustituyendo el supuesto
+    $u_d \stackrel{\text{iid}}{\sim} \mathcal{N}(0, \sigma_u^2)$ de la    Ecuación~\ref{eq:fh_enlace_a} por una estructura de dependencia entre áreas. En la
+    especificación autorregresiva simultánea (SAR), el vector de efectos aleatorios $\mathbf{u}$ satisface la Ecuación~\ref{eq:sar}.
+        \begin{equation}
+            \mathbf{u} = \rho\, \mathbf{W} \mathbf{u} + \boldsymbol{\varepsilon}, \qquad
+            \boldsymbol{\varepsilon} \sim \mathcal{N}(\mathbf{0}, \sigma_u^2 \mathbf{I}),
+            \label{eq:sar}
+        \end{equation}
+    donde $\mathbf{W}$ es una matriz de proximidad que codifica la vecindad entre dominios y $\rho$ es el parámetro de autocorrelación espacial, de modo que la matriz de covarianza de $\mathbf{u}$ pasa a ser $\sigma_u^2\left[(\mathbf{I} - \rho \mathbf{W}^\top)(\mathbf{I} - \rho \mathbf{W})\right]^{-1}$. Los modelos condicionales autorregresivos (CAR) definen una estructura análoga a partir de distribuciones condicionales. Ambas familias capturan explícitamente la correlación espacial de los efectos aleatorios, fortaleciendo la coherencia geográfica del modelo y reduciendo el coeficiente de variación estimado \cite{ColeyTellez2024,BernalGonzalez2017}. En el presente trabajo la estructura espacial se evalúa como diagnóstico mediante el índice de Moran descrito en la
+    Sección~\ref{subsec:evaluacion-desempeno}, y la especificación de la Ecuación~\ref{eq:sar} se deja planteada como extensión.
+
+    Adicionalmente, la literatura SAE contempla otras extensiones relevantes.
+
+    \begin{itemize}
+        \item \textit{Modelos espacio-temporales:} permiten estimar indicadores con series
+              históricas, incorporando correlación tanto geográfica como temporal.
+        \item \textit{Modelos Fay-Herriot multivariados:} estiman simultáneamente varios indicadores correlacionados para un mismo conjunto de áreas, aprovechando la correlación entre variables respuesta.
+        \item \textit{Modelos a nivel de unidad:} el modelo de Battese-Harter-Fuller
+              \cite{BatteseHarterFuller1988} utiliza microdatos y permite estimar en unidades no muestreadas, siendo especialmente útil cuando las áreas tienen datos escasos.
+    \end{itemize}
+
+%--------------------------------------------------------------------------------------
+\subsubsection{Evaluación del desempeño}
+\label{subsec:evaluacion-desempeno}
+
+    La validación de un modelo SAE se apoya en un conjunto de métricas que cuantifican la precisión de las estimaciones, la calidad del ajuste y el cumplimiento de los supuestos distribucionales.
+    A continuación se presenta la formulación de cada una de las métricas utilizadas en este
+    trabajo, junto con el criterio que permite juzgar su valor.
+
+        \paragraph{Coeficiente de variación estimado.}
+            El coeficiente de variación estimado (CVE) mide la precisión relativa de una estimación, expresando su error estándar como porcentaje del valor estimado, según la Ecuación~\ref{eq:cve}.
+                \begin{equation}
+                    \text{CVE}(\hat{\theta}_d) = \frac{\sqrt{\widehat{\text{ECM}}(\hat{\theta}_d)}}
+                    {|\hat{\theta}_d|} \times 100.
+                    \label{eq:cve}
+                \end{equation}
+            Su ventaja frente al error estándar es que resulta comparable entre dominios con niveles de desempleo distintos. En este trabajo se calcula tanto sobre la estimación directa, usando el error estándar bootstrap de la Ecuación~\ref{eq:se}, como sobre el EBLUP, usando la raíz del ECM de la Ecuación~\ref{eq:ecm_eblup}, y la comparación entre ambos es la evidencia de la ganancia de precisión aportada por el modelo.
+
+        \paragraph{Raíz del error cuadrático medio.}
+            La raíz del error cuadrático medio (RMSE) resume en las unidades de la variable la magnitud del error de estimación, según la Ecuación~\ref{eq:rmse}.
+                \begin{equation}
+                    \text{RMSE}(\hat{\theta}_d) = \sqrt{\widehat{\text{ECM}}(\hat{\theta}_d)}.
+                    \label{eq:rmse}
+                \end{equation}
+            En el caso del EBLUP, el ECM se obtiene de la aproximación de Prasad-Rao. Su promedio sobre los dominios resume en una sola cifra la precisión alcanzada por una especificación, y permite comparar variantes que comparten la misma variable respuesta y las mismas varianzas de muestreo.
+
+        \paragraph{Sesgo.}
+            El sesgo mide la desviación sistemática entre el valor esperado del estimador y el parámetro verdadero, según la Ecuación~\ref{eq:sesgo}.
+                \begin{equation}
+                    \text{Sesgo}(\hat{\theta}_d) = E[\hat{\theta}_d] - \theta_d.
+                    \label{eq:sesgo}
+                \end{equation}
+            Como $\theta_d$ no es observable, en la práctica se evalúa de forma indirecta a través de la media de los residuos estandarizados del modelo, definidos en la
+            Ecuación~\ref{eq:residuos}, cuyo valor esperado bajo un modelo correctamente
+            especificado es cero.
+                \begin{equation}
+                    r_d = \frac{\hat{\theta}_d - \mathbf{x}_d^\top \hat{\boldsymbol{\beta}}}
+                    {\sqrt{\psi_d + \hat{\sigma}_u^2}}.
+                    \label{eq:residuos}
+                \end{equation}
+            Bajo el modelo de la Ecuación~\ref{eq:fh_marginal_a}, estos residuos deben tener media cercana a cero y desviación estándar cercana a uno.
+
+        \paragraph{Ganancia de eficiencia frente al estimador directo.}
+            El propósito del enfoque SAE es producir estimaciones más precisas que las directas. Esa ganancia se cuantifica mediante la razón de la Ecuación~\ref{eq:ratio_mse}.
+                \begin{equation}
+                    R_d = \frac{\psi_d}{\widehat{\text{ECM}}(\hat{\theta}_d^{\text{EBLUP}})}.
+                    \label{eq:ratio_mse}
+                \end{equation}
+            Un valor $R_d > 1$ indica que el EBLUP es más preciso que la estimación directa en ese dominio. La significancia estadística del conjunto de ganancias se contrasta mediante la prueba de rangos con signo de Wilcoxon sobre las diferencias $\psi_d - \text{ECM}_d$.
+
+        \paragraph{Normalidad de los residuos.}
+            El supuesto de normalidad de las Ecuaciones~\ref{eq:fh_muestreo_a}
+            y~\ref{eq:fh_enlace_a} se contrasta mediante la prueba de Shapiro-Wilk, cuyo estadístico se define en la Ecuación~\ref{eq:shapiro}.
+                \begin{equation}
+                    W = \frac{\left(\sum_{i=1}^{n} a_i r_{(i)}\right)^2}
+                    {\sum_{i=1}^{n}\left(r_i - \bar{r}\right)^2},
+                    \label{eq:shapiro}
+                \end{equation}
+            donde $r_{(i)}$ es el $i$-ésimo residuo ordenado y los $a_i$ son constantes derivadas de los valores esperados de los estadísticos de orden de una distribución normal estándar.
+            El estadístico toma valores en $(0,1]$ y se acerca a uno cuando la muestra es compatible con la normalidad.
+
+        \paragraph{Dependencia espacial.}
+            El supuesto de independencia de los efectos aleatorios puede evaluarse con el índice de Moran, estadístico clásico de dependencia espacial cuyo uso en mercados laborales está documentado \cite{Schworer2004}, definido en la Ecuación~\ref{eq:moran}.
+                \begin{equation}
+                    I = \frac{n}{\sum_{i}\sum_{j} w_{ij}} \cdot
+                        \frac{\sum_{i}\sum_{j} w_{ij}\,(y_i - \bar{y})(y_j - \bar{y})}
+                        {\sum_{i}(y_i - \bar{y})^2},
+                    \label{eq:moran}
+                \end{equation}
+            donde $y_i$ es el valor de la variable en el dominio $i$, $\bar{y}$ su media y $w_{ij}$ es el peso de proximidad entre los dominios $i$ y $j$. Valores positivos indican que los dominios vecinos se parecen entre sí, valores cercanos a cero indican independencia y valores negativos indican disimilitud entre vecinos. Bajo la hipótesis nula de independencia espacial, el valor esperado del índice no es cero sino $E[I] = -1/(n-1)$.
+
+        \paragraph{Multicolinealidad.}
+            El factor de inflación de la varianza (VIF) mide cuánto se incrementa la varianza del coeficiente de una covariable por su correlación con las demás, según la  Ecuación~\ref{eq:vif}.
+                \begin{equation}
+                    \text{VIF}_j = \frac{1}{1 - R_j^2},
+                    \label{eq:vif}
+                \end{equation}
+            donde $R_j^2$ es el coeficiente de determinación de la regresión de la covariable $j$ sobre las demás covariables del modelo.
+
+        \paragraph{Influencia de observaciones individuales.}
+            Con 23 dominios, una sola observación puede alterar de forma apreciable los coeficientes estimados. La distancia de Cook cuantifica ese efecto según la Ecuación~\ref{eq:cook}.
+                \begin{equation}
+                    D_i = \frac{\sum_{j=1}^{n}\left(\hat{y}_j -
+                    \hat{y}_{j(i)}\right)^2}{p\,\hat{\sigma}^2},
+                    \label{eq:cook}
+                \end{equation}
+            donde $\hat{y}_{j(i)}$ es el valor ajustado para la observación $j$ cuando el modelo se  reestima excluyendo la observación $i$, $p$ es el número de parámetros y $\hat{\sigma}^2$ la varianza residual.
+
+        La Tabla~\ref{tab:criterios_decision} reúne los criterios de decisión asociados a cada una de las métricas anteriores, que son los que se aplican para juzgar los resultados presentados en la Sección~\ref{sec:resultados}.
+
+        \begin{table}[!htbp]
+        \centering
+        \small
+        \caption{Criterios de decisión aplicados a las métricas de evaluación del desempeño. CVE: coeficiente de variación estimado; VIF: factor de inflación de la varianza; AIC: criterio de información de Akaike; $R_d$: razón entre la varianza directa y el  error cuadrático medio del EBLUP en el dominio $d$; $n$: número de dominios; $p$:    valor $p$ de la prueba correspondiente.}
+        \label{tab:criterios_decision}
+        \renewcommand{\arraystretch}{1.25}
+        \begin{tabular}{l p{7.4cm} l}
+        \toprule
+        \textbf{Métrica} & \textbf{Criterio de decisión} & \textbf{Referencia} \\
+        \midrule
+        CVE & $<5\%$ estimación confiable; $5\%$ a $20\%$ aceptable; $\geq 20\%$ no confiable & \cite{Molina2019}, \cite{Tellez2020} \\
+        $\Delta_{\text{AIC}}$ & $<2$ modelos equivalentes; $2$ a $7$ diferencia moderada;
+            $>10$ diferencia sustancial & \cite{morales2021smallarea} \\
+        Media de residuos & Compatible con cero, con desviación estándar cercana a uno &
+            \cite{RaoMolina2015} \\
+        Shapiro-Wilk & $p > 0.05$ no se rechaza la normalidad de los residuos &
+            \cite{RaoMolina2015} \\
+        VIF & $<5$ colinealidad baja; $5$ a $10$ moderada; $>10$ severa & \cite{RaoMolina2015} \\
+        Distancia de Cook & $D_i > 4/n$ observación influyente & \cite{Cochran1977} \\
+        Razón $R_d$ & $R_d > 1$ el EBLUP mejora la precisión de la estimación directa &
+            \cite{RaoMolina2015} \\
+        \bottomrule
+        \end{tabular}
+        \end{table}
+        \FloatBarrier
+
+%--------------------------------------------------------------------------------------
+\subsubsection{Parsimonia}
+\label{subsec:parsimonia}
+
+    La parsimonia es el principio de seleccionar el modelo más sencillo, con el menor número de parámetros, que explique adecuadamente los datos observados. En SAE su objetivo es evitar el sobreajuste, impidiendo que el modelo reproduzca el ruido de estimaciones directas poco fiables y pierda estabilidad. Un modelo parsimonioso asegura un suavizado eficiente al contraer los valores extremos de la encuesta hacia una tendencia central estadísticamente sólida, y equilibra la capacidad de estimación con la interpretabilidad necesaria para justificar los resultados ante el usuario final \cite{morales2021smallarea}.
+
+    Este principio se operacionaliza de dos maneras complementarias. La primera es una regla
+    empírica sobre el número máximo de covariables admisibles. La literatura recomienda disponer de  entre cinco y diez observaciones por parámetro estimado, lo que en el caso de este trabajo, con  $D=23$ dominios, se traduce en la cota de la Ecuación~\ref{eq:pmax}.
+        \begin{equation}
+            p_{\max} \approx \frac{D}{5} = \frac{23}{5} \approx 4.6,
+            \label{eq:pmax}
+        \end{equation}
+    es decir, a lo sumo cuatro covariables más el intercepto \cite{RaoMolina2015}.
+
+    La segunda es el uso de un criterio de información que penaliza explícitamente la complejidad.  El criterio de información de Akaike (AIC) se define en la Ecuación~\ref{eq:aic}.
+        \begin{equation}
+            \text{AIC} = -2\,\ell(\hat{\boldsymbol{\beta}}, \hat{\sigma}_u^2) + 2\,(p+1),
+            \label{eq:aic}
+        \end{equation}
+    donde $\ell(\cdot)$ es la log-verosimilitud de la Ecuación~\ref{eq:loglik} evaluada en los estimadores de máxima verosimilitud, $p$ es la dimensión del vector $\boldsymbol{\beta}$, es decir, el número de covariables incluidas más el intercepto, y el término  $p+1$ contabiliza esos coeficientes de regresión más el parámetro de varianza $\sigma_u^2$.
+
+    El criterio combina dos términos de signo opuesto. El primero premia el ajuste, mientras el segundo cobra un costo fijo de dos unidades por cada parámetro adicional. La consecuencia práctica es que una covariable solo mejora el criterio si su aporte al ajuste supera el costo de incorporarla, lo que impide que el modelo crezca indefinidamente y es el mecanismo por el cual el AIC garantiza que el modelo quede bien especificado y no sobreajustado. La comparación entre modelos se realiza sobre la diferencia $\Delta_{\text{AIC}}$ respecto del mejor modelo, con los umbrales de lectura recogidos en la Tabla~\ref{tab:criterios_decision}. Cuando dos especificaciones resultan equivalentes en este criterio, la parsimonia impone elegir la de menor número de covariables.

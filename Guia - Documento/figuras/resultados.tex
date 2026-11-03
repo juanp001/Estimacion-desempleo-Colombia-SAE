@@ -1,0 +1,714 @@
+\section{Resultados}
+\label{sec:resultados}
+\titlespacing*{\subsection}{0pt}{10pt plus 2pt minus 2pt}{5pt}
+\titlespacing*{\subsubsection}{0pt}{5pt plus 2pt minus 2pt}{3pt}
+
+Esta sección presenta los resultados detallados de la implementación del pipeline metodológico, abarcando desde el pre-procesamiento de los datos hasta la segmentación de clientes y el análisis de componentes principales. Se busca no solo mostrar los hallazgos, sino también conectar explícitamente cada paso con el marco teórico y la metodología propuesta, haciendo referencia a las fórmulas y procedimientos ya definidos en esas secciones.
+
+\subsection{Pre-procesamiento de datos}
+
+Luego de realizar la búsqueda de valores faltantes en RStudio, se identificó que no existe ninguno, por lo que no fue necesario aplicar ninguna técnica de imputación en este caso. Este hallazgo simplifica el pipeline de preprocesamiento, ya que evita introducir supuestos adicionales de imputación que podrían sesgar los resultados, tal como se mencionó en la sección \ref{sec:metodologia} sobre limpieza y filtrado.
+\newpage
+\begin{table}[H]
+\centering
+\caption{Cantidad de valores faltantes por columna}
+\begin{tabular}{c l c}
+\hline
+\textbf{N°} & \textbf{Columna} & \textbf{Cant. Faltantes} \\ \hline
+1  & Código Cliente     & 0 \\
+2  & Recency  & 0 \\
+3  & Frequency       & 0 \\
+4  & Monetary        & 0 \\
+5  & Tipo de Empresa             & 0 \\
+6  & Mes              & 0 \\
+7  & País             & 0 \\
+8 & Departamento     & 0 \\
+9 & Ciudad           & 0 \\
+10 & Tipo Factura     & 0 \\
+11 & Tipo             & 0 \\
+12 & Grupo            & 0 \\
+13 & Clase        & 0 \\
+14 & Clase 2           & 0 \\
+15 & Tamaño           & 0 \\
+16 & Sku              & 0 \\
+17 & Condición             & 0 \\
+18 & Categoría        & 0 \\
+19 & Audiencia        & 0 \\
+20 & Zona            & 0 \\
+21 & Valor Bruto      & 0 \\
+22 & Skus Distintos  & 0 \\
+23 & Descuentos             & 0 \\
+24 & Valor Neto       & 0 \\
+25 & Cantidad             & 0 \\
+26 & Costo Total       & 0 \\
+27 & Utilidad Bruta   & 0 \\
+28 & Cantidad Comprada (Año 2024)  - Y1              & 0 \\
+29  & Valor Comprado (Año 2024) - Y2              & 0 \\
+\hline
+\end{tabular}
+\end{table}
+
+El hecho de no encontrar valores faltantes en ninguna de las columnas consideradas para el análisis simplifica el pipeline de preprocesamiento, ya que evita tener que introducir supuestos adicionales de imputación (media, mediana, modelos de imputación múltiple, etc.) que podrían introducir sesgos o incrementar la varianza de las estimaciones.
+
+\subsection{Análisis exploratorio de los datos}
+En esta sección se presentan los análisis univariado de los datos, con el propósito de comprender la distribución y el comportamiento de las variables. Para ello, se calculan medidas descriptivas como la media, mediana, moda, cuartiles, coeficientes de variación y el porcentaje de valores atípicos. Asimismo, estos análisis se complementan con representaciones gráficas; como histogramas y diagramas de caja, incluidas en la sección \ref{sec:variablescuantitativas}, que facilitan la interpretación visual y permiten captar de manera rápida las características principales de los datos.
+
+Por otro lado en la sección de análisis multivariado, analizaremos la relación existente entre variables, con la finalidad  determinar si existe algún tipo de asociación, correlación o dependencia entre ellas. Este análisis es útil para comprender cómo una variable puede influir en otra, lo que resulta clave en estudios predictivos y en la toma de decisiones.
+
+\subsubsection{Análisis Univariado - Variables Cuantitativas Predictoras}
+\begin{table}[H]
+\centering
+\caption{Resumen estadístico de las variables cuantitativas predictoras}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\hline
+ Variable& Media& Mínimo & Cuartil 1 & Mediana & Cuartil 3& Máximo & Coef. Variación & Outliers (\%)\\
+\hline
+Recency& 235.42& 9 & 79 & 207.5 & 304 & 668 & 79.29\% & 4,19\%\\
+Frequency& 65.36 & 1 & 2 & 4 & 32.75 & 3,551 & 360\% & 18.39\%\\
+Monetary & 98.829.834  & 2.526	 &943.190& 2.510.924 & 14.150.826 & 5.617.572.866	 & 438\%&17\% \\
+Valor Neto & 8.555.464 & 0,8623	 &16.200& 43.800 & 670.110 & 109.403.195	 & 349\% &20\% \\
+Valor Bruto & 4.401.277 & 548,24 & 20.000 & 65.000 & 2.167.279 & 206.973.510 & 353\% & 16,13\% \\
+Costo Total & 60.957.738 & 1.742	 &380.071& 1.230.277 & 6.609.727 & 3.926.358.043 & 466\% &16\% \\
+Cantidad & 6.075 & 6	 &65& 180 & 790 & 209.131 & 377\% &16\% \\
+Descuentos & 21,30 & 0	 &10,04& 19 & 31,62 & 60 & 67\% &0\% \\
+Skus\_Distintos & 25,48 & 1	 &1& 2 & 22 & 321 & 187\% &17,1\%
+ \\
+\hline
+\label{fig:tablarecency}
+\end{tabular}%
+}
+\end{table}
+
+A partir de la tabla \ref{fig:tablarecency} y con ayuda visual de los histogramas y diagramas de caja que se encuentran en el apéndice (\ref{sec:variablescuantitativas}), podemos observar que:
+    \begin{itemize}
+    \item Todas las variables cuantitativas presentan una distribución con sesgo positivo; lo que indica que la mayoría de los datos se concentran en valores bajos, pero hay algunos valores extremos altos que desplazan la media hacia la derecha.
+    \item El coeficiente de variación evidencia que todas las variables presentan una variabilidad extremadamente alta respecto a su media, con valores que superan el 100\% y alcanzan hasta el 438\%. Las únicas excepciones son las variables \textbf{Recency} y \textbf{Descuentos}, que, si bien muestran una variabilidad considerable, esta no resulta tan extrema en comparación con las demás.
+     
+    Por lo anterior, es fundamental aplicar técnicas como las descritas en la metodología (transformación logarítmica o winsorización) que permitan estabilizar la varianza de los datos, garantizando que las estimaciones del modelo no se vean distorsionadas por la alta dispersión y la presencia de valores extremos.
+     \item Se observan \textbf{outliers significativos}: entre 16\% y 20\% en la mayoría de variables monetarias y de cantidad. Esto confirma que hay clientes con comportamiento muy distintos, donde se observa el cumplimiento de la regla de pareto, la cual postula que el 80\% de la actividad transaccional (ingresos, costos, cantidades compradas, etc.) provienen del 20\% de los clientes.
+
+    \item \textbf{Recency}: Los clientes presentan una recencia que oscila entre 9 y 668 días desde su última compra. El 75\% realizó su última transacción en un periodo igual o inferior a 304 días. La mediana, ubicada en 208 días, indica que la mitad de los clientes no ha comprado en aproximadamente siete meses o más, mientras que la otra mitad lo hizo en periodos más recientes. Solo el 25\% efectuó su última compra en un lapso inferior a dos meses y medio, lo que evidencia que la mayoría de los clientes experimenta largos periodos de inactividad desde su última compra.
+    
+    \item \textbf{Frequency}: Los clientes registran una frecuencia de compra que varía entre 1 y 3.551 transacciones. El 75\% realizó menos de 33 compras y la mediana indica que la mitad de los clientes realizó menos de 4 transacciones, mientras que la otra mitad superó dicha cifra. Esta variable, junto con \textit{Cantidad}, serán claves para caracterizar los clusters de clientes intensivos en volumen frente a aquellos de compra ocasional.
+    
+    \item \textbf{Monetary}: Los clientes registran un gasto acumulado que oscila entre \$2.526 pesos y \$5,6 mil millones de pesos. El 75\% de ellos tuvo un gasto menor o igual a \$14,1 millones. La mediana indica que la mitad de los clientes realizó compras por menos de \$2,5 millones, mientras que la otra mitad superó dicha cifra. Este patrón de “cola pesada” es típico en contextos B2B y tendrá implicaciones directas en la estimación de SoW: los pocos clientes de muy alto valor tendrán un peso desproporcionado en el cálculo de wallet y en la priorización de acciones comerciales.
+    
+    \item \textbf{Valor Neto}: Los clientes realizaron compras por valores netos (precio unitario del producto) acumulados que oscilan entre \$860.000 y \$109,4 millones. El 75\% de ellos registra compras por montos menores o iguales a \$670.110. La mediana, ubicada en \$43.800, indica que la mitad de los clientes tiene valores netos inferiores a esta cifra, mientras que la otra mitad supera dicho monto.
+    
+    \item \textbf{Valor Bruto}: Los clientes realizaron compras por valores brutos acumulados que oscilan entre \$548 pesos y \$207 millones. El 75\% de ellos registra compras por montos menores o iguales a \$2,1 millones. La mediana indica que la mitad de los clientes tiene valores brutos inferiores a \$65.000, mientras que la otra mitad supera dicho monto. 
+    
+    \item \textbf{Costo Total}: La distribución del costo total muestra una marcada asimetría positiva, con valores que oscilan entre \$1.742 y más de \$3.926 millones. La mediana, ubicada en \$1,23 millones, indica que la mitad de los clientes genera costos iguales o inferiores a este valor, mientras que la otra mitad tienen costos significativamente mayores que alcanzan hasta \$3.926 millones. Lo que debería estar relacionado, con las compras realizadas por los clientes de alto valor. 
+    
+    Esta variable, altamente correlacionada con Monetary y Utilidad Bruta; como se podrá evidenciar en análisis posteriores,  refuerza la idea de que gran parte de la estructura económica de los clientes puede capturarse con un subconjunto reducido de indicadores monetarios bien escogidos. 
+    
+    \item \textbf{Cantidad}: Los clientes compraron cantidades que oscilan entre 6 y 209.131 unidades. El 75\% de ellos registra compras por cantidades iguales o inferiores a 790 unidades. La mediana indica que el 50\% de los clientes adquirió menos de 180 ítems, mientras que la otra mitad realizó compras superiores a esa cantidad. 
+    
+    \item \textbf{Descuentos}: Los descuentos otorgados a los clientes oscilaron entre 0\% y 60\%. El 75\% de ellos recibió descuentos iguales o inferiores al 31.62\%. Además, la mediana se ubicó en 19\%, lo que indica que la mitad de los clientes obtuvo descuentos superiores a este valor y la otra mitad descuentos inferiores.
+    
+    \item \textbf{Skus Distintos}: El rango intercuartílico, que va de 1 a 22 SKUs, indica que el 75\% de los clientes adquiere hasta 22 referencias, mientras que el valor máximo alcanza 321 SKUs, lo que evidencia casos extremos de clientes con portafolios muy amplios. Por otro lado, la mediana se sitúa en solo 2 SKUs, lo que significa que la mitad de los clientes compra dos referencias o menos.
+    
+\end{itemize}
+
+\subsubsection{Análisis Univariado - Variables Cualitativas Predictoras}
+\textbf{Tipo de Empresa}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Tipo_Empresa.png}
+\caption{\label{figempresa}Distribución de las ventas por Tipo de Empresa.}
+\end{figure}
+
+En la figura \ref{figempresa} se aprecia que las empresas que adquieren con mayor frecuencia los productos de la SBC son principalmente las organizaciones religiosas (60\%), seguidas por las editoriales (15\%) y las comerciales (13,5\%). Este comportamiento resulta coherente, considerando que el \emph{core} del negocio es la distribución de literatura cristiana.
+
+\textbf{Mes de Compra}
+\vspace{-9pt}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Mes.png}
+\caption{\label{figmes}Distribución de las ventas por Mes.}
+\end{figure}
+La figura \ref{figmes} muestra que los clientes adquieren los productos principalmente en marzo (20\%) y abril (14\%), lo que podría estar relacionado con la celebración de la Semana Santa, periodo en el que los devotos incrementan la adquisición de artículos para conmemorar fechas religiosas y participar en actos de culto. 
+
+\textbf{Origen de Compra}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Origen de Compra.png}
+\caption{\label{figorigen}Distribución de las ventas según el origen de la compra.}
+\end{figure}
+En la figura \ref{figorigen}, se observa que las compras son realizadas en mayor proporción por mercado local (94\%). Sin embargo, resulta relevante analizar el 6\% restante en términos monetarios, para determinar si representa una oportunidad de expansión hacia otros mercados, considerando la alta concentración actual en el ámbito nacional. En términos de SoW, esta variable puede diferenciar clientes con potencial de crecimiento internacional.
+\newpage
+\textbf{Ciudad}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Ciudad.png}
+\caption{\label{figciudad}Distribución de las ventas por ciudad (Top 10).}
+\end{figure}
+La figura \ref{figciudad} revela que el 32\% de las ventas se concentran en Bogotá, seguida por Medellín (8,1\%) y Cali (6,1\%). Este comportamiento es coherente, dado que Bogotá es la capital del país y Medellín y Cali son las principales ciudades a nivel nacional. Resulta destacable el caso de Frontino (2,9\%); un municipio pequeño que registra ventas superiores en cantidad a las de ciudades importantes como Barranquilla, Cartagena y Bucaramanga. Este tipo de hallazgo sugiere oportunidades de profundizar en el análisis geográfico y en el diseño de estrategias regionales diferenciadas.
+
+\textbf{Tipo de Producto}
+\vspace{-7pt}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Tipo Producto.png}
+\caption{\label{figtipoproducto}Tipo Producto.}
+\end{figure}
+
+La figura \ref{figtipoproducto} indica que el producto preferido por los clientes mayoritariamente (90\%) son las Biblias. Este dominio de un solo tipo de producto en la mezcla simplifica parcialmente el análisis de categorías, pero al mismo tiempo plantea el reto de identificar segmentos de clientes dentro de un universo donde el producto principal es relativamente homogéneo.
+
+\textbf{Tamaño}
+\vspace{-7pt}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Tamaño.png}
+\caption{\label{figtamano}Tamaño.}
+\end{figure}
+
+Según la figura \ref{figtamano}, el tamaño más solicitado por los clientes es la Biblia Taco 60 (69,4\%), que corresponde a un formato de dimensiones medianas-altas; en pocas palabras, un formato estándar, pues la escala se encuentra entre T10 y T90 (donde este último corresponde a biblias gigantes). Esta preferencia por un tamaño particular puede estar asociada a factores de uso litúrgico y de lectura, y se refleja en las combinaciones de SKU más frecuentes.
+
+
+\newpage
+\subsubsection{Análisis Univariado - Variables Respuesta (Y1, Y2)}
+
+\textbf{Cantidad de compras año 2024 - Y1}
+\vspace{-8pt}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Variables respuesta Y1.png}
+\caption{\label{figY1}Boxplot - Cantidad de Compras (año 2024).}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Resumen estadístico de la variable Cantidad de Compras (Y1) año 2024}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccccc}
+\hline
+ & Media & Mínimo & Q1 & Mediana & Q3 & Máximo & CV & Outliers \\
+\hline
+Valor & 1.919 & 0 & 0 & 39 & 240 & 88.901 & 450\% & 46 \\
+\hline
+\end{tabular}%
+}
+\end{table}
+
+El 75\% de los clientes realizó compras de hasta 240 unidades, mientras que un grupo muy reducido alcanzó volúmenes extraordinariamente altos (88.901 unidades). Esta concentración generó una distribución con cola larga y un número considerable de valores atípicos (46). En consecuencia, se confirma el mismo patrón observado en 2023: la mayoría de los clientes efectúo compras pequeñas, mientras que un segmento minoritario adquirió cantidades muy superiores, llegando el máximo a representar 2.279 veces el valor de la mediana.
+
+Se evidencia una alta variabilidad en los datos respecto al promedio, reflejada en un coeficiente de variación cercano al 450\%. Además, el valor máximo es aproximadamente 370 veces superior al tercer cuartil, lo que confirma la presencia de clientes con comportamientos extraordinariamente atípicos. Este comportamiento justifica el uso de modelos de conteo y técnicas de discretización (constante \(C\)) para la construcción de la variable respuesta en el modelo GBinM, tal como se describe en la sección \ref{sec:metodologia} sobre la construcción de la variable respuesta.
+
+\newpage
+\textbf{Valor de la compra año 2024 - Y2}
+\vspace{-8pt}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Variable Respuesta Y2.png}
+\caption{\label{figY2}Boxplot - Valor de la compra (año 2024).}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Resumen estadístico de la variable Valor Total de Compras (Y2) año 2024}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lccccccccc}
+\hline
+ & Media & Mínimo & Q1 & Mediana & Q3 & Máximo & CV & Outliers \\
+\hline
+Valor & 41.642.150 & 100.006 & 822.632 & 2.590.400 & 11.202.913 & 998.657.779 & 294\% & 36 \\
+\hline
+\end{tabular}%
+}
+\end{table}
+
+El 50\% de los clientes realizó compras por valores entre \$822.632 y \$11.202.913. Sin embargo, se observan clientes con compras extremadamente altas (36 outliers que alcanzaron hasta cerca de \$1.000 millones). El coeficiente de variación (CV) del 294\% indica una dispersión muy elevada, lo que refleja una alta variabilidad respecto a la media en el comportamiento de gasto. Esta variable Y2 se utiliza como base para construir la variable discreta \(Y_i\) del modelo compuesto mediante la constante \(C\), siguiendo el procedimiento detallado en la sección \ref{sec:metodologia} y la formulación de Glady \& Croux.
+
+\subsection{Análisis Multivariado}
+\vspace{-15pt}
+\subsubsection{Distribución del precio por categoría}
+\vspace{-10pt} % Ajusta el valor según lo necesites
+\begin{table}[H]
+\centering
+\caption{\label{figprecio}Resumen estadístico de precios por categoría}
+\begin{tabular}{lccccccccc}
+\hline
+Categoria & Mínimo & Cuartil 1 & Mediana & Cuartil 3 & Máximo\\
+\hline
+Fina & 35.050 & 90.000 & 111.594 & 149.940 & 237.742 \\
+Semi-Fina & 9.600 & 46.342 & 60.842 & 73.700 & 114.000 \\
+Semi-Económica & 13.200 & 30.160 & 39.440 & 43.500 & 62.400 \\
+Económica & 3.774 & 7.623 & 8.720  & 11.400 & 17.000 \\
+Línea & 0.07 & 2.640 & 29.922 & 48.095 & 114.900 \\
+\hline
+\end{tabular}%
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Boxplot por categoria.png}
+\caption{\label{figprecioporcat}Distribución del precio por categoría.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Categoria.png}
+\caption{\label{figcategoria}Frecuencia de clientes por categorías.}
+\end{figure}
+
+A partir del análisis de la figura \ref{figprecioporcat} y la tabla \ref{figprecio}, se concluye lo siguiente:
+
+La categoría Fina se posiciona como la más premium, presentando el precio unitario mediano más alto entre las categorías analizadas (111.594). Le siguen la Semi-Fina (60.842) y la de Línea (29.922). En el segmento de menor costo se ubican las categorías Semi-Económica (39.440) y Económica (8.720), siendo esta última la más barata.
+
+Por otro lado, el análisis de los valores atípicos sugiere posibles inconsistencias en la categorización de algunos productos. Por ejemplo, en las categorías Semi-Fina y Línea se identifican artículos con precios superiores a 100.000, rango que corresponde típicamente a la categoría Fina. Asimismo, se observa que en la categoría Fina existen productos con precios muy bajos (35.050), que deberían pertenecer a categorías económicas.
+
+En la figura \ref{figcategoria},  se puede apreciar que existe una alta concentración de clientes en la categoría \textit{Económica} (56,8\%), que además tiene el precio promedio más bajo, tal como se puede evidenciar en la figura \ref{figprecioporcat}. Esto indica que el volumen de ventas está impulsado por productos de bajo valor. Las categorías \textit{Línea} (27,4\%) y \textit{Semi-Económica}  (15,5\%) también aportan significativamente, pero con precios promedio intermedios.
+
+Por su parte, la categoría \textit{Fina}, aunque tiene el precio promedio más alto, representa solo el 0,3\% de los clientes, lo que evidencia una baja penetración en el segmento premium. Desde la óptica de SoW, esto sugiere que parte del potencial de wallet puede estar en migrar clientes de categorías económicas a gamas superiores en ciertos segmentos, siempre y cuando exista ajuste entre capacidad de pago, propósito de uso y propuesta de valor del producto.
+
+%\end{itemize}
+
+\subsubsection{Comportamiento de los descuentos en relación con monto total gastado}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\textwidth]{chapters/Dispersión Gastado vs Desc.png}
+\caption{\label{figDescMonto} Diagrama de Dispersión -  Monto Gastado vs Descuentos.}
+\end{figure}
+
+No se aprecia una relación lineal evidente entre el gasto total y los descuentos otorgados. Los clientes que reciben mayores descuentos no necesariamente realizan compras más elevadas, lo que sugiere que el descuento no es el principal impulsor del gasto. Por otro lado, se observa un comportamiento interesante: algunos clientes han realizado compras muy significativas (superiores a 100 millones) sin recibir descuentos, mientras que otros han obtenido descuentos altos, a pesar de haber realizado compras de bajo valor (puntos concentrados en el eje x con valores >30\% de descuento).
+
+En la siguiente sección se analizará la asociación entre las variables utilizando criterios cuantitativos, específicamente mediante la matriz de correlación basada en el coeficiente de Spearman, para realizar la depuración de variables que presenten redundancias. 
+
+\newpage
+\subsubsection{Correlación entre Variables Cuantitativas}
+
+Para realizar el análisis de correlación de variables cuantitativas se utilizó la correlación de Spearman, dado que en datos transaccionales de ventas los outliers son comunes y Spearman es menos sensible que Pearson a estos valores, dando una visión más estable.
+
+Para ello, se generó la matriz de correlación \ref{fig:corr_cuantitativas}, con el propósito de evaluar el grado de asociación entre las variables cuantitativas predictoras. Posteriormente, se consideraron únicamente aquellas parejas de variables que mostraron una correlación igual o superior a 0.7.
+
+\begin{table}[H]
+\centering
+\caption{Correlación Spearman - Variables Cuantitativas}
+\label{tab:corr_cuantitativas}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{l l c} % tres columnas: l, l, c
+\hline
+\textbf{Variable 1} & \textbf{Variable 2} & \textbf{Spearman} \\
+\hline
+Costo Total & Monetary & 0.99 \\ 
+Monetary & Utilidad Bruta & 0.98 \\ 
+Costo Total & Utilidad Bruta & 0.96 \\
+Frequency & Skus Distintos & 0.94 \\ 
+Frequency & Valor Bruto & 0.93 \\ 
+Cantidad & Costo Total & 0.90 \\
+Cantidad & Monetary & 0.89 \\
+Skus Distintos & Valor Bruto & 0.87 \\
+Cantidad & Utilidad Bruta & 0.85 \\ 
+Valor Bruto & Valor Neto & 0.82 \\ 
+Utilidad Bruta & Valor Bruto & 0.79 \\
+Costo Total  & Frequency & 0.79 \\  
+Monetary  & Valor Bruto & 0.78 \\ 
+Frequency & Monetary & 0.78 \\ 
+Costo Total & Valor Bruto & 0.78 \\
+Frequency & Utilidad Bruta & 0.77 \\ 
+Descuentos & Valor Neto & 0.76 \\ 
+Frequency & Valor Neto & 0.74 \\ 
+Costo Total & Skus Distintos & 0.71 \\ 
+Cantidad & Frequency & 0.70 \\ 
+\hline
+\end{tabular}
+\end{table}
+
+Los resultados arrojados por la prueba de Correlación de Spearman que se encuentran en la tabla \ref{tab:corr_cuantitativas}, revelan que:
+
+\textit{Recency Days} presenta una correlación negativa frente a todas las variables (con valores que oscilan entre -0.50 y -0.70). Esto sugiere que a mayor tiempo desde la última compra, menor frecuencia, menor gasto, menor cantidad, etc.; lo cual es lógico en comportamiento de clientes.
+
+Asimismo, se evidencia una alta correlación entre las variables \textit{Monetary}, \textit{Costo Total} y \textit{Utilidad Bruta}, con coeficientes de Spearman que oscilan entre 0.96 y 0.99. Para evitar problemas de multicolinealidad, se conservará únicamente la variable \textit{Monetary}, dado que representa de manera sintética la escala de gasto del cliente.
+
+Por otro lado, se observa alta correlación entre \textit{Frequency}, \textit{Skus Distintos} y \textit{Valor Bruto} con correlaciones que oscilan entre 0.94 y 0.93. Para este caso, mantenemos Frequency, dado que es una variable más representativa del comportamiento de compra y eliminamos las otras 2.
+
+Finalmente, observando que \textit{Valor Neto} presenta alta correlación con \textit{Valor Bruto} (0.82), \textit{Descuentos (0.76)} y \textit{Frequency (0.74)}, optamos por depurarla del análisis.
+
+
+Tras el análisis de asociación entre variables cuantitativas, se identificaron aquellas que debían ser depuradas, tal como se ilustra en la tabla \ref{fidepuración}:
+\begin{table}[H]
+\centering
+\caption{\label{fidepuración}Variables seleccionadas y eliminadas del modelo (cuantitativas)}
+\begin{tabular}{p{7cm} p{7cm}}
+\hline
+\textbf{Permanecen en el modelo} & \textbf{Eliminadas del modelo} \\
+\hline
+monetary, frequency, recency\_days, desc, cant  & 
+cst\_total, utilidad bruta, valor bruto, skus\_distintos, valor neto \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Correlación entre Variables Cualitativas}
+A partir del análisis de la correlación entre variables cualitativas mediante la medida de V de Cramér (Figura \ref{figCramer}), se identificaron los pares de variables que superan un umbral de asociación de 0.5. Este valor se seleccionó considerando que Cramér’s V tiende a producir coeficientes más bajos incluso en presencia de relaciones fuertes, a diferencia de Spearman, donde las correlaciones se consideran altas a partir de 0.7. 
+
+Aunque en Cramér’s V una asociación fuerte puede observarse desde valores cercanos a 0.4, para este estudio se adoptó un umbral conservador de 0.5 con el fin de garantizar mayor rigor en la detección de redundancia entre las variables categóricas.
+
+\begin{table}[H]
+\centering
+\caption{Correlación Cramer - Variables Cualitativas}
+\label{tab:corr_cualitativas}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{l l c} % tres columnas: l, l, c
+\hline
+\textbf{Variable 1} & \textbf{Variable 2} & \textbf{Cramer} \\
+\hline
+Tipo & Tipo Factura & 0.99 \\ 
+Pais & Tipo & 0.97 \\ 
+Audiencia & Tipo & 0.96 \\
+Departamento & Pais & 0.95 \\ 
+Tipo & Zona & 0.93 \\ 
+Nom Clase & Tamaño & 0.93 \\
+Departamento & Tipo & 0.93 \\
+Ciudad & Departamento & 0.90 \\
+Ciudad & Pais & 0.86 \\ 
+Ciudad & Tipo & 0.84 \\ 
+Clase 2 & Nom Clase & 0.83 \\
+Categoria & Sku & 0.76 \\  
+Grupo & Sku & 0.75 \\ 
+Clase 2 & Sku & 0.73 \\ 
+Sku & Tipo Factura & 0.70 \\
+Nom Clase & Sku & 0.66 \\ 
+Sku & Tamaño & 0.65 \\ 
+Departamento & Zona & 0.62 \\ 
+Audiencia & Tipo Factura & 0.62 \\ 
+Clase 2  & Tamaño & 0.61 \\ 
+Clase 2  & Grupo & 0.61 \\ 
+Categoria  & Tamaño & 0.59 \\ 
+Clase 2  & Tipo Factura & 0.57 \\
+Categoria  & Nom Clase & 0.57 \\
+Ciudad  & Zona & 0.56 \\
+Audiencia  & Sku & 0.55 \\
+Sku  & Tipo & 0.51 \\
+Audiencia  & Categoria & 0.51 \\
+\hline
+\end{tabular}
+\end{table}
+
+La selección final de variables se fundamenta en el análisis de redundancia mediante Cramér’s V, donde valores superiores a 0.50–0.60 indican asociaciones fuertes que generan duplicidad de información dentro del modelo. 
+
+Con base en la tabla \ref{tab:corr_cualitativas}, se tomaron las siguiente decisiones:
+
+La variable \textit{Tipo} se conserva porque se comporta como una variable central que captura patrones de comportamiento o segmentación relevantes para la probabilidad del evento a modelar. Además, es la variable que presenta las mayores correlaciones con otras variables (muchas de ellas superiores a 0.90), lo cual indica que resume de manera eficaz información que también contienen variables como \textit{Tipo Factura, Audiencia y País}, permitiendo eliminar estas últimas sin pérdida real de señal predictiva. 
+
+De manera similar, \textit{Departamento} se mantiene porque representa una capa geográfica suficientemente granular para capturar variaciones territoriales en el comportamiento observado, pero sin llegar a la excesiva cardinalidad de \textit{Ciudad}, ni a la pérdida de especificidad que ocurriría si solo se utilizara \textit{País}. Adicionalmente, variables como \textit{Ciudad, Zona y País} muestran correlaciones altas (entre 0.95 y 0.62) con \textit{Departamento}.
+
+En cuanto a la estructura del producto, se conservaría \textit{Categoría y Tamaño}. \textit{Categoría} esta situada en un nivel intermedio de la jerarquía del producto, lo que reduce la redundancia que sí aparece en variables más específicas como \textit{Clase2 o Grupo}, las cuales presentan correlaciones muy altas entre sí (entre 0.57 y 0.83) y con \textit{SKU} (entre 0.51 y 0.76), por lo que su inclusión sería redundante y estadísticamente problemática.
+
+
+Mantener las variables redundantes hubiera incrementado la colinealidad y sobreparametrización del modelo y generado inestabilidad en los coeficientes del modelo.
+
+A continuación se muestran las variables que fueron consideradas para el modelo:
+\begin{table}[H]
+\centering
+\caption{Variables seleccionadas y eliminadas del modelo (cualitativas)}
+\begin{tabular}{p{7cm} p{7cm}}
+\hline
+\textbf{Permanecen en el modelo} \\
+\hline
+Tipo, Departamento, Categoría, Mes, Tipo Empresa, Condición \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Procesamiento de datos}
+Con el objetivo de modificar la distribución y reducir la asimetría (skewness) presente en los datos, se aplicó la transformación logarítmica. Esta técnica es ampliamente utilizada en contextos comerciales como el analizado, donde la mayoría de los clientes realizan compras pequeñas y unos pocos concentran montos muy elevados. Esta decisión se sustentó en el análisis exploratorio, en el cual se evidenció que todas las variables presentaban un sesgo positivo en su distribución, tal como se observó en los histogramas (\ref{sec:variablescuantitativas}).
+
+Posteriormente, se realizó la estandarización de las variables con el objetivo de transformarlas para que presenten una media igual a 0 y una desviación estándar igual a 1. Esta técnica mejora el rendimiento de los algoritmos utilizados en los modelos de segmentación y predictivos aplicados. De esta manera, se evita que variables con magnitudes significativamente mayores (por ejemplo, ingresos en miles) dominen el análisis frente a otras de menor escala (como descuentos).
+
+\subsubsection{Aplicación de Transformación Logarítmica}
+
+Luego de aplicar la transformación logarítmica, obtuvimos los siguientes resultados para las variables predictoras cuantitativas \textit{Monetary, Frequency, Recency y Cantidad}. Como se puede apreciar en la sección \ref{sec:variablesdescuentos}, la variable descuentos no presenta valores atípicos, por lo que se dejó como estaba inicialmente.
+
+\textbf{Transformación Logarítmica - Variable Monetary}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Monetary Inicial.png}
+\caption{\label{figLogMonetary}Variable monetary inicial.}
+\end{figure}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Monetary Final.png}
+\caption{\label{figLogMonetary}Variable monetary final.}
+\end{figure}
+\textbf{Transformación Logarítmica - Variable Frequency}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Frequency Original.png}
+\caption{\label{figLogFrequency}Variable frequency inicial.}
+\end{figure}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Frequency Final.png}
+\caption{\label{figLogFrequency}Variable frequency final.}
+\end{figure}
+\textbf{Transformación Logarítmica - Variable Cantidad}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Cantidad Original.png}
+\caption{\label{figLogCantidad}Variable cantidad inicial.}
+\end{figure}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Cantidad Final.png}
+\caption{\label{figLogCantidad}Variable cantidad final.}
+\end{figure}
+
+Luego de aplicar la transformación podemos apreciar que las variables en mención presentan una fuerte asimetría positiva en su forma original, con valores extremadamente altos y muchos outliers. Después de la transformación logarítmica, dichas variables muestran distribuciones mucho más compactas y cercanas a la simetría, reduciendo la influencia de valores extremos. Esto se observa en los histogramas, donde la cola derecha se acorta considerablemente.
+
+Adicionalmente, la transformación mejora la linealidad en las relaciones entre variables, lo que puede reflejarse en correlaciones más estables y en un mejor desempeño de los modelos a ejecutar.
+
+
+\subsubsection{Estandarización de variables}
+La estandarización asegura que todas las variables aporten de manera equitativa al análisis, evitando sesgos por diferencias de escala. Tras aplicar esta técnica, las variables quedaron transformadas según lo previsto. En la tabla \ref{tablaestandarizada}, se presentan los primeros seis registros como ejemplo ilustrativo. Este procedimiento se realizó siguiendo la formulación de estandarización presentada en la sección \ref{sec:marcoref}.
+
+\begin{table}[H]
+\centering
+\caption{\label{tablaestandarizada}Valores Estandarizados Variables}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lrrrrrrrrrr}
+\hline
+\textbf{Obs} & \textbf{recency\_days} & \textbf{frequency} & \textbf{monetary} & \textbf{valor bruto} & \textbf{skus\_distintos} & \textbf{desc} & \textbf{valor neto} & \textbf{cant} & \textbf{cst\_total} & \textbf{utilidad bruta} \\
+\hline
+1 & -0.5326 & 0.2065 & 2.2330 & -0.1107 & 1.2903 & -1.4989 & -0.2866 & 5.1440 & 2.6102 & 1.4096 \\
+2 & -0.1523 & -0.1246 & 0.5992 & -0.2021 & 0.0737 & -1.4989 & -0.2867 & 2.1667 & 0.7386 & 0.3098 \\
+3 & -0.8754 & 0.6183 & 1.5109 & 0.0265 & 2.0663 & -1.4989 & -0.2866 & 5.8688 & 1.5441 & 1.3514 \\
+4 & -0.8379 & 0.3381 & 0.8070 & -0.0062 & 1.2483 & -1.4989 & -0.2866 & 1.1350 & 0.9328 & 0.5282 \\
+5 & -0.4415 & -0.2095 & 2.2285 & -0.2751 & -0.2199 & -1.4989 & -0.2867 & 3.2365 & 2.6062 & 1.4046 \\
+6 & 1.0209 & -0.1628 & 1.3656 & -0.2249 & -0.1989 & -1.4989 & -0.2867 & 0.6682 & 1.3816 & 1.2465 \\
+\hline
+\end{tabular}
+}
+\end{table}
+
+\subsection{Análisis de PCA para la reducción de dimensionalidad}
+
+El Análisis de Componentes Principales (PCA) es una técnica estadística que permite reducir la dimensionalidad de un conjunto de datos mediante la transformación de múltiples variables correlacionadas en un número menor de componentes principales que concentran la mayor parte de la variabilidad original. Esta reducción facilita la simplificación del modelo, mejora la eficiencia computacional y ayuda a mitigar problemas como la multicolinealidad. En este caso, se aplicará PCA con el objetivo de optimizar el conjunto de variables predictoras y garantizar un modelo más robusto, siguiendo la justificación y las recomendaciones detalladas en la sección \ref{sec:PCA}. La formulación matemática del PCA, incluyendo la varianza acumulada, se encuentra en la misma sección.
+
+\subsubsection{Gráfico de sedimentación}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Sedimentación.png}
+\caption{\label{figScree}Gráfico de sedimentación.}
+\end{figure}
+
+De acuerdo con la figura \ref{figScree}, se puede concluir que el \textit{Primer componente (PC1)} explica 52,1\% de la variabilidad total. Es el componente más importante y concentra más de la mitad de la información del conjunto de datos. Por su lado, el \textit{Segundo componente (PC2)} explica el 25,8\% adicional y junto con PC1, acumula aproximadamente 78\% de la varianza total, lo que indica que dos componentes capturan la mayor parte de la información.
+
+La curva muestra un “codo” claro después del segundo componente, lo que sugiere que agregar más componentes aporta poca información adicional (los componentes 3 en adelante explican, en conjunto, el 22\% restante de la variabilidad total).
+
+Según el gráfico de sedimentación, las dos primeras dimensiones explican aproximadamente el 78\% de la variabilidad total. Por ello, el análisis se centrará en estas dos componentes principales.
+
+\subsubsection{Contribución de variables a PC1}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Contri_Dim1.png}
+\caption{\label{figContriDim1}Contribución PC1.}
+\end{figure}
+
+La figura \ref{figContriDim1} revela que las variables con mayor contribución son: \textit{Frequency, Utilidad Bruta, Valor Bruto, Skus Distintos, Monetary, Valor Neto} (todas por encima del umbral del 10\%).
+
+PC1 parece estar asociada principalmente con volumen de transacciones y valor económico, ya que incluye frecuencia de compra, utilidad, valor bruto y neto, y gasto monetario. Puede interpretarse como un eje de “comportamiento económico” del cliente.
+
+\subsubsection{Contribución de variables a PC2}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Contri_Dim2.png}
+\caption{\label{figContriDim2}Contribución PC2.}
+\end{figure}
+Según la figura \ref{figContriDim2}, se puede apreciar que las variables con mayor contribución son: \textit{Costo, Descuentos, Monetary, Cantidad, Valor Neto} (todas por encima del 10\%). Clientes con alta puntuación en esta dimensión tienden a tener alto costo total, aprovechar descuentos, y realizar compras con mayor cantidad y valor neto. PC2 diferencia clientes por nivel de gasto total y comportamiento frente a descuentos.
+
+\subsubsection{Círculo de correlación (nube de variables)}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Variables PCA.png}
+\caption{\label{figPCAvars}Nube de variables (círculo de correlación).}
+\end{figure}
+
+A partir del análisis biplot de variables en PCA, representado en la figura \ref{figPCAvars}, se observa que:
+
+\begin{itemize}
+    \item Las variables \textit{Costo, Monetary, Cantidad y Utilidad Bruta} apuntan en la misma dirección (abajo a la izquierda), lo que indica una alta correlación entre ellas y, por tanto, aportan información similar. Para evitar redundancia, se puede conservar solo una variable representativa —aquella asociada a una flecha más larga— como \textit{Monetary o Costo}. Tal como se concluyó en el análisis bivariado, la opción más adecuada sería mantener \textit{Monetary}.
+    \item Las variables \textit{Valor Neto, Valor  Bruto y Frequency} presentan una correlación significativa (flechas apuntando en misma dirección, muy cercanas entre sí). En este caso, se conservarán \textit{Frequency} y \textit{Valor Neto}. La primera representa una medida directa del comportamiento del cliente en términos de recurrencia de compra, lo cual es fundamental para evaluar patrones de lealtad. Por su parte, Valor Neto refleja el monto efectivamente pagado tras la aplicación de descuentos, ofreciendo una medida más precisa del valor económico real de cada transacción. En conjunto, estas dos variables capturan tanto la intensidad de compra como el aporte monetario real, evitando duplicidad y manteniendo la relevancia analítica.
+    \item Las variables \textit{Descuentos y Recency} son poco relacionadas con las demás (flechas más aisladas), por lo que aportan información única al modelo y se conservarán.
+\end{itemize}
+
+Teniendo en cuenta los puntos mencionados anteriormente, validamos que las conclusiones a las que se llegaron en la tabla de selección de variables (\ref{fidepuración}) presentan coherencia con los resultados arrojados por el análisis de componentes (PCA) para la reducción de la dimensionalidad.
+
+\subsection{Análisis de Conglomerados mediante K-Means}
+
+Para el análisis se utilizan las variables que fueron seleccionadas y decantadas previamente, con base en el análisis de correlación y PCA (variables cuantitativas). Es decir, se trabaja sobre el subconjunto:
+$$
+X_i = (\text{Monetary}_i^{(\log)}, \text{Frequency}_i^{(\log)}, \text{Recency\_Days}_i^{(\log)}, \text{Descuentos}_i, \text{Cantidad}_i^{(\log)}),
+$$
+previamente estandarizado. Este procedimiento se alinea con la metodología de segmentación exploratoria descrita en la sección \ref{sec:metodologia}.
+
+\begin{table}[H]
+\centering
+\caption{Variables seleccionadas}
+\begin{tabular}{p{7cm} p{7cm}}
+\hline
+\textbf{Variables Cuantitativas} & \textbf{Variables Cualitativas} \\
+\hline
+Monetary, Frequency, Recency, Descuentos, Cantidad & Tipo, Departamento, Categoría, Mes, Tipo Empresa, Condición\\
+\hline
+\end{tabular}
+\end{table}
+
+El objetivo específico de esta etapa es identificar grupos de clientes con patrones similares de comportamiento de compra, que luego puedan utilizarse tanto para análisis descriptivo como para alimentar los modelos de SoW (por ejemplo, usando el cluster como variable categórica en \(\mathbf{V}\) o construyendo modelos separados por segmento).
+\newpage
+\subsubsection{Método del Codo}
+
+Una vez realizada la transformación logarítmica y el escalado de las variables cuantitativas, aplicamos el Método del Codo para determinar el número óptimo de clusters, siguiendo la metodología que se encuentra en la sección \ref{sec:codo}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Método del Codo.png}
+\caption{\label{figElbow}Método del Codo - Número de Clusters.}
+\end{figure}
+
+A partir de la figura \ref{figElbow}, se observa que al aumentar el número de clusters, el WSS disminuye, pero la reducción es más pronunciada entre 1 y 3 clusters. Después de 3 clusters, la mejora se vuelve marginal (la curva se aplana).El “codo” se observa aproximadamente en \(k = 3\), sugiriendo que 3 clusters es el punto donde se logra un buen balance entre simplicidad y reducción de error.
+
+\subsubsection{Método de Silhouette}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Método de Silhoutte.png}
+\caption{\label{figSilhouette}Método del Silhouette - Número de Clusters.}
+\end{figure}
+
+La figura \ref{figSilhouette} revela que:
+
+\begin{itemize}
+\item El índice silhouette es más alto entre \(k = 2\) y \(k = 4\), alrededor de 0,46–0,47, lo que indica buena cohesión y separación moderada. 
+\item A partir de \(k = 5\), el índice cae drásticamente (\(\approx 0,35\)) y sigue bajando hasta 0,32–0,33 en \(k \ge 8\).
+\item El número óptimo de clusters según este método está entre 2 y 4, siendo \(k = 2\) o \(k = 3\) los más recomendables (máximo índice silhouette). Finalmente se opta por \(k = 4\) como compromiso entre simplicidad, calidad de clustering y riqueza interpretativa de los segmentos.
+\end{itemize}
+
+Teniendo en cuenta los gráficos analizados, podemos concluir que el número óptimo de clusters es 4, balanceando simplicidad y cohesión, y permitiendo una segmentación con suficiente granularidad para aplicaciones comerciales.
+
+\newpage
+\subsubsection{Aplicación de K-Means}
+
+A continuación se muestran las medianas estandarizadas de las variables por cada cluster (después de aplicar log y escalamiento). Recordemos que, tras la estandarización, los valores representan \emph{z-scores} (desviaciones respecto a la media) que se interpretan de la siguiente manera:
+
+\begin{itemize}
+    \item Si un cluster tiene un valor menor que la media, el z-score será negativo.
+    \item Si un cluster tiene un valor mayor que la media, el z-score será positivo.
+\end{itemize}
+
+\begin{table}[h!]
+\centering
+\caption{Medianas estandarizadas por cluster}
+\begin{tabular}{c c c c c c}
+\hline
+\textbf{Cluster} & \textbf{Monetary} & \textbf{Frequency} & \textbf{Recency Days} & \textbf{Descuentos} & \textbf{Cantidad} \\
+\hline
+1 & 0.8554 & 1.4702 & -1.3488 & 0.8565 & 0.6761 \\
+2 & -0.4298 & -0.7271 & 0.5412 & 0.2608 & -0.5147 \\
+3 & -1.1785 & -0.7271 & 0.6728 & -2.2254 & -0.0899 \\
+4 & 2.1574 & 1.2185 & -0.4173 & -2.2254 & 2.3014 \\
+\hline
+\label{figclust}
+\end{tabular}
+\end{table}
+
+
+Por ejemplo, según la tabla \ref{figclust},  el valor de 2,15 para la variable Monetary en el Cluster 4, indica que ese grupo gasta mucho más que el promedio (2,15 desviaciones estándar por encima de la media); en contraste, -1,17 en el Cluster 3, significa que gasta mucho menos.
+
+\textbf{Cluster Plot}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Cluster Plot.png}
+\caption{\label{figClusterPlot}Cluster Plot.}
+\end{figure}
+
+De acuerdo con lo evidenciado en la figura \ref{figClusterPlot}; la separación clara indica que las variables elegidas (Monetary, Frequency, Recency, Descuentos, Cantidad) son efectivas para segmentar, así como el número de clusters seleccionados con base en el método del codo y de silhouette. De este modo y considerando tanto las medianas estandarizadas como el cluster plot, 
+
+\textbf{Cluster 1 (Rosado):}
+\begin{itemize}
+\item \textbf{Perfil:} Clientes activos, frecuentes y valiosos.
+\item Presentan monetary y frequency por encima de la media (\(z > 0\)).
+\item Recency negativa indica que compraron hace relativamente poco (baja recencia \(\Rightarrow\) más activos).
+\item Compras con descuentos moderados y cantidad alta.
+\item Grupo estable, podría ser objetivo para programas de fidelización para evitar que migren a clusters de menor valor (Cluster 2 o 3).
+\end{itemize}
+
+\textbf{Cluster 2 (Celeste):}
+\begin{itemize}
+\item \textbf{Perfil:} Clientes inactivos, de bajo valor.
+\item Bajo gasto y baja frecuencia (\(z < 0\)).
+\item Mayor recency (valores positivos), lo que indica que llevan más tiempo sin comprar.
+\item Descuentos y cantidad por debajo o alrededor de la media.
+\item Es el grupo con mayor densidad de clientes, lo que implica impacto en ventas si se perdieran o no se reactivan. Requiere estrategias específicas de re-enganche.
+\end{itemize}
+
+\textbf{Cluster 3 (Verde):}
+\begin{itemize}
+\item \textbf{Perfil:} Clientes prácticamente perdidos.
+\item Muy bajo gasto y frecuencia (\(z\) fuertemente negativos).
+\item Recency alta (valores positivos), clientes muy antiguos.
+\item Descuentos extremadamente bajos o nulos (\(z \ll 0\)).
+\item Cantidad cercana pero algo inferior a la media.
+\item Grupo reducido, cercano al Cluster 2, pero con características aún más críticas. Requiere estrategias de reactivación intensivas o, en algunos casos, podría considerarse “cartera casi perdida”.
+\end{itemize}
+
+\textbf{Cluster 4 (Naranja):}
+\begin{itemize}
+\item \textbf{Perfil:} Clientes premium, muy valiosos, no sensibles a descuentos.
+\item Altísimo gasto y frecuencia (\(z > 2\)).
+\item Recency relativamente baja (valores negativos), lo que sugiere compras recientes.
+\item Sin descuentos (z fuertemente negativo en desc), lo que indica baja sensibilidad aparente al precio.
+\item Compran mucho volumen (cantidad muy por encima de la media).
+\item De acuerdo con el Cluster Plot, es el grupo más pequeño, conformado por los clientes del principio de Pareto (80/20), quienes, a pesar de representar una proporción reducida, generan el mayor valor en ventas. Se encuentran totalmente separados de los demás clusters.
+\item \textbf{Estrategia:} personalización, servicio preferencial y retención prioritaria. Cualquier caída de este segmento impacta fuertemente el nivel agregado de ventas y SoW.
+\end{itemize}
+\newpage
+
+\subsection{Segmentación por K-medoids + Gower (mixtas)}
+
+La segmentación K-medoids + distancia de Gower es una técnica para agrupar datos mixtos (variables numéricas y categóricas) en clusters. A diferencia de k-means, que usa centroides (medias), PAM (Partitioning Around Medoids) utiliza \emph{medoids}, que son observaciones reales del conjunto de datos. Esto la hace más robusta frente a outliers y aplicable sobre cualquier matriz de distancias, no solo Euclídeas. La definición de la distancia de Gower se encuentra en la sección \ref{sec:Kmeans}
+ 
+\subsubsection{Método de Silhouette para K-medoids + Gower}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Siluet.png}
+\caption{\label{figSilhouetteGower}Método del Silhouette (Gower + PAM).}
+\end{figure}
+
+El valor promedio del índice silhouette se evalúa para diferentes valores de \(k\), donde la figura \ref{figSilhouetteGower} revela que \(k = 4\) tiene el valor más alto (0,39–0,40), lo que indica que 4 clusters es la mejor opción entre los probados en el espacio de variables mixtas. 
+
+\subsubsection{Silhouette Plot con k = 4}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/Siluett con 4.png}
+\caption{\label{figSilhouette4}Silhouette Plot con k=4.}
+\end{figure}
+
+Con base en la figura \ref{figSilhouette4}, el análisis del coeficiente silhouette para \textit{k=4}  indica que la estructura de agrupamiento obtenida es moderadamente consistente, aunque presenta heterogeneidad importante entre los clústeres. El valor silhouette promedio global es 0.39, lo cual sugiere un nivel de cohesión y separación aceptable, pero inferior al umbral típico de 0.5–0.6 asociado con clústeres bien definidos y claramente separados. Esto implica que, si bien la partición en cuatro grupos refleja cierta estructura en los datos, no todos los clústeres presentan una calidad homogénea, y algunos muestran indicios de solapamiento o poca cohesión interna.
+
+En particular, los clústeres 1 y 2 exhiben silhouette medios de 0.37 y 0.34, respectivamente, lo que los sitúa en un rango razonable a apenas aceptable. Esto sugiere que estos grupos tienen cierta cohesión interna, pero sus fronteras con otros clústeres no son completamente nítidas. El clúster 4, con un silhouette de 0.50, destaca como el grupo mejor definido, mostrando una separación clara respecto a los demás y una estructura interna sólida. En contraste, el clúster 3 presenta un silhouette promedio de 0.20, lo que señala una estructura muy débil, con un nivel considerable de solapamiento con otros clústeres. Este valor tan bajo sugiere que los elementos asignados al clúster 3 podrían no compartir características suficientemente distintivas, o que la partición actual no está capturando adecuadamente su patrón real dentro del espacio de variables.
+
+En conjunto, estos resultados indican que, si bien \textit{k=4} revela cierta diferenciación significativa entre grupos, la calidad de la segmentación no es uniforme y debería analizarse con mayor profundidad, especialmente el clúster 3, que podría requerir reconsideración, subdivisión o reasignación dependiendo del contexto del estudio. La evidencia sugiere que existe estructura en los datos, pero la separación óptima podría requerir ajustes bien sea explorando otros valores de kkk, revisando las variables utilizadas o aplicando métodos complementarios para validar la estabilidad de los clústeres.
+
+\subsubsection{PAM con Distancia Gower}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{chapters/PAM con Gower.png}
+\caption{\label{figPAMGower}PAM con Distancia Gower.}
+\end{figure}
+
+La figura \ref{figPAMGower} revela que: 
+\begin{itemize}
+\item El Cluster 4 parece el más cohesivo (puntos muy juntos), alineado con el promedio silhouette más alto.
+\item El Cluster 3 es el más disperso, lo que coincide con el silhouette bajo (0,20 en el gráfico anterior). En este caso, podría ser útil fragmentar el grupo o reconsiderar la asignación de algunas observaciones.
+\item Los Clusters 1 y 2 son pequeños y relativamente bien separados, lo que sugiere segmentos de nicho con combinaciones particulares de variables categóricas (por ejemplo, tipo de empresa, zona, categoría de producto).
+\end{itemize}
+
+En el contexto del modelo de SoW, estos clusters mixtos sirven para enriquecer la matriz \(\mathbf{V}\) con información segmentada que combina atributos transaccionales y de perfil, y pueden utilizarse para entrenar modelos específicos por segmento o para introducir efectos de interacción capturados de forma más simple a través de dummies de cluster.
+
