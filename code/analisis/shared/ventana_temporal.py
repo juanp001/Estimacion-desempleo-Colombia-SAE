@@ -47,6 +47,10 @@ from preprocesamiento.shared.ventana import (  # noqa: F401
     etiqueta_ventana,
     td_dane_ventana,
 )
+from comun.estilo_figuras import ANCHO_FIGURA, GRIS, GRIS_OSCURO, PALETA
+
+# Nombre de cada ventana en las figuras (D-10: «Año», no el código ANIO de las tablas).
+ETIQUETA_VENTANA = {"MES": "Mes", "TRIMESTRE": "Trimestre", "ANIO": "Año"}
 
 # Edad mínima de la población en edad de trabajar (igual que estimacion_directa.py).
 EDAD_MINIMA = 15
@@ -422,12 +426,12 @@ def figura_ventanas(detalle: pd.DataFrame, orden_por: str = "TRIMESTRE"):
     )
     posicion = {nombre: i for i, nombre in enumerate(orden)}
     desfase = np.linspace(-0.25, 0.25, len(ventanas))
-    colores = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    colores = PALETA
 
     fig, (ax_td, ax_cv) = plt.subplots(
         1,
         2,
-        figsize=(13, 0.38 * len(orden) + 1.5),
+        figsize=(ANCHO_FIGURA, 0.3 * len(orden) + 1.6),
         sharey=True,
         gridspec_kw={"width_ratios": [3, 2]},
     )
@@ -445,7 +449,7 @@ def figura_ventanas(detalle: pd.DataFrame, orden_por: str = "TRIMESTRE"):
             ms=4,
             capsize=2,
             color=colores[k],
-            label=f"{ventana} ({g['PERIODO'].iloc[0]})",
+            label=f"{ETIQUETA_VENTANA.get(ventana, ventana)} ({g['PERIODO'].iloc[0]})",
         )
         con_dane = g["TD_DANE"].notna()
         ax_td.scatter(
@@ -453,19 +457,29 @@ def figura_ventanas(detalle: pd.DataFrame, orden_por: str = "TRIMESTRE"):
             y[con_dane],
             marker="x",
             s=22,
-            color="black",
+            color=GRIS_OSCURO,
             zorder=3,
         )
         ax_cv.scatter(g["CV_PORCENTAJE"], y, s=18, color=colores[k])
-    ax_td.scatter([], [], marker="x", color="black", label="DANE")
+    ax_td.scatter(
+        [], [], marker="x", color=GRIS_OSCURO, label="Cifra publicada del DANE"
+    )
     ax_td.set_yticks(range(len(orden)))
     ax_td.set_yticklabels(orden)
     ax_td.set_xlabel("Tasa de desempleo (%) e IC 95 %")
-    ax_td.legend(loc="lower right", fontsize=8)
+    ax_td.grid(axis="y", visible=False)
+    ax_cv.grid(axis="y", visible=False)
+    # D-12: la leyenda va debajo de los paneles, con letra de 9 pt, para que no tape puntos.
+    fig.legend(
+        *ax_td.get_legend_handles_labels(),
+        loc="lower center",
+        ncol=2,
+        bbox_to_anchor=(0.5, -0.01),
+    )
     for umbral in (CV_CONFIABLE, CV_ACEPTABLE):
-        ax_cv.axvline(umbral, color="grey", linestyle="--", linewidth=1)
+        ax_cv.axvline(umbral, color=GRIS, linestyle="--", linewidth=1)
     ax_cv.set_xlabel("Coeficiente de variación (%)")
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
     return fig
 
 

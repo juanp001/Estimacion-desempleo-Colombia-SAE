@@ -43,6 +43,15 @@ from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools import add_constant
 
+from analisis.shared.catalogo_literatura import nombre_legible
+from comun.estilo_figuras import (
+    ANCHO_FIGURA,
+    AZUL,
+    GRIS,
+    NARANJA,
+    etiquetar_puntos,
+)
+
 
 def ic_fisher_pearson(x: np.ndarray, y: np.ndarray, alfa: float = 0.05) -> tuple:
     """Intervalo de confianza para el coeficiente de Pearson por transformación de Fisher.
@@ -574,29 +583,29 @@ def figura_residuos_parciales(
     residuo = y - X @ beta
 
     fig, ejes = plt.subplots(
-        1, len(columnas), figsize=(4.2 * len(columnas), 3.8), squeeze=False
+        1,
+        len(columnas),
+        figsize=(min(ANCHO_FIGURA, 3.5 * len(columnas) + 0.5), 3.4),
+        squeeze=False,
     )
     for j, (col, ax) in enumerate(zip(columnas, ejes[0])):
         x = Xc[:, j]
         parcial = residuo + beta[j + 1] * x
-        ax.scatter(x, parcial, s=30, color="steelblue", edgecolors="white", zorder=3)
+        ax.scatter(x, parcial, s=30, color=AZUL, edgecolors="white", zorder=3)
         orden = np.argsort(x)
         ax.plot(
             x[orden],
             beta[j + 1] * x[orden] + (parcial - beta[j + 1] * x).mean(),
-            color="dimgray",
+            color=GRIS,
             linestyle="--",
             linewidth=1.2,
             label="Recta del modelo",
         )
         suave = lowess(parcial, x, frac=0.8)
-        ax.plot(
-            suave[:, 0], suave[:, 1], color="firebrick", linewidth=1.4, label="Lowess"
-        )
-        ax.set_xlabel(alias.get(col, col), fontsize=9)
-        ax.set_ylabel("Residuo parcial", fontsize=9)
-        ax.tick_params(labelsize=8)
-    ejes[0][0].legend(fontsize=8, loc="best")
+        ax.plot(suave[:, 0], suave[:, 1], color=NARANJA, linewidth=1.4, label="Lowess")
+        ax.set_xlabel(nombre_legible(alias.get(col, col)))
+        ax.set_ylabel("Residuo parcial")
+    ejes[0][0].legend(loc="best")
     plt.tight_layout()
     return fig
 
@@ -667,7 +676,7 @@ def figura_robustez(
     unido = influencia.merge(estabilidad, on="Codigo", suffixes=("", "_loo"))
     umbral_cook = float(unido["Umbral"].iloc[0])
 
-    fig, ax = plt.subplots(figsize=(8.5, 6))
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 5.2))
     descartadas = (unido["Cook_max"] > umbral_cook) & (
         (unido["Delta_max_abs"] > umbral_delta) | (unido["Invierte_signo"] != "—")
     )
@@ -675,8 +684,8 @@ def figura_robustez(
     ax.scatter(
         unido.loc[~descartadas, "Cook_max"],
         unido.loc[~descartadas, "Delta_max_abs"],
-        s=70,
-        color="steelblue",
+        s=60,
+        color=AZUL,
         edgecolors="white",
         zorder=3,
         label="Estable",
@@ -684,40 +693,37 @@ def figura_robustez(
     ax.scatter(
         unido.loc[descartadas, "Cook_max"],
         unido.loc[descartadas, "Delta_max_abs"],
-        s=70,
-        color="firebrick",
+        s=60,
+        color=NARANJA,
         edgecolors="white",
         zorder=3,
         label="Depende de un dominio",
     )
 
-    for _, fila in unido.iterrows():
-        ax.annotate(
-            fila["Alias"],
-            (fila["Cook_max"], fila["Delta_max_abs"]),
-            textcoords="offset points",
-            xytext=(5, 4),
-            fontsize=7,
-            color="dimgray",
-        )
-
     ax.axvline(
         umbral_cook,
-        color="dimgray",
+        color=GRIS,
         linestyle="--",
         linewidth=1.2,
         label=f"Cook = 4/n = {umbral_cook:.3f}",
     )
     ax.axhline(
         umbral_delta,
-        color="dimgray",
+        color=GRIS,
         linestyle=":",
         linewidth=1.2,
         label=f"Cambio en la correlación = {umbral_delta}",
     )
-    ax.set_xlabel("Distancia de Cook máxima", fontsize=10)
-    ax.set_ylabel("Cambio máximo en la correlación al excluir un dominio", fontsize=10)
-    ax.legend(fontsize=9, loc="best")
+    ax.set_xlabel("Distancia de Cook máxima")
+    ax.set_ylabel("Cambio máximo en la correlación al excluir un dominio")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2)
+    # D-10 y D-12: nombre del documento y etiquetas que no se superponen.
+    etiquetar_puntos(
+        ax,
+        unido["Cook_max"].to_numpy(),
+        unido["Delta_max_abs"].to_numpy(),
+        [nombre_legible(a) for a in unido["Alias"]],
+    )
     plt.tight_layout()
     return fig
 

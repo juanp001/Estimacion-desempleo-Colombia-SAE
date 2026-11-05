@@ -39,6 +39,8 @@ dominio mueve directamente las predicciones de los municipios.
 import numpy as np
 import pandas as pd
 
+from analisis.shared.catalogo_literatura import nombre_legible
+from comun.estilo_figuras import ANCHO_FIGURA, AZUL, GRIS, NARANJA
 from shared.consolidacion import clasificar_confiabilidad
 from shared.modelo_area_pequena import prediccion_sintetica
 
@@ -720,34 +722,57 @@ def interpretar_influencia(
     return "\n".join(lineas) + "\n\n" + ADVERTENCIA_POST_SELECCION
 
 
-def figura_influencia(detalle_coef: pd.DataFrame):
-    """Mapa de calor del cambio estandarizado Δβ/EE por dominio excluido y covariable.
+def figura_influencia(detalle_coef: pd.DataFrame, umbral_ee: float = 1.0):
+    """Cambio estandarizado Δβ/EE de cada coeficiente al retirar cada dominio, en barras.
+
+    Un panel por covariable (sin el intercepto), con un dominio por barra ordenado por la
+    magnitud del cambio; las barras que superan ±`umbral_ee` errores estándar se pintan en
+    naranja. Con una sola covariable un mapa de calor de una columna se leía mal, de ahí las
+    barras (D-12).
 
     Args:
         detalle_coef (pd.DataFrame): Salida de `dejar_uno_fuera_coeficientes`.
+        umbral_ee (float): Cambio, en errores estándar, que se resalta
+            (`LOAO_UMBRAL_CAMBIO_EE` en `config.py`).
 
     Returns:
         matplotlib.figure.Figure | None: Figura (sin título ni guardado, como las del modelo)
             o None si no hay covariables.
 
     Example:
-        >>> fig = figura_influencia(detalle_coef); display(fig); plt.close(fig)  # doctest: +SKIP
+        >>> filas = [{"Parametro": "X", "Dominio_excluido": d, "Cambio_en_EE": v}
+        ...          for d, v in [("A", 0.2), ("B", -1.4), ("C", 0.6)]]
+        >>> fig = figura_influencia(pd.DataFrame(filas))
+        >>> len(fig.axes)
+        1
     """
     import matplotlib.pyplot as plt
 
     d = detalle_coef[detalle_coef["Parametro"] != "Intercepto"]
     if d.empty:
         return None
-    m = d.pivot(index="Dominio_excluido", columns="Parametro", values="Cambio_en_EE")
-    m = m.loc[m.abs().max(axis=1).sort_values(ascending=False).index]
-    lim = max(float(np.nanmax(np.abs(m.values))), 1e-9)
-    fig, ax = plt.subplots(figsize=(1.6 * m.shape[1] + 3, 0.28 * len(m) + 1.5))
-    im = ax.imshow(m.values, cmap="RdBu_r", vmin=-lim, vmax=lim, aspect="auto")
-    ax.set_xticks(range(m.shape[1]), m.columns, rotation=30, ha="right")
-    ax.set_yticks(range(len(m)), m.index)
-    for r in range(m.shape[0]):
-        for c in range(m.shape[1]):
-            ax.text(c, r, f"{m.values[r, c]:.2f}", ha="center", va="center", fontsize=7)
-    fig.colorbar(im, ax=ax, label="Δβ / EE(β̂) al retirar el dominio")
+    parametros = list(dict.fromkeys(d["Parametro"]))
+    n_dominios = d["Dominio_excluido"].nunique()
+    fig, ejes = plt.subplots(
+        1,
+        len(parametros),
+        figsize=(
+            min(ANCHO_FIGURA * 1.3, 3.6 * len(parametros) + 2.6),
+            0.24 * n_dominios + 1.3,
+        ),
+        squeeze=False,
+    )
+    for ax, parametro in zip(ejes[0], parametros):
+        g = d[d["Parametro"] == parametro].copy()
+        g = g.reindex(g["Cambio_en_EE"].abs().sort_values().index)
+        colores = [NARANJA if abs(v) > umbral_ee else AZUL for v in g["Cambio_en_EE"]]
+        ax.barh(np.arange(len(g)), g["Cambio_en_EE"], color=colores, edgecolor="white")
+        for limite in (-umbral_ee, umbral_ee):
+            ax.axvline(limite, color=GRIS, linestyle="--", linewidth=1)
+        ax.axvline(0, color=GRIS, linewidth=0.8)
+        ax.set_yticks(np.arange(len(g)))
+        ax.set_yticklabels(g["Dominio_excluido"])
+        ax.set_xlabel(f"Δβ / EE(β̂) al retirar el dominio\n{nombre_legible(parametro)}")
+        ax.grid(axis="y", visible=False)
     fig.tight_layout()
     return fig

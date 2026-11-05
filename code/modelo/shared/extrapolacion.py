@@ -44,6 +44,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from analisis.shared.catalogo_literatura import nombre_legible
+from comun.estilo_figuras import ANCHO_FIGURA, AZUL, AZUL_CLARO, GRIS, NARANJA
+
 ESTADO_DENTRO = "DENTRO_DEL_RANGO"
 ESTADO_FUERA = "FUERA_DEL_RANGO"
 ESTADO_COMBINACION = "COMBINACION_ATIPICA"
@@ -355,42 +358,40 @@ def figura_rangos(X_muestra, X_nuevos, covars: list):
         return None
     Zm, Zn = _covariables(X_muestra), _covariables(X_nuevos)
     fig, axes = plt.subplots(
-        len(covars), 1, figsize=(9, 1.9 * len(covars) + 0.4), squeeze=False
+        len(covars), 1, figsize=(ANCHO_FIGURA, 1.9 * len(covars) + 0.6), squeeze=False
     )
     rng = np.random.default_rng(0)
     for j, (ax, covar) in enumerate(zip(axes[:, 0], covars)):
         lo, hi = Zm[:, j].min(), Zm[:, j].max()
         fuera = (Zn[:, j] < lo) | (Zn[:, j] > hi)
-        ax.axvspan(lo, hi, color="tab:green", alpha=0.15, label="Rango de los dominios")
+        ax.axvspan(lo, hi, color=AZUL_CLARO, alpha=0.35, label="Rango de los dominios")
         ax.scatter(
             Zm[:, j],
             1 + rng.uniform(-0.12, 0.12, len(Zm)),
-            color="tab:green",
+            color=AZUL,
             s=22,
             label="Dominios (con encuesta)",
         )
         ax.scatter(
             Zn[~fuera, j],
             rng.uniform(-0.12, 0.12, (~fuera).sum()),
-            color="gray",
+            color=GRIS,
             s=18,
             label="Municipios dentro del rango",
         )
         ax.scatter(
             Zn[fuera, j],
             rng.uniform(-0.12, 0.12, fuera.sum()),
-            color="tab:red",
+            color=NARANJA,
             s=18,
             label="Municipios fuera del rango",
         )
         ax.set_yticks([0, 1])
         ax.set_yticklabels(["Municipios", "Dominios"])
         ax.set_ylim(-0.5, 1.5)
-        ax.set_xlabel(covar)
-        ax.grid(axis="x", alpha=0.3)
-    axes[0, 0].legend(
-        loc="upper center", bbox_to_anchor=(0.5, 1.45), ncol=4, fontsize=8
-    )
+        ax.set_xlabel(nombre_legible(covar))
+        ax.grid(axis="y", visible=False)
+    axes[0, 0].legend(loc="lower center", bbox_to_anchor=(0.5, 1.02), ncol=2)
     fig.tight_layout()
     return fig
 
@@ -414,23 +415,20 @@ def figura_sensibilidad(df: pd.DataFrame, max_directa: float = None):
     if sub.empty:
         return None
     y = np.arange(len(sub))
-    fig, ax = plt.subplots(figsize=(9, 0.22 * len(sub) + 1.4))
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 0.24 * len(sub) + 1.4))
     ax.hlines(
         y,
         sub["PRED_MIN_SIN_DOMINIO"],
         sub["PRED_MAX_SIN_DOMINIO"],
-        color="tab:blue",
+        color=AZUL_CLARO,
         lw=3,
-        alpha=0.5,
         label="Mín–máx al quitar un dominio",
     )
-    ax.scatter(
-        sub["PRED_SINTETICO"], y, color="black", s=18, label="Predicción publicada"
-    )
+    ax.scatter(sub["PRED_SINTETICO"], y, color=AZUL, s=18, label="Estimación publicada")
     ax.scatter(
         sub["PRED_ACOTADA"],
         y,
-        color="tab:green",
+        color=NARANJA,
         marker="D",
         s=18,
         label="Covariables acotadas al rango",
@@ -438,16 +436,16 @@ def figura_sensibilidad(df: pd.DataFrame, max_directa: float = None):
     if max_directa is not None:
         ax.axvline(
             max_directa,
-            color="gray",
+            color=GRIS,
             ls="--",
             lw=1,
             label="Directa más alta (dominios)",
         )
     ax.set_yticks(y)
-    ax.set_yticklabels(sub["MUNICIPIO"], fontsize=7)
+    ax.set_yticklabels(sub["MUNICIPIO"])
     ax.set_xlabel("Tasa de desempleo (%)")
-    ax.grid(axis="x", alpha=0.3)
-    ax.legend(loc="lower right", fontsize=8)
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="lower right")
     fig.tight_layout()
     return fig
 

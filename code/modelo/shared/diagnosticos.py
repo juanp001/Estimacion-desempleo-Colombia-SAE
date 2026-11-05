@@ -6,6 +6,8 @@
   ajusta y evalúa solo como escenario de sensibilidad (`shared/sensibilidad_varianza.py`).
 - **Ganancia de precisión.** CV directo frente a CV del EBLUP por dominio, ordenados por D_d,
   como en las figuras de RMSE directo vs EBLUP del libro (Fig. 17.2, Tabla 19.5).
+- **Supuestos (D-20).** Además del histograma, el gráfico cuantil-cuantil normal de los
+  residuos estandarizados y los residuos frente a los valores ajustados x'β̂ del benchmark.
 - **Avisos**: encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y extrapolación
   de la predicción sintética.
 
@@ -17,13 +19,21 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from scipy import stats
 
+from comun.estilo_figuras import (
+    ANCHO_FIGURA,
+    AZUL,
+    GRIS,
+    GRIS_CLARO,
+    NARANJA,
+    etiquetar_puntos,
+)
 from shared.config import CV_ACEPTABLE, CV_CONFIABLE
 from shared.extrapolacion import ESTADO_DENTRO, estado_extrapolacion
 from shared.modelo_area_pequena import ModeloAreaPequena
 
 
 def _annotate(ax, xs: np.ndarray, ys: np.ndarray, labels: np.ndarray) -> None:
-    """Anota cada punto de un scatter con su etiqueta de dominio.
+    """Anota cada punto de un scatter con su etiqueta de dominio, sin superponer textos.
 
     Args:
         ax (matplotlib.axes.Axes): Ejes donde dibujar.
@@ -35,28 +45,22 @@ def _annotate(ax, xs: np.ndarray, ys: np.ndarray, labels: np.ndarray) -> None:
         None
 
     Uso:
-        Auxiliar de `_graficar_efecto_suavizador`; se llama con los ejes de un scatter ya dibujado.
+        Auxiliar de `_graficar_efecto_suavizador` y de los gráficos de supuestos; se llama con
+        los ejes de un scatter ya dibujado (D-12: `etiquetar_puntos` evita las etiquetas
+        encimadas).
     """
-    for xi, yi, lab in zip(xs, ys, labels):
-        ax.annotate(
-            lab,
-            (xi, yi),
-            textcoords="offset points",
-            xytext=(4, 3),
-            fontsize=7,
-            color="dimgray",
-        )
+    etiquetar_puntos(ax, xs, ys, labels, tamano=8)
 
 
 def _graficar_efecto_suavizador(
     ax, Y: np.ndarray, resid_fh: np.ndarray, nombres_dominio: np.ndarray
 ) -> None:
-    """Dibuja el residuo del EBLUP (Yd − EBLUP) contra la estimación directa.
+    """Dibuja el residuo del EBLUP (θ̂_d − EBLUP) contra la estimación directa θ̂_d.
 
     Args:
         ax (matplotlib.axes.Axes): Ejes donde dibujar.
         Y (np.ndarray): Estimación directa por dominio, shape (n,).
-        resid_fh (np.ndarray): Yd − EBLUP por dominio, shape (n,).
+        resid_fh (np.ndarray): θ̂_d − EBLUP por dominio, shape (n,).
         nombres_dominio (np.ndarray): Nombre de cada dominio, para anotar los puntos.
 
     Returns:
@@ -65,34 +69,33 @@ def _graficar_efecto_suavizador(
     Uso:
         Auxiliar de la figura de validación del modelo; se llama con uno de los ejes de la cuadrícula.
     """
-    ax.axhline(0, color="red", linestyle="--", linewidth=1.2, label="Referencia 0")
-    colores = ["tomato" if r > 0 else "steelblue" for r in resid_fh]
-    ax.scatter(Y, resid_fh, c=colores, edgecolors="white", s=70, alpha=0.85, zorder=3)
-    _annotate(ax, Y, resid_fh, nombres_dominio)
-    ax.set_xlabel("Estimación directa Yd  (%)", fontsize=10)
-    ax.set_ylabel("Residuo FH  (Yd − EBLUP)", fontsize=10)
+    ax.axhline(0, color=GRIS, linestyle="--", linewidth=1.2)
+    colores = [NARANJA if r > 0 else AZUL for r in resid_fh]
+    ax.scatter(Y, resid_fh, c=colores, edgecolors="white", s=60, zorder=3)
+    ax.set_xlabel(r"Estimación directa $\hat{\theta}_d$ (%)")
+    ax.set_ylabel(r"$\hat{\theta}_d$ − EBLUP (puntos porcentuales)")
     leyenda = [
         Line2D(
             [0],
             [0],
             marker="o",
             color="w",
-            markerfacecolor="tomato",
+            markerfacecolor=NARANJA,
             markersize=8,
-            label="EBLUP < Yd  (suaviza hacia abajo)",
+            label=r"EBLUP < $\hat{\theta}_d$ (contrae hacia abajo)",
         ),
         Line2D(
             [0],
             [0],
             marker="o",
             color="w",
-            markerfacecolor="steelblue",
+            markerfacecolor=AZUL,
             markersize=8,
-            label="EBLUP > Yd  (suaviza hacia arriba)",
+            label=r"EBLUP > $\hat{\theta}_d$ (contrae hacia arriba)",
         ),
     ]
-    ax.legend(handles=leyenda, fontsize=8)
-    ax.grid(True, linestyle=":", alpha=0.5)
+    ax.legend(handles=leyenda)
+    _annotate(ax, Y, resid_fh, nombres_dominio)
 
 
 def _graficar_histograma_residuos(ax, residuals: np.ndarray) -> None:
@@ -100,7 +103,7 @@ def _graficar_histograma_residuos(ax, residuals: np.ndarray) -> None:
 
     Args:
         ax (matplotlib.axes.Axes): Ejes donde dibujar.
-        residuals (np.ndarray): Residuos estandarizados (Y − x'β̂)/√(Dd+Â), shape (n,).
+        residuals (np.ndarray): Residuos estandarizados (θ̂_d − x'β̂)/√(ψ_d + σ̂²_u), shape (n,).
 
     Returns:
         None
@@ -108,30 +111,208 @@ def _graficar_histograma_residuos(ax, residuals: np.ndarray) -> None:
     Uso:
         Auxiliar de la figura de validación del modelo; se llama con uno de los ejes de la cuadrícula.
     """
-    ax.axvline(0, color="red", linestyle="--", linewidth=1.2, label="Referencia 0")
+    ax.axvline(0, color=GRIS, linestyle="--", linewidth=1.2)
     ax.hist(
         residuals,
         bins=min(15, max(5, len(residuals) // 3)),
-        color="steelblue",
+        color=AZUL,
+        alpha=0.75,
         edgecolor="white",
-        alpha=0.85,
         density=True,
-        zorder=3,
+        zorder=2,
     )
 
     xs = np.linspace(residuals.min() - 1, residuals.max() + 1, 200)
     ax.plot(
         xs,
         stats.norm.pdf(xs, 0, 1),
-        color="darkorange",
+        color=NARANJA,
         linewidth=1.8,
-        label="N(0,1) referencia",
+        label="Densidad N(0, 1)",
+        zorder=4,
     )
 
-    ax.set_xlabel("Residuo estandarizado  (Y − ŷ_sintético) / √(Di+Â)", fontsize=10)
-    ax.set_ylabel("Densidad", fontsize=10)
-    ax.legend(fontsize=9)
-    ax.grid(True, linestyle=":", alpha=0.5)
+    ax.set_xlabel(
+        r"Residuo estandarizado $(\hat{\theta}_d - x_d'\hat{\beta})"
+        r"/\sqrt{\psi_d + \hat{\sigma}^2_u}$"
+    )
+    ax.set_ylabel("Densidad")
+    ax.legend()
+
+
+def _graficar_qq(ax, residuals: np.ndarray, nombres_dominio: np.ndarray) -> None:
+    """Gráfico cuantil-cuantil normal de los residuos estandarizados (D-20).
+
+    Cada punto es un dominio: en el eje horizontal, el cuantil teórico de la N(0, 1) que le
+    corresponde por su posición; en el vertical, su residuo estandarizado. Bajo el supuesto de
+    normalidad los puntos siguen la recta y = x; la banda gris es la envolvente puntual del
+    95 % de los estadísticos de orden de una muestra normal del mismo tamaño, una guía visual
+    (no una prueba) para juzgar desvíos con solo 23 residuos. Se anotan los dominios fuera de
+    la banda.
+
+    Args:
+        ax (matplotlib.axes.Axes): Ejes donde dibujar.
+        residuals (np.ndarray): Residuos estandarizados, shape (n,).
+        nombres_dominio (np.ndarray): Nombre de cada dominio, en el orden de `residuals`.
+
+    Returns:
+        None
+
+    Uso:
+        Auxiliar de `graficar_supuestos`.
+    """
+    residuals = np.asarray(residuals, dtype=float)
+    n = len(residuals)
+    orden = np.argsort(residuals)
+    probabilidades = (np.arange(1, n + 1) - 0.375) / (n + 0.25)
+    teoricos = stats.norm.ppf(probabilidades)
+    # Envolvente del 95 % de cada estadístico de orden: cuantiles de una Beta(i, n − i + 1).
+    i = np.arange(1, n + 1)
+    banda_inf = stats.norm.ppf(stats.beta.ppf(0.025, i, n - i + 1))
+    banda_sup = stats.norm.ppf(stats.beta.ppf(0.975, i, n - i + 1))
+    ax.fill_between(
+        teoricos, banda_inf, banda_sup, color=GRIS_CLARO, label="Banda del 95 %"
+    )
+    limite = [teoricos.min() - 0.3, teoricos.max() + 0.3]
+    ax.plot(limite, limite, color=GRIS, linestyle="--", linewidth=1.2, label="y = x")
+    observados = residuals[orden]
+    fuera = (observados < banda_inf) | (observados > banda_sup)
+    ax.scatter(teoricos[~fuera], observados[~fuera], color=AZUL, s=40, zorder=3)
+    if fuera.any():
+        ax.scatter(
+            teoricos[fuera],
+            observados[fuera],
+            color=NARANJA,
+            s=40,
+            zorder=3,
+            label="Fuera de la banda",
+        )
+        _annotate(
+            ax,
+            teoricos[fuera],
+            observados[fuera],
+            np.asarray(nombres_dominio)[orden][fuera],
+        )
+    ax.set_xlabel("Cuantil teórico de la N(0, 1)")
+    ax.set_ylabel("Residuo estandarizado")
+    ax.legend(loc="upper left")
+
+
+def _graficar_residuos_ajustados(
+    ax, ajustados: np.ndarray, residuals: np.ndarray, nombres_dominio: np.ndarray
+) -> None:
+    """Residuos estandarizados frente a los valores ajustados x_d'β̂ (D-20).
+
+    Si el modelo de enlace es adecuado, los puntos se reparten alrededor de cero sin forma
+    (sin curvatura ni embudo). Las líneas en ±2 marcan los dominios con residuo grande, que se
+    anotan.
+
+    Args:
+        ax (matplotlib.axes.Axes): Ejes donde dibujar.
+        ajustados (np.ndarray): Valor ajustado x_d'β̂ (estimación sintética del dominio), en %.
+        residuals (np.ndarray): Residuos estandarizados, shape (n,).
+        nombres_dominio (np.ndarray): Nombre de cada dominio.
+
+    Returns:
+        None
+
+    Uso:
+        Auxiliar de `graficar_supuestos`.
+    """
+    ajustados = np.asarray(ajustados, dtype=float)
+    residuals = np.asarray(residuals, dtype=float)
+    ax.axhline(0, color=GRIS, linestyle="--", linewidth=1.2)
+    for limite in (-2, 2):
+        ax.axhline(limite, color=GRIS, linestyle=":", linewidth=1)
+    grandes = np.abs(residuals) > 2
+    ax.scatter(ajustados[~grandes], residuals[~grandes], color=AZUL, s=40, zorder=3)
+    if grandes.any():
+        ax.scatter(
+            ajustados[grandes],
+            residuals[grandes],
+            color=NARANJA,
+            s=40,
+            zorder=3,
+            label="|residuo| > 2",
+        )
+        _annotate(
+            ax,
+            ajustados[grandes],
+            residuals[grandes],
+            np.asarray(nombres_dominio)[grandes],
+        )
+        ax.legend(loc="upper left")
+    ax.set_xlabel(r"Valor ajustado $x_d'\hat{\beta}$ (%)")
+    ax.set_ylabel("Residuo estandarizado")
+
+
+def graficar_supuestos(modelo: ModeloAreaPequena) -> list:
+    """Gráficos de supuestos del benchmark: Q-Q normal y residuos frente a ajustados (D-20).
+
+    Con 23 residuos el histograma de siete barras casi no informa; el gráfico cuantil-cuantil
+    muestra la forma de la distribución punto por punto y el de residuos frente a ajustados
+    revela si queda estructura que el modelo de enlace no recoge. Como Shapiro-Wilk, son
+    lecturas de los residuos marginales (mezclan u_d y e_d): no demuestran normalidad.
+
+    Args:
+        modelo (ModeloAreaPequena): Modelo ya ajustado, con `residuals`, `mu_hat` y
+            `resultados` (columna `NOMBRE_DOMINIO`).
+
+    Returns:
+        list[matplotlib.figure.Figure]: [Q-Q normal, residuos frente a ajustados], sin título.
+
+    Example:
+        >>> figs = graficar_supuestos(ganador)  # doctest: +SKIP
+    """
+    nombres = modelo.resultados["NOMBRE_DOMINIO"].values
+    figuras = []
+    fig, ax = plt.subplots(figsize=(5.2, 4.6))
+    _graficar_qq(ax, modelo.residuals, nombres)
+    plt.tight_layout()
+    figuras.append(fig)
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 4.4))
+    _graficar_residuos_ajustados(ax, modelo.mu_hat, modelo.residuals, nombres)
+    plt.tight_layout()
+    figuras.append(fig)
+    return figuras
+
+
+def interpretar_supuestos(modelo: ModeloAreaPequena) -> str:
+    """Lectura cuantitativa de los gráficos de supuestos (D-20).
+
+    Args:
+        modelo (ModeloAreaPequena): Modelo ya ajustado, con `residuals` y `mu_hat`.
+
+    Returns:
+        str: Cuántos residuos quedan fuera de la banda del 95 % del Q-Q y con |residuo| > 2,
+            y la correlación de Spearman entre |residuo| y el valor ajustado (un embudo daría
+            una correlación alta).
+
+    Example:
+        >>> class _M:
+        ...     residuals = np.array([-1.2, 0.3, 0.1, 2.5, -0.4, 0.2])
+        ...     mu_hat = np.array([8.0, 9.0, 10.0, 11.0, 12.0, 13.0])
+        >>> "1 de 6" in interpretar_supuestos(_M())
+        True
+    """
+    r = np.asarray(modelo.residuals, dtype=float)
+    n = len(r)
+    i = np.arange(1, n + 1)
+    banda_inf = stats.norm.ppf(stats.beta.ppf(0.025, i, n - i + 1))
+    banda_sup = stats.norm.ppf(stats.beta.ppf(0.975, i, n - i + 1))
+    ordenados = np.sort(r)
+    fuera = int(((ordenados < banda_inf) | (ordenados > banda_sup)).sum())
+    grandes = int((np.abs(r) > 2).sum())
+    rho, p = stats.spearmanr(np.abs(r), modelo.mu_hat)
+    return (
+        "INTERPRETACIÓN (supuestos, D-20):\n"
+        f"  Q-Q normal: {fuera} de {n} residuos fuera de la banda del 95 %.\n"
+        f"  Residuos frente a ajustados: {grandes} de {n} con |residuo| > 2; Spearman entre "
+        f"|residuo| y x'β̂ = {rho:.3f} (p = {p:.3f}), {'sin' if p >= 0.05 else 'con'} "
+        "indicio de que la dispersión cambie con el nivel ajustado.\n"
+        "  Lectura: con 23 residuos marginales estos gráficos solo muestran si hay evidencia "
+        "fuerte en contra de los supuestos; no los demuestran."
+    )
 
 
 # G7-B22 (R-10): cómo leer los diagnósticos de normalidad. Con 23 residuos marginales, que
@@ -185,13 +366,13 @@ def explicacion_graficas() -> str:
         >>> print(explicacion_graficas())  # doctest: +SKIP
     """
     return (
-        "Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (Yd − EBLUP)\n"
-        "contra la estimación directa. Como Yd − EBLUP = (1 − γd)(Yd − x'β̂), se espera\n"
-        "residuo negativo para Yd pequeños (el EBLUP sube la estimación) y positivo para\n"
-        "Yd grandes (el EBLUP la baja). Es una descripción de la contracción hacia el\n"
+        "Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (θ̂_d − EBLUP)\n"
+        "contra la estimación directa. Como θ̂_d − EBLUP = (1 − γd)(θ̂_d − x'β̂), se espera\n"
+        "residuo negativo para θ̂_d pequeños (el EBLUP sube la estimación) y positivo para\n"
+        "θ̂_d grandes (el EBLUP la baja). Es una descripción de la contracción hacia el\n"
         "predictor sintético, no una prueba de validez del modelo.\n"
         "Gráfica 2 (Histograma de residuos estandarizados): distribución de\n"
-        "(Y − x'β̂)/√(Dd+Â). Bajo el supuesto de normalidad del modelo se verían\n"
+        "(θ̂_d − x'β̂)/√(ψ_d + σ̂²_u). Bajo el supuesto de normalidad del modelo se verían\n"
         "aproximadamente normales y con desviación ≈ 1; la media es ≈ 0 por construcción\n"
         "del GLS con intercepto. Con 23 residuos marginales (mezclan u_d y e_d) ni el\n"
         "histograma ni Shapiro-Wilk pueden demostrar normalidad: solo mostrar si hay\n"
@@ -215,7 +396,7 @@ def interpretar_validacion(modelo: ModeloAreaPequena) -> str:
     suaviza_ok = corr > 0 and pval < 0.05
     return (
         "INTERPRETACIÓN:\n"
-        f"  Gráfica 1 (Efecto suavizador): corr(Yd, Yd−EBLUP)={corr:.3f} (p={pval:.4f})  "
+        f"  Gráfica 1 (Efecto suavizador): corr(θ̂_d, θ̂_d−EBLUP)={corr:.3f} (p={pval:.4f})  "
         + (
             "✓ el EBLUP contrae los extremos hacia el predictor sintético"
             if suaviza_ok
@@ -251,7 +432,7 @@ def graficar_validacion(modelo: ModeloAreaPequena) -> list:
     ]
     figuras = []
     for funcion_graficado, args in paneles:
-        fig, ax = plt.subplots(figsize=(8, 6.5))
+        fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 5.2))
         funcion_graficado(ax, *args)
         plt.tight_layout()
         figuras.append(fig)
@@ -279,20 +460,20 @@ def figura_cv_directo_vs_eblup(modelo: ModeloAreaPequena, nombres_dominio: np.nd
     cv_eb = modelo.resultados["CV_EBLUP_PCT"].values[orden]
     x = np.arange(modelo.n)
 
-    fig, ax = plt.subplots(figsize=(10, 5.5))
-    ax.vlines(x, cv_eb, cv_dir, color="lightgray", linewidth=2, zorder=1)
-    ax.scatter(x, cv_dir, color="dimgray", s=45, label="CV directo", zorder=3)
-    ax.scatter(x, cv_eb, color="steelblue", s=45, label="CV EBLUP", zorder=3)
-    ax.axhline(CV_CONFIABLE, color="seagreen", linestyle="--", linewidth=1)
-    ax.axhline(CV_ACEPTABLE, color="darkorange", linestyle="--", linewidth=1)
-    ax.text(x[-1] + 0.4, CV_CONFIABLE, f"{CV_CONFIABLE}%", va="center", fontsize=8)
-    ax.text(x[-1] + 0.4, CV_ACEPTABLE, f"{CV_ACEPTABLE}%", va="center", fontsize=8)
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 4.6))
+    ax.vlines(x, cv_eb, cv_dir, color=GRIS_CLARO, linewidth=2, zorder=1)
+    ax.scatter(x, cv_dir, color=GRIS, s=36, label="CV directo", zorder=3)
+    ax.scatter(x, cv_eb, color=AZUL, s=36, label="CV EBLUP", zorder=3)
+    ax.axhline(CV_CONFIABLE, color=GRIS, linestyle="--", linewidth=1)
+    ax.axhline(CV_ACEPTABLE, color=NARANJA, linestyle="--", linewidth=1)
+    ax.text(x[-1] + 0.4, CV_CONFIABLE, f"{CV_CONFIABLE}%", va="center", fontsize=9)
+    ax.text(x[-1] + 0.4, CV_ACEPTABLE, f"{CV_ACEPTABLE}%", va="center", fontsize=9)
     ax.set_xticks(x)
-    ax.set_xticklabels(nombres_dominio[orden], rotation=60, ha="right", fontsize=7)
-    ax.set_xlabel("Dominios, de menor a mayor varianza directa Dd", fontsize=10)
-    ax.set_ylabel("Coeficiente de variación (%)", fontsize=10)
-    ax.legend(fontsize=9, loc="upper left")
-    ax.grid(True, axis="y", linestyle=":", alpha=0.5)
+    ax.set_xticklabels(nombres_dominio[orden], rotation=60, ha="right")
+    ax.set_xlabel(r"Dominios, de menor a mayor varianza directa $\psi_d$")
+    ax.set_ylabel("Coeficiente de variación (%)")
+    ax.legend(loc="upper left")
+    ax.grid(axis="x", visible=False)
     plt.tight_layout()
     return fig
 
@@ -319,14 +500,14 @@ def interpretar_cv(modelo: ModeloAreaPequena) -> str:
     confiables_eb = int((res["CV_EBLUP_PCT"] < CV_CONFIABLE).sum())
     return (
         "INTERPRETACIÓN (ganancia de precisión del modelo elegido):\n"
-        f"  Reducción media del CV en el tercio de menor Dd: {mejora_baja:.2f} pp; "
-        f"en el tercio de mayor Dd: {mejora_alta:.2f} pp.\n"
+        f"  Reducción media del CV en el tercio de menor ψ_d: {mejora_baja:.2f} pp; "
+        f"en el tercio de mayor ψ_d: {mejora_alta:.2f} pp.\n"
         f"  Dominios con CV < {CV_CONFIABLE}%: {confiables_dir} con la estimación directa, "
         f"{confiables_eb} con el EBLUP (de {modelo.n}).\n"
         "  Lectura: la ganancia se concentra donde la varianza directa es grande; donde la "
-        "muestra es grande el MSE del EBLUP tiende a Dd y el EBLUP casi coincide con la "
-        "estimación directa (Morales et al., p. 440). Que MSE_EBLUP < Dd es lo esperado por "
-        "construcción (g1 = γd·Dd < Dd), no una validación independiente del modelo."
+        "muestra es grande el MSE del EBLUP tiende a ψ_d y el EBLUP casi coincide con la "
+        "estimación directa (Morales et al., p. 440). Que MSE_EBLUP < ψ_d es lo esperado por "
+        "construcción (g1 = γd·ψ_d < ψ_d), no una validación independiente del modelo."
     )
 
 
