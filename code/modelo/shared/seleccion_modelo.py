@@ -422,8 +422,10 @@ def redaccion_seleccion(
     p < `alfa`) o si se usó el respaldo, en cuyo caso nombra las covariables no significativas
     del elegido y dice que se reporta como excepción (Morales p. 454), a justificar en el
     documento. Luego distingue dos situaciones calculadas desde los datos: (a) varias
-    especificaciones con soporte similar por AIC (ΔAIC ≤ `delta_aic`), donde el benchmark se
-    eligió por la regla de parsimonia predefinida y no por ser claramente superior; (b) una
+    especificaciones con soporte similar por AIC (ΔAIC ≤ `delta_aic`): la parsimonia descarta
+    las que tienen más covariables que el elegido y, entre las que tienen su mismo número de
+    covariables, decide el menor AIC (D-36: el texto dice cuál de las dos reglas decidió, para
+    no atribuir a la parsimonia una elección entre especificaciones del mismo tamaño); (b) una
     sola especificación en esa zona, elegida por menor AIC. En ambos casos añade la lectura
     con AICc, que se reporta como complemento y no cambia la decisión.
 
@@ -473,11 +475,29 @@ def redaccion_seleccion(
         lista = ", ".join(
             etiqueta_especificacion(i + 1, nombres_covars[i]) for i in equivalentes
         )
+        k_ganador = len(nombres_covars[idx])
+        mas_grandes = [i for i in equivalentes if len(nombres_covars[i]) > k_ganador]
+        mismo_tamano = [
+            i for i in equivalentes if i != idx and len(nombres_covars[i]) == k_ganador
+        ]
         texto += (
-            f"{etiqueta} fue seleccionado, entre varias especificaciones con soporte "
-            f"similar (ΔAIC ≤ {delta_aic:g}: {lista}), mediante la regla de parsimonia "
-            f"predefinida (menor número de covariables); no es claramente superior a las demás."
+            f"Varias especificaciones tuvieron soporte similar (ΔAIC ≤ {delta_aic:g}: "
+            f"{lista}). "
         )
+        if mas_grandes:
+            texto += (
+                "La regla de parsimonia predefinida descartó las que tienen más "
+                f"covariables que {etiqueta}. "
+            )
+        if mismo_tamano:
+            otras = ", ".join(
+                etiqueta_especificacion(i + 1, nombres_covars[i]) for i in mismo_tamano
+            )
+            texto += (
+                f"Frente a {otras}, con el mismo número de covariables ({k_ganador}), "
+                f"decidió el menor AIC. "
+            )
+        texto += f"{etiqueta} no es claramente superior a las demás."
     else:
         texto += (
             f"{etiqueta} fue seleccionado por tener el menor AIC entre las especificaciones "

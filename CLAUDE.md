@@ -267,8 +267,9 @@ modelo/fay_herriot.py
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
     robustez (Cook + reajuste sin el dominio más influyente) del benchmark. G7-B16: AICc (AIC + 2k(k+1)/(n−k−1),
     k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
-    fh_seleccion_modelo; `AICc` en fh_coeficientes) y NO decide; `redaccion_seleccion` imprime el texto
-    «seleccionado entre varias especificaciones con soporte similar, mediante la regla de parsimonia».
+    fh_seleccion_modelo; `AICc` en fh_coeficientes) y NO decide; `redaccion_seleccion` imprime qué regla
+    decidió (D-36): la parsimonia frente a las especificaciones con más covariables y el menor AIC frente a
+    las del mismo número de covariables (en 2018, EC2 y EC3 tienen una covariable y decide el AIC).
     La comparación del
     objetivo 1 es después: benchmark vs. especificaciones espaciales (fay_herriot_espacial.py).
     En el código se conservan los nombres internos `modelo_ganador` / `elegir_ganador`

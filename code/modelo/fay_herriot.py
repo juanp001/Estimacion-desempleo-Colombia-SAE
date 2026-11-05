@@ -49,8 +49,10 @@
 # MAGIC    como complemento (no cambia la decisión) porque con 23 dominios el AIC penaliza poco; en
 # MAGIC    Fay-Herriot es una aproximación (la fórmula viene de regresión con errores iid y aquí las
 # MAGIC    D_i son heterogéneas), y el libro remite a Marhuenda et al. (2014) para criterios de
-# MAGIC    información propios del modelo (p. 420). Sirve para decir que el benchmark se eligió entre
-# MAGIC    varias especificaciones con soporte similar mediante la regla de parsimonia. El MSE del EBLUP y la
+# MAGIC    información propios del modelo (p. 420). Cuando varias especificaciones tienen soporte
+# MAGIC    similar, la parsimonia descarta las de más covariables y, entre las del mismo número de
+# MAGIC    covariables, decide el menor AIC; la redacción impresa dice cuál de las dos reglas
+# MAGIC    decidió en la corrida (D-36). El MSE del EBLUP y la
 # MAGIC    distancia de Cook se muestran después como diagnósticos del benchmark: ganancia de
 # MAGIC    precisión y robustez.
 # MAGIC 4. **Avisos.** Encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y
@@ -571,8 +573,9 @@ aviso = aviso_encuesta_sin_peso(modelo_ganador, UMBRAL_GAMMA_SIN_PESO)
 if aviso:
     print("\n" + aviso)
 
-# G7-B16: redacción calculada desde los datos («seleccionado entre varias especificaciones
-# con soporte similar, mediante la regla de parsimonia predefinida») con la lectura de AICc.
+# G7-B16 y D-36: redacción calculada desde los datos. Dice si el benchmark se eligió por la
+# regla de parsimonia (frente a especificaciones con más covariables) o por el menor AIC (frente
+# a las que tienen su mismo número de covariables), con la lectura de AICc.
 if len(modelos) > 1:
     print("\nREDACCIÓN SUGERIDA PARA EL DOCUMENTO:")
     print(
