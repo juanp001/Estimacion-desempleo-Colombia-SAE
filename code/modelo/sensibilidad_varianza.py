@@ -75,6 +75,7 @@ from shared.fay_herriot import FayHerriotClasico
 from shared.seleccion_modelo import elegir_ganador, subconjuntos_covariables
 from shared.datos_modelo import alias_desde_catalogo, periodo_unico, preparar_municipios
 from shared.escritura import escribir_tabla
+from shared.figuras import guardar_figura
 from shared.sensibilidad_varianza import (
     ESCENARIO_BASE,
     ajustar_escenarios,
@@ -232,6 +233,7 @@ directa["RAZON_GVF_B"] = directa["PSI_GVF_B"] / directa["PSI_VIVIENDAS"]
 
 fig = figura_gvf(psi_base, [gvf_a, gvf_b], directa["NOMBRE_DOMINIO"])
 display(fig)
+guardar_figura(fig, "gvf_ajuste", "fh_", VOLUMEN_FIGURAS_MODELO)
 plt.close(fig)
 
 display(directa)
@@ -301,6 +303,7 @@ display(coeficientes)
 # DBTITLE 1,6. Figura, interpretación y escritura
 fig = figura_escenarios(dominios, [e for e in escenarios if e != ESCENARIO_BASE])
 display(fig)
+guardar_figura(fig, "escenarios_varianza", "fh_", VOLUMEN_FIGURAS_MODELO)
 plt.close(fig)
 
 print(interpretar_sensibilidad(resumen))

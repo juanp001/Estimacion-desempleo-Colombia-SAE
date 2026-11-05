@@ -116,9 +116,10 @@ def _graficar_histograma_residuos(ax, residuals: np.ndarray) -> None:
         residuals,
         bins=min(15, max(5, len(residuals) // 3)),
         color=AZUL,
+        alpha=0.75,
         edgecolor="white",
         density=True,
-        zorder=3,
+        zorder=2,
     )
 
     xs = np.linspace(residuals.min() - 1, residuals.max() + 1, 200)
@@ -128,6 +129,7 @@ def _graficar_histograma_residuos(ax, residuals: np.ndarray) -> None:
         color=NARANJA,
         linewidth=1.8,
         label="Densidad N(0, 1)",
+        zorder=4,
     )
 
     ax.set_xlabel(
