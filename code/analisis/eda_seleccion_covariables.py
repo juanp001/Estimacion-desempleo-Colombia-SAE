@@ -644,6 +644,61 @@ display(spark.createDataFrame(df_trazabilidad))
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC **Sensibilidad al umbral q de Benjamini-Hochberg (D-18).** El umbral
+# MAGIC `Q_FDR_ELEGIBILIDAD` decide qué candidatas pasan a la ficha, y con 23 dominios puede decidir
+# MAGIC si el modelo tiene covariables. Se repite la ficha y la verificación con cada umbral de
+# MAGIC `Q_FDR_SENSIBILIDAD` (0.05, 0.10 y 0.15), reutilizando los diagnósticos de la cadena
+# MAGIC principal; la tabla `sensibilidad_q_fdr` dice cuántas son elegibles, cuáles se
+# MAGIC seleccionan y si el conjunto coincide con el de la corrida. La decisión no cambia: se
+# MAGIC sigue tomando con `Q_FDR_ELEGIBILIDAD`.
+
+# COMMAND ----------
+
+# DBTITLE 1,Sensibilidad: selección con otros umbrales q
+resultados_q = {}
+for q in Q_FDR_SENSIBILIDAD:
+    resultados_q[q] = (
+        SELECCION
+        if np.isclose(q, Q_FDR_ELEGIBILIDAD)
+        else sel.ejecutar_seleccion(
+            df_cand,
+            CANDIDATAS,
+            Y,
+            PSI,
+            entidades,
+            SIGNO,
+            alias=ALIAS,
+            dimension=DIMENSION,
+            p_maximo=P_MAXIMO,
+            q_fdr=q,
+            umbral_delta=UMBRAL_DELTA_LOO,
+            umbral_redundancia=UMBRAL_REDUNDANCIA,
+            vif_max=VIF_MAXIMO,
+            alfa_ic=ALFA_IC_CORRELACION,
+            df_objetivos=df_objetivos,
+            soporte_minimo=SOPORTE_MINIMO,
+            diagnosticos=SELECCION,
+        )
+    )
+q_base = next(q for q in resultados_q if np.isclose(q, Q_FDR_ELEGIBILIDAD))
+df_sensibilidad_q = sel.sensibilidad_q_fdr(
+    resultados_q, q_base, alias=ALIAS, q_fh=df_fh["q_FH"]
+)
+display(df_sensibilidad_q)
+for _, fila in df_sensibilidad_q.iterrows():
+    print(
+        f"q ≤ {fila['Q_FDR']:.2f}: {fila['N_elegibles']} elegibles; seleccionadas: "
+        f"{fila['Seleccionadas']}"
+        + ("  (umbral de la corrida)" if fila["Es_base"] == "sí" else "")
+    )
+print(
+    f"Menor q de Benjamini-Hochberg entre las candidatas: "
+    f"{df_sensibilidad_q['q_minimo_observado'].iloc[0]:.3f}."
+)
+
+# COMMAND ----------
+
 # DBTITLE 1,Escritura de las tablas de diagnóstico y trazabilidad
 df_diagnosticos = (
     df_ic.merge(df_fh.drop(columns=["Alias"]), on="Codigo")
@@ -667,6 +722,7 @@ for tabla, destino in [
     (df_ficha, TBL_DECISION),
     (df_verificacion, TBL_VERIFICACION),
     (df_trazabilidad, TBL_TRAZABILIDAD),
+    (df_sensibilidad_q, TBL_SENSIBILIDAD_Q_FDR),
 ]:
     (
         spark.createDataFrame(tabla)

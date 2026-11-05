@@ -238,6 +238,10 @@ analisis/eda_seleccion_covariables.py
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
       conjunto (diag.figura_residuos_parciales, G7-B13) y sensibilidad al signo
       (selección repetida exigiendo el signo → línea impresa en el notebook, ya sin tabla; R-62)
+  → 5b sensibilidad al umbral q (D-18): repite la ficha y el VIF con cada q de `Q_FDR_SENSIBILIDAD`
+      (0.05, 0.10, 0.15), reutilizando los diagnósticos, y escribe tesis.preprocesamiento.sensibilidad_q_fdr
+      (`seleccion.sensibilidad_q_fdr`: elegibles, seleccionadas, si coincide con el base y si queda solo el
+      intercepto). Solo reporta: la decisión sigue con Q_FDR_ELEGIBILIDAD
   → (R-32) toda la cadena de pasos 1-5 vive en `analisis/shared/seleccion.ejecutar_seleccion`, que usan
     el notebook y, vía `seleccionar_covariables`, la validación cruzada del modelo; la carga común está
     en `analisis/shared/datos_analisis.cargar_datos_analisis`
@@ -547,7 +551,7 @@ Reglas del flujo de selección:
   sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
 - Parámetros en `preprocesamiento/shared/config.py` (`BOOTSTRAP_REPLICAS`/`BOOTSTRAP_SEED`, umbrales de CV,
   `CV_MINIMO`, `PROP_MODAL_MAXIMA`, `UMBRAL_DUPLICADO`, `UMBRAL_REDUNDANCIA`, `UMBRAL_DELTA_LOO`,
-  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
+  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `Q_FDR_SENSIBILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
   (tablas, `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`).
 - **Dominio = ciudad o ciudad A.M.** en preprocesamiento, análisis y modelo (`CODIGO_DOMINIO`,
   `NOMBRE_DOMINIO`, `TIPO_DOMINIO`); `CODIGO_MUNICIPIO`/`MUNICIPIO` solo existen en las tablas de municipios
