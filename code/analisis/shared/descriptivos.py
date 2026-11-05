@@ -38,6 +38,10 @@ from comun.estilo_figuras import (
     guardar,
 )
 
+# D-09: a partir de este valor absoluto una covariable se considera en pesos y se grafica en
+# millones de pesos, igual que en las tablas del documento.
+ESCALA_MILLONES = 1e6
+
 # Matplotlib 3.9 renombró `labels` a `tick_labels` en `Axes.boxplot` (R-34); el job corre en
 # un entorno cuya versión puede ser anterior, así que se elige el nombre según la versión.
 _ARG_ETIQUETAS_BOXPLOT = (
@@ -472,6 +476,11 @@ def figura_panel_dispersion(
     for idx, col in enumerate(columnas):
         ax = axes[idx]
         x = pd.to_numeric(df[col], errors="coerce").values
+        etiqueta_x = nombre_legible(alias.get(col, col))
+        if np.nanmax(np.abs(x)) >= ESCALA_MILLONES:
+            # D-09: las variables en pesos se muestran en millones, como en las tablas.
+            x = x / ESCALA_MILLONES
+            etiqueta_x = f"{etiqueta_x} (millones de pesos)"
         ax.scatter(x, y, color=AZUL, edgecolors="white", s=32, zorder=3)
         pendiente, intercepto = np.polyfit(x, y, 1)
         rejilla = np.linspace(x.min(), x.max(), 50)
@@ -492,8 +501,10 @@ def figura_panel_dispersion(
             va="top",
             fontsize=9,
             color=GRIS_OSCURO,
+            zorder=4,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.8, "pad": 1},
         )
-        ax.set_xlabel(textwrap.fill(nombre_legible(alias.get(col, col)), 26))
+        ax.set_xlabel(textwrap.fill(etiqueta_x, 26))
         if idx % ncols == 0:
             ax.set_ylabel(nombre_y)
 
