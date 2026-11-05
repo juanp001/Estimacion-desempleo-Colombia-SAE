@@ -1,69 +1,47 @@
-
-
-\PassOptionsToPackage{table}{xcolor} % to use colors in tables
+\PassOptionsToPackage{table}{xcolor}
 \PassOptionsToPackage{pdfa}{hyperref}
-\documentclass{unipd-thesis-modern} % src: https://github.com/baronefr/unipd-
+\documentclass{unipd-thesis-modern} % plantilla: https://github.com/baronefr/unipd-thesis
 \raggedbottom
 
-% additional packages
-\usepackage[spanish]{babel}      % Idioma español (separación silábica, etc.)
-\usepackage{lipsum} % for DEMO only
-\usepackage{threeparttable}
-\usepackage{threeparttable}
+% paquetes
+\usepackage[spanish]{babel}
 \usepackage{siunitx}
-\usepackage[titles]{tocloft} % to modify spacing in toc chapters
+\usepackage[titles]{tocloft}
 \usepackage{tabularx}
 \usepackage{booktabs}
 \usepackage{caption}
 \usepackage{array}
 \usepackage[utf8]{inputenc}
-\usepackage{titlesec} % Paquete para controlar espaciado de títulos
+\usepackage{titlesec}
 \usepackage{graphicx}
-\usepackage{float} % para usar [H] si quieres fijar la figura
 \usepackage{enumitem}
 \usepackage{longtable}
 \usepackage{placeins}
 \usepackage{adjustbox}
 \setlength{\emergencystretch}{3em} % evita Overfull hbox en párrafos con URL y \texttt
-%\usepackage{natbib}              % Referencias bibliográficas (comandos \citep, \citet)
-\usepackage{tikz}                % Diagramas vectoriales (arquitectura medallón, etc.)
+\usepackage{tikz}
+% La librería babel de TikZ evita el conflicto entre el carácter activo '>' del español
+% y la sintaxis de flechas de TikZ.
 \usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, babel}
-%   IMPORTANTE: la librería 'babel' es OBLIGATORIA cuando se usa babel en español;
-%   evita el conflicto entre el carácter '>' activo de babel y la sintaxis '>=stealth' de TikZ.
-%
-%\usepackage[backend=biber, style=apa]{biblatex}
-%   NO cargar natbib junto con biblatex — son incompatibles.
 \setlength{\cftbeforechapskip}{7pt}
-\setcounter{tocdepth}{4} % ToC depth
+\setcounter{tocdepth}{4}
 
-% titles
-\title{Estimación Municipal Sobre la Tasa de Desempleo en el Cauca y Valle del Cauca: Estimación de Área Pequeña usando Modelos Mixtos y Componentes Espaciales}
-\thesisHeader{Pontificia Universidad Javeriana Cali \\Facultad de Ingeniería y Ciencias\\MAESTRÍA EN CIENCIA DE DATOS}
+% portada
+\title{Estimación municipal sobre la tasa de desempleo en el Cauca y Valle del Cauca: estimación de área pequeña usando modelos mixtos y componentes espaciales}
+\thesisHeader{Pontificia Universidad Javeriana Cali \\Facultad de Ingeniería y Ciencias\\Maestría en Ciencia de Datos}
 \academicYear{Santiago de Cali, Colombia, 2026}
 
-% student
-\author{Samuel Steven Bermúdez Pedraza \\Juan Pablo Rengifo Valencia \\ Felipe Sampedro Giraldo 
-}
+\author{Samuel Steven Bermúdez Pedraza \\Juan Pablo Rengifo Valencia \\ Felipe Sampedro Giraldo}
 
-% supervisor
 \advisor{Sandra Milena Ramírez Buelvas}{Pontificia Universidad Javeriana Cali}
-
-% co-advisor (comentar si no hay)
 \coadvisor{Iván Gutiérrez}{Universidad Andrés Bello, Chile}
 
-
-% (optional, comment to remove)
-%\otheradvisor{Prof. Paolino Paperino}{University of Padua} % (optional, comment to remove)
-% ^ NOTE: you can use optional arg to customize the label "Internal Supervisor"
-%   example:   \otheradvisor[The best supervisor!]{Prof. Paolino Paperino}{University of Padua}
-
-% dedication (comment to remove)
 \dedication{\textit{A nuestras familias y amigos\\ Samuel, Juan Pablo y Felipe }}
 
-% custom symbols (optional)
+% comandos propios
 \input{custom-symbols}
 
-% bibliography file
+% bibliografía
 \addbibresource{refs.bib}
 
 \sisetup{
@@ -72,13 +50,11 @@
   detect-all = true
 }
 
-
-% Ajustes de espacio
+% espaciado
 \titlespacing*{\subsection}{0pt}{10pt plus 2pt minus 2pt}{5pt}
 \titlespacing*{\subsubsection}{0pt}{5pt plus 2pt minus 2pt}{3pt}
-% Otros paquetes y configuraciones
-\setlength{\intextsep}{6pt}      % Espacio entre texto y figuras
-\setlength{\textfloatsep}{6pt}   % Espacio entre texto y flotantes
+\setlength{\intextsep}{6pt}
+\setlength{\textfloatsep}{6pt}
 
 
 \begin{document}
@@ -86,9 +62,14 @@
 \renewcommand{\listfigurename}{Lista de figuras}
 \renewcommand{\listtablename}{Lista de tablas}
     \frontmatter
+    % listas de figuras, tablas y anexos
+    {\hypersetup{linkcolor=black}%
+    \cleardoublepage\phantomsection\addcontentsline{toc}{chapter}{\listfigurename}\listoffigures
+    \cleardoublepage\phantomsection\addcontentsline{toc}{chapter}{\listtablename}\listoftables
+    \cleardoublepage\phantomsection\addcontentsline{toc}{chapter}{Lista de anexos}\listofanexos}
+    \cleardoublepage
     % --------------------------
     \input{chapters/introduction}
-    \newpage
     % --------------------------
     \mainmatter
     % --------------------------
@@ -96,7 +77,7 @@
         \input{chapters/planteamiento-problema}
         \input{chapters/formulacion-problema}
     % --------------------------
-    \chapter{Objetivos del proyecto} % 
+    \chapter{Objetivos del proyecto}
         \input{chapters/objetivo-general}
         \input{chapters/objetivos-especificos}
     % --------------------------
@@ -109,21 +90,22 @@
     % --------------------------
     \chapter{Metodología}
         \input{chapters/metodologia}
-     % --------------------------
-     \chapter{Resultados}
-         \input{chapters/resultados}
+    % --------------------------
+    \chapter{Resultados}
+        \input{chapters/resultados}
     % --------------------------
     \chapter{Discusión y trabajo futuro}
         \input{chapters/discusion}
-   % --------------------------
+    % --------------------------
     \chapter{Conclusiones}
         \input{chapters/conclusiones}
-   % --------------------------
-    \clearpage
+    % --------------------------
+    \cleardoublepage\phantomsection
+    \addcontentsline{toc}{chapter}{\bibname}
     \printbibliography
     % --------------------------
-     \begin{appendices}
-     \chapter{Apéndice}
+    \begin{appendices}
+    \chapter{Apéndice}
         \input{chapters/appendice}
     \end{appendices}
 \end{document}

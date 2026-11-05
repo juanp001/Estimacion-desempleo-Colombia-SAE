@@ -515,7 +515,7 @@ display(spark.createDataFrame(df_estabilidad))
 distancia de Cook máxima entre los 23 dominios (cuánto domina un solo territorio el
 Fay-Herriot univariado de la tasa sobre esa covariable) y el vertical es cuánto cambia
 la correlación ponderada al excluir el dominio que más la altera. Las líneas grises son los dos
-umbrales. Las covariables del cuadrante superior derecho, en rojo, «dependen de un
+umbrales. Las covariables del cuadrante superior derecho, en naranja, «dependen de un
 dominio»: en ellas un dominio domina la regresión *y* su exclusión cambia la asociación
 (o invierte su signo); se reportan, no se descartan. Una
 covariable a la derecha pero abajo tiene un dominio extremo que no altera la relación;
@@ -841,25 +841,27 @@ Sensibilidad al signo esperado (selección exigiendo el signo): mismo conjunto. 
 
 ```python
 %md
-**Cómo leer la figura.** Matriz de correlación entre las covariables que entran al
-modelo. Tras la resolución de redundancia y la verificación de multicolinealidad no
-debe aparecer ningún par con color intenso; si lo hubiera, el factor de inflación de la
-varianza de la celda anterior lo habría señalado.
+**Correlación entre las covariables seleccionadas.** Tras la resolución de redundancia y
+la verificación de multicolinealidad no debe quedar ningún par con |r| alto; si lo
+hubiera, el factor de inflación de la varianza de la celda anterior lo habría señalado.
+Con dos o tres covariables la matriz tiene uno o tres valores, así que se imprime en
+lugar de dibujarse (D-40: la figura `eda_correlacion_finales` dejó de generarse).
 ```
 
 
 ## Celda 25
 
 ```python
-if SELECCIONADAS:
-    fig, _ = desc.figura_correlacion_agrupada(
-        df_cand,
-        SELECCIONADAS,
-        alias=ALIAS,
-        titulo="Correlación entre las covariables seleccionadas",
-    )
-    desc.guardar_figura(fig, "eda_correlacion_finales", VOLUMEN_FIGURAS)
-    display(fig)
+if len(SELECCIONADAS) >= 2:
+    corr_sel = df_cand[SELECCIONADAS].astype(float).corr()
+    for i, a in enumerate(SELECCIONADAS):
+        for b in SELECCIONADAS[i + 1 :]:
+            print(
+                f"r de Pearson entre {ALIAS.get(a, a)} y {ALIAS.get(b, b)}: "
+                f"{corr_sel.loc[a, b]:.2f}"
+            )
+elif SELECCIONADAS:
+    print("Una sola covariable seleccionada: no hay correlaciones entre covariables.")
 else:
     print("Conjunto vacío (solo intercepto): no hay correlaciones que mostrar (R-04).")
 ```
@@ -867,11 +869,9 @@ else:
 **Salida:**
 
 ```
-  figura guardada: /Volumes/tesis/preprocesamiento/figuras_eda/eda_correlacion_finales.png
+r de Pearson entre TASA_HOMICIDIOS y COB_ACUEDUCTO: -0.70
 
 ```
-![fig](fig/analisis__eda_seleccion_covariables_c25_2.png)
-![fig](fig/analisis__eda_seleccion_covariables_c25_3.png)
 
 
 ## Celda 26
@@ -880,7 +880,7 @@ else:
 %md
 **Residuos parciales (G7-B13).** Cada panel muestra, para una covariable seleccionada,
 la parte de la tasa que queda tras descontar las demás covariables en el Fay-Herriot con
-todo el conjunto. La línea discontinua es la recta del modelo y la roja una curva
+todo el conjunto. La línea discontinua es la recta del modelo y la naranja una curva
 suavizada (lowess). Si la forma lineal es adecuada, ambas siguen la misma tendencia; una
 curva que se aparta de la recta de forma sistemática, y no solo por uno o dos dominios,
 indicaría que el predictor lineal no recoge la relación.
@@ -906,8 +906,8 @@ else:
   figura guardada: /Volumes/tesis/preprocesamiento/figuras_eda/eda_residuos_parciales.png
 
 ```
-![fig](fig/analisis__eda_seleccion_covariables_c27_4.png)
-![fig](fig/analisis__eda_seleccion_covariables_c27_5.png)
+![fig](fig/analisis__eda_seleccion_covariables_c27_2.png)
+![fig](fig/analisis__eda_seleccion_covariables_c27_3.png)
 
 
 ## Celda 28
@@ -1020,6 +1020,81 @@ display(spark.createDataFrame(df_trazabilidad))
 ## Celda 30
 
 ```python
+%md
+**Sensibilidad al umbral q de Benjamini-Hochberg (D-18).** El umbral
+`Q_FDR_ELEGIBILIDAD` decide qué candidatas pasan a la ficha, y con 23 dominios puede decidir
+si el modelo tiene covariables. Se repite la ficha y la verificación con cada umbral de
+`Q_FDR_SENSIBILIDAD` (0.05, 0.10 y 0.15), reutilizando los diagnósticos de la cadena
+principal; la tabla `sensibilidad_q_fdr` dice cuántas son elegibles, cuáles se
+seleccionan y si el conjunto coincide con el de la corrida. La decisión no cambia: se
+sigue tomando con `Q_FDR_ELEGIBILIDAD`.
+```
+
+
+## Celda 31
+
+```python
+resultados_q = {}
+for q in Q_FDR_SENSIBILIDAD:
+    resultados_q[q] = (
+        SELECCION
+        if np.isclose(q, Q_FDR_ELEGIBILIDAD)
+        else sel.ejecutar_seleccion(
+            df_cand,
+            CANDIDATAS,
+            Y,
+            PSI,
+            entidades,
+            SIGNO,
+            alias=ALIAS,
+            dimension=DIMENSION,
+            p_maximo=P_MAXIMO,
+            q_fdr=q,
+            umbral_delta=UMBRAL_DELTA_LOO,
+            umbral_redundancia=UMBRAL_REDUNDANCIA,
+            vif_max=VIF_MAXIMO,
+            alfa_ic=ALFA_IC_CORRELACION,
+            df_objetivos=df_objetivos,
+            soporte_minimo=SOPORTE_MINIMO,
+            diagnosticos=SELECCION,
+        )
+    )
+q_base = next(q for q in resultados_q if np.isclose(q, Q_FDR_ELEGIBILIDAD))
+df_sensibilidad_q = sel.sensibilidad_q_fdr(
+    resultados_q, q_base, alias=ALIAS, q_fh=df_fh["q_FH"]
+)
+display(df_sensibilidad_q)
+for _, fila in df_sensibilidad_q.iterrows():
+    print(
+        f"q ≤ {fila['Q_FDR']:.2f}: {fila['N_elegibles']} elegibles; seleccionadas: "
+        f"{fila['Seleccionadas']}"
+        + ("  (umbral de la corrida)" if fila["Es_base"] == "sí" else "")
+    )
+print(
+    f"Menor q de Benjamini-Hochberg entre las candidatas: "
+    f"{df_sensibilidad_q['q_minimo_observado'].iloc[0]:.3f}."
+)
+```
+
+**Salida:**
+
+| Q_FDR | Es_base | N_elegibles | Elegibles | N_seleccionadas | Seleccionadas | Igual_a_base | Solo_intercepto | q_minimo_observado |
+|---|---|---|---|---|---|---|---|---|
+| 0.05 | no | 0 | — | 0 | — (solo intercepto) | no | sí | 0.07870502233170855 |
+| 0.1 | sí | 3 | COB_NET_MEDIA, TASA_HOMICIDIOS, COB_ACUEDUCTO | 2 | TASA_HOMICIDIOS, COB_ACUEDUCTO | sí | no | 0.07870502233170855 |
+| 0.15 | no | 10 | COB_NET_MEDIA, COB_NET_SEC, TASA_TRAN_EDU_SUP, VA_PC, VA_PCT_PRIM, VA_PCT_SEC, IND_POB_MULT, ING_TRIB_PC, TASA_HOMICIDIOS, COB_ACUEDUCTO | 2 | TASA_HOMICIDIOS, COB_ACUEDUCTO | sí | no | 0.07870502233170855 |
+```
+q ≤ 0.05: 0 elegibles; seleccionadas: — (solo intercepto)
+q ≤ 0.10: 3 elegibles; seleccionadas: TASA_HOMICIDIOS, COB_ACUEDUCTO  (umbral de la corrida)
+q ≤ 0.15: 10 elegibles; seleccionadas: TASA_HOMICIDIOS, COB_ACUEDUCTO
+Menor q de Benjamini-Hochberg entre las candidatas: 0.079.
+
+```
+
+
+## Celda 32
+
+```python
 df_diagnosticos = (
     df_ic.merge(df_fh.drop(columns=["Alias"]), on="Codigo")
     .merge(df_forma.drop(columns=["Alias"]), on="Codigo", how="left")
@@ -1042,6 +1117,7 @@ for tabla, destino in [
     (df_ficha, TBL_DECISION),
     (df_verificacion, TBL_VERIFICACION),
     (df_trazabilidad, TBL_TRAZABILIDAD),
+    (df_sensibilidad_q, TBL_SENSIBILIDAD_Q_FDR),
 ]:
     (
         spark.createDataFrame(tabla)
@@ -1061,11 +1137,12 @@ Tabla escrita: tesis.preprocesamiento.soporte_covariables
 Tabla escrita: tesis.preprocesamiento.decision_covariables
 Tabla escrita: tesis.preprocesamiento.verificacion_seleccion
 Tabla escrita: tesis.preprocesamiento.trazabilidad_covariables
+Tabla escrita: tesis.preprocesamiento.sensibilidad_q_fdr
 
 ```
 
 
-## Celda 31
+## Celda 33
 
 ```python
 # Solo las covariables del conjunto elegido, que es la entrada del notebook del modelo. Las

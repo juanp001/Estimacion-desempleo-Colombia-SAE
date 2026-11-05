@@ -1,12 +1,12 @@
 %!TEX root = ./main.tex
 
-% please use this file to define custom symbols and commands
+% Comandos propios del documento.
 
-\newtheorem{prop}{Proposition}
-\newtheorem{theorem}{Theorem}
-
-\newcommand{\myvec}[1]{\underline{#1}}
-
-\newcommand{\hamCD}{\mathcal{H}_{\mathrm{CD}}}
-\newcommand{\hamFE}{\mathcal{H}_{\mathrm{FE}}}
-\newcommand{\hamUA}{\mathcal{H}_{\mathrm{UA}}}
+% Lista de anexos (estructura oficial de la maestría, versión 2025). Cada sección del
+% apéndice se abre con \anexo{Título}, que crea la sección y la registra en la lista.
+\newlistof{anexos}{loa}{Lista de anexos}
+\setlength{\cftanexosnumwidth}{2.8em}
+\newcommand{\anexo}[1]{%
+  \section{#1}%
+  \addcontentsline{loa}{anexos}{\protect\numberline{\thesection}#1}%
+}

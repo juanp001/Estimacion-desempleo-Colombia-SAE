@@ -10,18 +10,55 @@ Este capítulo describe el procedimiento: qué se hizo en cada etapa, con qué i
 \label{fig:met_flujo}
 \end{figure}
 
-Cada etapa se presenta con una ficha que reúne sus entradas, las transformaciones, la regla de decisión, los parámetros fijados de antemano, el sustento y la salida. Todo el procesamiento corrió en Databricks, con tablas en un catálogo de Unity Catalog organizado en capas, y se despliega como un conjunto de trabajos programados que repiten la cadena completa; el linaje de tablas y la forma de reproducir cada etapa están en el Apéndice~\ref{app:reproducibilidad}.
+Cada etapa se presenta con una ficha que reúne sus entradas, las transformaciones, la regla de decisión, los parámetros fijados de antemano, el sustento y la salida. Todo el procesamiento corrió en Databricks, con tablas en un catálogo de Unity Catalog organizado en capas, y se desplegó como un conjunto de trabajos programados que repiten la cadena completa; el linaje de tablas y la forma de reproducir cada etapa están en el Apéndice~\ref{app:reproducibilidad}.
+
+El procedimiento no tuvo hiperparámetros optimizados por búsqueda, pero sí parámetros fijados de antemano que pueden cambiar el resultado. La Tabla~\ref{tab:met_parametros} los reúne con el valor usado, los valores que se evaluaron como sensibilidad y el criterio de la elección. Los que tienen alternativas evaluadas se reportan con su efecto en la sección de Resultados de la etapa correspondiente; los demás se fijaron una sola vez.
+
+{\footnotesize\renewcommand{\arraystretch}{1.12}
+\begin{longtable}{>{\raggedright\arraybackslash}p{3.0cm} c >{\raggedright\arraybackslash}p{1.8cm} >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}p{3.2cm}}
+\caption[Parámetros fijados de antemano]{Parámetros fijados de antemano: etapa donde se usan, valor usado, valores evaluados como sensibilidad y criterio de la elección. «Convención» indica una regla del trabajo sin una fuente que fije el valor. Siglas: BH, Benjamini-Hochberg; CV, coeficiente de variación; EE, error estándar; VIF, factor de inflación de la varianza; AIC, criterio de información de Akaike; pp, puntos porcentuales.}
+\label{tab:met_parametros} \\
+\toprule
+Parámetro & Etapa & Valor usado & Valores evaluados & Criterio \\
+\midrule
+\endfirsthead
+\multicolumn{5}{l}{\tablename~\thetable{}, continuación} \\
+\toprule
+Parámetro & Etapa & Valor usado & Valores evaluados & Criterio \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+Ventana de la estimación directa & 5 & 12 meses & 1 y 3 meses & Más viviendas por dominio y menor varianza; sensibilidad de la tasa a las tres ventanas \\
+Réplicas del bootstrap de la estimación directa & 5 & \num{2000}; semilla 42 & Ninguno & Convención; el error de Monte Carlo relativo del EE bootstrap es del orden de $1/\sqrt{2B}$, cerca del 1.6~\% con $B = \num{2000}$ \\
+Umbrales del CV & 5, 10, 14 & 5~\% y 20~\% & Ninguno & Clases de precisión de uso oficial \cite[pp.~14--15]{Molina2019} \\
+CV mínimo y proporción modal máxima & 7 & 0.001 y 0.90 & Rejilla de ambos umbrales & Retirar columnas casi constantes sin depender de la unidad; sensibilidad del número de sobrevivientes \\
+Umbral $q$ de BH para la elegibilidad & 9 & 0.10 & 0.05 y 0.15 & Convención para una tamización de 18 candidatas con 23 dominios; como puede cambiar si el modelo tiene o no covariables, se reporta el conjunto que resulta con cada valor \\
+Umbral de redundancia & 9 & $|r| \geq 0.80$ & Ninguno & Convención; el mismo umbral del análisis multivariado de la etapa 8 \\
+Cota de covariables & 9 & $\lfloor n/10 \rfloor$ & Ninguno & Regla de 10 a 20 observaciones por parámetro, en su extremo permisivo; no sobreparametrizar al estimar fuera de la muestra \cite[p.~453]{morales2021smallarea} \\
+VIF máximo & 9 & 5 & Ninguno & El más estricto de los dos valores de referencia, 5 y 10 \cite[sec.~9.4]{MontgomeryPeckVining2012} \\
+Cook, cambio de $r_w$ y soporte & 9 & $4/n$; 0.10; 0.80 & Ninguno & Convención; son diagnósticos y advertencias, no filtros \\
+Significancia y equivalencia en AIC & 10 & $\alpha = 0.05$; $\Delta\text{AIC} \leq 2$ & Ninguno & Covariables significativas al estimar fuera de la muestra \cite[p.~453]{morales2021smallarea}; $\Delta\text{AIC} \leq 2$: convención \\
+Réplicas del bootstrap de dominios & 11 & \num{1000}; semilla 42 & Ninguno & Convención; análisis de sensibilidad que no decide \\
+Multiplicador de $\psi_d$ & 11 & 1 & $1/3$, $1/2$, $2/3$, $3/2$, 2 y 3; Taylor; GVF & Escenarios simétricos en escala logarítmica alrededor de la varianza bootstrap \\
+Umbrales de influencia por dominio & 11 & 1 EE; 0.5 pp & Ninguno & Convención; señalan los cambios que se comentan \\
+Matriz de proximidad & 13 & Cuatro escenarios & $k \in \{3, 5\}$; potencias 1 y 2 & Los datos no identifican $k$ ni la potencia: se reportaron los cuatro \\
+Cota de $|\rho|$ & 13 & 0.99 & Ninguno & Mantener invertible la matriz $\mathbf{I} - \rho\mathbf{W}$ \\
+Réplicas del bootstrap paramétrico espacial & 13 & 500; semilla 42 & Ninguno & Convención; cada réplica reajusta el modelo espacial \cite[pp.~490--494]{morales2021smallarea} \\
+Permutaciones del I de Moran & 13, 16 & \num{9999} & Ninguno & Valor $p$ mínimo alcanzable de 0.0001 \\
+\end{longtable}
+}
 
 %--------------------------------------------------------------------------------------
 \section{Obtención de los datos}
 \label{sec:met_obtencion}
 
-Las cuatro fuentes de la Sección~\ref{sec:datos} se cargaron sin modificar su contenido, siguiendo una arquitectura de medallón: una capa bronce con los datos como llegan, una capa plata con los datos limpios y consolidados, y una capa oro con la tabla analítica de mercado laboral (Tabla~\ref{tab:met_obtencion}). La capa bronce permite repetir cualquier transformación posterior sin volver a descargar las fuentes.
+Las cuatro fuentes de la Sección~\ref{sec:datos} se cargaron sin modificar su contenido, siguiendo una arquitectura de medallón: una capa bronce con los datos como llegan, una capa plata con los datos limpios y consolidados, y una capa oro con la tabla analítica de mercado laboral (Tabla~\ref{tab:met_obtencion}). La capa bronce permitió repetir cualquier transformación posterior sin volver a descargar las fuentes.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 1: obtención de los datos.}
+\caption[Ficha de la etapa 1: obtención de los datos]{Ficha de la etapa 1: obtención de los datos. Siglas: GEIH, Gran Encuesta Integrada de Hogares; CNPV, Censo Nacional de Población y Vivienda; DIVIPOLA, División Político-Administrativa de Colombia; DANE, Departamento Administrativo Nacional de Estadística.}
 \label{tab:met_obtencion}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -29,8 +66,8 @@ Las cuatro fuentes de la Sección~\ref{sec:datos} se cargaron sin modificar su c
 Elemento & Contenido \\
 \midrule
 Entradas & Archivos de texto de la GEIH 2018 por mes, módulo y sección (cabecera y resto); archivo de factores de expansión recalculados con el CNPV 2018; archivos de TerriData en formato largo; DIVIPOLA; hojas del anexo del DANE \\
-Transformaciones & Lectura de cada archivo por separado y unión por nombre de columna; columna con el archivo de origen de cada registro; ningún valor se modifica \\
-Regla de decisión & Se cargan solo los módulos necesarios para la condición de actividad (Tabla~\ref{tab:dimensiones-geih-modulos}) \\
+Transformaciones & Lectura de cada archivo por separado y unión por nombre de columna; columna con el archivo de origen de cada registro; no se modificó ningún valor \\
+Regla de decisión & Se cargaron solo los módulos necesarios para la condición de actividad (Tabla~\ref{tab:dimensiones-geih-modulos}) \\
 Sustento & Definiciones de la encuesta \cite[p.~20]{DANE_GEIH_Metodologia2016} \\
 Salida & Capa bronce: una tabla por módulo y sección de la GEIH, una para TerriData y una por hoja del anexo \\
 \bottomrule
@@ -41,14 +78,14 @@ Salida & Capa bronce: una tabla por módulo y sección de la GEIH, una para Terr
 \section{Limpieza, estandarización y consolidación}
 \label{sec:met_limpieza}
 
-La GEIH reparte la información de una persona en varios módulos, y en el marco antiguo cada módulo en dos archivos. Esta etapa los une en una tabla con una fila por persona y verifica que la clasificación resultante sea coherente (Tabla~\ref{tab:met_limpieza}). La llave de una persona es la concatenación del período, la vivienda, el hogar y el orden dentro del hogar; la vivienda (período y directorio) se conserva aparte porque es la unidad del bootstrap de la etapa 5.
+La GEIH reparte la información de una persona en varios módulos, y en el marco antiguo cada módulo en dos archivos. En esta etapa se unieron en una tabla con una fila por persona y se verificó que la clasificación resultante fuera coherente (Tabla~\ref{tab:met_limpieza}). La llave de una persona se formó con el período, la vivienda, el hogar y el orden dentro del hogar; la vivienda (período y directorio) se conservó aparte porque es la unidad del bootstrap de la etapa 5.
 
-Dos correcciones de esta etapa cambian las cifras y por eso se describen. Primero, los archivos de enero a marzo de 2018 traen las columnas en otro orden; leerlos todos a la vez asignaba los valores por posición, corría las columnas y dejaba a toda la población en edad de trabajar como activa. Se leyó cada archivo por separado y se unieron por nombre de columna. Segundo, en el marco antiguo el factor de expansión sale solo del archivo recalculado con el CNPV 2018; si una persona queda sin factor o con factor no positivo, el procesamiento se detiene antes de escribir la tabla, en lugar de asignarle cero.
+Dos correcciones de esta etapa cambiaron las cifras y por eso se describen. Primero, los archivos de enero a marzo de 2018 traen las columnas en otro orden; leerlos todos a la vez asignaba los valores por posición, corría las columnas y dejaba a toda la población en edad de trabajar como activa. Se leyó cada archivo por separado y se unieron por nombre de columna. Segundo, en el marco antiguo el factor de expansión se tomó solo del archivo recalculado con el CNPV 2018; si una persona quedaba sin factor o con factor no positivo, el procesamiento se detenía antes de escribir la tabla, en lugar de asignarle cero.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 2: limpieza, estandarización y consolidación.}
+\caption[Ficha de la etapa 2: limpieza, estandarización y consolidación]{Ficha de la etapa 2: limpieza, estandarización y consolidación. Siglas: GEIH, Gran Encuesta Integrada de Hogares; PET, población en edad de trabajar; PEA, población económicamente activa; PEI, población económicamente inactiva; OC, población ocupada; DS, población desocupada; CNPV, Censo Nacional de Población y Vivienda.}
 \label{tab:met_limpieza}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -57,7 +94,7 @@ Elemento & Contenido \\
 \midrule
 Entradas & Capa bronce de la GEIH (identificadores de texto, indicadores binarios de condición, edad entera, factor de expansión continuo) \\
 Transformaciones & Nombres de columna y tipos comunes a ambos marcos; separador decimal; unión de cabecera y resto; PEA del marco antiguo como la PET que no figura entre los inactivos; unión de los módulos a características generales por la llave de persona; factor de expansión por marco; código de municipio del área y nombre del departamento desde las tablas de dimensión \\
-Regla de decisión & El procesamiento se detiene si alguna persona queda sin factor de expansión o con factor no positivo \\
+Regla de decisión & El procesamiento se detenía si alguna persona quedaba sin factor de expansión o con factor no positivo \\
 Verificaciones & Porcentaje de llaves de cada módulo sin pareja en características generales; identidades PEA = OC + DS y PET = PEA + PEI (Ecuación~\ref{eq:identidades}) por año, mes y dominio, con la cuenta de los casos que las rompen; personas sin factor \\
 Sustento & Factores CNPV 2018 y salto de serie al mezclar factores \cite[pp.~3, 19]{DANE_GEIH_Series2022} \\
 Salida & Tabla de mercado laboral (capa oro) y tablas de reconciliación \\
@@ -65,18 +102,18 @@ Salida & Tabla de mercado laboral (capa oro) y tablas de reconciliación \\
 \end{tabularx}
 \end{table}
 
-En TerriData la limpieza normalizó los nombres de departamento y entidad (mayúsculas y sin tildes), unificó el valor numérico y el cualitativo en un solo campo, clasificó cada indicador como numérico si al menos el 95~\% de sus registros es numérico, y pasó la base a formato ancho, con una fila por entidad, año y mes y una columna por indicador. Cuatro comprobaciones (número de filas antes y después, duplicados de la llave, una muestra aleatoria comparada en ambos formatos y el total de valores no nulos) se imprimen como aprobadas o no, sin detener el proceso.
+En TerriData la limpieza normalizó los nombres de departamento y entidad (mayúsculas y sin tildes), unificó el valor numérico y el cualitativo en un solo campo, clasificó cada indicador como numérico si al menos el 95~\% de sus registros es numérico, y pasó la base a formato ancho, con una fila por entidad, año y mes y una columna por indicador. Cuatro comprobaciones (número de filas antes y después, duplicados de la llave, una muestra aleatoria comparada en ambos formatos y el total de valores no nulos) se imprimieron como aprobadas o no, sin detener el proceso. Los indicadores sin ningún valor numérico ni cualitativo en la base larga no generaron columna en el formato ancho.
 
 %--------------------------------------------------------------------------------------
 \section{Tratamiento de datos faltantes y valores atípicos}
 \label{sec:met_faltantes}
 
-La Tabla~\ref{tab:met_faltantes} reúne qué se hizo con los faltantes y los atípicos según el papel de cada variable. No se imputó ningún valor: los indicadores de condición de actividad se construyen por la pertenencia a un módulo, el factor de expansión faltante detiene el procesamiento y una covariable incompleta queda fuera del modelo. Tampoco se eliminaron dominios ni municipios por ser atípicos: con 23 dominios, cada uno es un territorio real, y su influencia se mide con la distancia de Cook y con el reajuste sin cada dominio (etapa 11).
+La Tabla~\ref{tab:met_faltantes} reúne qué se hizo con los faltantes y los atípicos según el papel de cada variable. No se imputó ningún valor: los indicadores de condición de actividad se construyeron por la pertenencia a un módulo, un factor de expansión faltante detenía el procesamiento y una covariable incompleta quedó fuera del modelo. Tampoco se eliminaron dominios ni municipios por ser atípicos: con 23 dominios, cada uno es un territorio real, y su influencia se midió con la distancia de Cook y con el reajuste sin cada dominio (etapa 11).
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 3: tratamiento de datos faltantes y valores atípicos.}
+\caption[Ficha de la etapa 3: tratamiento de datos faltantes y valores atípicos]{Ficha de la etapa 3: tratamiento de datos faltantes y valores atípicos. Siglas: PET, población en edad de trabajar; PEA, población económicamente activa; OC, población ocupada; DS, población desocupada; PEI, población económicamente inactiva.}
 \label{tab:met_faltantes}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}X}
@@ -84,28 +121,28 @@ La Tabla~\ref{tab:met_faltantes} reúne qué se hizo con los faltantes y los at�
 Variable o caso & Tratamiento \\
 \midrule
 Condición de actividad (PET, PEA, OC, DS, PEI) & Es 1 si la persona está en el módulo que la define y 0 si no; la ausencia en el módulo de ocupados, por ejemplo, significa que no está ocupada \\
-Factor de expansión & Sin imputación: si falta o no es positivo, el procesamiento se detiene (etapa 2) \\
-Registros sin código de área & No se usan: no pertenecen a ninguno de los 23 dominios (Sección~\ref{sec:datos_geih}) \\
-Covariable con faltantes en los dominios & Sale en el pre-filtrado (etapa 7) \\
-Covariable con faltantes en los municipios objetivo & No entra al catálogo activo: sin ella no hay estimación sintética (etapa 6) \\
-Valores no interpretables en TerriData & Se convierten a nulo y siguen la regla anterior \\
-Valores atípicos & No se eliminan ni se recortan; se señalan con la regla del diagrama de caja (Ecuación~\ref{eq:iqr}) y su influencia se mide en la etapa 11 \\
+Factor de expansión & Sin imputación: si faltaba o no era positivo, el procesamiento se detenía (etapa 2) \\
+Registros sin código de área & No se usaron: no pertenecen a ninguno de los 23 dominios (Sección~\ref{sec:datos_geih}) \\
+Covariable con faltantes en los dominios & Salió en el pre-filtrado (etapa 7) \\
+Covariable con faltantes en los municipios objetivo & No entró al catálogo activo: sin ella no hay estimación sintética (etapa 6) \\
+Valores no interpretables en TerriData & Se convirtieron a nulo y siguieron la regla anterior \\
+Valores atípicos & No se eliminaron ni se recortaron; se señalaron con la regla del diagrama de caja (Ecuación~\ref{eq:iqr}) y su influencia se midió en la etapa 11 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Algunos criterios habituales no aplican. No hay covariables categóricas ni codificación de variables indicadoras: las 18 candidatas son cuantitativas. No hay una búsqueda de hiperparámetros: los parámetros del procedimiento (umbrales, réplicas, semillas) se fijaron antes de ver los resultados, y en el modelo espacial se comparan cuatro matrices de proximidad como escenarios, no como valores para optimizar.
+Algunos criterios habituales no aplicaron. No hubo covariables categóricas ni codificación de variables indicadoras: las 18 candidatas son cuantitativas. No hubo una búsqueda de hiperparámetros: los parámetros del procedimiento (umbrales, réplicas, semillas) se fijaron antes de ver los resultados (Tabla~\ref{tab:met_parametros}), y en el modelo espacial se compararon cuatro matrices de proximidad como escenarios, no como valores para optimizar.
 
 %--------------------------------------------------------------------------------------
 \section{Definición de los dominios de estimación y correspondencia geográfica}
 \label{sec:met_dominios}
 
-El dominio de estimación es la unidad que identifica la GEIH: la ciudad capital o la ciudad con su área metropolitana. Así, la tasa directa de Cali es la de Cali A.M., la misma unidad para la que publica el DANE. Cada dominio lleva el código DIVIPOLA de su capital, y una tabla de dimensión enumera sus municipios miembro con la composición de la metodología de la encuesta (Tabla~\ref{tab:met_dominios}). Una tabla de auditoría documenta, para cada dominio, el período, el código de área de la GEIH, el nombre con que lo publica el DANE, la geografía de la tasa (las cabeceras) y la de las covariables (el municipio completo), los municipios miembro con su código, la regla de agregación de las covariables y la tasa directa frente a la del DANE en la misma ventana.
+El dominio de estimación se definió como la unidad que identifica la GEIH: la ciudad capital o la ciudad con su área metropolitana. Así, la tasa directa de Cali es la de Cali A.M., la misma unidad para la que publica el DANE. Cada dominio llevó el código DIVIPOLA de su capital, y una tabla de dimensión enumeró sus municipios miembro con la composición de la metodología de la encuesta (Tabla~\ref{tab:met_dominios}). Una tabla de auditoría documentó, para cada dominio, el período, el código de área de la GEIH, el nombre con que lo publica el DANE, la geografía de la tasa (las cabeceras) y la de las covariables (el municipio completo), los municipios miembro con su código, la regla de agregación de las covariables y la tasa directa frente a la del DANE en la misma ventana.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 4: definición de los dominios y correspondencia geográfica.}
+\caption[Ficha de la etapa 4: definición de los dominios y correspondencia geográfica]{Ficha de la etapa 4: definición de los dominios y correspondencia geográfica. Siglas: GEIH, Gran Encuesta Integrada de Hogares; DIVIPOLA, División Político-Administrativa de Colombia; A.M., área metropolitana.}
 \label{tab:met_dominios}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -114,7 +151,7 @@ Elemento & Contenido \\
 \midrule
 Entradas & Código de área de la GEIH; DIVIPOLA; lista de capitales y de municipios de cada área metropolitana \\
 Transformaciones & Código de área $\to$ código del departamento de la capital $\to$ código DIVIPOLA de la capital; una fila por municipio miembro con el dominio al que pertenece y su tipo (ciudad o ciudad con A.M.) \\
-Regla de decisión & Membresía estricta de la GEIH; los registros sin código de área no se usan \\
+Regla de decisión & Membresía estricta de la GEIH; los registros sin código de área no se usaron \\
 Sustento & Composición de las áreas metropolitanas \cite[p.~9]{DANE_GEIH_Metodologia2016} \\
 Salida & Tabla de dominios (32 capitales, 52 municipios miembro; 23 dominios con muestra en 2018) y tabla de auditoría de los 23 dominios \\
 \bottomrule
@@ -125,12 +162,12 @@ Salida & Tabla de dominios (32 capitales, 52 municipios miembro; 23 dominios con
 \section{Estimación directa de la tasa de desempleo}
 \label{sec:met_directa}
 
-La respuesta del modelo es la tasa directa de cada dominio en el año 2018, con la varianza que el modelo trata como conocida (Tabla~\ref{tab:met_directa}). La ventana de un año calendario se eligió frente al mes y al trimestre porque reúne más viviendas por dominio, lo que reduce la varianza de la estimación; la sensibilidad de la tasa a las tres ventanas se calculó aparte con el mismo estimador y no alimenta el modelo. El DANE no publica la tasa anual por ciudad, así que la cifra de referencia de cada dominio se reconstruye como la suma de desocupados sobre la suma de la PEA de los cuatro trimestres del año que no se superponen.
+La respuesta del modelo fue la tasa directa de cada dominio en el año 2018, con la varianza que el modelo trata como conocida (Tabla~\ref{tab:met_directa}). La ventana de un año calendario se eligió frente al mes y al trimestre porque reúne más viviendas por dominio, lo que reduce la varianza de la estimación; la sensibilidad de la tasa a las tres ventanas se calculó aparte con el mismo estimador y no alimentó el modelo. El DANE no publica la tasa anual por ciudad, así que la cifra de referencia de cada dominio se reconstruyó como la suma de desocupados sobre la suma de la PEA de los cuatro trimestres del año que no se superponen.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 5: estimación directa.}
+\caption[Ficha de la etapa 5: estimación directa]{Ficha de la etapa 5: estimación directa. Siglas: PEA, población económicamente activa; CV, coeficiente de variación; DANE, Departamento Administrativo Nacional de Estadística.}
 \label{tab:met_directa}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -148,18 +185,52 @@ Salida & Por dominio: tasa, error estándar bootstrap, intervalo del 95~\%, CV y
 \end{tabularx}
 \end{table}
 
-El bootstrap no reproduce el estrato interno ni el segmento, que no vienen en los microdatos. Por eso no se afirma que la varianza obtenida quede por encima ni por debajo de la del diseño, y la etapa 11 evalúa qué pasa con el modelo si se reemplaza.
+El bootstrap no reproduce el estrato interno ni el segmento, que no vienen en los microdatos. Por eso no se afirma que la varianza obtenida quede por encima ni por debajo de la del diseño, y en la etapa 11 se evaluó qué pasa con el modelo si se reemplaza.
 
 %--------------------------------------------------------------------------------------
 \section{Construcción y agregación de las covariables}
 \label{sec:met_covariables}
 
-Las covariables candidatas salen de un catálogo construido con la revisión de literatura del proyecto: entra un indicador solo si un estudio lo relaciona con el desempleo, y cada entrada declara el signo esperado de esa relación y su referencia, antes de calcular ninguna cifra (Tabla~\ref{tab:met_covariables}). La exigencia de una relación interpretable sigue la recomendación de que las variables auxiliares tengan una explicación acorde con la disciplina que estudia el fenómeno \cite[p.~453]{morales2021smallarea}. Las justificaciones del catálogo hablan de asociación, no de causa. El catálogo completo, con el código de TerriData y la referencia de cada entrada, está en el Apéndice~\ref{app:catalogo}.
+Las covariables candidatas salieron de un catálogo construido con la revisión de literatura del proyecto: entró un indicador solo si un estudio lo relaciona con el desempleo, y cada entrada declaró el signo esperado de esa relación y su referencia antes de calcular ninguna cifra (Tabla~\ref{tab:met_covariables}). La exigencia de una relación interpretable sigue la recomendación de que las variables auxiliares tengan una explicación acorde con la disciplina que estudia el fenómeno \cite[p.~453]{morales2021smallarea}. Las justificaciones del catálogo hablan de asociación, no de causa. El catálogo completo, con el código de TerriData y la referencia de cada entrada, está en el Apéndice~\ref{app:catalogo}.
+
+TerriData publica cada indicador por municipio, y un dominio con área metropolitana reúne varios. El valor del dominio se calculó como una razón de totales sobre sus municipios miembro (Ecuación~\ref{eq:agregacion}), con el denominador propio de cada indicador (Tabla~\ref{tab:met_agregacion}). En la columna «Regla», «exacta» indica que el denominador es el del indicador, «proxy» que TerriData no publica ese denominador y se usó uno cercano, y «convención» que el indicador es un índice sin un valor natural para la unión de municipios. En los 16 dominios de un solo municipio el valor es el del municipio.
+
+\begin{table}[!htbp]
+\centering
+\footnotesize
+\caption[Denominador de agregación de cada covariable]{Denominador con el que cada covariable candidata se llevó a un dominio con área metropolitana y tipo de regla. Fuente: tabla de reglas de agregación del procesamiento.}
+\label{tab:met_agregacion}
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{5.4cm} >{\raggedright\arraybackslash}X l}
+\toprule
+Covariable & Denominador de agregación & Regla \\
+\midrule
+Cobertura neta en educación media & Población de 15 a 19 años & Proxy \\
+Cobertura neta en educación secundaria & Población de 10 a 14 años & Proxy \\
+Saber 11, matemáticas & Población de 15 a 19 años & Proxy \\
+Saber 11, lectura crítica & Población de 15 a 19 años & Proxy \\
+Tránsito a la educación superior & Población de 15 a 19 años & Proxy \\
+Valor agregado per cápita & Población total & Exacta \\
+Valor agregado de actividades primarias, secundarias y terciarias & Valor agregado municipal & Exacta \\
+Índice de pobreza multidimensional & Población total & Exacta \\
+Población urbana & Población total & Exacta \\
+Densidad de población & Superficie & Exacta \\
+Población joven de 14 a 28 años & Población total & Exacta \\
+Índice de desempeño fiscal & Población total & Convención \\
+Ingresos tributarios per cápita & Población total & Exacta \\
+Tasa de homicidios & Población total & Exacta \\
+Cobertura de acueducto & Población total & Proxy \\
+Penetración de banda ancha & Población total & Exacta \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Los municipios objetivo son los del Cauca y del Valle del Cauca que no forman por sí solos un dominio con muestra: los 41 del Cauca distintos de Popayán y los 42 del Valle del Cauca, 83 en total. Cali y Yumbo pertenecen al dominio Cali A.M.: tienen una estimación directa conjunta pero no una propia, y por eso se cuentan entre los objetivos, con el dominio al que pertenecen. La fila departamental de TerriData no se usó como municipio.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 6: construcción y agregación de las covariables.}
+\caption[Ficha de la etapa 6: construcción y agregación de las covariables]{Ficha de la etapa 6: construcción y agregación de las covariables. Siglas: A.M., área metropolitana.}
 \label{tab:met_covariables}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -167,10 +238,10 @@ Las covariables candidatas salen de un catálogo construido con la revisión de 
 Elemento & Contenido \\
 \midrule
 Entradas & TerriData en formato ancho (indicadores cuantitativos: porcentajes, tasas, valores per cápita, puntajes); tabla de dominios; tasas directas \\
-Transformaciones & Valor del dominio por razón de totales con el denominador propio de cada indicador (Ecuación~\ref{eq:agregacion}; denominadores en la Tabla~\ref{tab:covariables_datos}); unión con las tasas por dominio, año y mes; tabla de municipios objetivo con sus covariables a nivel municipal y, para Cali y Yumbo, el dominio al que pertenecen \\
+Transformaciones & Valor del dominio por razón de totales con el denominador propio de cada indicador (Ecuación~\ref{eq:agregacion}; denominadores en la Tabla~\ref{tab:met_agregacion}); unión con las tasas por dominio, año y mes; tabla de municipios objetivo con sus covariables a nivel municipal y, para Cali y Yumbo, el dominio al que pertenecen \\
 Regla de decisión & Entrada activa si tiene referencia, dato para 2018 y valor en todos los municipios objetivo; toda covariable debe tener una regla de agregación, y el valor de un dominio es nulo si le falta a alguno de sus miembros \\
 Parámetros & Departamentos objetivo: 19 (Cauca) y 76 (Valle del Cauca) \\
-Verificaciones & Sensibilidad de las covariables de las 7 áreas metropolitanas a ponderar todas por la población de 15 años y más en lugar de su denominador propio; el procesamiento se detiene si a un miembro le falta un peso, si falta un miembro de un dominio con A.M. entre los objetivos o si no queda ningún municipio objetivo \\
+Verificaciones & Sensibilidad de las covariables de las 7 áreas metropolitanas a ponderar todas por la población de 15 años y más en lugar de su denominador propio; el procesamiento se detenía si a un miembro le faltaba un peso, si faltaba un miembro de un dominio con A.M. entre los objetivos o si no quedaba ningún municipio objetivo \\
 Sustento & Valor del área \cite[p.~425]{morales2021smallarea}; razón de totales \cite[p.~21]{morales2021smallarea} \\
 Salida & Catálogo (18 activas y 6 sin dato utilizable, con su motivo); tabla de 23 dominios con respuesta y covariables; tabla de 83 municipios objetivo \\
 \bottomrule
@@ -183,12 +254,12 @@ El índice de incidencia del conflicto armado, que estaba en una versión anteri
 \section{Pre-filtrado de covariables}
 \label{sec:met_prefiltrado}
 
-El pre-filtrado retira las candidatas que no se pueden usar, sin mirar su relación con la tasa de desempleo (Tabla~\ref{tab:met_prefiltrado}). Por eso no se repite dentro de la validación predictiva de la etapa 12.
+El pre-filtrado retiró las candidatas que no se pueden usar, sin mirar su relación con la tasa de desempleo (Tabla~\ref{tab:met_prefiltrado}). Por eso no se repitió dentro de la validación predictiva de la etapa 12.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 7: pre-filtrado de covariables.}
+\caption[Ficha de la etapa 7: pre-filtrado de covariables]{Ficha de la etapa 7: pre-filtrado de covariables. Siglas: CV, coeficiente de variación.}
 \label{tab:met_prefiltrado}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -198,7 +269,7 @@ Elemento & Contenido \\
 Entradas & Tabla de 23 dominios con todas las columnas de TerriData del período \\
 Transformaciones & Conversión numérica tolerante a errores de las columnas de texto \\
 Regla de decisión & Completitud: sin faltantes en los 23 dominios. Variabilidad: CV descriptivo (Ecuación~\ref{eq:cv_descriptivo}) $\geq 0.001$ y proporción de dominios con el valor modal $\leq 0.90$. Sin filtro por correlación con la respuesta \\
-Parámetros & CV mínimo 0.001; proporción modal máxima 0.90; los pares con $|r| \geq 0.999$ se reportan como duplicados, sin decidir \\
+Parámetros & CV mínimo 0.001; proporción modal máxima 0.90; los pares con $|r| \geq 0.999$ se reportaron como duplicados, sin decidir \\
 Verificaciones & Cascada (candidatas que pasan cada filtro) y sensibilidad del número de sobrevivientes a los dos umbrales de variabilidad \\
 Sustento & Una columna constante es colineal con el intercepto y deja singular la matriz de la Ecuación~\ref{eq:gls}; los dos criterios no dependen de la unidad del indicador \\
 Salida & Covariables pre-filtradas, cascada y sensibilidad \\
@@ -210,12 +281,12 @@ Salida & Covariables pre-filtradas, cascada y sensibilidad \\
 \section{Análisis descriptivo}
 \label{sec:met_descriptivo}
 
-El análisis descriptivo caracteriza la tasa directa, su precisión y las candidatas activas, en tres niveles (Tabla~\ref{tab:met_descriptivo}). No decide: una variable asimétrica no se descarta por serlo y un dominio extremo no se retira. No se aplicó análisis de componentes principales, porque sus combinaciones no tienen una lectura territorial y exigen decidir cuántas retener. Tampoco se aplicó la prueba de Shapiro-Wilk a las covariables: el modelo supone normalidad de los efectos y de los errores, no de las covariables.
+El análisis descriptivo caracterizó la tasa directa, su precisión y las candidatas activas, en tres niveles (Tabla~\ref{tab:met_descriptivo}). No decidió: ninguna variable se descartó por ser asimétrica ni se retiró un dominio por ser extremo. No se aplicó análisis de componentes principales, porque sus combinaciones no tienen una lectura territorial y exigen decidir cuántas retener. Tampoco se aplicó la prueba de Shapiro-Wilk a las covariables: el modelo supone normalidad de los efectos y de los errores, no de las covariables.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 8: análisis descriptivo.}
+\caption[Ficha de la etapa 8: análisis descriptivo]{Ficha de la etapa 8: análisis descriptivo. Siglas: CV, coeficiente de variación.}
 \label{tab:met_descriptivo}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -236,12 +307,12 @@ Salida & Tablas univariada y bivariada; figuras de la respuesta, de su distribuc
 \section{Selección de covariables}
 \label{sec:met_seleccion}
 
-La selección elige las covariables del modelo en cinco pasos (Tabla~\ref{tab:met_seleccion}). Cada paso se puede verificar por separado, y el recorrido de cada candidata queda registrado. Decide el modelo Fay-Herriot univariado con las mismas $\psi_d$ del modelo final, no la correlación de Pearson, porque el primero pondera cada dominio por la precisión de su estimación directa.
+La selección eligió las covariables del modelo en cinco pasos (Tabla~\ref{tab:met_seleccion}). Cada paso se puede verificar por separado, y el recorrido de cada candidata quedó registrado. Decidió el modelo Fay-Herriot univariado con las mismas $\psi_d$ del modelo final, no la correlación de Pearson, porque el primero pondera cada dominio por la precisión de su estimación directa. Como el umbral de $q$ puede cambiar el conjunto elegible, la selección se repitió con $q \leq 0.05$ y $q \leq 0.15$, sin cambiar la decisión (Tabla~\ref{tab:met_parametros}).
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 9: selección de covariables.}
+\caption[Ficha de la etapa 9: selección de covariables]{Ficha de la etapa 9: selección de covariables. Siglas: REML, máxima verosimilitud restringida; GLS, mínimos cuadrados generalizados; AIC, criterio de información de Akaike; VIF, factor de inflación de la varianza.}
 \label{tab:met_seleccion}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -250,10 +321,10 @@ Paso & Contenido \\
 \midrule
 1. Asociación & Fay-Herriot univariado por candidata (REML y GLS), con intervalo de Wald de $\beta_1$, valor $p$ y correlación ponderada $r_w$ (Ecuación~\ref{eq:r_ponderada}), que ordena y fija el signo; valor $q$ de Benjamini-Hochberg sobre las 18 (Ecuación~\ref{eq:bh}). Forma funcional como diagnóstico: término cuadrático y logaritmo frente a lineal por AIC \\
 2. Robustez y soporte & Diagnósticos, no filtros: Cook (Ecuación~\ref{eq:cook}) y cambio de $r_w$ al retirar cada dominio (dependencia si Cook $> 4/n$ y el cambio supera 0.10 o invierte el signo); proporción de municipios objetivo dentro del rango de los dominios, con advertencia por debajo de 0.80 \\
-3. Redundancia & Grupos por enlace completo con $|r| \geq 0.80$ entre todos sus pares; representante: el primer integrante elegible con menor Cook máximo; si no es elegible, se pasa al siguiente \\
-4. Ficha de decisión & Elegible si $q \leq 0.10$; el signo esperado se compara con el observado como diagnóstico; se seleccionan las $\lfloor n/10 \rfloor$ elegibles de mayor $|r_w|$ (Ecuación~\ref{eq:pmax}); si no hay elegibles, el conjunto queda vacío y el modelo usa solo el intercepto \\
-5. Verificación & VIF del conjunto (Ecuación~\ref{eq:vif}); si una supera 5, se reemplaza por la siguiente elegible; residuos parciales; repetición de la selección exigiendo el signo esperado, como sensibilidad \\
-Parámetros & $q \leq 0.10$; $|r| \geq 0.80$; 10 observaciones por parámetro; VIF $\leq 5$; Cook $4/n$ y cambio 0.10 (inspección); soporte 0.80 (advertencia) \\
+3. Redundancia & Grupos por enlace completo con $|r| \geq 0.80$ entre todos sus pares; representante: el primer integrante elegible con menor Cook máximo; si no era elegible, se pasó al siguiente \\
+4. Ficha de decisión & Elegible si $q \leq 0.10$; el signo esperado se comparó con el observado como diagnóstico; se seleccionaron las $\lfloor n/10 \rfloor$ elegibles de mayor $|r_w|$ (Ecuación~\ref{eq:pmax}); si no hubiera elegibles, el conjunto quedaría vacío y el modelo usaría solo el intercepto \\
+5. Verificación & VIF del conjunto (Ecuación~\ref{eq:vif}); si una superaba 5, se reemplazaba por la siguiente elegible; residuos parciales; repetición de la selección exigiendo el signo esperado, como sensibilidad \\
+Parámetros & $q \leq 0.10$, con sensibilidad a 0.05 y 0.15; $|r| \geq 0.80$; 10 observaciones por parámetro; VIF $\leq 5$; Cook $4/n$ y cambio 0.10 (inspección); soporte 0.80 (advertencia) \\
 Sustento & \cite[pp.~453--454]{morales2021smallarea}; \cite{BenjaminiHochberg1995}; VIF: \cite[sec.~9.4]{MontgomeryPeckVining2012}; cota, 0.80 y $4/n$: convenciones del trabajo \\
 Salida & Diagnósticos por candidata, grupos de redundancia, ficha de decisión, verificación, trazabilidad y conjunto seleccionado \\
 \bottomrule
@@ -266,12 +337,12 @@ En una versión anterior, la robustez descartaba candidatas. Se cambió a diagn�
 \section{Ajuste y selección del modelo Fay-Herriot clásico (benchmark)}
 \label{sec:met_fh_clasico}
 
-Con el conjunto seleccionado se ajustan varias especificaciones candidatas del modelo base Fay-Herriot clásico y se elige una, que es el benchmark no espacial contra el que se compara el modelo espacial (Tabla~\ref{tab:met_fh_clasico}). Las especificaciones se nombran EC1 (el conjunto seleccionado), EC2, EC3 y siguientes (sus subconjuntos no vacíos) y EC0 (solo intercepto). No son los modelos finales del objetivo específico 1: son las variantes entre las que se elige el benchmark.
+Con el conjunto seleccionado se implementaron y ajustaron varias especificaciones candidatas del modelo base Fay-Herriot clásico y se eligió una, el benchmark no espacial contra el que se comparó el modelo espacial (Tabla~\ref{tab:met_fh_clasico}). Las especificaciones se nombraron EC1 (el conjunto seleccionado), EC2, EC3 y siguientes (sus subconjuntos no vacíos) y EC0 (solo intercepto). No son los modelos finales del objetivo específico 1: son las variantes entre las que se eligió el benchmark.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 10: ajuste y selección del Fay-Herriot clásico.}
+\caption[Ficha de la etapa 10: ajuste y selección del Fay-Herriot clásico]{Ficha de la etapa 10: ajuste y selección del Fay-Herriot clásico. Siglas: REML, máxima verosimilitud restringida; GLS, mínimos cuadrados generalizados; ML, máxima verosimilitud; EBLUP, mejor predictor lineal insesgado empírico; ECM, error cuadrático medio; CV, coeficiente de variación; AIC, criterio de información de Akaike; AICc, AIC corregido para muestras pequeñas.}
 \label{tab:met_fh_clasico}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -280,7 +351,7 @@ Elemento & Contenido \\
 \midrule
 Entradas & Tasa directa $\hat{\theta}_d$ y $\psi_d$ de los 23 dominios; covariables seleccionadas \\
 Transformaciones & Para cada especificación: $\hat{\sigma}_u^2$ por REML, $\hat{\boldsymbol{\beta}}$ por GLS (Ecuación~\ref{eq:gls}), EBLUP (Ecuación~\ref{eq:eblup_a}), ECM de Prasad-Rao (Ecuaciones~\ref{eq:ecm_eblup} y~\ref{eq:ecm_componentes}), CV, AIC y AICc con la verosimilitud ML (Ecuaciones~\ref{eq:loglik} y~\ref{eq:aic}); error de estimación dejar-un-dominio-fuera de cada especificación, como descripción \\
-Regla de decisión & Compiten las especificaciones con todas sus covariables con $p < 0.05$ (EC0 cumple de forma trivial); entre ellas, la de menor AIC, y entre las que difieren en $\Delta\text{AIC} \leq 2$, la de menos covariables. Si ninguna con covariables cumple, compiten todas y la elección se reporta como excepción \\
+Regla de decisión & Compitieron las especificaciones con todas sus covariables con $p < 0.05$ (EC0 cumple de forma trivial); entre ellas, la de menor AIC, y entre las que difieren en $\Delta\text{AIC} \leq 2$, la de menos covariables. Si ninguna con covariables cumpliera, competirían todas y la elección se reportaría como excepción \\
 Parámetros & $\alpha = 0.05$; $\Delta\text{AIC} \leq 2$; aviso si $\max_d \hat{\gamma}_d < 0.01$ ($\hat{\sigma}_u^2 \approx 0$) o si alguna tasa cae fuera de $[0, 100]$ \\
 Sustento & \cite[pp.~427, 434--441, 453--454]{morales2021smallarea}; AICc: \cite{HurvichTsai1989}; $\Delta\text{AIC} \leq 2$: convención \\
 Salida & Diagnósticos y coeficientes de cada especificación; tabla de selección con el criterio aplicado; EBLUP, ECM, CV y $\hat{\gamma}_d$ de los 23 dominios con el benchmark \\
@@ -288,31 +359,32 @@ Salida & Diagnósticos y coeficientes de cada especificación; tabla de selecci�
 \end{tabularx}
 \end{table}
 
-Los valores $p$ de esta etapa son descriptivos. Los mismos 23 dominios filtran las candidatas, las seleccionan y estiman los coeficientes, así que los coeficientes son asociaciones condicionales a la selección y no se interpretan como efectos causales. La literatura de referencia no trata este punto; el trabajo lo reporta como una limitación y lo examina en las etapas 11 y 12. El ECM y la distancia de Cook no intervienen en la elección: se reportan para el benchmark.
+Los valores $p$ de esta etapa son descriptivos. Los mismos 23 dominios filtran las candidatas, las seleccionan y estiman los coeficientes, así que los coeficientes son asociaciones condicionales a la selección y no se interpretan como efectos causales. La literatura de referencia no trata este punto; se reportó como una limitación y se examinó en las etapas 11 y 12. El ECM y la distancia de Cook no intervinieron en la elección: se reportaron para el benchmark.
 
 %--------------------------------------------------------------------------------------
 \section{Validación de supuestos y sensibilidad del benchmark}
 \label{sec:met_supuestos}
 
-Esta etapa revisa los supuestos del benchmark y mide cuánto cambian sus coeficientes y sus estimaciones cuando cambian los datos o la varianza de muestreo (Tabla~\ref{tab:met_supuestos}). Ninguno de estos análisis cambia el modelo elegido ni las tasas publicadas.
+En esta etapa se revisaron los supuestos del benchmark y se midió cuánto cambian sus coeficientes y sus estimaciones cuando cambian los datos o la varianza de muestreo (Tabla~\ref{tab:met_supuestos}). Ninguno de estos análisis cambió el modelo elegido ni las tasas publicadas. Con 23 residuos, un histograma de pocas barras dice poco de la forma de la distribución, por lo que la normalidad se revisó además con el gráfico cuantil-cuantil, y el supuesto de varianza constante de los residuos con su gráfico frente a los valores ajustados.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 11: validación de supuestos y sensibilidad del benchmark.}
+\caption[Ficha de la etapa 11: validación de supuestos y sensibilidad del benchmark]{Ficha de la etapa 11: validación de supuestos y sensibilidad del benchmark. Siglas: EBLUP, mejor predictor lineal insesgado empírico; CV, coeficiente de variación; GVF, función generalizada de varianza; Q-Q, cuantil-cuantil.}
 \label{tab:met_supuestos}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
 \toprule
 Análisis & Contenido \\
 \midrule
-Normalidad & Residuos estandarizados (Ecuación~\ref{eq:residuos}): media (cercana a cero por construcción), desviación, histograma y Shapiro-Wilk (Ecuación~\ref{eq:shapiro}), leído como «sin evidencia fuerte en contra», no como prueba de normalidad \\
+Normalidad & Residuos estandarizados (Ecuación~\ref{eq:residuos}): media (cercana a cero por construcción), desviación, histograma, gráfico Q-Q frente a la normal estándar y Shapiro-Wilk (Ecuación~\ref{eq:shapiro}), leído como «sin evidencia fuerte en contra», no como prueba de normalidad \\
+Varianza constante & Residuos estandarizados frente a los valores ajustados del benchmark, en busca de un patrón de embudo o de curvatura \\
 Influencia & Distancia de Cook (Ecuación~\ref{eq:cook}) con $\hat{\sigma}_u^2$ fijo; reajuste sin el dominio más influyente \\
 Estabilidad de coeficientes & 23 reajustes dejando un dominio fuera (reestimando $\hat{\sigma}_u^2$): mínimo y máximo de cada $\hat{\beta}_j$, dominio que los produce, cambio estandarizado (Ecuación~\ref{eq:dfbeta}), cambios de signo y de significancia; efecto en los EBLUP de los otros dominios, en las estimaciones de los 83 municipios y en su clase de confiabilidad. Bootstrap de dominios con la especificación fija \\
-Varianza de muestreo & Varianzas alternativas: bootstrap por personas, Taylor, GVF A y B (Ecuación~\ref{eq:gvf}); nueve escenarios del modelo: base, Taylor, GVF A y $\psi_d \times k$; en cada uno se reajustan todas las especificaciones y se vuelve a elegir con la misma regla; se comparan $\hat{\sigma}_u^2/\bar{\psi}$, $\hat{\gamma}_d$, $\hat{\boldsymbol{\beta}}$, EBLUP, CV, clase, $\lambda_1$ y estimaciones municipales \\
+Varianza de muestreo & Varianzas alternativas: bootstrap por personas, Taylor, GVF A y B (Ecuación~\ref{eq:gvf}); nueve escenarios del modelo: base, Taylor, GVF A y $\psi_d \times k$; en cada uno se reajustaron todas las especificaciones y se volvió a elegir con la misma regla; se compararon $\hat{\sigma}_u^2/\bar{\psi}$, $\hat{\gamma}_d$, $\hat{\boldsymbol{\beta}}$, EBLUP, CV, clase, $\lambda_1$ y estimaciones municipales \\
 Parámetros & Umbrales de influencia: 1 error estándar y 0.5 puntos porcentuales; \num{1000} réplicas bootstrap, semilla 42; $k \in \{1/3, 1/2, 2/3, 3/2, 2, 3\}$ \\
 Sustento & \cite{ShapiroWilk1965, Cook1977}; GVF: \cite[p.~427]{morales2021smallarea}, \cite[pp.~15--16]{MarinTralmaGuerrero2024}, \cite[p.~15]{Tellez2020}; $\hat{\sigma}_u^2/\bar{\psi}$: \cite[p.~143]{Benedetti2024}; umbrales de influencia: convención \\
-Salida & Tablas de estabilidad, de influencia por dominio y de escenarios de varianza; mapa de calor de la influencia \\
+Salida & Gráficos Q-Q y de residuos frente a ajustados; tablas de estabilidad, de influencia por dominio y de escenarios de varianza; gráfico de la influencia por dominio \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -321,12 +393,14 @@ Salida & Tablas de estabilidad, de influencia por dominio y de escenarios de var
 \section{Validación predictiva dejar-un-dominio-fuera}
 \label{sec:met_validacion}
 
-Las cifras del ajuste con los 23 dominios no dicen qué tan bien estima el modelo un lugar sin encuesta, porque el EBLUP de un dominio se apoya en su propia estimación directa. La validación predictiva dejar-un-dominio-fuera imita ese uso: retira un dominio, ajusta con los otros 22 y lo estima como si no tuviera encuesta (Tabla~\ref{tab:met_validacion}). Se hace de dos formas. Con las covariables del benchmark fijas, solo se reestiman $\hat{\boldsymbol{\beta}}$ y $\hat{\sigma}_u^2$; es optimista, porque esas covariables se eligieron viendo al dominio retirado. Con el procedimiento completo, en cada iteración se repiten la selección de la etapa 9 y la elección de la etapa 10 con los 22 dominios que quedan. La diferencia entre ambos errores es el costo de haber seleccionado con los mismos datos.
+Las cifras del ajuste con los 23 dominios no dicen qué tan bien estima el modelo un lugar sin encuesta, porque el EBLUP de un dominio se apoya en su propia estimación directa. La validación predictiva dejar-un-dominio-fuera imitó ese uso: se retiró un dominio, se ajustó el modelo con los otros 22 y se estimó el dominio retirado como si no tuviera encuesta (Tabla~\ref{tab:met_validacion}). Se hizo de dos formas. Con las covariables del benchmark fijas, solo se reestimaron $\hat{\boldsymbol{\beta}}$ y $\hat{\sigma}_u^2$; es optimista, porque esas covariables se eligieron viendo al dominio retirado. Con el procedimiento completo, en cada iteración se repitieron la selección de la etapa 9 y la elección de la etapa 10 con los 22 dominios que quedan. La diferencia entre ambos errores es el costo de haber seleccionado con los mismos datos.
+
+Las métricas se eligieron por lo que mide cada una en una tasa continua con pocos dominios. La RMSE y el MAE expresan el error en puntos porcentuales, la misma escala de la tasa; la RMSE pesa más los errores grandes y el MAE no. El sesgo indica si el modelo tiende a estimar por encima o por debajo. La RMSE corregida por ruido descuenta la parte del error que se debe a que la directa con que se compara también tiene error de muestreo. $Z_\psi$ mide el error en unidades del error de muestreo de la directa, y $Z_{\text{pred}}$ y la cobertura del 95~\% evalúan la calibración: si el error estimado por el modelo corresponde al error observado. La habilidad compara cada ejercicio con el modelo de solo intercepto evaluado igual, que es la referencia mínima que un modelo con covariables debe superar.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 12: validación predictiva dejar-un-dominio-fuera.}
+\caption[Ficha de la etapa 12: validación predictiva dejar-un-dominio-fuera]{Ficha de la etapa 12: validación predictiva dejar-un-dominio-fuera. Siglas: RMSE, raíz del error cuadrático medio; MAE, error absoluto medio.}
 \label{tab:met_validacion}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -336,27 +410,27 @@ Elemento & Contenido \\
 Entradas & 23 dominios con respuesta, $\psi_d$ y las 18 candidatas pre-filtradas; benchmark de la etapa 10 \\
 Transformaciones & Para cada dominio: ajuste sin él y estimación sintética $\mathbf{x}_d^\top\hat{\boldsymbol{\beta}}_{(-d)}$ con tres especificaciones: covariables fijas, procedimiento completo y solo intercepto (referencia) \\
 Métricas & RMSE, MAE, sesgo, RMSE corregida por ruido, $Z_\psi$, $Z_{\text{pred}}$ (media, desviación y cobertura) y habilidad frente al modelo de solo intercepto (Ecuación~\ref{eq:metricas_val}); error dentro de muestra para medir el optimismo; conjunto elegido en cada iteración y frecuencia de cada covariable \\
-Regla de decisión & Ninguna: la validación no cambia el benchmark. Si el procedimiento completo estima peor que el modelo de solo intercepto (habilidad negativa), se reporta como limitación, con la inestabilidad del conjunto entre iteraciones \\
-Verificaciones & Con los 23 dominios, la selección y la elección deben reproducir el conjunto y el benchmark; si no, se advierte y se sigue \\
+Regla de decisión & Ninguna: la validación no cambió el benchmark. Si el procedimiento completo estimaba peor que el modelo de solo intercepto (habilidad negativa), se reportaba como limitación, con la inestabilidad del conjunto entre iteraciones \\
+Verificaciones & Con los 23 dominios, la selección y la elección debían reproducir el conjunto y el benchmark; si no, se advertía y se seguía \\
 Parámetros & Cobertura nominal del 95~\% \\
-Sustento & Análisis propio; lectura del estimador fuera de muestra: \cite[p.~441]{morales2021smallarea}, \cite[p.~144]{Benedetti2024} \\
+Sustento & Análisis propio; un área fuera de la muestra recibe la estimación sintética $\mathbf{x}_d^\top\hat{\boldsymbol{\beta}}$ \cite[p.~441]{morales2021smallarea}, \cite[p.~144]{Benedetti2024} \\
 Salida & Errores por dominio y ejercicio, métricas por ejercicio, selección por iteración y frecuencia de selección \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Con 23 dominios las métricas resultan de 23 estimaciones y se leen como orden de magnitud.
+Con 23 dominios las métricas resultan de 23 estimaciones y se leyeron como orden de magnitud.
 
 %--------------------------------------------------------------------------------------
 \section{Modelo Fay-Herriot espacial y comparación con el benchmark}
 \label{sec:met_espacial}
 
-El objetivo específico 1 compara el benchmark con especificaciones espaciales. La comparación es controlada: misma respuesta, mismas $\psi_d$, mismos 23 dominios y las mismas covariables del benchmark, sin volver a seleccionarlas. Cambia solo la estructura de los efectos de área (Ecuación~\ref{eq:sar}). La Tabla~\ref{tab:met_espacial} es la ficha de la etapa y la Tabla~\ref{tab:met_comparacion}, el contenido de la comparación.
+Para el objetivo específico 1 se implementaron ocho especificaciones espaciales y se compararon con el benchmark. La comparación fue controlada: misma respuesta, mismas $\psi_d$, mismos 23 dominios y las mismas covariables del benchmark, sin volver a seleccionarlas. Cambió solo la estructura de los efectos de área (Ecuación~\ref{eq:sar}). La Tabla~\ref{tab:met_espacial} es la ficha de la etapa y la Tabla~\ref{tab:met_comparacion}, el contenido de la comparación. Todos los elementos de la comparación, incluidos el SEBLUP de los 23 dominios con su ECM, su CV y su peso $\hat{\gamma}^{S}_d$, y las diferencias entre las estimaciones de ambos modelos, se calcularon en el mismo trabajo programado que ajusta el modelo espacial y quedaron en sus tablas de salida.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 13: modelo Fay-Herriot espacial y comparación con el benchmark.}
+\caption[Ficha de la etapa 13: modelo Fay-Herriot espacial y comparación con el benchmark]{Ficha de la etapa 13: modelo Fay-Herriot espacial y comparación con el benchmark. Siglas: A.M., área metropolitana; REML, máxima verosimilitud restringida; ML, máxima verosimilitud; AIC, criterio de información de Akaike; LRT, prueba de razón de verosimilitudes; SEBLUP, EBLUP espacial; EBLUP, mejor predictor lineal insesgado empírico; ECM, error cuadrático medio; CV, coeficiente de variación.}
 \label{tab:met_espacial}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -366,22 +440,23 @@ Elemento & Contenido \\
 Entradas & Las mismas del benchmark, más las coordenadas de las cabeceras de los 23 dominios y de los 83 municipios objetivo \\
 Matriz de proximidad & Distancia de gran círculo entre cabeceras; cada dominio con A.M. es un solo nodo, ubicado en su capital; cuatro escenarios: 3 y 5 vecinos más cercanos, distancia inversa con potencia 1 y 2; estandarización por filas \\
 Estructuras & «Muestra»: solo los 23 dominios. «Completa»: dominios y municipios objetivo, con verosimilitud marginal de los dominios. Ocho especificaciones en total \\
-Estimación & $\hat{\sigma}_u^2$ y $\hat{\rho}$ por REML; AIC con ML; LRT de $\rho = 0$ (Ecuación~\ref{eq:lrt}); perfil de verosimilitud de $\rho$; SEBLUP (Ecuación~\ref{eq:seblup}); ECM por bootstrap paramétrico \\
-Regla de decisión & Escenario de referencia: menor AIC entre las estructuras «completa» con $|\hat{\rho}| < 0.99$. El espacial se prefiere al clásico solo si $p(\text{LRT}) < 0.05$ en la estructura «muestra» del mismo escenario. El $\Delta$AIC y la validación se reportan, no deciden \\
+Estimación & $\hat{\sigma}_u^2$ y $\hat{\rho}$ por REML; AIC con ML; LRT de $\rho = 0$ (Ecuación~\ref{eq:lrt}); perfil de verosimilitud de $\rho$; SEBLUP (Ecuación~\ref{eq:seblup}); ECM por bootstrap paramétrico en los municipios objetivo y en los 23 dominios, con el CV y el peso $\hat{\gamma}^{S}_d$ (Ecuación~\ref{eq:gamma_esp}) en el escenario de referencia \\
+Comparación de estimaciones & Diferencia entre la estimación espacial y la clásica en dominios y municipios (Tabla~\ref{tab:met_comparacion}) \\
+Regla de decisión & Escenario de referencia: menor AIC entre las estructuras «completa» con $|\hat{\rho}| < 0.99$. El espacial se preferiría al clásico solo si $p(\text{LRT}) < 0.05$ en la estructura «muestra» del mismo escenario. El $\Delta$AIC y la validación se reportaron, no decidieron \\
 Parámetros & $k \in \{3, 5\}$; potencias $\{1, 2\}$; $|\rho| \leq 0.99$; 500 réplicas bootstrap, semilla 42; \num{9999} permutaciones para Moran; $\alpha = 0.05$ \\
 Sensibilidades & Ubicación del nodo de un A.M. en la media de sus municipios en lugar de la capital; $\hat{\rho}$ de la estructura «completa» con distintos conjuntos de municipios objetivo \\
 Sustento & \cite[pp.~490--494]{morales2021smallarea}; \cite[pp.~146--149]{Benedetti2024}; \cite{PetrucciSalvati2006, PratesiSalvati2008}; escenarios de la matriz: convención \\
-Salida & Comparación de especificaciones, cuadro comparativo, Moran, perfil de $\rho$, validación, coeficientes y sensibilidades \\
+Salida & Comparación de especificaciones, cuadro comparativo, Moran, perfil de $\rho$, validación, coeficientes, SEBLUP de los dominios, diferencias entre las estimaciones y sensibilidades \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-La vecindad se define por distancia y no por contigüidad porque los 23 dominios son ciudades dispersas y los municipios objetivo no limitan con ellas. El valor de $k$ y la potencia no los identifican los datos: $k = 3$ es la conexión mínima con la que ninguna ciudad queda aislada; con $k > 5$ y 23 nodos la matriz deja de ser local; la potencia 1 decae despacio y la 2 concentra el peso en las ciudades cercanas. Por eso se reportan los cuatro escenarios. El $\hat{\rho}$ de la estructura «completa» depende de qué municipios sin dato se incluyen como nodos, por lo que su signo no se interpreta y la prueba de $\rho = 0$ se hace en la estructura «muestra».
+La vecindad se definió por distancia y no por contigüidad porque los 23 dominios son ciudades dispersas, con una mediana de 106~km al vecino más cercano, de modo que una matriz de contigüidad entre ellos quedaría casi vacía. Algunos municipios objetivo sí limitan con un dominio, como Jamundí con Cali o Timbío con Popayán, y la distancia los trata de la misma forma que a los demás. El valor de $k$ y la potencia no los identifican los datos: $k = 3$ es la conexión mínima con la que ninguna ciudad queda aislada; con $k > 5$ y 23 nodos la matriz deja de ser local; la potencia 1 decae despacio y la 2 concentra el peso en las ciudades cercanas. Por eso se reportaron los cuatro escenarios. El $\hat{\rho}$ de la estructura «completa» depende de qué municipios sin dato se incluyen como nodos, por lo que su signo no se interpretó y la prueba de $\rho = 0$ se hizo en la estructura «muestra».
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Contenido de la comparación entre el benchmark y el modelo espacial. Las diferencias se reportan sin pruebas adicionales al LRT de $\rho = 0$: con 23 dominios se describen, no se prueban.}
+\caption[Contenido de la comparación entre el benchmark y el modelo espacial]{Contenido de la comparación entre el benchmark y el modelo espacial. Las diferencias se reportan sin pruebas adicionales al LRT de $\rho = 0$: con 23 dominios se describen, no se prueban. Siglas: LRT, prueba de razón de verosimilitudes; AIC, criterio de información de Akaike; EBLUP, mejor predictor lineal insesgado empírico; SEBLUP, EBLUP espacial; ECM, error cuadrático medio; CV, coeficiente de variación.}
 \label{tab:met_comparacion}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm}}
@@ -398,18 +473,18 @@ Coeficientes & $\hat{\beta}_j$ y su error estándar en ambos modelos, y la difer
 \end{tabularx}
 \end{table}
 
-Aparte de la comparación controlada, se reporta la comparación entre el benchmark, elegido con la regla de la etapa 10, y la especificación espacial de referencia, elegida con la regla de esta etapa entre los cuatro escenarios de la matriz.
+La comparación entre el mejor clásico y el mejor espacial se previó como un ejercicio aparte de la controlada. Como no se seleccionaron covariables propias para el modelo espacial, ambas coinciden: el benchmark, elegido con la regla de la etapa 10, se comparó con la especificación espacial de referencia, elegida con la regla de esta etapa entre los cuatro escenarios de la matriz, y las dos usan las mismas covariables.
 
 %--------------------------------------------------------------------------------------
 \section{Estimación en los municipios sin cobertura muestral}
 \label{sec:met_sin_muestra}
 
-Los 83 municipios objetivo reciben la estimación del modelo con sus propias covariables (Tabla~\ref{tab:met_sin_muestra}). En el clásico es el predictor sintético (Ecuación~\ref{eq:sintetico}); en el espacial, el predictor espacial (Ecuación~\ref{eq:pred_espacial}), que agrega el efecto que el modelo asigna a cada municipio a partir de los residuos de los dominios cercanos. Cali y Yumbo no son nodos de la matriz: forman parte del dominio Cali A.M. y reciben la parte sintética con sus propias covariables más el efecto estimado de su dominio. Cada estimación se acompaña de su estado de extrapolación y de una calidad reportada que no se reduce al CV.
+Los 83 municipios objetivo recibieron la estimación del modelo con sus propias covariables (Tabla~\ref{tab:met_sin_muestra}). En el clásico se aplicó el predictor sintético (Ecuación~\ref{eq:sintetico}); en el espacial, el predictor espacial (Ecuación~\ref{eq:pred_espacial}), que agrega el efecto que el modelo asigna a cada municipio a partir de los residuos de los dominios cercanos. Cali y Yumbo no fueron nodos de la matriz: forman parte del dominio Cali A.M. y recibieron la parte sintética con sus propias covariables más el efecto estimado de su dominio. Cada estimación se acompañó de su estado de extrapolación y de una calidad reportada que no se reduce al CV.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 14: estimación en los municipios sin cobertura muestral.}
+\caption[Ficha de la etapa 14: estimación en los municipios sin cobertura muestral]{Ficha de la etapa 14: estimación en los municipios sin cobertura muestral. Siglas: ECM, error cuadrático medio; CV, coeficiente de variación.}
 \label{tab:met_sin_muestra}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -429,12 +504,12 @@ Salida & Estimación de cada municipio con ambos modelos, ECM, CV, estado, covar
 \section{Benchmarking y consolidación de las estimaciones}
 \label{sec:met_benchmarking}
 
-El benchmarking hace que las estimaciones del modelo reproduzcan cifras directas confiables de un territorio mayor, en dos niveles (Tabla~\ref{tab:met_benchmarking}). El resto de los municipios conserva la estimación sintética sin ajustar: el departamento tiene estimación directa anual en la GEIH, pero se calcula con los registros sin código de área, que este trabajo no usa; un tercer nivel departamental queda como extensión posible.
+El benchmarking se aplicó para que las estimaciones del modelo reprodujeran cifras directas confiables de un territorio mayor, en dos niveles (Tabla~\ref{tab:met_benchmarking}). El resto de los municipios conservó la estimación sintética sin ajustar: el departamento tiene estimación directa anual en la GEIH, pero se calcula con los registros sin código de área, que este trabajo no usó; un tercer nivel departamental queda como extensión posible.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 15: benchmarking y consolidación.}
+\caption[Ficha de la etapa 15: benchmarking y consolidación]{Ficha de la etapa 15: benchmarking y consolidación. Siglas: EBLUP, mejor predictor lineal insesgado empírico; ECM, error cuadrático medio; PEA, población económicamente activa; DANE, Departamento Administrativo Nacional de Estadística; A.M., área metropolitana; RMSE, raíz del error cuadrático medio; CV, coeficiente de variación.}
 \label{tab:met_benchmarking}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -443,27 +518,27 @@ Elemento & Contenido \\
 \midrule
 Entradas & EBLUP y ECM de los 23 dominios; PEA expandida de cada dominio; tasa directa del conjunto de los 23 dominios y cifra del DANE de la misma ventana; estimaciones de Cali y Yumbo y su población de 15 años y más \\
 Nivel 1 & Factor $\lambda_1$ (Ecuación~\ref{eq:benchmarking}) para que los 23 EBLUP, ponderados por la PEA, reproduzcan la tasa conjunta \\
-Nivel 2 & Factor $\lambda_D$ para que Cali y Yumbo, ponderados por su población de 15 años y más, reproduzcan el EBLUP ajustado de Cali A.M.; se reporta la brecha entre $\bar{\mathbf{x}}_D^\top\hat{\boldsymbol{\beta}}$ y el promedio ponderado de $\mathbf{x}_m^\top\hat{\boldsymbol{\beta}}$, porque las covariables del dominio no se agregan con la población de 15 años y más \\
-Error & RMSE y CV ajustados (Ecuación~\ref{eq:rmse_bm}); la clase de confiabilidad se recalcula con el CV ajustado \\
+Nivel 2 & Factor $\lambda_R$ para que Cali y Yumbo, ponderados por su población de 15 años y más, reproduzcan el EBLUP ajustado de Cali A.M.; se reportó la brecha entre $\bar{\mathbf{x}}_d^\top\hat{\boldsymbol{\beta}}$ y el promedio ponderado de $\mathbf{x}_m^\top\hat{\boldsymbol{\beta}}$, porque las covariables del dominio no se agregan con la población de 15 años y más \\
+Error & RMSE y CV ajustados (Ecuación~\ref{eq:rmse_bm}); la clase de confiabilidad se recalculó con el CV ajustado \\
 Verificaciones & Consistencia (diferencia menor que $10^{-8}$), razones entre estimaciones conservadas, tasas en $[0, 100]$, miembros completos; aviso si $|\lambda - 1| > 0.20$ o si la tasa conjunta difiere de la del DANE en más de 0.01 puntos; repetición sobre la tabla final redondeada \\
 Sustento & \cite{FayHerriot1979}; \cite[pp.~24, 76]{Molina2019}; \cite[pp.~22--23]{MarinTralmaGuerrero2024}; \cite[pp.~25, 33]{DANE_SAE_2025}; \cite[p.~7]{Casen2024} \\
-Salida & Tabla final de dos niveles (23 dominios y 83 municipios) con tasa ajustada, tasa sin ajustar, factor, CV, clase, estado de extrapolación, calidad reportada, modelo de origen y estado preliminar \\
+Salida & Tabla final de dos niveles (23 dominios y 83 municipios) con tasa ajustada, tasa sin ajustar, factor, CV, clase, estado de extrapolación, calidad reportada, modelo de origen y estado del resultado \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-En la tabla final un mismo código puede aparecer como dominio y como municipio (76001 es Cali A.M. y también el municipio de Cali), por lo que la llave es el nivel más el código. Mientras no se cierre la comparación del objetivo específico 1, la tabla se marca como resultado preliminar del benchmark no espacial.
+En la tabla final un mismo código puede aparecer como dominio y como municipio (76001 es Cali A.M. y también el municipio de Cali), por lo que la llave fue el nivel más el código. Cerrada la comparación del objetivo específico 1, la tabla se marcó como resultado final y registró como modelo de origen el Fay-Herriot clásico.
 
 %--------------------------------------------------------------------------------------
 \section{Distribución y patrones espaciales de las estimaciones}
 \label{sec:met_patrones}
 
-La última etapa describe dónde están las tasas altas y bajas en el Cauca y el Valle del Cauca y qué parte de ese patrón viene del modelo (Tabla~\ref{tab:met_patrones}). La lectura es descriptiva: las estimaciones municipales son funciones de las covariables, de modo que un patrón espacial en ellas refleja en buena parte la distribución espacial de esas covariables.
+En la última etapa se describió dónde están las tasas altas y bajas en el Cauca y el Valle del Cauca y qué parte de ese patrón viene del modelo (Tabla~\ref{tab:met_patrones}). La lectura es descriptiva: las estimaciones municipales son funciones de las covariables, de modo que un patrón espacial en ellas refleja en buena parte la distribución espacial de esas covariables.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Ficha de la etapa 16: distribución y patrones espaciales de las estimaciones.}
+\caption[Ficha de la etapa 16: distribución y patrones espaciales de las estimaciones]{Ficha de la etapa 16: distribución y patrones espaciales de las estimaciones. Siglas: CV, coeficiente de variación.}
 \label{tab:met_patrones}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -471,7 +546,7 @@ La última etapa describe dónde están las tasas altas y bajas en el Cauca y el
 Elemento & Contenido \\
 \midrule
 Entradas & Tabla final; estimaciones del espacial y su efecto por municipio; estado de extrapolación y calidad reportada; distancia de cada municipio al dominio más cercano; coordenadas \\
-Transformaciones & Mapas municipales de la estimación, de su CV y calidad reportada, del estado de extrapolación y del efecto espacial; resumen por departamento; I de Moran de las 83 estimaciones con la matriz de 3 vecinos más cercanos (Ecuación~\ref{eq:moran}) \\
+Transformaciones & Mapas municipales de la estimación, de su CV y calidad reportada, del estado de extrapolación y del efecto espacial; resumen por departamento; I de Moran de las 83 estimaciones finales con la matriz de 3 vecinos más cercanos (Ecuación~\ref{eq:moran}), calculado en el trabajo programado del modelo espacial \\
 Regla de decisión & Ninguna: la etapa es descriptiva \\
 Parámetros & Los de la etapa 13 para la matriz y las permutaciones \\
 Sustento & Clústeres de desempleo municipal en Colombia \cite[pp.~123--124]{Diaz2016}; \cite{Moran1950} \\
@@ -484,12 +559,12 @@ Salida & Mapas y lectura territorial; índice de Moran de las estimaciones \\
 \section{Correspondencia entre etapas y objetivos}
 \label{sec:met_objetivos}
 
-La Tabla~\ref{tab:met_objetivos} relaciona cada etapa con el objetivo general (OG) y los objetivos específicos (OE1 a OE3), y con la evidencia que la responde en Resultados.
+La Tabla~\ref{tab:met_objetivos} relaciona cada etapa con el objetivo general (OG) y los objetivos específicos (OE1 a OE3), y con la evidencia que la responde en Resultados. Evaluar el desempeño de los modelos, como pide el OE1, exigió implementarlos primero: en la etapa 10 se implementó el Fay-Herriot clásico con sus especificaciones candidatas y en la etapa 13 las ocho especificaciones espaciales; las etapas 11 a 13 midieron su desempeño. El orden de las etapas no sigue el de los objetivos. Las variables del OE2 se eligieron en la etapa 9, antes de evaluar los modelos del OE1, porque la comparación controlada necesita un conjunto de covariables fijo; los coeficientes de la etapa 13 completan la respuesta al OE2.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Etapa metodológica, objetivo al que responde y evidencia en Resultados. OG: objetivo general; OE: objetivo específico.}
+\caption[Etapa metodológica, objetivo al que responde y evidencia en Resultados]{Etapa metodológica, objetivo al que responde y evidencia en Resultados. Siglas: OG, objetivo general; OE, objetivo específico; CV, coeficiente de variación; EBLUP, mejor predictor lineal insesgado empírico; DANE, Departamento Administrativo Nacional de Estadística.}
 \label{tab:met_objetivos}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{4.4cm} >{\raggedright\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}X}
@@ -500,10 +575,10 @@ Etapa & Objetivo & Evidencia en Resultados \\
 5. Estimación directa & OG, OE1 & Tasas, CV y validación frente al DANE (Sección~\ref{sec:res_directa}) \\
 6--8. Covariables, pre-filtrado y descriptivo & OG, OE2 & Catálogo, cascada y descripción de las candidatas (Secciones~\ref{sec:res_covariables} a~\ref{sec:res_descriptivo}) \\
 9. Selección de covariables & OE2 & Ficha de decisión y conjunto seleccionado (Sección~\ref{sec:res_seleccion}) \\
-10. Benchmark clásico & OE1, OE2 & Especificaciones, elección, coeficientes y EBLUP (Sección~\ref{sec:res_fh_clasico}) \\
+10. Implementación y elección del benchmark clásico & OE1, OE2 & Especificaciones, elección, coeficientes y EBLUP (Sección~\ref{sec:res_fh_clasico}) \\
 11. Supuestos y sensibilidad & OE1, OE2 & Normalidad, influencia, estabilidad y escenarios de varianza (Sección~\ref{sec:res_supuestos}) \\
 12. Validación predictiva & OE1, OE2 & Métricas de los dos ejercicios y frecuencia de selección (Sección~\ref{sec:res_validacion}) \\
-13. Espacial y comparación & OE1, OE2, OE3 & Comparación controlada, Moran, validación y coeficientes (Sección~\ref{sec:res_espacial}) \\
+13. Implementación del modelo espacial y comparación & OE1, OE2, OE3 & Comparación controlada, Moran, validación, incertidumbre y coeficientes (Sección~\ref{sec:res_espacial}) \\
 14. Municipios sin cobertura & OG, OE3 & Estimaciones de los 83 municipios, extrapolación y calidad (Sección~\ref{sec:res_sin_muestra}) \\
 15. Benchmarking y consolidación & OG & Factores, verificaciones y tabla final (Sección~\ref{sec:res_benchmarking}) \\
 16. Patrones espaciales & OE3 & Mapas, efecto espacial y Moran de las estimaciones (Sección~\ref{sec:res_patrones}) \\
@@ -511,5 +586,5 @@ Etapa & Objetivo & Evidencia en Resultados \\
 \end{tabularx}
 \end{table}
 
-Los cuatro objetivos quedan cubiertos. El OE2 se responde como asociación estadística condicional a la selección, no como efecto causal, y su evidencia incluye la estabilidad del conjunto en la validación con el procedimiento completo.
+Los cuatro objetivos quedaron cubiertos. El OE2 se responde como asociación estadística condicional a la selección, no como efecto causal, y su evidencia incluye la estabilidad del conjunto en la validación con el procedimiento completo.
 \FloatBarrier

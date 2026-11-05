@@ -11,10 +11,11 @@ Las decisiones metodológicas se apoyan en Morales et al. (2021), *A Course on S
 Area Estimation and Mixed Models*.
 
 Es el modelo base (**benchmark**) Fay-Herriot **clásico**: efectos aleatorios
-independientes por dominio, sin componente espacial. **Sus tablas son resultados
-preliminares del benchmark no espacial** (R-11): la tabla final lleva
-`MODELO_FUENTE = FH_CLASICO_BENCHMARK_NO_ESPACIAL` y `ESTADO_RESULTADO = PRELIMINAR` hasta que
-cierre la comparación con las variantes espaciales del objetivo 1 (`fay_herriot_espacial`). Â se estima por REML, β̂ por
+independientes por dominio, sin componente espacial. La comparación con las variantes
+espaciales del objetivo 1 (`fay_herriot_espacial`) cerró sin evidencia de dependencia
+espacial, así que la tabla final (R-11, D-03) lleva
+`MODELO_FUENTE = FH_CLASICO_BENCHMARK_NO_ESPACIAL` y
+`ESTADO_RESULTADO = FINAL_TRAS_COMPARACION_ESPACIAL`. Â se estima por REML, β̂ por
 mínimos cuadrados generalizados y el AIC con la verosimilitud ML
 (`shared/fay_herriot.py`).
 
@@ -52,8 +53,10 @@ seleccionado. La comparación del objetivo 1 se hace después, en
    como complemento (no cambia la decisión) porque con 23 dominios el AIC penaliza poco; en
    Fay-Herriot es una aproximación (la fórmula viene de regresión con errores iid y aquí las
    D_i son heterogéneas), y el libro remite a Marhuenda et al. (2014) para criterios de
-   información propios del modelo (p. 420). Sirve para decir que el benchmark se eligió entre
-   varias especificaciones con soporte similar mediante la regla de parsimonia. El MSE del EBLUP y la
+   información propios del modelo (p. 420). Cuando varias especificaciones tienen soporte
+   similar, la parsimonia descarta las de más covariables y, entre las del mismo número de
+   covariables, decide el menor AIC; la redacción impresa dice cuál de las dos reglas
+   decidió en la corrida (D-36). El MSE del EBLUP y la
    distancia de Cook se muestran después como diagnósticos del benchmark: ganancia de
    precisión y robustez.
 4. **Avisos.** Encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y
@@ -169,6 +172,8 @@ from shared.diagnosticos import (
     interpretar_validacion,
     figura_cv_directo_vs_eblup,
     interpretar_cv,
+    graficar_supuestos,
+    interpretar_supuestos,
     aviso_encuesta_sin_peso,
     marca_fuera_de_rango,
 )
@@ -544,13 +549,13 @@ for i, (modelo, covars) in enumerate(zip(modelos, nombres_covars), 1):
 =================================================================
 EC1: TASA_HOMICIDIOS + COB_ACUEDUCTO — GRÁFICAS DE VALIDACIÓN
 =================================================================
-Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (Yd − EBLUP)
-contra la estimación directa. Como Yd − EBLUP = (1 − γd)(Yd − x'β̂), se espera
-residuo negativo para Yd pequeños (el EBLUP sube la estimación) y positivo para
-Yd grandes (el EBLUP la baja). Es una descripción de la contracción hacia el
+Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (θ̂_d − EBLUP)
+contra la estimación directa. Como θ̂_d − EBLUP = (1 − γd)(θ̂_d − x'β̂), se espera
+residuo negativo para θ̂_d pequeños (el EBLUP sube la estimación) y positivo para
+θ̂_d grandes (el EBLUP la baja). Es una descripción de la contracción hacia el
 predictor sintético, no una prueba de validez del modelo.
 Gráfica 2 (Histograma de residuos estandarizados): distribución de
-(Y − x'β̂)/√(Dd+Â). Bajo el supuesto de normalidad del modelo se verían
+(θ̂_d − x'β̂)/√(ψ_d + σ̂²_u). Bajo el supuesto de normalidad del modelo se verían
 aproximadamente normales y con desviación ≈ 1; la media es ≈ 0 por construcción
 del GLS con intercepto. Con 23 residuos marginales (mezclan u_d y e_d) ni el
 histograma ni Shapiro-Wilk pueden demostrar normalidad: solo mostrar si hay
@@ -562,19 +567,19 @@ evidencia fuerte en contra.
 ![fig](fig/modelo__fay_herriot_c07_1.png)
 ```
 INTERPRETACIÓN:
-  Gráfica 1 (Efecto suavizador): corr(Yd, Yd−EBLUP)=0.816 (p=0.0000)  ✓ el EBLUP contrae los extremos hacia el predictor sintético
+  Gráfica 1 (Efecto suavizador): corr(θ̂_d, θ̂_d−EBLUP)=0.816 (p=0.0000)  ✓ el EBLUP contrae los extremos hacia el predictor sintético
   Gráfica 2 (Residuos estandarizados): media=0.002 (≈ 0 por construcción del GLS con intercepto; no informa sobre sesgo), sd=0.954, Shapiro-Wilk p=0.3906: los diagnósticos no muestran evidencia fuerte contra la aproximación normal, dentro de la limitada potencia disponible con 23 áreas
 
 =================================================================
 EC2: COB_ACUEDUCTO — GRÁFICAS DE VALIDACIÓN
 =================================================================
-Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (Yd − EBLUP)
-contra la estimación directa. Como Yd − EBLUP = (1 − γd)(Yd − x'β̂), se espera
-residuo negativo para Yd pequeños (el EBLUP sube la estimación) y positivo para
-Yd grandes (el EBLUP la baja). Es una descripción de la contracción hacia el
+Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (θ̂_d − EBLUP)
+contra la estimación directa. Como θ̂_d − EBLUP = (1 − γd)(θ̂_d − x'β̂), se espera
+residuo negativo para θ̂_d pequeños (el EBLUP sube la estimación) y positivo para
+θ̂_d grandes (el EBLUP la baja). Es una descripción de la contracción hacia el
 predictor sintético, no una prueba de validez del modelo.
 Gráfica 2 (Histograma de residuos estandarizados): distribución de
-(Y − x'β̂)/√(Dd+Â). Bajo el supuesto de normalidad del modelo se verían
+(θ̂_d − x'β̂)/√(ψ_d + σ̂²_u). Bajo el supuesto de normalidad del modelo se verían
 aproximadamente normales y con desviación ≈ 1; la media es ≈ 0 por construcción
 del GLS con intercepto. Con 23 residuos marginales (mezclan u_d y e_d) ni el
 histograma ni Shapiro-Wilk pueden demostrar normalidad: solo mostrar si hay
@@ -586,19 +591,19 @@ evidencia fuerte en contra.
 ![fig](fig/modelo__fay_herriot_c07_3.png)
 ```
 INTERPRETACIÓN:
-  Gráfica 1 (Efecto suavizador): corr(Yd, Yd−EBLUP)=0.869 (p=0.0000)  ✓ el EBLUP contrae los extremos hacia el predictor sintético
+  Gráfica 1 (Efecto suavizador): corr(θ̂_d, θ̂_d−EBLUP)=0.869 (p=0.0000)  ✓ el EBLUP contrae los extremos hacia el predictor sintético
   Gráfica 2 (Residuos estandarizados): media=0.002 (≈ 0 por construcción del GLS con intercepto; no informa sobre sesgo), sd=0.978, Shapiro-Wilk p=0.3167: los diagnósticos no muestran evidencia fuerte contra la aproximación normal, dentro de la limitada potencia disponible con 23 áreas
 
 =================================================================
 EC3: TASA_HOMICIDIOS — GRÁFICAS DE VALIDACIÓN
 =================================================================
-Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (Yd − EBLUP)
-contra la estimación directa. Como Yd − EBLUP = (1 − γd)(Yd − x'β̂), se espera
-residuo negativo para Yd pequeños (el EBLUP sube la estimación) y positivo para
-Yd grandes (el EBLUP la baja). Es una descripción de la contracción hacia el
+Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (θ̂_d − EBLUP)
+contra la estimación directa. Como θ̂_d − EBLUP = (1 − γd)(θ̂_d − x'β̂), se espera
+residuo negativo para θ̂_d pequeños (el EBLUP sube la estimación) y positivo para
+θ̂_d grandes (el EBLUP la baja). Es una descripción de la contracción hacia el
 predictor sintético, no una prueba de validez del modelo.
 Gráfica 2 (Histograma de residuos estandarizados): distribución de
-(Y − x'β̂)/√(Dd+Â). Bajo el supuesto de normalidad del modelo se verían
+(θ̂_d − x'β̂)/√(ψ_d + σ̂²_u). Bajo el supuesto de normalidad del modelo se verían
 aproximadamente normales y con desviación ≈ 1; la media es ≈ 0 por construcción
 del GLS con intercepto. Con 23 residuos marginales (mezclan u_d y e_d) ni el
 histograma ni Shapiro-Wilk pueden demostrar normalidad: solo mostrar si hay
@@ -610,19 +615,19 @@ evidencia fuerte en contra.
 ![fig](fig/modelo__fay_herriot_c07_5.png)
 ```
 INTERPRETACIÓN:
-  Gráfica 1 (Efecto suavizador): corr(Yd, Yd−EBLUP)=0.879 (p=0.0000)  ✓ el EBLUP contrae los extremos hacia el predictor sintético
+  Gráfica 1 (Efecto suavizador): corr(θ̂_d, θ̂_d−EBLUP)=0.879 (p=0.0000)  ✓ el EBLUP contrae los extremos hacia el predictor sintético
   Gráfica 2 (Residuos estandarizados): media=0.002 (≈ 0 por construcción del GLS con intercepto; no informa sobre sesgo), sd=0.977, Shapiro-Wilk p=0.3567: los diagnósticos no muestran evidencia fuerte contra la aproximación normal, dentro de la limitada potencia disponible con 23 áreas
 
 =================================================================
 EC0: intercepto — GRÁFICAS DE VALIDACIÓN
 =================================================================
-Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (Yd − EBLUP)
-contra la estimación directa. Como Yd − EBLUP = (1 − γd)(Yd − x'β̂), se espera
-residuo negativo para Yd pequeños (el EBLUP sube la estimación) y positivo para
-Yd grandes (el EBLUP la baja). Es una descripción de la contracción hacia el
+Gráfica 1 (Efecto suavizador): compara el residuo del EBLUP (θ̂_d − EBLUP)
+contra la estimación directa. Como θ̂_d − EBLUP = (1 − γd)(θ̂_d − x'β̂), se espera
+residuo negativo para θ̂_d pequeños (el EBLUP sube la estimación) y positivo para
+θ̂_d grandes (el EBLUP la baja). Es una descripción de la contracción hacia el
 predictor sintético, no una prueba de validez del modelo.
 Gráfica 2 (Histograma de residuos estandarizados): distribución de
-(Y − x'β̂)/√(Dd+Â). Bajo el supuesto de normalidad del modelo se verían
+(θ̂_d − x'β̂)/√(ψ_d + σ̂²_u). Bajo el supuesto de normalidad del modelo se verían
 aproximadamente normales y con desviación ≈ 1; la media es ≈ 0 por construcción
 del GLS con intercepto. Con 23 residuos marginales (mezclan u_d y e_d) ni el
 histograma ni Shapiro-Wilk pueden demostrar normalidad: solo mostrar si hay
@@ -634,7 +639,7 @@ evidencia fuerte en contra.
 ![fig](fig/modelo__fay_herriot_c07_7.png)
 ```
 INTERPRETACIÓN:
-  Gráfica 1 (Efecto suavizador): corr(Yd, Yd−EBLUP)=0.939 (p=0.0000)  ✓ el EBLUP contrae los extremos hacia el predictor sintético
+  Gráfica 1 (Efecto suavizador): corr(θ̂_d, θ̂_d−EBLUP)=0.939 (p=0.0000)  ✓ el EBLUP contrae los extremos hacia el predictor sintético
   Gráfica 2 (Residuos estandarizados): media=0.002 (≈ 0 por construcción del GLS con intercepto; no informa sobre sesgo), sd=1.002, Shapiro-Wilk p=0.1393: los diagnósticos no muestran evidencia fuerte contra la aproximación normal, dentro de la limitada potencia disponible con 23 áreas
 
 
@@ -1146,8 +1151,9 @@ aviso = aviso_encuesta_sin_peso(modelo_ganador, UMBRAL_GAMMA_SIN_PESO)
 if aviso:
     print("\n" + aviso)
 
-# G7-B16: redacción calculada desde los datos («seleccionado entre varias especificaciones
-# con soporte similar, mediante la regla de parsimonia predefinida») con la lectura de AICc.
+# G7-B16 y D-36: redacción calculada desde los datos. Dice si el benchmark se eligió por la
+# regla de parsimonia (frente a especificaciones con más covariables) o por el menor AIC (frente
+# a las que tienen su mismo número de covariables), con la lectura de AICc.
 if len(modelos) > 1:
     print("\nREDACCIÓN SUGERIDA PARA EL DOCUMENTO:")
     print(
@@ -1177,7 +1183,7 @@ Ambas cifras deben reportarse y la diferencia explicarse en el documento.
 NOTA SOBRE LA INFERENCIA: Los p-valores de los coeficientes son descriptivos: los mismos dominios se usaron para filtrar, seleccionar, comparar especificaciones y estimar β̂, así que la significancia no es una demostración fuerte. Los coeficientes del benchmark se reportan como asociaciones preliminares, condicionales a la selección.
 
 REDACCIÓN SUGERIDA PARA EL DOCUMENTO:
-Compitieron las 3 de 4 especificaciones con todas sus covariables significativas (p < 0.05; Morales et al., p. 453). EC3 fue seleccionado, entre varias especificaciones con soporte similar (ΔAIC ≤ 2: EC2, EC3), mediante la regla de parsimonia predefinida (menor número de covariables); no es claramente superior a las demás. Como complemento, con n = 23 dominios se calculó el AICc: EC3 queda a ΔAICc = 0.00 de la mejor de las que compitieron y 2 de 3 tienen soporte similar (ΔAICc ≤ 2). La lectura se mantiene con AICc.
+Compitieron las 3 de 4 especificaciones con todas sus covariables significativas (p < 0.05; Morales et al., p. 453). Varias especificaciones tuvieron soporte similar (ΔAIC ≤ 2: EC2, EC3). Frente a EC2, con el mismo número de covariables (1), decidió el menor AIC. EC3 no es claramente superior a las demás. Como complemento, con n = 23 dominios se calculó el AICc: EC3 queda a ΔAICc = 0.00 de la mejor de las que compitieron y 2 de 3 tienen soporte similar (ΔAICc ≤ 2). La lectura se mantiene con AICc.
 
 ```
 
@@ -1216,12 +1222,12 @@ Reajustes dejar-un-dominio-fuera: 23 ajustes: 0 fallidos (matriz singular), 0 si
 ## Ganancia de precisión del benchmark seleccionado
 
 **Cómo leer la figura.** Cada columna es un dominio, ordenados de menor a mayor
-varianza directa D_d. El punto gris es el CV de la estimación directa y el azul el CV
+varianza directa ψ_d. El punto gris es el CV de la estimación directa y el azul el CV
 del EBLUP; el segmento entre ambos es la ganancia. Las líneas discontinuas marcan los
 umbrales de confiabilidad (5 % y 20 %). Es la misma lectura que las comparaciones de
 RMSE directo frente a EBLUP del libro (Fig. 17.2, Tabla 19.5): la ganancia debe ser
 grande a la derecha (muestras pequeñas) y casi nula a la izquierda, donde el MSE del
-EBLUP tiende a D_d (p. 440).
+EBLUP tiende a ψ_d (p. 440).
 ```
 
 
@@ -1240,9 +1246,9 @@ print(interpretar_cv(modelo_ganador))
 ![fig](fig/modelo__fay_herriot_c13_8.png)
 ```
 INTERPRETACIÓN (ganancia de precisión del modelo elegido):
-  Reducción media del CV en el tercio de menor Dd: 0.02 pp; en el tercio de mayor Dd: 0.01 pp.
+  Reducción media del CV en el tercio de menor ψ_d: 0.02 pp; en el tercio de mayor ψ_d: 0.01 pp.
   Dominios con CV < 5.0%: 23 con la estimación directa, 23 con el EBLUP (de 23).
-  Lectura: la ganancia se concentra donde la varianza directa es grande; donde la muestra es grande el MSE del EBLUP tiende a Dd y el EBLUP casi coincide con la estimación directa (Morales et al., p. 440). Que MSE_EBLUP < Dd es lo esperado por construcción (g1 = γd·Dd < Dd), no una validación independiente del modelo.
+  Lectura: la ganancia se concentra donde la varianza directa es grande; donde la muestra es grande el MSE del EBLUP tiende a ψ_d y el EBLUP casi coincide con la estimación directa (Morales et al., p. 440). Que MSE_EBLUP < ψ_d es lo esperado por construcción (g1 = γd·ψ_d < ψ_d), no una validación independiente del modelo.
 
 ```
 
@@ -1251,12 +1257,54 @@ INTERPRETACIÓN (ganancia de precisión del modelo elegido):
 
 ```python
 %md
+## Supuestos del benchmark: Q-Q normal y residuos frente a ajustados (D-20)
+
+**Cómo leer las figuras.** El gráfico cuantil-cuantil ubica cada residuo estandarizado
+(θ̂_d − x_d'β̂)/√(ψ_d + σ̂²_u) frente al cuantil de la N(0, 1) que le corresponde; si el
+supuesto de normalidad es razonable, los puntos siguen la recta y = x y quedan dentro de
+la banda gris del 95 % (envolvente de los estadísticos de orden de una normal con 23
+datos, guía visual y no prueba). El segundo gráfico pone los mismos residuos frente al
+valor ajustado x_d'β̂: sin curvatura ni embudo, el modelo de enlace no deja estructura
+visible. Igual que Shapiro-Wilk (celda 6), con 23 residuos marginales estos gráficos
+solo muestran si hay evidencia fuerte en contra de los supuestos.
+```
+
+
+## Celda 15
+
+```python
+for nombre_fig, fig in zip(
+    ["ganador_qq", "ganador_residuos_ajustados"], graficar_supuestos(modelo_ganador)
+):
+    guardar_figura(fig, nombre_fig)
+    display(fig)
+    plt.close(fig)
+print(interpretar_supuestos(modelo_ganador))
+```
+
+**Salida:**
+
+![fig](fig/modelo__fay_herriot_c15_9.png)
+![fig](fig/modelo__fay_herriot_c15_10.png)
+```
+INTERPRETACIÓN (supuestos, D-20):
+  Q-Q normal: 0 de 23 residuos fuera de la banda del 95 %.
+  Residuos frente a ajustados: 0 de 23 con |residuo| > 2; Spearman entre |residuo| y x'β̂ = 0.154 (p = 0.483), sin indicio de que la dispersión cambie con el nivel ajustado.
+  Lectura: con 23 residuos marginales estos gráficos solo muestran si hay evidencia fuerte en contra de los supuestos; no los demuestran.
+
+```
+
+
+## Celda 16
+
+```python
+%md
 ## Robustez del benchmark seleccionado: distancia de Cook
 
 **Cómo leer la figura.** Cada barra es un dominio y su altura es la distancia de Cook
 en el ajuste por mínimos cuadrados generalizados del benchmark: cuánto cambiarían
 los coeficientes si ese dominio no estuviera. La línea discontinua es el umbral
-convencional 4/n y las barras rojas lo superan. La tabla siguiente compara con el modelo
+convencional 4/n y las barras naranjas lo superan. La tabla siguiente compara con el modelo
 completo (incluida Â) reajustado sin el dominio más influyente (celda 8a). `Cambio_signif` marca si una
 covariable cruza el umbral de significancia en cualquier sentido (pierde o gana): si
 ninguna cambia de signo ni de significancia, la conclusión no depende de un solo
@@ -1267,7 +1315,7 @@ general, no del libro.
 ```
 
 
-## Celda 15
+## Celda 17
 
 ```python
 fig = figura_cook([modelo_ganador], [modelo_ganador.covars], nombres_dominio)
@@ -1288,7 +1336,7 @@ print(
 
 **Salida:**
 
-![fig](fig/modelo__fay_herriot_c15_9.png)
+![fig](fig/modelo__fay_herriot_c17_11.png)
 | Dominio_excluido | Cook | Parametro | Valor_completo | Valor_sin_dominio | Cambio_pct | Cambia_signo | p_completo | p_sin_dominio | Cambio_signif |
 |---|---|---|---|---|---|---|---|---|---|
 | Quibdó | 0.6009 | Intercepto | 9.1908 | 9.9341 | 8.1 | no | 0.0 | 0.0 | no |
@@ -1303,7 +1351,7 @@ INTERPRETACIÓN (robustez del modelo elegido):
 ```
 
 
-## Celda 16
+## Celda 18
 
 ```python
 %md
@@ -1321,7 +1369,7 @@ los artículos espaciales consultados lo tratan.
 ```
 
 
-## Celda 17
+## Celda 19
 
 ```python
 detalle_loo = dejar_uno_fuera_coeficientes(
@@ -1358,7 +1406,7 @@ Los p-valores de los coeficientes son descriptivos: los mismos dominios se usaro
 ```
 
 
-## Celda 18
+## Celda 20
 
 ```python
 # Coeficientes del modelo benchmark, para el capítulo de resultados.
@@ -1401,7 +1449,7 @@ if resultados_ganador["FUERA_DE_RANGO"].any():
 ```
 
 
-## Celda 19
+## Celda 21
 
 ```python
 # Sustentación completa en shared/benchmarking.py. Los EBLUP de los dominios se multiplican por
@@ -1491,7 +1539,7 @@ Valor de referencia (directa del conjunto): 10.8340 %  |  DANE «Total 23 ciudad
 ```
 
 
-## Celda 20
+## Celda 22
 
 ```python
 # Para municipios sin estimación directa propia (Y ni Di), el EBLUP no puede calcularse: el
@@ -1580,7 +1628,7 @@ Municipios cuya predicción es una extrapolación: 21 de 83: Argelia, Ansermanue
 ```
 
 
-## Celda 21
+## Celda 23
 
 ```python
 # β̂ se estimó solo con los dominios con encuesta y se aplica a municipios cuyas covariables
@@ -1666,7 +1714,7 @@ pendientes.agregar(df_sens, TBL_FH_SENSIBILIDAD_EXTRAPOLACION)
 | COVARIABLE | MIN_DOMINIOS | DOMINIO_MIN | MAX_DOMINIOS | DOMINIO_MAX | MIN_MUNICIPIOS | MEDIANA_MUNICIPIOS | MAX_MUNICIPIOS | N_DEBAJO | N_ENCIMA | N_MUNICIPIOS | PCT_FUERA |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | TASA_HOMICIDIOS | 4.06 | Tunja | 71.96 | Quibdó | 0.0 | 42.67 | 221.47 | 3 | 18 | 83 | 25.3 |
-![fig](fig/modelo__fay_herriot_c21_10.png)
+![fig](fig/modelo__fay_herriot_c23_12.png)
 ```
 Sensibilidad al quitar cada dominio (de mayor a menor cambio medio de las predicciones):
 
@@ -1723,7 +1771,7 @@ Municipios que extrapolan, de mayor a menor aporte de fuera del rango:
 | 2018 | 12 | 19 | Cauca | 19743 | Silvia | FUERA_DEL_RANGO | TASA_HOMICIDIOS | TASA_HOMICIDIOS | 0.292 | 9.1908 | 27.71 | 9.5938 | -0.403 | 8.75 | 9.9341 | 1.1841 | 0.7433 | Quibdó |
 | 2018 | 12 | 19 | Cauca | 19075 | Balboa | FUERA_DEL_RANGO | TASA_HOMICIDIOS | TASA_HOMICIDIOS | 1.152 | 16.7147 | 18.25 | 16.3336 | 0.3812 | 14.5842 | 18.2211 | 3.637 | 2.1306 | Quibdó |
 | 2018 | 12 | 19 | Cauca | 19780 | Suárez | FUERA_DEL_RANGO | TASA_HOMICIDIOS | TASA_HOMICIDIOS | 1.129 | 16.6581 | 18.24 | 16.3336 | 0.3246 | 14.5492 | 18.1499 | 3.6007 | 2.109 | Quibdó |
-![fig](fig/modelo__fay_herriot_c21_11.png)
+![fig](fig/modelo__fay_herriot_c23_13.png)
 ```
 Rango de las covariables (dominios con encuesta frente a municipios):
   • TASA_HOMICIDIOS: dominios de 4.06 (Tunja) a 71.96 (Quibdó); municipios de 0 a 221.5. Fuera del rango: 3 por debajo y 18 por encima (25 % de 83).
@@ -1740,7 +1788,7 @@ Lectura: la tasa publicada no cambia, pero en los municipios marcados la predicc
 ```
 
 
-## Celda 22
+## Celda 24
 
 ```python
 %md
@@ -1770,7 +1818,7 @@ las predicciones de los municipios.
 ```
 
 
-## Celda 23
+## Celda 25
 
 ```python
 nombres_municipio = (
@@ -1819,7 +1867,7 @@ display(
 print("Los 3 dominios que más mueven cada coeficiente:")
 display(top_dominios_por_parametro(detalle_loo, k=3).round(4))
 
-fig = figura_influencia(detalle_loo)
+fig = figura_influencia(detalle_loo, LOAO_UMBRAL_CAMBIO_EE)
 if fig is not None:
     guardar_figura(fig, "influencia_dominios")
     display(fig)
@@ -1857,7 +1905,7 @@ Los 3 dominios que más mueven cada coeficiente:
 | TASA_HOMICIDIOS | Quibdó | 0.0993 | 0.0613 | -38.1963 | -1.0546 | False | True |
 | TASA_HOMICIDIOS | Cali A.M. | 0.0993 | 0.1249 | 25.8808 | 0.7146 | False | False |
 | TASA_HOMICIDIOS | Tunja | 0.0993 | 0.1081 | 8.8879 | 0.2454 | False | False |
-![fig](fig/modelo__fay_herriot_c23_12.png)
+![fig](fig/modelo__fay_herriot_c25_14.png)
 ```
 Influencia de cada dominio en coeficientes y predicciones (de mayor a menor):
 
@@ -1901,7 +1949,7 @@ Los p-valores de los coeficientes son descriptivos: los mismos dominios se usaro
 ```
 
 
-## Celda 24
+## Celda 26
 
 ```python
 %md
@@ -1940,7 +1988,7 @@ pre-filtrado no depende de la respuesta y no se repite. No cambia las tasas publ
 ```
 
 
-## Celda 25
+## Celda 27
 
 ```python
 # Candidatas del catálogo con sus códigos: la selección completa trabaja sobre las 18, no solo
@@ -2207,7 +2255,7 @@ Detalle por dominio (benchmark con covariables fijas y procedimiento completo):
 | PROCEDIMIENTO_COMPLETO | Sincelejo | 9.606 | 0.251 | 10.688 | 2.479 | 1.083 | 4.307 | 0.435 | TASA_HOMICIDIOS |
 | PROCEDIMIENTO_COMPLETO | Ibagué | 13.994 | 0.329 | 10.525 | 2.361 | -3.469 | -10.532 | -1.455 | TASA_HOMICIDIOS |
 | PROCEDIMIENTO_COMPLETO | Cali A.M. | 11.651 | 0.284 | 15.402 | 2.654 | 3.75 | 13.204 | 1.405 | TASA_HOMICIDIOS |
-![fig](fig/modelo__fay_herriot_c25_13.png)
+![fig](fig/modelo__fay_herriot_c27_15.png)
 ```
 - Covariables del benchmark fijas: RMSE 2.52 pp, MAE 2.13, sesgo -0.07; RMSE corregido por ruido 2.51; Z_psi: media +0.92, media de Z² 75.41; Z_pred: media -0.02, sd 1.05, cobertura 100 % (nominal 95 %); habilidad frente a solo intercepto +0.17.
 - Procedimiento completo: RMSE 3.43 pp, MAE 2.91, sesgo -0.41; RMSE corregido por ruido 3.42; Z_psi: media -0.15, media de Z² 133.53; Z_pred: media -0.17, sd 1.44, cobertura 87 % (nominal 95 %); habilidad frente a solo intercepto -0.54.
@@ -2224,7 +2272,7 @@ Con 23 dominios son 23 predicciones: las métricas tienen baja precisión y se l
 ```
 
 
-## Celda 26
+## Celda 28
 
 ```python
 # Sustentación completa en shared/benchmarking.py. Los municipios que forman un dominio A.M. con
@@ -2339,10 +2387,10 @@ Municipios ajustados a su dominio A.M.: 2
 | 76001 | 14.475 | 14.4711 | -0.0039 | 11.689 |
 
 
-## Celda 27
+## Celda 29
 
 ```python
-# Resultados preliminares del Fay-Herriot clásico, benchmark no espacial (R-11): la tabla lleva
+# Resultados finales del Fay-Herriot clásico, benchmark no espacial (R-11, D-03): la tabla lleva
 # MODELO_FUENTE y ESTADO_RESULTADO. Dos niveles: los 23 dominios con el EBLUP ajustado (nivel 1) y los municipios objetivo con la
 # predicción sintética (ajustada en el nivel 2 cuando pertenecen a un dominio A.M.). La tasa sin
 # ajustar se conserva en TASA_SIN_AJUSTE_PCT para trazabilidad.
@@ -2421,7 +2469,7 @@ print(
 )
 display(df_final)
 
-# R-11: la tabla dice de qué modelo sale y que es preliminar (columnas y comentario en UC).
+# R-11: la tabla dice de qué modelo sale y en qué estado está (columnas y comentario en UC).
 pendientes.agregar(
     df_final, TBL_FAY_HERRIOT_ESTIMACIONES_FINALES, comentario=COMENTARIO_TABLA_FINAL
 )
@@ -2436,115 +2484,115 @@ Tabla final consolidada: 23 dominios + 83 municipios (2 ajustados a su dominio A
 ```
 | NIVEL | PER | MES | DEPARTAMENTO | CODIGO | NOMBRE | CODIGO_DOMINIO_PADRE | TIPO | TASA_DESEMPLEO_PCT | TASA_SIN_AJUSTE_PCT | LAMBDA | CV_PCT | CONFIABILIDAD | BASE_CV | ESTADO_EXTRAPOLACION | CALIDAD_REPORTADA | MODELO_FUENTE | ESTADO_RESULTADO | FUERA_DE_RANGO | EXTRAPOLA | APORTE_EXTRAPOLADO_PP |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| DOMINIO | 2018 | 12 | ANTIOQUIA | 05001 | Medellín A.M. | None | EBLUP_BENCHMARK | 11.8307 | 11.8337 | 0.999745 | 2.01 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | ATLÁNTICO | 08001 | Barranquilla A.M. | None | EBLUP_BENCHMARK | 8.1723 | 8.1743 | 0.999745 | 2.48 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | BOGOTÁ, D.C. | 11001 | Bogotá | None | EBLUP_BENCHMARK | 10.3696 | 10.3723 | 0.999745 | 2.25 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | BOLÍVAR | 13001 | Cartagena | None | EBLUP_BENCHMARK | 8.3837 | 8.3858 | 0.999745 | 3.11 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | BOYACÁ | 15001 | Tunja | None | EBLUP_BENCHMARK | 11.2786 | 11.2815 | 0.999745 | 2.87 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | CALDAS | 17001 | Manizales A.M. | None | EBLUP_BENCHMARK | 11.2288 | 11.2317 | 0.999745 | 2.52 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | CAQUETÁ | 18001 | Florencia | None | EBLUP_BENCHMARK | 12.8972 | 12.9005 | 0.999745 | 2.85 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | CAUCA | 19001 | Popayán | None | EBLUP_BENCHMARK | 10.6832 | 10.686 | 0.999745 | 2.75 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | CESAR | 20001 | Valledupar | None | EBLUP_BENCHMARK | 14.3758 | 14.3795 | 0.999745 | 2.27 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | CÓRDOBA | 23001 | Montería | None | EBLUP_BENCHMARK | 9.4847 | 9.4871 | 0.999745 | 2.78 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | CHOCÓ | 27001 | Quibdó | None | EBLUP_BENCHMARK | 17.7586 | 17.7631 | 0.999745 | 2.46 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | HUILA | 41001 | Neiva | None | EBLUP_BENCHMARK | 11.5301 | 11.533 | 0.999745 | 2.67 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | LA GUAJIRA | 44001 | Riohacha | None | EBLUP_BENCHMARK | 13.8552 | 13.8587 | 0.999745 | 2.31 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | MAGDALENA | 47001 | Santa Marta | None | EBLUP_BENCHMARK | 8.343 | 8.3452 | 0.999745 | 2.78 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | META | 50001 | Villavicencio | None | EBLUP_BENCHMARK | 11.862 | 11.865 | 0.999745 | 2.67 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | NARIÑO | 52001 | Pasto | None | EBLUP_BENCHMARK | 8.8369 | 8.8392 | 0.999745 | 3.2 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | NORTE DE SANTANDER | 54001 | Cúcuta A.M. | None | EBLUP_BENCHMARK | 15.8806 | 15.8847 | 0.999745 | 2.28 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | QUINDÍO | 63001 | Armenia | None | EBLUP_BENCHMARK | 15.4184 | 15.4223 | 0.999745 | 2.2 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | RISARALDA | 66001 | Pereira A.M. | None | EBLUP_BENCHMARK | 8.8987 | 8.901 | 0.999745 | 3.01 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | SANTANDER | 68001 | Bucaramanga A.M. | None | EBLUP_BENCHMARK | 8.76 | 8.7622 | 0.999745 | 3.13 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | SUCRE | 70001 | Sincelejo | None | EBLUP_BENCHMARK | 9.6147 | 9.6171 | 0.999745 | 2.6 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | TOLIMA | 73001 | Ibagué | None | EBLUP_BENCHMARK | 13.9277 | 13.9313 | 0.999745 | 2.35 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| DOMINIO | 2018 | 12 | VALLE DEL CAUCA | 76001 | Cali A.M. | None | EBLUP_BENCHMARK | 11.689 | 11.692 | 0.999745 | 2.42 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19022 | ALMAGUER | None | SINTETICO | 14.5707 | 14.5707 | 1.0 | 18.15 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19050 | ARGELIA | None | SINTETICO | 20.9601 | 20.9601 | 1.0 | 19.93 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 4.6265 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19075 | BALBOA | None | SINTETICO | 16.7147 | 16.7147 | 1.0 | 18.25 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 0.3812 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19100 | BOLÍVAR | None | SINTETICO | 15.4521 | 15.4521 | 1.0 | 18.07 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19110 | BUENOS AIRES | None | SINTETICO | 16.7693 | 16.7693 | 1.0 | 18.27 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 0.4358 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19130 | CAJIBÍO | None | SINTETICO | 12.9706 | 12.9706 | 1.0 | 18.96 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19137 | CALDONO | None | SINTETICO | 10.4335 | 10.4335 | 1.0 | 23.34 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19142 | CALOTO | None | SINTETICO | 17.7421 | 17.7421 | 1.0 | 18.56 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 1.4085 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19212 | CORINTO | None | SINTETICO | 31.1739 | 31.1739 | 1.0 | 24.09 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 14.8404 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19256 | EL TAMBO | None | SINTETICO | 17.6636 | 17.6636 | 1.0 | 18.53 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 1.3301 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19290 | FLORENCIA | None | SINTETICO | 13.0074 | 13.0074 | 1.0 | 18.93 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19300 | GUACHENÉ | None | SINTETICO | 18.2741 | 18.2741 | 1.0 | 18.76 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 1.9405 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19318 | GUAPI | None | SINTETICO | 10.9884 | 10.9884 | 1.0 | 21.94 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19355 | INZÁ | None | SINTETICO | 9.8787 | 9.8787 | 1.0 | 25.06 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19364 | JAMBALÓ | None | SINTETICO | 10.8604 | 10.8604 | 1.0 | 22.23 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19392 | LA SIERRA | None | SINTETICO | 11.9612 | 11.9612 | 1.0 | 20.13 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19397 | LA VEGA | None | SINTETICO | 10.4058 | 10.4058 | 1.0 | 23.42 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19418 | LÓPEZ DE MICAY | None | SINTETICO | 15.067 | 15.067 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19450 | MERCADERES | None | SINTETICO | 16.1906 | 16.1906 | 1.0 | 18.14 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19455 | MIRANDA | None | SINTETICO | 15.8373 | 15.8373 | 1.0 | 18.1 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | -0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19473 | MORALES | None | SINTETICO | 11.4907 | 11.4907 | 1.0 | 20.91 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19513 | PADILLA | None | SINTETICO | 12.1875 | 12.1875 | 1.0 | 19.81 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19517 | PÁEZ | None | SINTETICO | 10.7085 | 10.7085 | 1.0 | 22.61 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19532 | PATÍA | None | SINTETICO | 20.5045 | 20.5045 | 1.0 | 19.72 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 4.1709 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19533 | PIAMONTE | None | SINTETICO | 11.444 | 11.444 | 1.0 | 21.0 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19548 | PIENDAMÓ - TUNÍA | None | SINTETICO | 11.1363 | 11.1363 | 1.0 | 21.61 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19573 | PUERTO TEJADA | None | SINTETICO | 24.456 | 24.456 | 1.0 | 21.52 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 8.1224 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19585 | PURACÉ | None | SINTETICO | 9.1908 | 9.1908 | 1.0 | 27.71 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | -0.403 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19622 | ROSAS | None | SINTETICO | 12.651 | 12.651 | 1.0 | 19.26 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | -0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19693 | SAN SEBASTIÁN | None | SINTETICO | 10.0971 | 10.0971 | 1.0 | 24.34 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19698 | SANTANDER DE QUILICHAO | None | SINTETICO | 15.2119 | 15.2119 | 1.0 | 18.07 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19701 | SANTA ROSA | None | SINTETICO | 11.05 | 11.05 | 1.0 | 21.8 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19743 | SILVIA | None | SINTETICO | 9.1908 | 9.1908 | 1.0 | 27.71 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | -0.403 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19760 | SOTARÁ - PAISPAMBA | None | SINTETICO | 11.3269 | 11.3269 | 1.0 | 21.22 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19780 | SUÁREZ | None | SINTETICO | 16.6581 | 16.6581 | 1.0 | 18.24 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 0.3246 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19785 | SUCRE | None | SINTETICO | 11.2832 | 11.2832 | 1.0 | 21.31 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | -0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19807 | TIMBÍO | None | SINTETICO | 11.4291 | 11.4291 | 1.0 | 21.03 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19809 | TIMBIQUÍ | None | SINTETICO | 14.5151 | 14.5151 | 1.0 | 18.16 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19821 | TORIBÍO | None | SINTETICO | 10.6003 | 10.6003 | 1.0 | 22.89 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19824 | TOTORÓ | None | SINTETICO | 11.2117 | 11.2117 | 1.0 | 21.45 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | CAUCA | 19845 | VILLA RICA | None | SINTETICO | 17.345 | 17.345 | 1.0 | 18.43 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 1.0115 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76001 | SANTIAGO DE CALI | 76001 | SINTETICO_BENCHMARK | 11.5955 | 14.3553 | 0.807749 | 29.96 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76020 | ALCALÁ | None | SINTETICO | 13.4262 | 13.4262 | 1.0 | 18.62 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76036 | ANDALUCÍA | None | SINTETICO | 17.5971 | 17.5971 | 1.0 | 18.51 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 1.2636 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76041 | ANSERMANUEVO | None | SINTETICO | 20.0002 | 20.0002 | 1.0 | 19.49 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 3.6667 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76054 | ARGELIA | None | SINTETICO | 20.2255 | 20.2255 | 1.0 | 19.59 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 3.892 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76100 | BOLÍVAR | None | SINTETICO | 16.006 | 16.006 | 1.0 | 18.12 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76109 | BUENAVENTURA | None | SINTETICO | 12.122 | 12.122 | 1.0 | 19.9 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76111 | GUADALAJARA DE BUGA | None | SINTETICO | 14.7166 | 14.7166 | 1.0 | 18.12 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76113 | BUGALAGRANDE | None | SINTETICO | 15.7211 | 15.7211 | 1.0 | 18.09 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76122 | CAICEDONIA | None | SINTETICO | 15.734 | 15.734 | 1.0 | 18.09 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76126 | CALIMA | None | SINTETICO | 11.9393 | 11.9393 | 1.0 | 20.16 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76130 | CANDELARIA | None | SINTETICO | 15.5683 | 15.5683 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76147 | CARTAGO | None | SINTETICO | 12.5547 | 12.5547 | 1.0 | 19.37 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76233 | DAGUA | None | SINTETICO | 11.8549 | 11.8549 | 1.0 | 20.29 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76243 | EL ÁGUILA | None | SINTETICO | 27.0169 | 27.0169 | 1.0 | 22.59 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 10.6834 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76246 | EL CAIRO | None | SINTETICO | 10.641 | 10.641 | 1.0 | 22.78 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76248 | EL CERRITO | None | SINTETICO | 16.0457 | 16.0457 | 1.0 | 18.12 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76250 | EL DOVIO | None | SINTETICO | 13.6585 | 13.6585 | 1.0 | 18.48 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76275 | FLORIDA | None | SINTETICO | 12.3046 | 12.3046 | 1.0 | 19.66 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76306 | GINEBRA | None | SINTETICO | 9.1908 | 9.1908 | 1.0 | 27.71 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | -0.403 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76318 | GUACARÍ | None | SINTETICO | 19.359 | 19.359 | 1.0 | 19.21 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 3.0254 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76364 | JAMUNDÍ | None | SINTETICO | 15.6477 | 15.6477 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76377 | LA CUMBRE | None | SINTETICO | 11.0162 | 11.0162 | 1.0 | 21.87 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76400 | LA UNIÓN | None | SINTETICO | 14.7454 | 14.7454 | 1.0 | 18.11 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76403 | LA VICTORIA | None | SINTETICO | 15.7132 | 15.7132 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76497 | OBANDO | None | SINTETICO | 14.8347 | 14.8347 | 1.0 | 18.1 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76520 | PALMIRA | None | SINTETICO | 13.6238 | 13.6238 | 1.0 | 18.5 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76563 | PRADERA | None | SINTETICO | 15.0283 | 15.0283 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76606 | RESTREPO | None | SINTETICO | 11.7845 | 11.7845 | 1.0 | 20.4 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76616 | RIOFRÍO | None | SINTETICO | 11.7438 | 11.7438 | 1.0 | 20.47 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76622 | ROLDANILLO | None | SINTETICO | 11.6187 | 11.6187 | 1.0 | 20.68 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76670 | SAN PEDRO | None | SINTETICO | 13.2922 | 13.2922 | 1.0 | 18.71 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76736 | SEVILLA | None | SINTETICO | 11.5463 | 11.5463 | 1.0 | 20.81 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76823 | TORO | None | SINTETICO | 18.7009 | 18.7009 | 1.0 | 18.93 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 2.3674 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76828 | TRUJILLO | None | SINTETICO | 11.2564 | 11.2564 | 1.0 | 21.36 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76834 | TULUÁ | None | SINTETICO | 13.9047 | 13.9047 | 1.0 | 18.36 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76845 | ULLOA | None | SINTETICO | 12.8237 | 12.8237 | 1.0 | 19.09 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76863 | VERSALLES | None | SINTETICO | 11.9244 | 11.9244 | 1.0 | 20.19 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76869 | VIJES | None | SINTETICO | 9.97 | 9.97 | 1.0 | 24.75 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76890 | YOTOCO | None | SINTETICO | 11.05 | 11.05 | 1.0 | 21.8 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76892 | YUMBO | 76001 | SINTETICO_BENCHMARK | 13.6985 | 16.9589 | 0.807749 | 30.03 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | True | 0.6253 |
-| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76895 | ZARZAL | None | SINTETICO | 14.399 | 14.399 | 1.0 | 18.19 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | PRELIMINAR | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | ANTIOQUIA | 05001 | Medellín A.M. | None | EBLUP_BENCHMARK | 11.8307 | 11.8337 | 0.999745 | 2.01 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | ATLÁNTICO | 08001 | Barranquilla A.M. | None | EBLUP_BENCHMARK | 8.1723 | 8.1743 | 0.999745 | 2.48 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | BOGOTÁ, D.C. | 11001 | Bogotá | None | EBLUP_BENCHMARK | 10.3696 | 10.3723 | 0.999745 | 2.25 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | BOLÍVAR | 13001 | Cartagena | None | EBLUP_BENCHMARK | 8.3837 | 8.3858 | 0.999745 | 3.11 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | BOYACÁ | 15001 | Tunja | None | EBLUP_BENCHMARK | 11.2786 | 11.2815 | 0.999745 | 2.87 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | CALDAS | 17001 | Manizales A.M. | None | EBLUP_BENCHMARK | 11.2288 | 11.2317 | 0.999745 | 2.52 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | CAQUETÁ | 18001 | Florencia | None | EBLUP_BENCHMARK | 12.8972 | 12.9005 | 0.999745 | 2.85 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | CAUCA | 19001 | Popayán | None | EBLUP_BENCHMARK | 10.6832 | 10.686 | 0.999745 | 2.75 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | CESAR | 20001 | Valledupar | None | EBLUP_BENCHMARK | 14.3758 | 14.3795 | 0.999745 | 2.27 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | CÓRDOBA | 23001 | Montería | None | EBLUP_BENCHMARK | 9.4847 | 9.4871 | 0.999745 | 2.78 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | CHOCÓ | 27001 | Quibdó | None | EBLUP_BENCHMARK | 17.7586 | 17.7631 | 0.999745 | 2.46 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | HUILA | 41001 | Neiva | None | EBLUP_BENCHMARK | 11.5301 | 11.533 | 0.999745 | 2.67 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | LA GUAJIRA | 44001 | Riohacha | None | EBLUP_BENCHMARK | 13.8552 | 13.8587 | 0.999745 | 2.31 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | MAGDALENA | 47001 | Santa Marta | None | EBLUP_BENCHMARK | 8.343 | 8.3452 | 0.999745 | 2.78 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | META | 50001 | Villavicencio | None | EBLUP_BENCHMARK | 11.862 | 11.865 | 0.999745 | 2.67 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | NARIÑO | 52001 | Pasto | None | EBLUP_BENCHMARK | 8.8369 | 8.8392 | 0.999745 | 3.2 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | NORTE DE SANTANDER | 54001 | Cúcuta A.M. | None | EBLUP_BENCHMARK | 15.8806 | 15.8847 | 0.999745 | 2.28 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | QUINDÍO | 63001 | Armenia | None | EBLUP_BENCHMARK | 15.4184 | 15.4223 | 0.999745 | 2.2 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | RISARALDA | 66001 | Pereira A.M. | None | EBLUP_BENCHMARK | 8.8987 | 8.901 | 0.999745 | 3.01 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | SANTANDER | 68001 | Bucaramanga A.M. | None | EBLUP_BENCHMARK | 8.76 | 8.7622 | 0.999745 | 3.13 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | SUCRE | 70001 | Sincelejo | None | EBLUP_BENCHMARK | 9.6147 | 9.6171 | 0.999745 | 2.6 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | TOLIMA | 73001 | Ibagué | None | EBLUP_BENCHMARK | 13.9277 | 13.9313 | 0.999745 | 2.35 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| DOMINIO | 2018 | 12 | VALLE DEL CAUCA | 76001 | Cali A.M. | None | EBLUP_BENCHMARK | 11.689 | 11.692 | 0.999745 | 2.42 | Confiable | EBLUP | DENTRO_DEL_RANGO | Confiable | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19022 | ALMAGUER | None | SINTETICO | 14.5707 | 14.5707 | 1.0 | 18.15 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19050 | ARGELIA | None | SINTETICO | 20.9601 | 20.9601 | 1.0 | 19.93 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 4.6265 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19075 | BALBOA | None | SINTETICO | 16.7147 | 16.7147 | 1.0 | 18.25 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 0.3812 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19100 | BOLÍVAR | None | SINTETICO | 15.4521 | 15.4521 | 1.0 | 18.07 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19110 | BUENOS AIRES | None | SINTETICO | 16.7693 | 16.7693 | 1.0 | 18.27 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 0.4358 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19130 | CAJIBÍO | None | SINTETICO | 12.9706 | 12.9706 | 1.0 | 18.96 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19137 | CALDONO | None | SINTETICO | 10.4335 | 10.4335 | 1.0 | 23.34 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19142 | CALOTO | None | SINTETICO | 17.7421 | 17.7421 | 1.0 | 18.56 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 1.4085 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19212 | CORINTO | None | SINTETICO | 31.1739 | 31.1739 | 1.0 | 24.09 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 14.8404 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19256 | EL TAMBO | None | SINTETICO | 17.6636 | 17.6636 | 1.0 | 18.53 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 1.3301 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19290 | FLORENCIA | None | SINTETICO | 13.0074 | 13.0074 | 1.0 | 18.93 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19300 | GUACHENÉ | None | SINTETICO | 18.2741 | 18.2741 | 1.0 | 18.76 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 1.9405 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19318 | GUAPI | None | SINTETICO | 10.9884 | 10.9884 | 1.0 | 21.94 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19355 | INZÁ | None | SINTETICO | 9.8787 | 9.8787 | 1.0 | 25.06 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19364 | JAMBALÓ | None | SINTETICO | 10.8604 | 10.8604 | 1.0 | 22.23 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19392 | LA SIERRA | None | SINTETICO | 11.9612 | 11.9612 | 1.0 | 20.13 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19397 | LA VEGA | None | SINTETICO | 10.4058 | 10.4058 | 1.0 | 23.42 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19418 | LÓPEZ DE MICAY | None | SINTETICO | 15.067 | 15.067 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19450 | MERCADERES | None | SINTETICO | 16.1906 | 16.1906 | 1.0 | 18.14 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19455 | MIRANDA | None | SINTETICO | 15.8373 | 15.8373 | 1.0 | 18.1 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | -0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19473 | MORALES | None | SINTETICO | 11.4907 | 11.4907 | 1.0 | 20.91 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19513 | PADILLA | None | SINTETICO | 12.1875 | 12.1875 | 1.0 | 19.81 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19517 | PÁEZ | None | SINTETICO | 10.7085 | 10.7085 | 1.0 | 22.61 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19532 | PATÍA | None | SINTETICO | 20.5045 | 20.5045 | 1.0 | 19.72 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 4.1709 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19533 | PIAMONTE | None | SINTETICO | 11.444 | 11.444 | 1.0 | 21.0 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19548 | PIENDAMÓ - TUNÍA | None | SINTETICO | 11.1363 | 11.1363 | 1.0 | 21.61 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19573 | PUERTO TEJADA | None | SINTETICO | 24.456 | 24.456 | 1.0 | 21.52 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 8.1224 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19585 | PURACÉ | None | SINTETICO | 9.1908 | 9.1908 | 1.0 | 27.71 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | -0.403 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19622 | ROSAS | None | SINTETICO | 12.651 | 12.651 | 1.0 | 19.26 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | -0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19693 | SAN SEBASTIÁN | None | SINTETICO | 10.0971 | 10.0971 | 1.0 | 24.34 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19698 | SANTANDER DE QUILICHAO | None | SINTETICO | 15.2119 | 15.2119 | 1.0 | 18.07 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19701 | SANTA ROSA | None | SINTETICO | 11.05 | 11.05 | 1.0 | 21.8 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19743 | SILVIA | None | SINTETICO | 9.1908 | 9.1908 | 1.0 | 27.71 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | -0.403 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19760 | SOTARÁ - PAISPAMBA | None | SINTETICO | 11.3269 | 11.3269 | 1.0 | 21.22 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19780 | SUÁREZ | None | SINTETICO | 16.6581 | 16.6581 | 1.0 | 18.24 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 0.3246 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19785 | SUCRE | None | SINTETICO | 11.2832 | 11.2832 | 1.0 | 21.31 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | -0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19807 | TIMBÍO | None | SINTETICO | 11.4291 | 11.4291 | 1.0 | 21.03 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19809 | TIMBIQUÍ | None | SINTETICO | 14.5151 | 14.5151 | 1.0 | 18.16 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19821 | TORIBÍO | None | SINTETICO | 10.6003 | 10.6003 | 1.0 | 22.89 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19824 | TOTORÓ | None | SINTETICO | 11.2117 | 11.2117 | 1.0 | 21.45 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | CAUCA | 19845 | VILLA RICA | None | SINTETICO | 17.345 | 17.345 | 1.0 | 18.43 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 1.0115 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76001 | SANTIAGO DE CALI | 76001 | SINTETICO_BENCHMARK | 11.5955 | 14.3553 | 0.807749 | 29.96 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76020 | ALCALÁ | None | SINTETICO | 13.4262 | 13.4262 | 1.0 | 18.62 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76036 | ANDALUCÍA | None | SINTETICO | 17.5971 | 17.5971 | 1.0 | 18.51 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 1.2636 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76041 | ANSERMANUEVO | None | SINTETICO | 20.0002 | 20.0002 | 1.0 | 19.49 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 3.6667 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76054 | ARGELIA | None | SINTETICO | 20.2255 | 20.2255 | 1.0 | 19.59 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 3.892 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76100 | BOLÍVAR | None | SINTETICO | 16.006 | 16.006 | 1.0 | 18.12 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76109 | BUENAVENTURA | None | SINTETICO | 12.122 | 12.122 | 1.0 | 19.9 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76111 | GUADALAJARA DE BUGA | None | SINTETICO | 14.7166 | 14.7166 | 1.0 | 18.12 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76113 | BUGALAGRANDE | None | SINTETICO | 15.7211 | 15.7211 | 1.0 | 18.09 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76122 | CAICEDONIA | None | SINTETICO | 15.734 | 15.734 | 1.0 | 18.09 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76126 | CALIMA | None | SINTETICO | 11.9393 | 11.9393 | 1.0 | 20.16 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76130 | CANDELARIA | None | SINTETICO | 15.5683 | 15.5683 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76147 | CARTAGO | None | SINTETICO | 12.5547 | 12.5547 | 1.0 | 19.37 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76233 | DAGUA | None | SINTETICO | 11.8549 | 11.8549 | 1.0 | 20.29 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76243 | EL ÁGUILA | None | SINTETICO | 27.0169 | 27.0169 | 1.0 | 22.59 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 10.6834 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76246 | EL CAIRO | None | SINTETICO | 10.641 | 10.641 | 1.0 | 22.78 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76248 | EL CERRITO | None | SINTETICO | 16.0457 | 16.0457 | 1.0 | 18.12 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76250 | EL DOVIO | None | SINTETICO | 13.6585 | 13.6585 | 1.0 | 18.48 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76275 | FLORIDA | None | SINTETICO | 12.3046 | 12.3046 | 1.0 | 19.66 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76306 | GINEBRA | None | SINTETICO | 9.1908 | 9.1908 | 1.0 | 27.71 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | -0.403 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76318 | GUACARÍ | None | SINTETICO | 19.359 | 19.359 | 1.0 | 19.21 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 3.0254 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76364 | JAMUNDÍ | None | SINTETICO | 15.6477 | 15.6477 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76377 | LA CUMBRE | None | SINTETICO | 11.0162 | 11.0162 | 1.0 | 21.87 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76400 | LA UNIÓN | None | SINTETICO | 14.7454 | 14.7454 | 1.0 | 18.11 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76403 | LA VICTORIA | None | SINTETICO | 15.7132 | 15.7132 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76497 | OBANDO | None | SINTETICO | 14.8347 | 14.8347 | 1.0 | 18.1 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76520 | PALMIRA | None | SINTETICO | 13.6238 | 13.6238 | 1.0 | 18.5 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76563 | PRADERA | None | SINTETICO | 15.0283 | 15.0283 | 1.0 | 18.08 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76606 | RESTREPO | None | SINTETICO | 11.7845 | 11.7845 | 1.0 | 20.4 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76616 | RIOFRÍO | None | SINTETICO | 11.7438 | 11.7438 | 1.0 | 20.47 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76622 | ROLDANILLO | None | SINTETICO | 11.6187 | 11.6187 | 1.0 | 20.68 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76670 | SAN PEDRO | None | SINTETICO | 13.2922 | 13.2922 | 1.0 | 18.71 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76736 | SEVILLA | None | SINTETICO | 11.5463 | 11.5463 | 1.0 | 20.81 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76823 | TORO | None | SINTETICO | 18.7009 | 18.7009 | 1.0 | 18.93 | Aceptable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | Aceptable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 2.3674 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76828 | TRUJILLO | None | SINTETICO | 11.2564 | 11.2564 | 1.0 | 21.36 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76834 | TULUÁ | None | SINTETICO | 13.9047 | 13.9047 | 1.0 | 18.36 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76845 | ULLOA | None | SINTETICO | 12.8237 | 12.8237 | 1.0 | 19.09 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76863 | VERSALLES | None | SINTETICO | 11.9244 | 11.9244 | 1.0 | 20.19 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76869 | VIJES | None | SINTETICO | 9.97 | 9.97 | 1.0 | 24.75 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76890 | YOTOCO | None | SINTETICO | 11.05 | 11.05 | 1.0 | 21.8 | No confiable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | No confiable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76892 | YUMBO | 76001 | SINTETICO_BENCHMARK | 13.6985 | 16.9589 | 0.807749 | 30.03 | No confiable | CONDICIONAL_AL_MODELO | FUERA_DEL_RANGO | No confiable · condicional al modelo · extrapolado (fuera del rango) | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | True | 0.6253 |
+| MUNICIPIO | 2018 | 12 | VALLE DEL CAUCA | 76895 | ZARZAL | None | SINTETICO | 14.399 | 14.399 | 1.0 | 18.19 | Aceptable | CONDICIONAL_AL_MODELO | DENTRO_DEL_RANGO | Aceptable · condicional al modelo | FH_CLASICO_BENCHMARK_NO_ESPACIAL | FINAL_TRAS_COMPARACION_ESPACIAL | False | False | 0.0 |
 
 
-## Celda 28
+## Celda 30
 
 ```python
 %md
@@ -2572,7 +2620,7 @@ de extrapolación y la etiqueta se recalculan solos. La tasa publicada no cambia
 ```
 
 
-## Celda 29
+## Celda 31
 
 ```python
 # Resumen por estado de extrapolación y categoría por CV: muestra si el CV distingue o no a los
@@ -2619,7 +2667,7 @@ En los extrapolados, la parte de la predicción que viene de fuera del rango es 
 ```
 
 
-## Celda 30
+## Celda 32
 
 ```python
 %md
@@ -2647,7 +2695,7 @@ comprobación sobre la tabla final publicada (valores redondeados a 4 decimales)
 ```
 
 
-## Celda 31
+## Celda 33
 
 ```python
 # Nivel 1: los 23 dominios frente al total de las 23 ciudades.
@@ -2804,7 +2852,7 @@ Tabla final, nivel 2 (76001): agregado 11.6890 vs dominio 11.6890 → PASS
 ```
 
 
-## Celda 32
+## Celda 34
 
 ```python
 # R-38: el job no tiene transacciones; las tablas se escriben al final, después de la verificación

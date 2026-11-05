@@ -273,7 +273,7 @@ display(spark.createDataFrame(desc_respuesta))
 
 **Cómo leer la figura.** La fila superior describe la tasa de desempleo (histograma a
 la izquierda, diagrama de caja a la derecha); la inferior, su error estándar. En cada
-histograma la línea discontinua roja es la media y la punteada verde la mediana: cuando
+histograma la línea discontinua naranja es la media y la punteada gris la mediana: cuando
 se separan, unos pocos dominios extremos arrastran el promedio. En el diagrama de caja,
 la caja cubre el 50 % central de los dominios y los puntos aislados son los que quedan
 a más de 1,5 rangos intercuartílicos.
@@ -447,7 +447,7 @@ siguiente. Ninguna observación se elimina en este notebook ni en el siguiente.
 **Cómo leer la figura.** Cada fila es una covariable, estandarizada (media 0 y
 desviación 1) solo para poder compararlas en un mismo eje; los datos que entran al
 modelo no se transforman. Una caja desplazada respecto a la línea vertical del cero y
-un bigote más largo hacia un lado indican asimetría; los puntos rojos son los dominios
+un bigote más largo hacia un lado indican asimetría; los puntos naranjas son los dominios
 extremos según el rango intercuartílico. Las covariables con cajas estrechas y puntos
 lejanos son las que concentran su variación en unos pocos territorios.
 ```
@@ -546,7 +546,7 @@ display(spark.createDataFrame(bivariado))
 **Cómo leer la figura.** Cada panel enfrenta una covariable (eje horizontal) con la
 tasa de desempleo (eje vertical); cada punto es un dominio y la recta discontinua es
 el ajuste de mínimos cuadrados, la misma forma lineal que usa el componente sintético
-del modelo. El título trae Pearson (r) y Spearman (ρ): cuando difieren de forma
+del modelo. Cada panel trae Pearson (r) y Spearman (ρ_S): cuando difieren de forma
 apreciable, la relación lineal depende de unos pocos puntos alejados. Conviene fijarse
 en tres cosas: la pendiente de la recta (dirección de la asociación), cuánto se
 dispersan los puntos alrededor de ella (fuerza) y si hay un dominio aislado que parece
@@ -557,19 +557,30 @@ sostener la pendiente por sí solo (candidato a influyente).
 ## Celda 18
 
 ```python
-fig = desc.figura_panel_dispersion(df_cand, CANDIDATAS, Y, alias=ALIAS)
-desc.guardar_figura(fig, "desc_dispersion_candidatas", VOLUMEN_FIGURAS)
-display(fig)
+# D-12: con las 18 candidatas en una sola figura el texto quedaba ilegible; se parten en dos
+# figuras de hasta nueve paneles (desc_dispersion_candidatas_1 y _2).
+mitad = (len(CANDIDATAS) + 1) // 2
+for parte, grupo in enumerate([CANDIDATAS[:mitad], CANDIDATAS[mitad:]], 1):
+    if not grupo:
+        continue
+    fig = desc.figura_panel_dispersion(df_cand, grupo, Y, alias=ALIAS)
+    desc.guardar_figura(fig, f"desc_dispersion_candidatas_{parte}", VOLUMEN_FIGURAS)
+    display(fig)
 print(desc.interpretar_dispersion(bivariado, SIGNO))
 ```
 
 **Salida:**
 
 ```
-  figura guardada: /Volumes/tesis/preprocesamiento/figuras_eda/desc_dispersion_candidatas.png
+  figura guardada: /Volumes/tesis/preprocesamiento/figuras_eda/desc_dispersion_candidatas_1.png
 
 ```
 ![fig](fig/analisis__analisis_descriptivo_c18_6.png)
+```
+  figura guardada: /Volumes/tesis/preprocesamiento/figuras_eda/desc_dispersion_candidatas_2.png
+
+```
+![fig](fig/analisis__analisis_descriptivo_c18_7.png)
 ```
 INTERPRETACIÓN DE LA FIGURA:
   Asociación fuerte (|r| >= 0.5): 0.
@@ -580,7 +591,8 @@ INTERPRETACIÓN DE LA FIGURA:
   Lectura: en la recta de referencia de cada panel se ve la dirección de la asociación; los puntos que se apartan del patrón son los dominios que después se examinan con la distancia de Cook. Ninguna covariable se incluye ni se excluye aquí por su coeficiente.
 
 ```
-![fig](fig/analisis__analisis_descriptivo_c18_7.png)
+![fig](fig/analisis__analisis_descriptivo_c18_8.png)
+![fig](fig/analisis__analisis_descriptivo_c18_9.png)
 
 
 ## Celda 19
@@ -603,22 +615,18 @@ lo mismo. Esos bloques son el insumo del criterio de redundancia de la etapa sig
 interpretación territorial directa y una decisión adicional —cuántos componentes
 retener— que esta etapa no necesita.
 
-**Cómo leer la figura.** Rojo indica correlación positiva y azul negativa; la
-intensidad, la magnitud. Los bloques de color intenso alrededor de la diagonal son
-grupos de covariables que miden lo mismo; un bloque azul intenso fuera de la diagonal
-señala dos indicadores que miden lo mismo en sentido inverso.
+**Cómo leer la figura.** Naranja indica correlación positiva y azul negativa; la
+intensidad, la magnitud. Se muestra el triángulo inferior, porque la matriz es
+simétrica. Los bloques de color intenso junto a la diagonal son grupos de covariables
+que miden lo mismo; un bloque azul intenso lejos de la diagonal señala dos indicadores
+que miden lo mismo en sentido inverso.
 ```
 
 
 ## Celda 20
 
 ```python
-fig, orden_agrupado = desc.figura_correlacion_agrupada(
-    df_cand,
-    CANDIDATAS,
-    alias=ALIAS,
-    titulo="Estructura de correlación entre las covariables candidatas",
-)
+fig, orden_agrupado = desc.figura_correlacion_agrupada(df_cand, CANDIDATAS, alias=ALIAS)
 desc.guardar_figura(fig, "desc_correlacion_candidatas", VOLUMEN_FIGURAS)
 display(fig)
 ```
@@ -629,8 +637,8 @@ display(fig)
   figura guardada: /Volumes/tesis/preprocesamiento/figuras_eda/desc_correlacion_candidatas.png
 
 ```
-![fig](fig/analisis__analisis_descriptivo_c20_8.png)
-![fig](fig/analisis__analisis_descriptivo_c20_9.png)
+![fig](fig/analisis__analisis_descriptivo_c20_10.png)
+![fig](fig/analisis__analisis_descriptivo_c20_11.png)
 
 
 ## Celda 21

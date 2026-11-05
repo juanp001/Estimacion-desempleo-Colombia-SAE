@@ -75,6 +75,10 @@ from shared.config import *
 from shared.datos_modelo import alias_desde_catalogo
 from shared.fay_herriot import FayHerriotClasico
 from shared.cuadro_comparativo import (
+    moran_estimaciones,
+    resumen_diferencias,
+    tabla_diferencias,
+    tabla_seblup_dominios,
     construir_cuadro_comparativo,
     construir_cuadro_coeficientes,
 )
@@ -1363,6 +1367,150 @@ No confiable · condicional al modelo · extrapolado (fuera del rango)     6
 
 ```python
 %md
+## 9b. Comparación de las estimaciones (objetivos 1 y 3)
+
+Completa la comparación controlada con lo que antes se calculaba fuera del pipeline (D-07):
+
+* **Dominios** (`fhe_seblup_dominios`): EBLUP del clásico y SEBLUP del escenario de
+  referencia, con su MSE (Prasad-Rao y bootstrap paramétrico), su CV y el peso del dato
+  directo (γ_d del clásico y γ^S_d = [G V⁻¹]_dd del espacial).
+* **Diferencias** (`fhe_diferencias_estimaciones`): espacial − clásico en los 23 dominios y
+  en los 83 municipios: media, media absoluta, máximo, Pearson, Spearman y cambios de clase
+  de confiabilidad con la regla de CV de la tabla final. Con 23 dominios las diferencias se
+  reportan, no se prueban.
+* **I de Moran de las estimaciones finales** (`fhe_moran_estimaciones`): W de los 83
+  municipios con sus `K_MORAN_ESTIMACIONES` vecinos más cercanos, estandarizada por filas, y
+  p por permutaciones. Se calcula también para la tasa sin benchmarking y para las
+  covariables del benchmark, porque la estimación sintética hereda el patrón de x'β̂.
+```
+
+
+## Celda 28
+
+```python
+df_seblup_dominios = tabla_seblup_dominios(df, clasico, final)
+mostrar(df_seblup_dominios.round(4))
+print(
+    f"γ^S_d entre {df_seblup_dominios['GAMMA_S'].min():.3f} y "
+    f"{df_seblup_dominios['GAMMA_S'].max():.3f} (γ_d medio del clásico "
+    f"{df_seblup_dominios['GAMMA'].mean():.3f}); MSE medio: EBLUP "
+    f"{df_seblup_dominios['MSE_EBLUP'].mean():.4f}, SEBLUP "
+    f"{df_seblup_dominios['MSE_SEBLUP'].mean():.4f}; dominios con MSE del SEBLUP menor: "
+    f"{int((df_seblup_dominios['MSE_SEBLUP'] < df_seblup_dominios['MSE_EBLUP']).sum())} "
+    f"de {len(df_seblup_dominios)}."
+)
+
+df_diferencias = tabla_diferencias(
+    [
+        resumen_diferencias(
+            "DOMINIO",
+            df_seblup_dominios["EBLUP"],
+            df_seblup_dominios["SEBLUP"],
+            df_seblup_dominios["CV_EBLUP_PCT"],
+            df_seblup_dominios["CV_SEBLUP_PCT"],
+            UMBRAL_DIFERENCIA_PP,
+        ),
+        resumen_diferencias(
+            "MUNICIPIO",
+            pred["PRED_CLASICO"],
+            pred["PRED_ESPACIAL"],
+            pred["CV_CLASICO_PCT"],
+            pred["CV_ESPACIAL_PCT"],
+            UMBRAL_DIFERENCIA_PP,
+        ),
+    ]
+)
+df_diferencias["ESCENARIO"] = mejor_nombre
+mostrar(df_diferencias.round(4))
+
+# I de Moran de las estimaciones finales del modelo recomendado (tabla final del clásico).
+finales_mun = (
+    spark.table(TBL_FAY_HERRIOT_ESTIMACIONES_FINALES)
+    .filter("NIVEL = 'MUNICIPIO'")
+    .select("CODIGO", "TASA_DESEMPLEO_PCT", "TASA_SIN_AJUSTE_PCT")
+    .toPandas()
+    .rename(columns={"CODIGO": "CODIGO_MUNICIPIO"})
+    .merge(
+        pred[["CODIGO_MUNICIPIO", "LATITUD", "LONGITUD"]],
+        on="CODIGO_MUNICIPIO",
+        how="inner",
+        validate="one_to_one",
+    )
+    .merge(
+        obj_todos[["CODIGO_MUNICIPIO", *covars]],
+        on="CODIGO_MUNICIPIO",
+        how="left",
+        validate="one_to_one",
+    )
+    .sort_values("CODIGO_MUNICIPIO")
+    .reset_index(drop=True)
+)
+if len(finales_mun) != len(pred):
+    print(
+        f"⚠ ADVERTENCIA: la tabla final tiene {len(finales_mun)} de los {len(pred)} municipios "
+        "objetivo; el I de Moran se calcula con los que coinciden."
+    )
+df_moran_estimaciones = moran_estimaciones(
+    finales_mun["LATITUD"],
+    finales_mun["LONGITUD"],
+    {
+        "TASA_FINAL": finales_mun["TASA_DESEMPLEO_PCT"],
+        "TASA_SIN_BENCHMARKING": finales_mun["TASA_SIN_AJUSTE_PCT"],
+        **{c: finales_mun[c] for c in covars},
+    },
+    k=K_MORAN_ESTIMACIONES,
+    n_perm=N_PERMUTACIONES_MORAN,
+    semilla=SEMILLA_ESPACIAL,
+)
+mostrar(df_moran_estimaciones.round(4))
+```
+
+**Salida:**
+
+| CODIGO_DOMINIO | NOMBRE_DOMINIO | DIRECTA | PSI | EBLUP | MSE_EBLUP | CV_EBLUP_PCT | GAMMA | CLASE_EBLUP | SEBLUP | MSE_SEBLUP | CV_SEBLUP_PCT | GAMMA_S | CLASE_SEBLUP | DIF_SEBLUP_EBLUP_PP |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 05001 | Medellín A.M. | 11.8378 | 0.0568 | 11.8337 | 0.0563 | 2.0051 | 0.9898 | Confiable | 11.8318 | 0.0516 | 1.9194 | 0.9883 | Confiable | -0.0019 |
+| 08001 | Barranquilla A.M. | 8.1479 | 0.0415 | 8.1743 | 0.0412 | 2.484 | 0.9926 | Confiable | 8.1764 | 0.038 | 2.3838 | 0.9909 | Confiable | 0.0021 |
+| 11001 | Bogotá | 10.3699 | 0.0551 | 10.3723 | 0.0547 | 2.2543 | 0.9901 | Confiable | 10.3837 | 0.0583 | 2.3261 | 0.9884 | Confiable | 0.0114 |
+| 13001 | Cartagena | 8.3485 | 0.0684 | 8.3858 | 0.0678 | 3.1049 | 0.9878 | Confiable | 8.3718 | 0.0686 | 3.1296 | 0.9854 | Confiable | -0.014 |
+| 15001 | Tunja | 11.3139 | 0.1062 | 11.2815 | 0.1048 | 2.8697 | 0.9812 | Confiable | 11.2816 | 0.1021 | 2.8321 | 0.9772 | Confiable | 0.0002 |
+| 17001 | Manizales A.M. | 11.2371 | 0.0808 | 11.2317 | 0.0799 | 2.517 | 0.9856 | Confiable | 11.2259 | 0.0744 | 2.4295 | 0.9839 | Confiable | -0.0058 |
+| 18001 | Florencia | 12.9401 | 0.138 | 12.9005 | 0.1354 | 2.8519 | 0.9756 | Confiable | 12.8996 | 0.1281 | 2.7741 | 0.9755 | Confiable | -0.0008 |
+| 19001 | Popayán | 10.6775 | 0.0874 | 10.686 | 0.0863 | 2.7497 | 0.9844 | Confiable | 10.6856 | 0.0854 | 2.7355 | 0.9843 | Confiable | -0.0003 |
+| 20001 | Valledupar | 14.4504 | 0.1081 | 14.3795 | 0.1065 | 2.2699 | 0.9808 | Confiable | 14.3707 | 0.1086 | 2.2933 | 0.9772 | Confiable | -0.0088 |
+| 23001 | Montería | 9.4675 | 0.0704 | 9.4871 | 0.0698 | 2.7838 | 0.9874 | Confiable | 9.4703 | 0.0661 | 2.7156 | 0.9852 | Confiable | -0.0168 |
+| 27001 | Quibdó | 17.8131 | 0.1933 | 17.7631 | 0.1916 | 2.4643 | 0.9662 | Confiable | 17.7671 | 0.1876 | 2.438 | 0.9642 | Confiable | 0.004 |
+| 41001 | Neiva | 11.5337 | 0.0964 | 11.533 | 0.0951 | 2.6744 | 0.9829 | Confiable | 11.5338 | 0.1039 | 2.7952 | 0.9827 | Confiable | 0.0007 |
+| 44001 | Riohacha | 13.8839 | 0.1038 | 13.8587 | 0.1024 | 2.3089 | 0.9816 | Confiable | 13.8457 | 0.1098 | 2.3932 | 0.9785 | Confiable | -0.013 |
+| 47001 | Santa Marta | 8.3164 | 0.0542 | 8.3452 | 0.0538 | 2.7802 | 0.9903 | Confiable | 8.3491 | 0.0578 | 2.8798 | 0.9885 | Confiable | 0.0039 |
+| 50001 | Villavicencio | 11.8733 | 0.1021 | 11.865 | 0.1007 | 2.6741 | 0.9819 | Confiable | 11.8809 | 0.1176 | 2.886 | 0.9787 | Confiable | 0.0159 |
+| 52001 | Pasto | 8.8159 | 0.081 | 8.8392 | 0.0801 | 3.2024 | 0.9856 | Confiable | 8.8383 | 0.0828 | 3.2548 | 0.9858 | Confiable | -0.0009 |
+| 54001 | Cúcuta A.M. | 15.9834 | 0.1342 | 15.8847 | 0.1317 | 2.2847 | 0.9763 | Confiable | 15.8884 | 0.1371 | 2.3308 | 0.9722 | Confiable | 0.0037 |
+| 63001 | Armenia | 15.4915 | 0.1168 | 15.4223 | 0.115 | 2.1986 | 0.9793 | Confiable | 15.4305 | 0.1185 | 2.2311 | 0.9779 | Confiable | 0.0082 |
+| 66001 | Pereira A.M. | 8.8666 | 0.0723 | 8.901 | 0.0716 | 3.0055 | 0.9871 | Confiable | 8.9084 | 0.0706 | 2.9836 | 0.9861 | Confiable | 0.0074 |
+| 68001 | Bucaramanga A.M. | 8.7391 | 0.0762 | 8.7622 | 0.0754 | 3.1348 | 0.9864 | Confiable | 8.7866 | 0.0697 | 3.0053 | 0.984 | Confiable | 0.0244 |
+| 70001 | Sincelejo | 9.6057 | 0.0632 | 9.6171 | 0.0627 | 2.603 | 0.9887 | Confiable | 9.5991 | 0.0625 | 2.6039 | 0.9867 | Confiable | -0.018 |
+| 73001 | Ibagué | 13.9941 | 0.1085 | 13.9313 | 0.1069 | 2.3465 | 0.9808 | Confiable | 13.9332 | 0.1111 | 2.3925 | 0.9778 | Confiable | 0.002 |
+| 76001 | Cali A.M. | 11.6514 | 0.0807 | 11.692 | 0.08 | 2.4192 | 0.9856 | Confiable | 11.6927 | 0.0834 | 2.4698 | 0.9857 | Confiable | 0.0007 |
+```
+γ^S_d entre 0.964 y 0.991 (γ_d medio del clásico 0.984); MSE medio: EBLUP 0.0900, SEBLUP 0.0910; dominios con MSE del SEBLUP menor: 11 de 23.
+
+```
+| NIVEL | N | DIF_MEDIA_PP | DIF_ABS_MEDIA_PP | DIF_ABS_MAX_PP | N_DIF_ABS_MAYOR_UMBRAL | UMBRAL_PP | PEARSON | SPEARMAN | CV_MEDIANO_CLASICO | CV_MEDIANO_ESPACIAL | N_CAMBIA_CLASE | N_CONFIABLE_A_CONFIABLE | N_ACEPTABLE_A_ACEPTABLE | N_ACEPTABLE_A_NO_CONFIABLE | N_NO_CONFIABLE_A_ACEPTABLE | N_NO_CONFIABLE_A_NO_CONFIABLE | ESCENARIO |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| DOMINIO | 23 | 0.0002 | 0.0072 | 0.0244 | 0 | 0.5 | 1.0 | 1.0 | 2.603 | 2.6039 | 0 | 23 | 0 | 0 | 0 | 0 | knn3 |
+| MUNICIPIO | 83 | -0.0302 | 0.2152 | 2.7853 | 8 | 0.5 | 0.9924 | 0.9869 | 19.4915 | 19.8706 | 8 | 0 | 41 | 7 | 1 | 34 | knn3 |
+| variable | n | k_vecinos | I | esperado | z_perm | p_valor |
+|---|---|---|---|---|---|---|
+| TASA_FINAL | 83 | 3 | 0.2645 | -0.0122 | 3.6903 | 0.0007 |
+| TASA_SIN_BENCHMARKING | 83 | 3 | 0.2558 | -0.0122 | 3.5762 | 0.0011 |
+| TASA_HOMICIDIOS | 83 | 3 | 0.2558 | -0.0122 | 3.5762 | 0.0011 |
+
+
+## Celda 29
+
+```python
+%md
 ## 10. Exportar
 
 Se escriben las tablas `tesis.modelo.fhe_*` (modo `overwrite`; no se tocan las tablas del
@@ -1370,7 +1518,7 @@ modelo clásico). El detalle de la validación cruzada se guarda para el escenar
 ```
 
 
-## Celda 28
+## Celda 30
 
 ```python
 
@@ -1429,6 +1577,9 @@ escribir(pred, TBL_FHE_PREDICCION_OBJETIVO)
 escribir(df_coef_comparacion, TBL_FHE_COEFICIENTES_COMPARACION)
 escribir(df_sens_centroide, TBL_FHE_SENSIBILIDAD_CENTROIDE)
 escribir(df_sens_rho, TBL_FHE_SENSIBILIDAD_RHO)
+escribir(df_seblup_dominios, TBL_FHE_SEBLUP_DOMINIOS)
+escribir(df_diferencias, TBL_FHE_DIFERENCIAS_ESTIMACIONES)
+escribir(df_moran_estimaciones, TBL_FHE_MORAN_ESTIMACIONES)
 ```
 
 **Salida:**
@@ -1446,11 +1597,14 @@ Tabla escrita: tesis.modelo.fhe_prediccion_objetivo (83 filas)
 Tabla escrita: tesis.modelo.fhe_coeficientes_comparacion (16 filas)
 Tabla escrita: tesis.modelo.fhe_sensibilidad_centroide (8 filas)
 Tabla escrita: tesis.modelo.fhe_sensibilidad_rho_objetivos (16 filas)
+Tabla escrita: tesis.modelo.fhe_seblup_dominios (23 filas)
+Tabla escrita: tesis.modelo.fhe_diferencias_estimaciones (2 filas)
+Tabla escrita: tesis.modelo.fhe_moran_estimaciones (3 filas)
 
 ```
 
 
-## Celda 29
+## Celda 31
 
 ```python
 import json
