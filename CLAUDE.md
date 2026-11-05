@@ -8,8 +8,9 @@ GEIH no tiene cobertura muestral directa.
 
 El Fay-Herriot clásico (efectos de área independientes, `modelo/fay_herriot.py`) es el **benchmark no
 espacial**: el proyecto **sí incluye variantes espaciales** del Fay-Herriot, ya integradas en `modelo/`
-(`fay_herriot_espacial.py`, ver «Componente espacial»). Mientras no se cierre la comparación del objetivo 1,
-las tablas municipales del clásico son resultados preliminares del benchmark, no las estimaciones finales.
+(`fay_herriot_espacial.py`, ver «Componente espacial»). La comparación del objetivo 1 cerró sin evidencia de
+dependencia espacial (D-03): el clásico es el modelo recomendado y su tabla final se marca
+`FINAL_TRAS_COMPARACION_ESPACIAL`.
 Las cifras de la corrida vigente (cierre 2018) viven en [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md), no aquí: este archivo
 guarda solo reglas.
 
@@ -356,7 +357,8 @@ modelo/fay_herriot.py
     fay_herriot_prediccion_sintetica (con LAMBDA_N2 y PRED_BENCHMARK), fay_herriot_estimaciones_finales
     (tesis.modelo; NIVEL = DOMINIO [23] o MUNICIPIO [83], TIPO = EBLUP_BENCHMARK / SINTETICO /
     SINTETICO_BENCHMARK, TASA_SIN_AJUSTE_PCT para trazabilidad; R-11: MODELO_FUENTE =
-    FH_CLASICO_BENCHMARK_NO_ESPACIAL y ESTADO_RESULTADO = PRELIMINAR, más COMMENT ON TABLE); la
+    FH_CLASICO_BENCHMARK_NO_ESPACIAL y ESTADO_RESULTADO = FINAL_TRAS_COMPARACION_ESPACIAL desde D-03, antes
+    PRELIMINAR, más COMMENT ON TABLE); la
     sensibilidad de Cook se muestra pero no se persiste. R-38: todas las tablas se registran en
     `EscrituraDiferida` (shared/escritura.py) y la celda 13 las escribe después de la verificación.
     R-04: ninguna decisión ni verificación detiene el notebook (el código es académico y muestra el

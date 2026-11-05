@@ -98,18 +98,21 @@ TBL_SENS_VARIANZA_COEFICIENTES = "tesis.modelo.sensibilidad_varianza_coeficiente
 TBL_SENS_VARIANZA_DOMINIOS = "tesis.modelo.sensibilidad_varianza_dominios"
 TBL_SENS_VARIANZA_MUNICIPIOS = "tesis.modelo.sensibilidad_varianza_municipios"
 
-# Identificación de la tabla final (R-11, revisión del Grupo 7, sec. 2 y 10). La tabla
-# consolidada sale del Fay-Herriot clásico, el benchmark no espacial; la comparación con las
-# variantes espaciales del objetivo 1 corre después (fay_herriot_espacial.py) y aún no cierra
-# (bloque 6b de la revisión), así que sus cifras son preliminares. Cuando se cierre el objetivo 1,
-# ESTADO_RESULTADO pasa a "FINAL_TRAS_COMPARACION_ESPACIAL" citando fhe_cuadro_comparativo.
+# Identificación de la tabla final (R-11, revisión del Grupo 7, sec. 2 y 10; D-03 de la
+# revisión del documento). La tabla consolidada sale del Fay-Herriot clásico, el benchmark no
+# espacial. La comparación con las variantes espaciales del objetivo 1 (fay_herriot_espacial.py,
+# fhe_cuadro_comparativo) ya cerró sin evidencia de dependencia espacial (p del LRT de ρ = 0
+# ≥ 0.05 en la estructura «muestra»), así que el clásico queda como modelo recomendado y la
+# tabla se marca como resultado final. Si una corrida nueva cambiara esa conclusión, el estado
+# debe volver a revisarse a mano.
 MODELO_FUENTE_TABLA_FINAL = "FH_CLASICO_BENCHMARK_NO_ESPACIAL"
-ESTADO_RESULTADO_TABLA_FINAL = "PRELIMINAR"
+ESTADO_RESULTADO_TABLA_FINAL = "FINAL_TRAS_COMPARACION_ESPACIAL"
 COMENTARIO_TABLA_FINAL = (
-    "Estimaciones del Fay-Herriot clásico (benchmark no espacial), resultados preliminares: "
-    "la comparación con las variantes espaciales del objetivo 1 (fay_herriot_espacial, "
-    "fhe_cuadro_comparativo) no ha cerrado. Dominios = EBLUP con benchmarking; municipios = "
-    "predicción sintética condicional al modelo (ver CALIDAD_REPORTADA)."
+    "Estimaciones finales del Fay-Herriot clásico (benchmark no espacial): la comparación con "
+    "las variantes espaciales del objetivo 1 (fay_herriot_espacial, fhe_cuadro_comparativo) "
+    "cerró sin evidencia de dependencia espacial, así que el clásico es el modelo de origen. "
+    "Dominios = EBLUP con benchmarking; municipios = predicción sintética condicional al "
+    "modelo (ver CALIDAD_REPORTADA)."
 )
 
 # ── Variable objetivo y varianza directa ─────────────────────────────────────

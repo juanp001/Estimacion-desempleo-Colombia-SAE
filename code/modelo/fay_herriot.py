@@ -7,10 +7,11 @@
 # MAGIC Area Estimation and Mixed Models*.
 # MAGIC
 # MAGIC Es el modelo base (**benchmark**) Fay-Herriot **clásico**: efectos aleatorios
-# MAGIC independientes por dominio, sin componente espacial. **Sus tablas son resultados
-# MAGIC preliminares del benchmark no espacial** (R-11): la tabla final lleva
-# MAGIC `MODELO_FUENTE = FH_CLASICO_BENCHMARK_NO_ESPACIAL` y `ESTADO_RESULTADO = PRELIMINAR` hasta que
-# MAGIC cierre la comparación con las variantes espaciales del objetivo 1 (`fay_herriot_espacial`). Â se estima por REML, β̂ por
+# MAGIC independientes por dominio, sin componente espacial. La comparación con las variantes
+# MAGIC espaciales del objetivo 1 (`fay_herriot_espacial`) cerró sin evidencia de dependencia
+# MAGIC espacial, así que la tabla final (R-11, D-03) lleva
+# MAGIC `MODELO_FUENTE = FH_CLASICO_BENCHMARK_NO_ESPACIAL` y
+# MAGIC `ESTADO_RESULTADO = FINAL_TRAS_COMPARACION_ESPACIAL`. Â se estima por REML, β̂ por
 # MAGIC mínimos cuadrados generalizados y el AIC con la verosimilitud ML
 # MAGIC (`shared/fay_herriot.py`).
 # MAGIC
@@ -1352,8 +1353,8 @@ pendientes.agregar(df_pred, TBL_FAY_HERRIOT_PREDICCION_SINTETICA)
 
 # COMMAND ----------
 
-# DBTITLE 1,11. Tabla final consolidada (dominios + municipios), benchmark preliminar
-# Resultados preliminares del Fay-Herriot clásico, benchmark no espacial (R-11): la tabla lleva
+# DBTITLE 1,11. Tabla final consolidada (dominios + municipios) del benchmark
+# Resultados finales del Fay-Herriot clásico, benchmark no espacial (R-11, D-03): la tabla lleva
 # MODELO_FUENTE y ESTADO_RESULTADO. Dos niveles: los 23 dominios con el EBLUP ajustado (nivel 1) y los municipios objetivo con la
 # predicción sintética (ajustada en el nivel 2 cuando pertenecen a un dominio A.M.). La tasa sin
 # ajustar se conserva en TASA_SIN_AJUSTE_PCT para trazabilidad.
@@ -1432,7 +1433,7 @@ print(
 )
 display(df_final)
 
-# R-11: la tabla dice de qué modelo sale y que es preliminar (columnas y comentario en UC).
+# R-11: la tabla dice de qué modelo sale y en qué estado está (columnas y comentario en UC).
 pendientes.agregar(
     df_final, TBL_FAY_HERRIOT_ESTIMACIONES_FINALES, comentario=COMENTARIO_TABLA_FINAL
 )
