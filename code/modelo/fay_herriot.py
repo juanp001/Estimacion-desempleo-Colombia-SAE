@@ -7,10 +7,11 @@
 # MAGIC Area Estimation and Mixed Models*.
 # MAGIC
 # MAGIC Es el modelo base (**benchmark**) Fay-Herriot **clásico**: efectos aleatorios
-# MAGIC independientes por dominio, sin componente espacial. **Sus tablas son resultados
-# MAGIC preliminares del benchmark no espacial** (R-11): la tabla final lleva
-# MAGIC `MODELO_FUENTE = FH_CLASICO_BENCHMARK_NO_ESPACIAL` y `ESTADO_RESULTADO = PRELIMINAR` hasta que
-# MAGIC cierre la comparación con las variantes espaciales del objetivo 1 (`fay_herriot_espacial`). Â se estima por REML, β̂ por
+# MAGIC independientes por dominio, sin componente espacial. La comparación con las variantes
+# MAGIC espaciales del objetivo 1 (`fay_herriot_espacial`) cerró sin evidencia de dependencia
+# MAGIC espacial, así que la tabla final (R-11, D-03) lleva
+# MAGIC `MODELO_FUENTE = FH_CLASICO_BENCHMARK_NO_ESPACIAL` y
+# MAGIC `ESTADO_RESULTADO = FINAL_TRAS_COMPARACION_ESPACIAL`. Â se estima por REML, β̂ por
 # MAGIC mínimos cuadrados generalizados y el AIC con la verosimilitud ML
 # MAGIC (`shared/fay_herriot.py`).
 # MAGIC
@@ -48,8 +49,10 @@
 # MAGIC    como complemento (no cambia la decisión) porque con 23 dominios el AIC penaliza poco; en
 # MAGIC    Fay-Herriot es una aproximación (la fórmula viene de regresión con errores iid y aquí las
 # MAGIC    D_i son heterogéneas), y el libro remite a Marhuenda et al. (2014) para criterios de
-# MAGIC    información propios del modelo (p. 420). Sirve para decir que el benchmark se eligió entre
-# MAGIC    varias especificaciones con soporte similar mediante la regla de parsimonia. El MSE del EBLUP y la
+# MAGIC    información propios del modelo (p. 420). Cuando varias especificaciones tienen soporte
+# MAGIC    similar, la parsimonia descarta las de más covariables y, entre las del mismo número de
+# MAGIC    covariables, decide el menor AIC; la redacción impresa dice cuál de las dos reglas
+# MAGIC    decidió en la corrida (D-36). El MSE del EBLUP y la
 # MAGIC    distancia de Cook se muestran después como diagnósticos del benchmark: ganancia de
 # MAGIC    precisión y robustez.
 # MAGIC 4. **Avisos.** Encuesta sin peso en el EBLUP (Â ≈ 0), tasas fuera de [0, 100] y
@@ -161,6 +164,8 @@ from shared.diagnosticos import (
     interpretar_validacion,
     figura_cv_directo_vs_eblup,
     interpretar_cv,
+    graficar_supuestos,
+    interpretar_supuestos,
     aviso_encuesta_sin_peso,
     marca_fuera_de_rango,
 )
@@ -570,8 +575,9 @@ aviso = aviso_encuesta_sin_peso(modelo_ganador, UMBRAL_GAMMA_SIN_PESO)
 if aviso:
     print("\n" + aviso)
 
-# G7-B16: redacción calculada desde los datos («seleccionado entre varias especificaciones
-# con soporte similar, mediante la regla de parsimonia predefinida») con la lectura de AICc.
+# G7-B16 y D-36: redacción calculada desde los datos. Dice si el benchmark se eligió por la
+# regla de parsimonia (frente a especificaciones con más covariables) o por el menor AIC (frente
+# a las que tienen su mismo número de covariables), con la lectura de AICc.
 if len(modelos) > 1:
     print("\nREDACCIÓN SUGERIDA PARA EL DOCUMENTO:")
     print(
@@ -607,12 +613,12 @@ if modelo_ganador.avisos_ajuste():
 # MAGIC ## Ganancia de precisión del benchmark seleccionado
 # MAGIC
 # MAGIC **Cómo leer la figura.** Cada columna es un dominio, ordenados de menor a mayor
-# MAGIC varianza directa D_d. El punto gris es el CV de la estimación directa y el azul el CV
+# MAGIC varianza directa ψ_d. El punto gris es el CV de la estimación directa y el azul el CV
 # MAGIC del EBLUP; el segmento entre ambos es la ganancia. Las líneas discontinuas marcan los
 # MAGIC umbrales de confiabilidad (5 % y 20 %). Es la misma lectura que las comparaciones de
 # MAGIC RMSE directo frente a EBLUP del libro (Fig. 17.2, Tabla 19.5): la ganancia debe ser
 # MAGIC grande a la derecha (muestras pequeñas) y casi nula a la izquierda, donde el MSE del
-# MAGIC EBLUP tiende a D_d (p. 440).
+# MAGIC EBLUP tiende a ψ_d (p. 440).
 
 # COMMAND ----------
 
@@ -626,12 +632,37 @@ print(interpretar_cv(modelo_ganador))
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Supuestos del benchmark: Q-Q normal y residuos frente a ajustados (D-20)
+# MAGIC
+# MAGIC **Cómo leer las figuras.** El gráfico cuantil-cuantil ubica cada residuo estandarizado
+# MAGIC (θ̂_d − x_d'β̂)/√(ψ_d + σ̂²_u) frente al cuantil de la N(0, 1) que le corresponde; si el
+# MAGIC supuesto de normalidad es razonable, los puntos siguen la recta y = x y quedan dentro de
+# MAGIC la banda gris del 95 % (envolvente de los estadísticos de orden de una normal con 23
+# MAGIC datos, guía visual y no prueba). El segundo gráfico pone los mismos residuos frente al
+# MAGIC valor ajustado x_d'β̂: sin curvatura ni embudo, el modelo de enlace no deja estructura
+# MAGIC visible. Igual que Shapiro-Wilk (celda 6), con 23 residuos marginales estos gráficos
+# MAGIC solo muestran si hay evidencia fuerte en contra de los supuestos.
+
+# COMMAND ----------
+
+# DBTITLE 1,Figuras: Q-Q normal y residuos frente a ajustados del benchmark
+for nombre_fig, fig in zip(
+    ["ganador_qq", "ganador_residuos_ajustados"], graficar_supuestos(modelo_ganador)
+):
+    guardar_figura(fig, nombre_fig)
+    display(fig)
+    plt.close(fig)
+print(interpretar_supuestos(modelo_ganador))
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Robustez del benchmark seleccionado: distancia de Cook
 # MAGIC
 # MAGIC **Cómo leer la figura.** Cada barra es un dominio y su altura es la distancia de Cook
 # MAGIC en el ajuste por mínimos cuadrados generalizados del benchmark: cuánto cambiarían
 # MAGIC los coeficientes si ese dominio no estuviera. La línea discontinua es el umbral
-# MAGIC convencional 4/n y las barras rojas lo superan. La tabla siguiente compara con el modelo
+# MAGIC convencional 4/n y las barras naranjas lo superan. La tabla siguiente compara con el modelo
 # MAGIC completo (incluida Â) reajustado sin el dominio más influyente (celda 8a). `Cambio_signif` marca si una
 # MAGIC covariable cruza el umbral de significancia en cualquier sentido (pierde o gana): si
 # MAGIC ninguna cambia de signo ni de significancia, la conclusión no depende de un solo
@@ -1045,7 +1076,7 @@ display(
 print("Los 3 dominios que más mueven cada coeficiente:")
 display(top_dominios_por_parametro(detalle_loo, k=3).round(4))
 
-fig = figura_influencia(detalle_loo)
+fig = figura_influencia(detalle_loo, LOAO_UMBRAL_CAMBIO_EE)
 if fig is not None:
     guardar_figura(fig, "influencia_dominios")
     display(fig)
@@ -1352,8 +1383,8 @@ pendientes.agregar(df_pred, TBL_FAY_HERRIOT_PREDICCION_SINTETICA)
 
 # COMMAND ----------
 
-# DBTITLE 1,11. Tabla final consolidada (dominios + municipios), benchmark preliminar
-# Resultados preliminares del Fay-Herriot clásico, benchmark no espacial (R-11): la tabla lleva
+# DBTITLE 1,11. Tabla final consolidada (dominios + municipios) del benchmark
+# Resultados finales del Fay-Herriot clásico, benchmark no espacial (R-11, D-03): la tabla lleva
 # MODELO_FUENTE y ESTADO_RESULTADO. Dos niveles: los 23 dominios con el EBLUP ajustado (nivel 1) y los municipios objetivo con la
 # predicción sintética (ajustada en el nivel 2 cuando pertenecen a un dominio A.M.). La tasa sin
 # ajustar se conserva en TASA_SIN_AJUSTE_PCT para trazabilidad.
@@ -1432,7 +1463,7 @@ print(
 )
 display(df_final)
 
-# R-11: la tabla dice de qué modelo sale y que es preliminar (columnas y comentario en UC).
+# R-11: la tabla dice de qué modelo sale y en qué estado está (columnas y comentario en UC).
 pendientes.agregar(
     df_final, TBL_FAY_HERRIOT_ESTIMACIONES_FINALES, comentario=COMENTARIO_TABLA_FINAL
 )

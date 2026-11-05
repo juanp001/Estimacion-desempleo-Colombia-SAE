@@ -20,8 +20,9 @@ los umbrales de ``config.py``: si cambian las covariables o los umbrales, la eti
 Origen y estado (R-11)
 ----------------------
 La tabla final lleva ``MODELO_FUENTE`` (``FH_CLASICO_BENCHMARK_NO_ESPACIAL``) y
-``ESTADO_RESULTADO`` (``PRELIMINAR`` mientras no cierre la comparación con las variantes
-espaciales del objetivo 1), para que nadie la lea como la estimación final del proyecto.
+``ESTADO_RESULTADO`` (``FINAL_TRAS_COMPARACION_ESPACIAL`` desde que cerró la comparación con
+las variantes espaciales del objetivo 1; antes, ``PRELIMINAR``), para que quien la lea sepa de
+qué modelo salen las cifras y en qué estado están.
 """
 
 import pandas as pd
@@ -169,8 +170,8 @@ def construir_tabla_final(
             DEPARTAMENTO (una fila por municipio).
         modelo_fuente (str): Modelo del que salen las cifras (R-11); por defecto el clásico,
             benchmark no espacial.
-        estado_resultado (str): Estado de las cifras (R-11); `PRELIMINAR` hasta cerrar la
-            comparación espacial del objetivo 1.
+        estado_resultado (str): Estado de las cifras (R-11); por defecto
+            `FINAL_TRAS_COMPARACION_ESPACIAL` (la comparación espacial del objetivo 1 cerró).
 
     Returns:
         pd.DataFrame: Una fila por dominio y por municipio objetivo, ordenada por NIVEL y
@@ -197,7 +198,7 @@ def construir_tabla_final(
         ...                         "DEPARTAMENTO": ["Valle", "Valle"]})
         >>> final = construir_tabla_final(dom, mun, dim_dom, dim_div)
         >>> final[["NIVEL", "NOMBRE", "CALIDAD_REPORTADA", "ESTADO_RESULTADO"]].values.tolist()
-        [['DOMINIO', 'Cali A.M.', 'Confiable', 'PRELIMINAR'], ['MUNICIPIO', 'Yumbo', 'Aceptable · condicional al modelo', 'PRELIMINAR']]
+        [['DOMINIO', 'Cali A.M.', 'Confiable', 'FINAL_TRAS_COMPARACION_ESPACIAL'], ['MUNICIPIO', 'Yumbo', 'Aceptable · condicional al modelo', 'FINAL_TRAS_COMPARACION_ESPACIAL']]
 
     Casos de uso:
         Celda 11 de `fay_herriot.py` (`fay_herriot_estimaciones_finales`).

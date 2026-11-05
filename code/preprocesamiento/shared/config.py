@@ -63,6 +63,8 @@ TBL_SOPORTE = "tesis.preprocesamiento.soporte_covariables"
 TBL_VERIFICACION = "tesis.preprocesamiento.verificacion_seleccion"
 TBL_TRAZABILIDAD = "tesis.preprocesamiento.trazabilidad_covariables"
 TBL_SELECCIONADAS = "tesis.preprocesamiento.covariables_seleccionadas"
+# D-18: elegibles y seleccionadas con cada umbral de Q_FDR_SENSIBILIDAD.
+TBL_SENSIBILIDAD_Q_FDR = "tesis.preprocesamiento.sensibilidad_q_fdr"
 # Sensibilidad de la estimación directa a la ventana temporal (G7-B2).
 TBL_SENSIBILIDAD_VENTANA = "tesis.preprocesamiento.sensibilidad_ventana_temporal"
 TBL_RESUMEN_VENTANA = "tesis.preprocesamiento.resumen_ventana_temporal"
@@ -384,6 +386,9 @@ ALFA_IC_CORRELACION = 0.05
 # Tasa de falsos descubrimientos (Benjamini-Hochberg) con la que se declara elegible una
 # candidata, sobre la familia de todas las candidatas (G7-B9).
 Q_FDR_ELEGIBILIDAD = 0.10
+# D-18 (revisión del documento): umbrales de la sensibilidad de la selección a q. Solo se
+# reportan (tabla sensibilidad_q_fdr); la decisión sigue con Q_FDR_ELEGIBILIDAD.
+Q_FDR_SENSIBILIDAD = [0.05, 0.10, 0.15]
 
 # ── Dominios objetivo sin cobertura muestral ─────────────────────────────────
 # Códigos DIVIPOLA de los departamentos del estudio: Cauca (19) y Valle del Cauca (76).

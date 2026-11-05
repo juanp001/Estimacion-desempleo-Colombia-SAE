@@ -522,3 +522,58 @@ def mapas_catalogo(catalogo_activo: list) -> tuple:
     signo = {e["codigo"]: e["signo_esperado"] for e in catalogo_activo}
     dimension = {e["codigo"]: e["dimension"] for e in catalogo_activo}
     return codigos, alias, signo, dimension
+
+
+# D-10 y D-14 de la revisión del documento: nombre con el que el documento y las figuras
+# escriben cada covariable (columna «Nombre en el documento» de la tabla de nombres del
+# apéndice). Los alias en mayúscula sostenida siguen en las tablas; las figuras usan estos.
+NOMBRES_DOCUMENTO = {
+    "COB_NET_MEDIA": "Cobertura neta en educación media",
+    "COB_NET_SEC": "Cobertura neta en educación secundaria",
+    "SABER11_MAT": "Saber 11, matemáticas",
+    "SABER11_LEC": "Saber 11, lectura crítica",
+    "TASA_TRAN_EDU_SUP": "Tránsito a la educación superior",
+    "VA_PC": "Valor agregado per cápita",
+    "VA_PCT_PRIM": "Valor agregado de actividades primarias",
+    "VA_PCT_SEC": "Valor agregado de actividades secundarias",
+    "VA_PCT_TERC": "Valor agregado de actividades terciarias",
+    "IND_POB_MULT": "Índice de pobreza multidimensional",
+    "PCT_URBANA": "Población urbana",
+    "DENS_POB": "Densidad de población",
+    "PCT_JOVENES": "Población joven de 14 a 28 años",
+    "IDF": "Índice de desempeño fiscal",
+    "ING_TRIB_PC": "Ingresos tributarios per cápita",
+    "TASA_HOMICIDIOS": "Tasa de homicidios",
+    "COB_ACUEDUCTO": "Cobertura de acueducto",
+    "BANDA_ANCHA": "Penetración de banda ancha",
+}
+
+
+def nombre_legible(clave: str) -> str:
+    """Nombre en lenguaje natural de una covariable, a partir de su alias o su código.
+
+    Args:
+        clave (str): Alias del catálogo (``"TASA_HOMICIDIOS"``) o código de TerriData
+            (``"060010003"``).
+
+    Returns:
+        str: El nombre del documento (`NOMBRES_DOCUMENTO`) o, si la clave no es una
+            covariable del catálogo, la misma clave.
+
+    Example:
+        >>> nombre_legible("TASA_HOMICIDIOS")
+        'Tasa de homicidios'
+        >>> nombre_legible("060010003")
+        'Tasa de homicidios'
+        >>> nombre_legible("Intercepto")
+        'Intercepto'
+
+    Casos de uso:
+        Ejes, leyendas y marcas de las figuras del análisis y del modelo (D-10).
+    """
+    if clave in NOMBRES_DOCUMENTO:
+        return NOMBRES_DOCUMENTO[clave]
+    for entrada in CATALOGO_LITERATURA:
+        if entrada["codigo"] == clave:
+            return NOMBRES_DOCUMENTO.get(entrada["alias"], clave)
+    return clave

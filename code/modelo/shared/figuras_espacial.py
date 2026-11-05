@@ -9,12 +9,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from comun.estilo_figuras import (
+    ANCHO_FIGURA,
+    CMAP_DIVERGENTE,
+    CMAP_SECUENCIAL,
+    GRIS,
+    GRIS_OSCURO,
+    PALETA,
+)
+from shared.config import ETIQUETA_ESCENARIO_W
+
 
 def figura_perfil_rho(perfiles: dict) -> plt.Figure:
     """Log-verosimilitud REML perfilada en ρ, una curva por escenario de W.
 
     Una curva plana alrededor de ρ = 0 indica que los datos no distinguen el modelo espacial del
     clásico (ρ = 0); un máximo claramente separado de 0 indica dependencia espacial.
+
+    Las curvas se rotulan con el nombre de cada escenario (`ETIQUETA_ESCENARIO_W`, D-10): los
+    de vecinos más cercanos en azul y los de distancia inversa en naranja, con trazo continuo
+    o discontinuo según el parámetro.
 
     Args:
         perfiles (dict[str, pd.DataFrame]): Nombre del escenario → salida de
@@ -26,15 +40,26 @@ def figura_perfil_rho(perfiles: dict) -> plt.Figure:
     Example:
         >>> fig = figura_perfil_rho({"knn3": modelo.perfil_rho()})  # doctest: +SKIP
     """
-    fig, ax = plt.subplots(figsize=(7, 4))
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 4.2))
+    vistos = {}
     for nombre, perfil in perfiles.items():
-        ax.plot(perfil["rho"], perfil["delta_vs_rho0"], marker="o", ms=3, label=nombre)
-    ax.axhline(0, color="gray", lw=0.8)
-    ax.axhline(-1.92, color="gray", lw=0.8, ls="--")
+        familia = 0 if nombre.startswith("knn") else 1
+        estilo = ["-", "--", ":"][vistos.get(familia, 0) % 3]
+        vistos[familia] = vistos.get(familia, 0) + 1
+        ax.plot(
+            perfil["rho"],
+            perfil["delta_vs_rho0"],
+            marker="o",
+            ms=3,
+            color=PALETA[familia],
+            linestyle=estilo,
+            label=ETIQUETA_ESCENARIO_W.get(nombre, nombre),
+        )
+    ax.axhline(0, color=GRIS, lw=0.8)
+    ax.axhline(-1.92, color=GRIS, lw=0.8, ls="--")
     ax.set_xlabel("ρ")
-    ax.set_ylabel("log-verosimilitud REML − valor en ρ = 0")
-    ax.legend(fontsize=8)
-    ax.grid(alpha=0.3)
+    ax.set_ylabel("Log-verosimilitud REML − valor en ρ = 0")
+    ax.legend()
     fig.tight_layout()
     return fig
 
@@ -54,17 +79,19 @@ def figura_validacion(cv: pd.DataFrame, columnas: dict) -> plt.Figure:
         >>> figura_validacion(cv, {"Clásico": "pred_clasico", "Espacial": "pred_espacial"})  # doctest: +SKIP
     """
     fig, ejes = plt.subplots(
-        1, len(columnas), figsize=(4.2 * len(columnas), 4), sharey=True
+        1,
+        len(columnas),
+        figsize=(min(ANCHO_FIGURA, 3.5 * len(columnas) + 0.4), 3.6),
+        sharey=True,
     )
     ejes = np.atleast_1d(ejes)
     lim = [cv["y"].min() - 1, cv["y"].max() + 1]
-    for ax, (etiqueta, col) in zip(ejes, columnas.items()):
-        ax.scatter(cv["y"], cv[col], s=22)
-        ax.plot(lim, lim, color="gray", lw=0.8)
-        ax.set_xlabel("Estimación directa")
-        ax.text(0.03, 0.96, etiqueta, transform=ax.transAxes, fontsize=10, va="top")
-        ax.grid(alpha=0.3)
-    ejes[0].set_ylabel("Predicción dejando el dominio fuera")
+    for k, (ax, (etiqueta, col)) in enumerate(zip(ejes, columnas.items())):
+        ax.scatter(cv["y"], cv[col], s=22, color=PALETA[k % 2])
+        ax.plot(lim, lim, color=GRIS, lw=0.8)
+        ax.set_xlabel("Estimación directa (%)")
+        ax.text(0.03, 0.96, etiqueta, transform=ax.transAxes, va="top")
+    ejes[0].set_ylabel("Estimación sin el dominio (%)")
     fig.tight_layout()
     return fig
 
@@ -108,7 +135,9 @@ def figura_mapa_prediccion(
         s=45,
         vmin=vmin,
         vmax=vmax,
-        cmap="viridis",
+        cmap=CMAP_SECUENCIAL,
+        edgecolor=GRIS,
+        linewidth=0.4,
     )
     ax.scatter(
         dominios.loc[caja, "LONGITUD"],
@@ -118,21 +147,20 @@ def figura_mapa_prediccion(
         marker="s",
         vmin=vmin,
         vmax=vmax,
-        cmap="viridis",
-        edgecolor="black",
+        cmap=CMAP_SECUENCIAL,
+        edgecolor=GRIS_OSCURO,
     )
     for _, f in dominios[caja].iterrows():
         ax.annotate(
             f["NOMBRE"],
             (f["LONGITUD"], f["LATITUD"]),
-            fontsize=7,
+            fontsize=8,
             xytext=(4, 4),
             textcoords="offset points",
         )
-    fig.colorbar(sc, ax=ax, label=etiqueta)
+    fig.colorbar(sc, ax=ax, label=etiqueta, pad=0.03)
     ax.set_xlabel("Longitud")
     ax.set_ylabel("Latitud")
-    ax.grid(alpha=0.3)
     fig.tight_layout()
     return fig
 
@@ -156,18 +184,20 @@ def figura_mapa_residuos(dominios: pd.DataFrame, residuos: dict) -> plt.Figure:
         >>> figura_mapa_residuos(dom, {"Clásico": r_clasico, "Espacial": r_espacial})  # doctest: +SKIP
     """
     limite = max(float(np.abs(np.asarray(r)).max()) for r in residuos.values())
-    fig, ejes = plt.subplots(1, len(residuos), figsize=(5.2 * len(residuos), 6.2))
+    fig, ejes = plt.subplots(
+        1, len(residuos), figsize=(min(ANCHO_FIGURA, 3.4 * len(residuos) + 0.8), 4.6)
+    )
     ejes = np.atleast_1d(ejes)
     for ax, (etiqueta, valores) in zip(ejes, residuos.items()):
         sc = ax.scatter(
             dominios["LONGITUD"],
             dominios["LATITUD"],
             c=np.asarray(valores),
-            s=90,
-            cmap="coolwarm",
+            s=70,
+            cmap=CMAP_DIVERGENTE,
             vmin=-limite,
             vmax=limite,
-            edgecolor="black",
+            edgecolor=GRIS_OSCURO,
         )
         for nombre, lon, lat, v in zip(
             dominios["NOMBRE"], dominios["LONGITUD"], dominios["LATITUD"], valores
@@ -176,13 +206,12 @@ def figura_mapa_residuos(dominios: pd.DataFrame, residuos: dict) -> plt.Figure:
                 ax.annotate(
                     nombre,
                     (lon, lat),
-                    fontsize=7,
+                    fontsize=8,
                     xytext=(4, 4),
                     textcoords="offset points",
                 )
         ax.set_xlabel("Longitud")
-        ax.text(0.03, 0.96, etiqueta, transform=ax.transAxes, fontsize=10, va="top")
-        ax.grid(alpha=0.3)
+        ax.text(0.03, 0.96, etiqueta, transform=ax.transAxes, va="top")
     ejes[0].set_ylabel("Latitud")
     fig.colorbar(sc, ax=list(ejes), label="Residuo estandarizado", shrink=0.8)
     return fig

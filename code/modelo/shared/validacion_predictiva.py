@@ -51,6 +51,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from comun.estilo_figuras import ANCHO_FIGURA, AZUL, GRIS, NARANJA
 from shared.estabilidad_coeficientes import reajustes_sin_dominio
 from shared.fay_herriot import FayHerriotClasico
 from shared.modelo_area_pequena import prediccion_sintetica
@@ -758,15 +759,17 @@ def figura_validacion(detalle: pd.DataFrame, columna_nombre: str = "NOMBRE_DOMIN
     """
     import matplotlib.pyplot as plt
 
-    colores = {EJERCICIO_FIJAS: "#1f6fb2", EJERCICIO_COMPLETO: "#d95f02"}
+    colores = {EJERCICIO_FIJAS: AZUL, EJERCICIO_COMPLETO: NARANJA}
     ejercicios = [e for e in colores if (detalle["Ejercicio"] == e).any()]
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1, figsize=(ANCHO_FIGURA, 8.6), gridspec_kw={"height_ratios": [1.1, 1]}
+    )
 
     lim = [
         float(min(detalle["Directa"].min(), detalle["Prediccion"].min())) - 1,
         float(max(detalle["Directa"].max(), detalle["Prediccion"].max())) + 1,
     ]
-    ax1.plot(lim, lim, color="gray", linestyle="--", linewidth=1)
+    ax1.plot(lim, lim, color=GRIS, linestyle="--", linewidth=1)
     for ejercicio in ejercicios:
         g = detalle[detalle["Ejercicio"] == ejercicio]
         ax1.errorbar(
@@ -782,7 +785,7 @@ def figura_validacion(detalle: pd.DataFrame, columna_nombre: str = "NOMBRE_DOMIN
         )
     ax1.set_xlabel("Estimación directa (%)")
     ax1.set_ylabel("Predicción sintética sin el dominio (%)")
-    ax1.legend(fontsize=8)
+    ax1.legend()
 
     base = detalle[detalle["Ejercicio"] == ejercicios[0]]
     orden = base.sort_values("Directa")[columna_nombre].tolist()
@@ -800,12 +803,11 @@ def figura_validacion(detalle: pd.DataFrame, columna_nombre: str = "NOMBRE_DOMIN
             label=ETIQUETAS_EJERCICIO[ejercicio],
         )
     for nivel in (-1.96, 0, 1.96):
-        ax2.axhline(
-            nivel, color="gray", linestyle="--" if nivel else "-", linewidth=0.8
-        )
+        ax2.axhline(nivel, color=GRIS, linestyle="--" if nivel else "-", linewidth=0.8)
     ax2.set_xticks(range(len(orden)))
-    ax2.set_xticklabels(orden, rotation=90, fontsize=7)
-    ax2.set_ylabel("Z_pred = (pred − directa)/√(ψ + x'Cov(β̂)x + Â)")
-    ax2.legend(fontsize=8)
+    ax2.set_xticklabels(orden, rotation=60, ha="right")
+    ax2.set_ylabel("Error estandarizado $Z_{pred}$")
+    ax2.grid(axis="x", visible=False)
+    ax2.legend()
     plt.tight_layout()
     return fig

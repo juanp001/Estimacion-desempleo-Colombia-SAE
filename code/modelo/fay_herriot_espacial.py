@@ -69,6 +69,10 @@ from shared.config import *
 from shared.datos_modelo import alias_desde_catalogo
 from shared.fay_herriot import FayHerriotClasico
 from shared.cuadro_comparativo import (
+    moran_estimaciones,
+    resumen_diferencias,
+    tabla_diferencias,
+    tabla_seblup_dominios,
     construir_cuadro_comparativo,
     construir_cuadro_coeficientes,
 )
@@ -947,6 +951,104 @@ guardar_figura(
 
 # COMMAND ----------
 
+# DBTITLE 1,9b. Comparación de las estimaciones clásica y espacial (D-07)
+# MAGIC %md
+# MAGIC ## 9b. Comparación de las estimaciones (objetivos 1 y 3)
+# MAGIC
+# MAGIC Completa la comparación controlada con lo que antes se calculaba fuera del pipeline (D-07):
+# MAGIC
+# MAGIC * **Dominios** (`fhe_seblup_dominios`): EBLUP del clásico y SEBLUP del escenario de
+# MAGIC   referencia, con su MSE (Prasad-Rao y bootstrap paramétrico), su CV y el peso del dato
+# MAGIC   directo (γ_d del clásico y γ^S_d = [G V⁻¹]_dd del espacial).
+# MAGIC * **Diferencias** (`fhe_diferencias_estimaciones`): espacial − clásico en los 23 dominios y
+# MAGIC   en los 83 municipios: media, media absoluta, máximo, Pearson, Spearman y cambios de clase
+# MAGIC   de confiabilidad con la regla de CV de la tabla final. Con 23 dominios las diferencias se
+# MAGIC   reportan, no se prueban.
+# MAGIC * **I de Moran de las estimaciones finales** (`fhe_moran_estimaciones`): W de los 83
+# MAGIC   municipios con sus `K_MORAN_ESTIMACIONES` vecinos más cercanos, estandarizada por filas, y
+# MAGIC   p por permutaciones. Se calcula también para la tasa sin benchmarking y para las
+# MAGIC   covariables del benchmark, porque la estimación sintética hereda el patrón de x'β̂.
+
+# COMMAND ----------
+
+df_seblup_dominios = tabla_seblup_dominios(df, clasico, final)
+mostrar(df_seblup_dominios.round(4))
+print(
+    f"γ^S_d entre {df_seblup_dominios['GAMMA_S'].min():.3f} y "
+    f"{df_seblup_dominios['GAMMA_S'].max():.3f} (γ_d medio del clásico "
+    f"{df_seblup_dominios['GAMMA'].mean():.3f}); MSE medio: EBLUP "
+    f"{df_seblup_dominios['MSE_EBLUP'].mean():.4f}, SEBLUP "
+    f"{df_seblup_dominios['MSE_SEBLUP'].mean():.4f}; dominios con MSE del SEBLUP menor: "
+    f"{int((df_seblup_dominios['MSE_SEBLUP'] < df_seblup_dominios['MSE_EBLUP']).sum())} "
+    f"de {len(df_seblup_dominios)}."
+)
+
+df_diferencias = tabla_diferencias(
+    [
+        resumen_diferencias(
+            "DOMINIO",
+            df_seblup_dominios["EBLUP"],
+            df_seblup_dominios["SEBLUP"],
+            df_seblup_dominios["CV_EBLUP_PCT"],
+            df_seblup_dominios["CV_SEBLUP_PCT"],
+            UMBRAL_DIFERENCIA_PP,
+        ),
+        resumen_diferencias(
+            "MUNICIPIO",
+            pred["PRED_CLASICO"],
+            pred["PRED_ESPACIAL"],
+            pred["CV_CLASICO_PCT"],
+            pred["CV_ESPACIAL_PCT"],
+            UMBRAL_DIFERENCIA_PP,
+        ),
+    ]
+)
+df_diferencias["ESCENARIO"] = mejor_nombre
+mostrar(df_diferencias.round(4))
+
+# I de Moran de las estimaciones finales del modelo recomendado (tabla final del clásico).
+finales_mun = (
+    spark.table(TBL_FAY_HERRIOT_ESTIMACIONES_FINALES)
+    .filter("NIVEL = 'MUNICIPIO'")
+    .select("CODIGO", "TASA_DESEMPLEO_PCT", "TASA_SIN_AJUSTE_PCT")
+    .toPandas()
+    .rename(columns={"CODIGO": "CODIGO_MUNICIPIO"})
+    .merge(
+        pred[["CODIGO_MUNICIPIO", "LATITUD", "LONGITUD"]],
+        on="CODIGO_MUNICIPIO",
+        how="inner",
+        validate="one_to_one",
+    )
+    .merge(
+        obj_todos[["CODIGO_MUNICIPIO", *covars]],
+        on="CODIGO_MUNICIPIO",
+        how="left",
+        validate="one_to_one",
+    )
+    .sort_values("CODIGO_MUNICIPIO")
+    .reset_index(drop=True)
+)
+if len(finales_mun) != len(pred):
+    print(
+        f"⚠ ADVERTENCIA: la tabla final tiene {len(finales_mun)} de los {len(pred)} municipios "
+        "objetivo; el I de Moran se calcula con los que coinciden."
+    )
+df_moran_estimaciones = moran_estimaciones(
+    finales_mun["LATITUD"],
+    finales_mun["LONGITUD"],
+    {
+        "TASA_FINAL": finales_mun["TASA_DESEMPLEO_PCT"],
+        "TASA_SIN_BENCHMARKING": finales_mun["TASA_SIN_AJUSTE_PCT"],
+        **{c: finales_mun[c] for c in covars},
+    },
+    k=K_MORAN_ESTIMACIONES,
+    n_perm=N_PERMUTACIONES_MORAN,
+    semilla=SEMILLA_ESPACIAL,
+)
+mostrar(df_moran_estimaciones.round(4))
+
+# COMMAND ----------
+
 # DBTITLE 1,10. Exportar resultados
 # MAGIC %md
 # MAGIC ## 10. Exportar
@@ -1012,6 +1114,9 @@ escribir(pred, TBL_FHE_PREDICCION_OBJETIVO)
 escribir(df_coef_comparacion, TBL_FHE_COEFICIENTES_COMPARACION)
 escribir(df_sens_centroide, TBL_FHE_SENSIBILIDAD_CENTROIDE)
 escribir(df_sens_rho, TBL_FHE_SENSIBILIDAD_RHO)
+escribir(df_seblup_dominios, TBL_FHE_SEBLUP_DOMINIOS)
+escribir(df_diferencias, TBL_FHE_DIFERENCIAS_ESTIMACIONES)
+escribir(df_moran_estimaciones, TBL_FHE_MORAN_ESTIMACIONES)
 
 # COMMAND ----------
 

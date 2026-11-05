@@ -396,6 +396,9 @@ class FayHerriotEspacial(ModeloAreaPequena):
         self.p_vals = 2 * (1 - stats.norm.cdf(np.abs(self.t_stats)))
         self.mu_hat = self.X @ self.beta_hat
         self.eblup = aj["pred"][:n]
+        # Peso del dato directo en el SEBLUP de cada dominio: gamma^S_d = [G V^-1]_dd, el análogo
+        # espacial del factor de contracción gamma_d del clásico (D-07, comparación por dominio).
+        self.gamma_espacial = np.diag(aj["G"][:n, :n] @ aj["Vi"])
 
         # MSE de primer orden: g1 = diag(G − G V⁻¹ G), g2 = incertidumbre de β̂.
         G_ss = aj["G"][:n, :n]

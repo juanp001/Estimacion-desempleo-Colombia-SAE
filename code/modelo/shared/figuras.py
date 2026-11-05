@@ -9,6 +9,9 @@ notebook y se guarda como PNG en el volumen `VOLUMEN_FIGURAS_MODELO` del esquema
 
 import os
 
+# Estilo común (D-11, D-12): importarlo fija paleta, letra y resolución (200 dpi).
+from comun.estilo_figuras import guardar
+
 
 def guardar_figura(fig, nombre: str, prefijo: str, volumen: str) -> str:
     """Guarda una figura de matplotlib como PNG; si no puede, avisa y sigue.
@@ -36,7 +39,7 @@ def guardar_figura(fig, nombre: str, prefijo: str, volumen: str) -> str:
     """
     ruta = os.path.join(volumen, f"{prefijo}{nombre}.png")
     try:
-        fig.savefig(ruta, dpi=150, bbox_inches="tight")
+        guardar(fig, ruta)
     except Exception as error:
         print(f"(figura {nombre} no guardada: {type(error).__name__})")
         return ""

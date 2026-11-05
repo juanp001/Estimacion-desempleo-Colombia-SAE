@@ -334,7 +334,7 @@ display(spark.createDataFrame(df_estabilidad))
 # MAGIC distancia de Cook máxima entre los 23 dominios (cuánto domina un solo territorio el
 # MAGIC Fay-Herriot univariado de la tasa sobre esa covariable) y el vertical es cuánto cambia
 # MAGIC la correlación ponderada al excluir el dominio que más la altera. Las líneas grises son los dos
-# MAGIC umbrales. Las covariables del cuadrante superior derecho, en rojo, «dependen de un
+# MAGIC umbrales. Las covariables del cuadrante superior derecho, en naranja, «dependen de un
 # MAGIC dominio»: en ellas un dominio domina la regresión *y* su exclusión cambia la asociación
 # MAGIC (o invierte su signo); se reportan, no se descartan. Una
 # MAGIC covariable a la derecha pero abajo tiene un dominio extremo que no altera la relación;
@@ -525,23 +525,25 @@ print(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC **Cómo leer la figura.** Matriz de correlación entre las covariables que entran al
-# MAGIC modelo. Tras la resolución de redundancia y la verificación de multicolinealidad no
-# MAGIC debe aparecer ningún par con color intenso; si lo hubiera, el factor de inflación de la
-# MAGIC varianza de la celda anterior lo habría señalado.
+# MAGIC **Correlación entre las covariables seleccionadas.** Tras la resolución de redundancia y
+# MAGIC la verificación de multicolinealidad no debe quedar ningún par con |r| alto; si lo
+# MAGIC hubiera, el factor de inflación de la varianza de la celda anterior lo habría señalado.
+# MAGIC Con dos o tres covariables la matriz tiene uno o tres valores, así que se imprime en
+# MAGIC lugar de dibujarse (D-40: la figura `eda_correlacion_finales` dejó de generarse).
 
 # COMMAND ----------
 
-# DBTITLE 1,Figura: correlación entre las covariables seleccionadas
-if SELECCIONADAS:
-    fig, _ = desc.figura_correlacion_agrupada(
-        df_cand,
-        SELECCIONADAS,
-        alias=ALIAS,
-        titulo="Correlación entre las covariables seleccionadas",
-    )
-    desc.guardar_figura(fig, "eda_correlacion_finales", VOLUMEN_FIGURAS)
-    display(fig)
+# DBTITLE 1,Correlación entre las covariables seleccionadas
+if len(SELECCIONADAS) >= 2:
+    corr_sel = df_cand[SELECCIONADAS].astype(float).corr()
+    for i, a in enumerate(SELECCIONADAS):
+        for b in SELECCIONADAS[i + 1 :]:
+            print(
+                f"r de Pearson entre {ALIAS.get(a, a)} y {ALIAS.get(b, b)}: "
+                f"{corr_sel.loc[a, b]:.2f}"
+            )
+elif SELECCIONADAS:
+    print("Una sola covariable seleccionada: no hay correlaciones entre covariables.")
 else:
     print("Conjunto vacío (solo intercepto): no hay correlaciones que mostrar (R-04).")
 
@@ -550,7 +552,7 @@ else:
 # MAGIC %md
 # MAGIC **Residuos parciales (G7-B13).** Cada panel muestra, para una covariable seleccionada,
 # MAGIC la parte de la tasa que queda tras descontar las demás covariables en el Fay-Herriot con
-# MAGIC todo el conjunto. La línea discontinua es la recta del modelo y la roja una curva
+# MAGIC todo el conjunto. La línea discontinua es la recta del modelo y la naranja una curva
 # MAGIC suavizada (lowess). Si la forma lineal es adecuada, ambas siguen la misma tendencia; una
 # MAGIC curva que se aparta de la recta de forma sistemática, y no solo por uno o dos dominios,
 # MAGIC indicaría que el predictor lineal no recoge la relación.
@@ -642,6 +644,61 @@ display(spark.createDataFrame(df_trazabilidad))
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC **Sensibilidad al umbral q de Benjamini-Hochberg (D-18).** El umbral
+# MAGIC `Q_FDR_ELEGIBILIDAD` decide qué candidatas pasan a la ficha, y con 23 dominios puede decidir
+# MAGIC si el modelo tiene covariables. Se repite la ficha y la verificación con cada umbral de
+# MAGIC `Q_FDR_SENSIBILIDAD` (0.05, 0.10 y 0.15), reutilizando los diagnósticos de la cadena
+# MAGIC principal; la tabla `sensibilidad_q_fdr` dice cuántas son elegibles, cuáles se
+# MAGIC seleccionan y si el conjunto coincide con el de la corrida. La decisión no cambia: se
+# MAGIC sigue tomando con `Q_FDR_ELEGIBILIDAD`.
+
+# COMMAND ----------
+
+# DBTITLE 1,Sensibilidad: selección con otros umbrales q
+resultados_q = {}
+for q in Q_FDR_SENSIBILIDAD:
+    resultados_q[q] = (
+        SELECCION
+        if np.isclose(q, Q_FDR_ELEGIBILIDAD)
+        else sel.ejecutar_seleccion(
+            df_cand,
+            CANDIDATAS,
+            Y,
+            PSI,
+            entidades,
+            SIGNO,
+            alias=ALIAS,
+            dimension=DIMENSION,
+            p_maximo=P_MAXIMO,
+            q_fdr=q,
+            umbral_delta=UMBRAL_DELTA_LOO,
+            umbral_redundancia=UMBRAL_REDUNDANCIA,
+            vif_max=VIF_MAXIMO,
+            alfa_ic=ALFA_IC_CORRELACION,
+            df_objetivos=df_objetivos,
+            soporte_minimo=SOPORTE_MINIMO,
+            diagnosticos=SELECCION,
+        )
+    )
+q_base = next(q for q in resultados_q if np.isclose(q, Q_FDR_ELEGIBILIDAD))
+df_sensibilidad_q = sel.sensibilidad_q_fdr(
+    resultados_q, q_base, alias=ALIAS, q_fh=df_fh["q_FH"]
+)
+display(df_sensibilidad_q)
+for _, fila in df_sensibilidad_q.iterrows():
+    print(
+        f"q ≤ {fila['Q_FDR']:.2f}: {fila['N_elegibles']} elegibles; seleccionadas: "
+        f"{fila['Seleccionadas']}"
+        + ("  (umbral de la corrida)" if fila["Es_base"] == "sí" else "")
+    )
+print(
+    f"Menor q de Benjamini-Hochberg entre las candidatas: "
+    f"{df_sensibilidad_q['q_minimo_observado'].iloc[0]:.3f}."
+)
+
+# COMMAND ----------
+
 # DBTITLE 1,Escritura de las tablas de diagnóstico y trazabilidad
 df_diagnosticos = (
     df_ic.merge(df_fh.drop(columns=["Alias"]), on="Codigo")
@@ -665,6 +722,7 @@ for tabla, destino in [
     (df_ficha, TBL_DECISION),
     (df_verificacion, TBL_VERIFICACION),
     (df_trazabilidad, TBL_TRAZABILIDAD),
+    (df_sensibilidad_q, TBL_SENSIBILIDAD_Q_FDR),
 ]:
     (
         spark.createDataFrame(tabla)
