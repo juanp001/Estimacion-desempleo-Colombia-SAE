@@ -208,6 +208,14 @@ TBL_FHE_COEFICIENTES_COMPARACION = "tesis.modelo.fhe_coeficientes_comparacion"
 TBL_FHE_SENSIBILIDAD_CENTROIDE = "tesis.modelo.fhe_sensibilidad_centroide"
 # R-13: ρ̂ de la estructura completa según qué objetivos entran como nodos sin dato.
 TBL_FHE_SENSIBILIDAD_RHO = "tesis.modelo.fhe_sensibilidad_rho_objetivos"
+# D-07: comparación de las estimaciones clásica y espacial, antes calculada fuera del pipeline.
+# EBLUP frente a SEBLUP por dominio (MSE, CV y peso del dato directo γ^S_d).
+TBL_FHE_SEBLUP_DOMINIOS = "tesis.modelo.fhe_seblup_dominios"
+# Diferencia espacial − clásica en dominios y municipios (media, máximo, Pearson, Spearman,
+# cambios de clase de confiabilidad).
+TBL_FHE_DIFERENCIAS_ESTIMACIONES = "tesis.modelo.fhe_diferencias_estimaciones"
+# I de Moran de las estimaciones finales de los municipios objetivo (objetivo 3).
+TBL_FHE_MORAN_ESTIMACIONES = "tesis.modelo.fhe_moran_estimaciones"
 
 # R-45: las figuras del modelo (clásico, prefijo fh_, y espacial, prefijo fhe_) se muestran y se
 # guardan en este volumen del esquema modelo. El bundle no crea volúmenes: debe existir antes
@@ -244,6 +252,12 @@ ESCENARIOS_W = [
 RHO_LIMITE = 0.99
 # Permutaciones del I de Moran.
 N_PERMUTACIONES_MORAN = 9999
+# D-07: vecinos de la W entre los municipios objetivo para el I de Moran de las estimaciones
+# finales (el mismo k = 3 del escenario de menor conectividad de ESCENARIOS_W) y diferencia en
+# puntos porcentuales que se cuenta aparte al comparar el clásico con el espacial (convención
+# propia, la misma que el resumen del efecto espacial de la celda 9).
+K_MORAN_ESTIMACIONES = 3
+UMBRAL_DIFERENCIA_PP = 0.5
 # Réplicas del bootstrap paramétrico del MSE espacial (Morales et al., §18.2.3).
 BOOTSTRAP_ESPACIAL_REPLICAS = 500
 SEMILLA_ESPACIAL = 42

@@ -467,13 +467,22 @@ modelo/fay_herriot_espacial.py   (corre después de fay_herriot.py: lee tesis.mo
     validacion_cruzada[_metricas], coeficientes, coeficientes_comparacion [R-16], sensibilidad_centroide,
     sensibilidad_rho_objetivos, prediccion_objetivo) y figuras fhe_*.png en VOLUMEN_FIGURAS_MODELO
     (/Volumes/tesis/modelo/figuras, R-45)
+  → D-07 (celda 9b): la comparación de las estimaciones, que antes se calculaba fuera del pipeline, sale del
+    notebook: fhe_seblup_dominios (EBLUP frente a SEBLUP del escenario de referencia por dominio: MSE, CV,
+    γ_d y γ^S_d = [G V⁻¹]_dd, atributo `gamma_espacial` de FayHerriotEspacial, y clase de confiabilidad),
+    fhe_diferencias_estimaciones (espacial − clásico en DOMINIO y MUNICIPIO: media, media absoluta, máximo,
+    cuántas superan UMBRAL_DIFERENCIA_PP = 0.5, Pearson, Spearman, CV mediano y cambios de clase) y
+    fhe_moran_estimaciones (I de Moran de las 83 estimaciones de fay_herriot_estimaciones_finales, de la tasa
+    sin benchmarking y de las covariables, W kNN K_MORAN_ESTIMACIONES = 3, 9,999 permutaciones). Sin pruebas
+    inferenciales nuevas: las diferencias se reportan
 ```
 
 Lógica en `modelo/shared/`: `matriz_proximidad.py` (Haversine, kNN, distancia inversa, estandarización por
 filas, `moran_i`, `proximidad_total`, `filas_moran`), `fay_herriot_espacial.py` (`FayHerriotEspacial`, hija
 de `ModeloAreaPequena`; `validacion_dejar_uno_fuera`), `figuras_espacial.py`, `figuras.py` (guardado común
 del clásico `fh_*` y del espacial `fhe_*`), `prediccion_espacial.py`, `sensibilidad_espacial.py`,
-`cuadro_comparativo.py` (también `construir_cuadro_coeficientes`); parámetros en `config.py` (`ESCENARIOS_W`,
+`cuadro_comparativo.py` (también `construir_cuadro_coeficientes` y, D-07, `tabla_seblup_dominios`,
+`resumen_diferencias`, `tabla_diferencias` y `moran_estimaciones`); parámetros en `config.py` (`ESCENARIOS_W`,
 `RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018, detalle, tablas y limitaciones en
 [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md) y `docs/fay_herriot_espacial.md` (sin evidencia de dependencia espacial: el modelo recomendado sigue siendo el clásico). Ojo: en
 `municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; desde R-14 el notebook
