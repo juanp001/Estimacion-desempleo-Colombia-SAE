@@ -23,10 +23,20 @@ from scipy.spatial.distance import squareform
 
 # Mismos umbrales de CV que la estimación directa y el modelo.
 from preprocesamiento.shared.config import CV_ACEPTABLE, CV_CONFIABLE
+from analisis.shared.catalogo_literatura import nombre_legible
 
-matplotlib.rcParams["axes.grid"] = True
-matplotlib.rcParams["grid.linestyle"] = ":"
-matplotlib.rcParams["grid.alpha"] = 0.4
+# Estilo común de las figuras (D-11, D-12): paleta de tres colores, letra de 9-10 pt y 200 dpi.
+# Importar el módulo aplica el estilo.
+from comun.estilo_figuras import (
+    ANCHO_FIGURA,
+    AZUL,
+    AZUL_CLARO,
+    CMAP_DIVERGENTE,
+    GRIS,
+    GRIS_OSCURO,
+    NARANJA,
+    guardar,
+)
 
 # Matplotlib 3.9 renombró `labels` a `tick_labels` en `Axes.boxplot` (R-34); el job corre en
 # un entorno cuya versión puede ser anterior, así que se elige el nombre según la versión.
@@ -55,8 +65,7 @@ def guardar_figura(fig, nombre: str, directorio: str = None) -> str:
     if not directorio:
         return ""
     os.makedirs(directorio, exist_ok=True)
-    ruta = os.path.join(directorio, f"{nombre}.png")
-    fig.savefig(ruta, dpi=200, bbox_inches="tight")
+    ruta = guardar(fig, os.path.join(directorio, f"{nombre}.png"))
     print(f"  figura guardada: {ruta}")
     return ruta
 
@@ -212,36 +221,37 @@ def figura_respuesta(
     Example:
         >>> fig = figura_respuesta(Y, SE)  # doctest: +SKIP
     """
-    fig, axes = plt.subplots(2, 2, figsize=(11, 7))
+    fig, axes = plt.subplots(2, 2, figsize=(ANCHO_FIGURA, 5.4))
 
     for fila, (datos, etiqueta) in enumerate([(y, nombre_y), (se, nombre_se)]):
-        axes[fila][0].hist(datos, bins=8, color="steelblue", edgecolor="white")
+        axes[fila][0].hist(datos, bins=8, color=AZUL, edgecolor="white")
         axes[fila][0].axvline(
             np.mean(datos),
-            color="firebrick",
+            color=NARANJA,
             linestyle="--",
             linewidth=1.5,
             label=f"Media = {np.mean(datos):.2f}",
         )
         axes[fila][0].axvline(
             np.median(datos),
-            color="darkgreen",
+            color=GRIS_OSCURO,
             linestyle=":",
             linewidth=1.5,
             label=f"Mediana = {np.median(datos):.2f}",
         )
-        axes[fila][0].set_xlabel(etiqueta, fontsize=10)
-        axes[fila][0].set_ylabel("N.º de dominios", fontsize=10)
-        axes[fila][0].legend(fontsize=8)
+        axes[fila][0].set_xlabel(etiqueta)
+        axes[fila][0].set_ylabel("N.º de dominios")
+        axes[fila][0].legend()
 
         axes[fila][1].boxplot(
             datos,
             vert=False,
             patch_artist=True,
-            boxprops=dict(facecolor="lightsteelblue", color="steelblue"),
-            medianprops=dict(color="navy", linewidth=2),
+            boxprops=dict(facecolor=AZUL_CLARO, color=AZUL),
+            medianprops=dict(color=AZUL, linewidth=2),
+            flierprops=dict(markerfacecolor=NARANJA, markeredgecolor=NARANJA),
         )
-        axes[fila][1].set_xlabel(etiqueta, fontsize=10)
+        axes[fila][1].set_xlabel(etiqueta)
         axes[fila][1].set_yticks([])
 
     plt.tight_layout()
@@ -272,19 +282,20 @@ def figura_territorial(
         >>> fig = figura_territorial(Y, entidades)  # doctest: +SKIP
     """
     orden = np.argsort(y)
-    fig, ax = plt.subplots(figsize=(8, 0.32 * len(y) + 1.5))
-    ax.barh(np.arange(len(y)), y[orden], color="steelblue", edgecolor="white")
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 0.24 * len(y) + 1.2))
+    ax.barh(np.arange(len(y)), y[orden], color=AZUL, edgecolor="white")
     ax.axvline(
         np.mean(y),
-        color="firebrick",
+        color=NARANJA,
         linestyle="--",
         linewidth=1.5,
-        label=f"Media nacional de los dominios = {np.mean(y):.2f}",
+        label=f"Media de los {len(y)} dominios = {np.mean(y):.2f}",
     )
     ax.set_yticks(np.arange(len(y)))
-    ax.set_yticklabels([etiquetas_dominio[i] for i in orden], fontsize=8)
-    ax.set_xlabel(nombre_y, fontsize=10)
-    ax.legend(fontsize=9)
+    ax.set_yticklabels([etiquetas_dominio[i] for i in orden])
+    ax.set_xlabel(nombre_y)
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="lower right")
     plt.tight_layout()
     return fig
 
@@ -294,12 +305,13 @@ def figura_panel_boxplots(df: pd.DataFrame, columnas: list, alias: dict = None):
 
     Estandarizar permite comparar la forma de las distribuciones en un solo eje, sin
     generar una figura por covariable. La estandarización es exclusivamente gráfica: no
-    modifica los datos que entran al modelo.
+    modifica los datos que entran al modelo. Las covariables se rotulan con su nombre del
+    documento (`nombre_legible`, D-10), no con el alias de las tablas.
 
     Args:
         df (pd.DataFrame): Datos con una fila por dominio.
         columnas (list[str]): Covariables a graficar.
-        alias (dict | None): Mapa columna → alias legible.
+        alias (dict | None): Mapa columna → alias del catálogo.
 
     Returns:
         matplotlib.figure.Figure: Figura con un diagrama de caja por covariable.
@@ -312,28 +324,28 @@ def figura_panel_boxplots(df: pd.DataFrame, columnas: list, alias: dict = None):
         (df[c].values - df[c].values.mean()) / df[c].values.std(ddof=1)
         for c in columnas
     ]
-    etiquetas = [alias.get(c, c) for c in columnas]
+    etiquetas = [nombre_legible(alias.get(c, c)) for c in columnas]
 
-    fig, ax = plt.subplots(figsize=(9, 0.45 * len(columnas) + 2))
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 0.34 * len(columnas) + 1.4))
     ax.boxplot(
         datos,
         vert=False,
         patch_artist=True,
         **{_ARG_ETIQUETAS_BOXPLOT: etiquetas},
-        boxprops=dict(facecolor="lightsteelblue", color="steelblue"),
-        medianprops=dict(color="navy", linewidth=2),
+        boxprops=dict(facecolor=AZUL_CLARO, color=AZUL),
+        medianprops=dict(color=AZUL, linewidth=2),
+        whiskerprops=dict(color=AZUL),
+        capprops=dict(color=AZUL),
         flierprops=dict(
             marker="o",
             markersize=4,
-            markerfacecolor="firebrick",
-            markeredgecolor="firebrick",
+            markerfacecolor=NARANJA,
+            markeredgecolor=NARANJA,
         ),
     )
-    ax.axvline(0, color="dimgray", linewidth=1)
-    ax.set_xlabel(
-        "Desviaciones estándar respecto a la media del indicador", fontsize=10
-    )
-    ax.tick_params(labelsize=9)
+    ax.axvline(0, color=GRIS, linewidth=1)
+    ax.set_xlabel("Desviaciones estándar respecto a la media del indicador")
+    ax.grid(axis="y", visible=False)
     plt.tight_layout()
     return fig
 
@@ -427,15 +439,18 @@ def figura_panel_dispersion(
 ):
     """Panel de diagramas de dispersión de cada covariable frente a la respuesta.
 
-    Un solo panel en lugar de una figura por covariable, con la recta de mínimos cuadrados
-    como referencia visual de la tendencia. Los diagramas son descriptivos: muestran la
-    forma de la relación y si hay dominios que se apartan del patrón general.
+    Un panel en lugar de una figura por covariable, con la recta de mínimos cuadrados como
+    referencia visual de la tendencia. Los diagramas son descriptivos: muestran la forma de la
+    relación y si hay dominios que se apartan del patrón general. Cada panel lleva el nombre de
+    la covariable en el eje horizontal y Pearson (r) y Spearman (ρ_S) dentro del panel, sin
+    título (D-40). Con muchas covariables conviene partirlas en varias figuras (D-12: con 18
+    en una sola página el texto queda ilegible).
 
     Args:
         df (pd.DataFrame): Datos con una fila por dominio.
         columnas (list[str]): Covariables a graficar.
         y (np.ndarray): Variable respuesta.
-        alias (dict | None): Mapa columna → alias legible.
+        alias (dict | None): Mapa columna → alias del catálogo.
         nombre_y (str): Etiqueta del eje vertical.
         ncols (int): Número de columnas del panel.
 
@@ -443,27 +458,44 @@ def figura_panel_dispersion(
         matplotlib.figure.Figure: Figura con un diagrama por covariable.
 
     Example:
-        >>> fig = figura_panel_dispersion(df_cand, codigos, Y, alias)  # doctest: +SKIP
+        >>> fig = figura_panel_dispersion(df_cand, codigos[:9], Y, alias)  # doctest: +SKIP
     """
+    import textwrap
+
     alias = alias or {}
     nfilas = (len(columnas) + ncols - 1) // ncols
-    fig, axes = plt.subplots(nfilas, ncols, figsize=(4.2 * ncols, 3.4 * nfilas))
-    axes = np.atleast_1d(axes).flatten()
+    fig, axes = plt.subplots(
+        nfilas, ncols, figsize=(ANCHO_FIGURA, 2.45 * nfilas + 0.3), squeeze=False
+    )
+    axes = axes.flatten()
 
     for idx, col in enumerate(columnas):
         ax = axes[idx]
         x = pd.to_numeric(df[col], errors="coerce").values
-        ax.scatter(x, y, color="steelblue", edgecolors="white", s=45, zorder=3)
+        ax.scatter(x, y, color=AZUL, edgecolors="white", s=32, zorder=3)
         pendiente, intercepto = np.polyfit(x, y, 1)
         rejilla = np.linspace(x.min(), x.max(), 50)
-        ax.plot(rejilla, pendiente * rejilla + intercepto, "r--", linewidth=1.3)
+        ax.plot(
+            rejilla,
+            pendiente * rejilla + intercepto,
+            color=NARANJA,
+            linestyle="--",
+            linewidth=1.3,
+        )
         r_p = stats.pearsonr(x, y)[0]
         r_s = stats.spearmanr(x, y)[0]
-        ax.set_title(
-            f"{alias.get(col, col)}\nr = {r_p:.2f}   ρ = {r_s:.2f}", fontsize=9
+        ax.text(
+            0.03,
+            0.97,
+            f"r = {r_p:.2f}\nρ$_S$ = {r_s:.2f}",
+            transform=ax.transAxes,
+            va="top",
+            fontsize=9,
+            color=GRIS_OSCURO,
         )
-        ax.set_ylabel(nombre_y, fontsize=8)
-        ax.tick_params(labelsize=7)
+        ax.set_xlabel(textwrap.fill(nombre_legible(alias.get(col, col)), 26))
+        if idx % ncols == 0:
+            ax.set_ylabel(nombre_y)
 
     for idx in range(len(columnas), len(axes)):
         axes[idx].set_visible(False)
@@ -504,21 +536,20 @@ def orden_por_agrupamiento(df: pd.DataFrame, columnas: list) -> list:
     return [columnas[i] for i in leaves_list(enlace)]
 
 
-def figura_correlacion_agrupada(
-    df: pd.DataFrame, columnas: list, alias: dict = None, titulo: str = None
-):
+def figura_correlacion_agrupada(df: pd.DataFrame, columnas: list, alias: dict = None):
     """Mapa de calor de la matriz de correlación entre covariables, reordenado por bloques.
 
     Responde a una pregunta que el análisis por pares no contesta: qué grupos de
     covariables miden conjuntamente el mismo aspecto del territorio. Es la caracterización
     multivariada del conjunto de candidatas, y alimenta el criterio de redundancia que se
-    aplica después en la selección.
+    aplica después en la selección. Se dibuja solo el triángulo inferior (la matriz es
+    simétrica), con el degradado azul-naranja común y sin título (D-40); el tamaño de letra
+    se mantiene legible con 18 covariables (D-12).
 
     Args:
         df (pd.DataFrame): Datos con una fila por dominio.
         columnas (list[str]): Covariables a incluir.
-        alias (dict | None): Mapa columna → alias legible.
-        titulo (str | None): Título de la figura.
+        alias (dict | None): Mapa columna → alias del catálogo.
 
     Returns:
         tuple[matplotlib.figure.Figure, list]: La figura y el orden de covariables usado.
@@ -529,19 +560,26 @@ def figura_correlacion_agrupada(
     alias = alias or {}
     orden = orden_por_agrupamiento(df, columnas)
     corr = df[orden].corr()
-    etiquetas = [alias.get(c, c) for c in orden]
+    etiquetas = [nombre_legible(alias.get(c, c)) for c in orden]
+    k = len(orden)
+    valores = corr.values.copy()
+    valores[np.triu_indices(k, 1)] = np.nan
 
-    fig, ax = plt.subplots(figsize=(1.0 * len(orden) + 3, 0.85 * len(orden) + 2.5))
-    imagen = ax.imshow(corr.values, cmap="RdBu_r", vmin=-1, vmax=1)
+    lado = min(9.0, 0.42 * k + 2.6)
+    fig, ax = plt.subplots(figsize=(lado + 1.0, lado))
+    imagen = ax.imshow(valores, cmap=CMAP_DIVERGENTE, vmin=-1, vmax=1)
 
-    ax.set_xticks(np.arange(len(orden)))
-    ax.set_yticks(np.arange(len(orden)))
-    ax.set_xticklabels(etiquetas, rotation=45, ha="right", fontsize=8)
-    ax.set_yticklabels(etiquetas, fontsize=8)
+    ax.set_xticks(np.arange(k))
+    ax.set_yticks(np.arange(k))
+    ax.set_xticklabels(etiquetas, rotation=50, ha="right")
+    ax.set_yticklabels(etiquetas)
     ax.grid(False)
+    for lado_eje in ("top", "right", "bottom", "left"):
+        ax.spines[lado_eje].set_visible(False)
 
-    for i in range(len(orden)):
-        for j in range(len(orden)):
+    tamano = 9 if k <= 10 else 7.5
+    for i in range(k):
+        for j in range(i + 1):
             valor = corr.values[i, j]
             ax.text(
                 j,
@@ -549,13 +587,11 @@ def figura_correlacion_agrupada(
                 f"{valor:.2f}",
                 ha="center",
                 va="center",
-                fontsize=7,
-                color="white" if abs(valor) > 0.6 else "black",
+                fontsize=tamano,
+                color="white" if abs(valor) > 0.6 else GRIS_OSCURO,
             )
 
     fig.colorbar(imagen, ax=ax, shrink=0.75, label="Correlación de Pearson")
-    if titulo:
-        ax.set_title(titulo, fontsize=11, fontweight="bold", pad=12)
     plt.tight_layout()
     return fig, orden
 

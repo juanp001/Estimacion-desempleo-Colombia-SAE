@@ -31,7 +31,9 @@ cambio va en `shared/`, no en el notebook orquestador.
 
 Lo que comparten todas las etapas vive en `code/comun/` (R-67), importado por ruta completa (`comun.…`):
 `spark_utils.py` (`leer_csv`, `leer_parquet`, `escribir_tabla`: la ingesta y las dimensiones escriben con la misma
-función) y `entorno.py` (`agregar_rutas`). Cada notebook calcula `code/` con `dbutils` en dos líneas y lo agrega a
+función), `entorno.py` (`agregar_rutas`) y `estilo_figuras.py` (D-11/D-12: paleta de tres colores `#1F4E79`,
+`#C55A11`, `#7F7F7F`, degradados azul y azul-naranja, letra de 9-10 pt, 200 dpi, `etiquetar_puntos` sin
+etiquetas encimadas; importarlo aplica el estilo). Cada notebook calcula `code/` con `dbutils` en dos líneas y lo agrega a
 `sys.path` antes de importar; los de `modelo/` además agregan `code/modelo` para su forma corta.
 
 ### GEIH: marco antiguo vs. marco nuevo
@@ -371,6 +373,10 @@ modelo/fay_herriot.py
     de Wilcoxon ni % de dominios que mejoran (MSE < Di por construcción, p. 440); R-41:
     FayHerriotClasico guarda convergio_reml/convergio_ml/A_en_cota y los reajustes solo absorben
     LinAlgError
+  → D-20: además del histograma, `diagnosticos.graficar_supuestos` dibuja el Q-Q normal de los residuos
+    estandarizados del benchmark (con la envolvente del 95 % de los estadísticos de orden, guía visual) y los
+    residuos frente a x'β̂ (figuras `fh_ganador_qq` y `fh_ganador_residuos_ajustados`);
+    `interpretar_supuestos` cuenta los puntos fuera de la banda y |residuo| > 2. No deciden nada
   → calidad reportada B21 (celda 11a, shared/consolidacion.py): CONFIABILIDAD sigue siendo solo por CV;
     BASE_CV = EBLUP (dominios) / CONDICIONAL_AL_MODELO (municipios) y CALIDAD_REPORTADA = la que se cita:
     en municipios agrega siempre «condicional al modelo» (el MSE x'Cov(β̂)x + Â supone el modelo
@@ -555,7 +561,11 @@ Reglas del flujo de selección:
 - Las figuras del análisis van al volumen `/Volumes/tesis/preprocesamiento/figuras_eda`
   (prefijos `desc_`, `eda_`). Las del modelo (R-45) se muestran y se guardan en
   `VOLUMEN_FIGURAS_MODELO` = `/Volumes/tesis/modelo/figuras` (prefijos `fh_` clásico y `fhe_` espacial,
-  `shared/figuras.guardar_figura`).
+  `shared/figuras.guardar_figura`). Todas usan `comun/estilo_figuras.py`, sin títulos internos (D-40) y con
+  los nombres del documento en ejes y leyendas (D-10: `catalogo_literatura.nombre_legible` traduce alias o
+  código, `ETIQUETA_ESCENARIO_W` los escenarios de W, θ̂_d, ψ_d y σ̂²_u en lugar de Yd, Dd y Â). El panel de
+  dispersión de las 18 candidatas sale en dos figuras (`desc_dispersion_candidatas_1` y `_2`, D-12) y
+  `eda_correlacion_finales` ya no se genera: la correlación entre las seleccionadas se imprime (D-40).
 - **Advertencia al cambiar la ventana de tiempo** (`anio_estimacion` / `mes_estimacion` / `n_meses_ventana`):
   si cambia el número de dominios, la cota de covariables se recalcula sola (`cota_covariables(n)` = n // 10). Los
   textos de los notebooks dicen "23 dominios" y la exclusión "sin dato para 2018" del catálogo también es del

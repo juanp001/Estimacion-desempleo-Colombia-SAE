@@ -43,6 +43,13 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from comun.estilo_figuras import (
+    ANCHO_FIGURA,
+    GRIS,
+    GRIS_OSCURO,
+    PALETA,
+    tonos_azules,
+)
 from shared.benchmarking import factor_razon, promedio_ponderado
 from shared.consolidacion import clasificar_confiabilidad
 from shared.diagnosticos import marca_extrapolacion
@@ -187,10 +194,10 @@ def figura_gvf(psi, ajustes: list, nombres_dominio):
     """
     psi = np.asarray(psi, dtype=float)
     nombres = np.asarray(nombres_dominio)
-    colores = ["#1f77b4", "#d62728", "#2ca02c"]
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.8))
+    colores = PALETA
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(ANCHO_FIGURA, 3.6))
     lim = [psi.min() * 0.85, psi.max() * 1.15]
-    ax1.plot(lim, lim, color="gray", lw=1, ls="--")
+    ax1.plot(lim, lim, color=GRIS, lw=1, ls="--")
     for g, c in zip(ajustes, colores):
         ax1.scatter(psi, g["psi_delta"], s=22, color=c, label=f"GVF {g['forma']}")
         ax2.scatter(
@@ -198,14 +205,21 @@ def figura_gvf(psi, ajustes: list, nombres_dominio):
         )
         umbral = 2 * np.sqrt(g["sigma2"])
         for i in np.where(np.abs(g["residuos"]) > umbral)[0]:
-            ax2.annotate(nombres[i], (g["ajustado"][i], g["residuos"][i]), fontsize=7)
-    ax1.set_xlabel("ψ observada (bootstrap por viviendas, %²)")
-    ax1.set_ylabel("ψ predicha por la GVF (%²)")
-    ax1.legend(frameon=False)
-    ax2.axhline(0, color="gray", lw=1, ls="--")
-    ax2.set_xlabel("log ψ ajustado")
-    ax2.set_ylabel("Residuo de log ψ")
-    ax2.legend(frameon=False)
+            ax2.annotate(
+                nombres[i],
+                (g["ajustado"][i], g["residuos"][i]),
+                fontsize=8,
+                color=GRIS_OSCURO,
+                xytext=(3, 3),
+                textcoords="offset points",
+            )
+    ax1.set_xlabel(r"$\psi_d$ observada (bootstrap por viviendas, %²)")
+    ax1.set_ylabel(r"$\psi_d$ estimada por la GVF (%²)")
+    ax1.legend()
+    ax2.axhline(0, color=GRIS, lw=1, ls="--")
+    ax2.set_xlabel(r"log $\psi_d$ ajustado")
+    ax2.set_ylabel(r"Residuo de log $\psi_d$")
+    ax2.legend()
     fig.tight_layout()
     return fig
 
@@ -446,21 +460,36 @@ def figura_escenarios(dominios: pd.DataFrame, escenarios_mostrar: list):
     base = dominios[dominios["ESCENARIO"] == dominios["ESCENARIO"].iloc[0]]
     orden = base.sort_values("PSI")["NOMBRE_DOMINIO"].tolist()
     posicion = {n: i for i, n in enumerate(orden)}
-    cmap = plt.get_cmap("tab10")
-    fig, ax = plt.subplots(figsize=(13, 4.8))
-    ax.axhline(0, color="gray", lw=1, ls="--")
+    # D-11: los escenarios ψ × k van en degradado de azul ordenado por k; los demás (Taylor,
+    # GVF) en naranja y gris con marcadores distintos, para no pasar de tres colores base.
+    multiplicativos = sorted(
+        [e for e in escenarios_mostrar if e.startswith("ψ ×")],
+        key=lambda e: float(e.split("×")[1]),
+    )
+    otros = [e for e in escenarios_mostrar if e not in multiplicativos]
+    estilo = {
+        e: (c, "o") for e, c in zip(multiplicativos, tonos_azules(len(multiplicativos)))
+    }
+    for k, e in enumerate(otros):
+        estilo[e] = (PALETA[1 + k % 2], ["D", "s", "^"][k % 3])
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 4.4))
+    ax.axhline(0, color=GRIS, lw=1, ls="--")
     for k, esc in enumerate(escenarios_mostrar):
         g = dominios[dominios["ESCENARIO"] == esc]
         x = (
             g["NOMBRE_DOMINIO"].map(posicion).to_numpy()
             + (k - len(escenarios_mostrar) / 2) * 0.06
         )
-        ax.scatter(x, g["DIF_EBLUP_BASE_PP"], s=16, color=cmap(k % 10), label=esc)
+        color, marcador = estilo[esc]
+        ax.scatter(
+            x, g["DIF_EBLUP_BASE_PP"], s=16, color=color, marker=marcador, label=esc
+        )
     ax.set_xticks(range(len(orden)))
-    ax.set_xticklabels(orden, rotation=60, ha="right", fontsize=8)
-    ax.set_ylabel("EBLUP − EBLUP base (pp)")
-    ax.set_xlabel("Dominios, de menor a mayor ψ base")
-    ax.legend(frameon=False, fontsize=8, ncol=3)
+    ax.set_xticklabels(orden, rotation=60, ha="right")
+    ax.set_ylabel("EBLUP − EBLUP base (puntos porcentuales)")
+    ax.set_xlabel(r"Dominios, de menor a mayor $\psi_d$ base")
+    ax.grid(axis="x", visible=False)
+    ax.legend(ncol=4, loc="lower center", bbox_to_anchor=(0.5, 1.0))
     fig.tight_layout()
     return fig
 

@@ -164,6 +164,8 @@ from shared.diagnosticos import (
     interpretar_validacion,
     figura_cv_directo_vs_eblup,
     interpretar_cv,
+    graficar_supuestos,
+    interpretar_supuestos,
     aviso_encuesta_sin_peso,
     marca_fuera_de_rango,
 )
@@ -611,12 +613,12 @@ if modelo_ganador.avisos_ajuste():
 # MAGIC ## Ganancia de precisión del benchmark seleccionado
 # MAGIC
 # MAGIC **Cómo leer la figura.** Cada columna es un dominio, ordenados de menor a mayor
-# MAGIC varianza directa D_d. El punto gris es el CV de la estimación directa y el azul el CV
+# MAGIC varianza directa ψ_d. El punto gris es el CV de la estimación directa y el azul el CV
 # MAGIC del EBLUP; el segmento entre ambos es la ganancia. Las líneas discontinuas marcan los
 # MAGIC umbrales de confiabilidad (5 % y 20 %). Es la misma lectura que las comparaciones de
 # MAGIC RMSE directo frente a EBLUP del libro (Fig. 17.2, Tabla 19.5): la ganancia debe ser
 # MAGIC grande a la derecha (muestras pequeñas) y casi nula a la izquierda, donde el MSE del
-# MAGIC EBLUP tiende a D_d (p. 440).
+# MAGIC EBLUP tiende a ψ_d (p. 440).
 
 # COMMAND ----------
 
@@ -630,12 +632,37 @@ print(interpretar_cv(modelo_ganador))
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Supuestos del benchmark: Q-Q normal y residuos frente a ajustados (D-20)
+# MAGIC
+# MAGIC **Cómo leer las figuras.** El gráfico cuantil-cuantil ubica cada residuo estandarizado
+# MAGIC (θ̂_d − x_d'β̂)/√(ψ_d + σ̂²_u) frente al cuantil de la N(0, 1) que le corresponde; si el
+# MAGIC supuesto de normalidad es razonable, los puntos siguen la recta y = x y quedan dentro de
+# MAGIC la banda gris del 95 % (envolvente de los estadísticos de orden de una normal con 23
+# MAGIC datos, guía visual y no prueba). El segundo gráfico pone los mismos residuos frente al
+# MAGIC valor ajustado x_d'β̂: sin curvatura ni embudo, el modelo de enlace no deja estructura
+# MAGIC visible. Igual que Shapiro-Wilk (celda 6), con 23 residuos marginales estos gráficos
+# MAGIC solo muestran si hay evidencia fuerte en contra de los supuestos.
+
+# COMMAND ----------
+
+# DBTITLE 1,Figuras: Q-Q normal y residuos frente a ajustados del benchmark
+for nombre_fig, fig in zip(
+    ["ganador_qq", "ganador_residuos_ajustados"], graficar_supuestos(modelo_ganador)
+):
+    guardar_figura(fig, nombre_fig)
+    display(fig)
+    plt.close(fig)
+print(interpretar_supuestos(modelo_ganador))
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Robustez del benchmark seleccionado: distancia de Cook
 # MAGIC
 # MAGIC **Cómo leer la figura.** Cada barra es un dominio y su altura es la distancia de Cook
 # MAGIC en el ajuste por mínimos cuadrados generalizados del benchmark: cuánto cambiarían
 # MAGIC los coeficientes si ese dominio no estuviera. La línea discontinua es el umbral
-# MAGIC convencional 4/n y las barras rojas lo superan. La tabla siguiente compara con el modelo
+# MAGIC convencional 4/n y las barras naranjas lo superan. La tabla siguiente compara con el modelo
 # MAGIC completo (incluida Â) reajustado sin el dominio más influyente (celda 8a). `Cambio_signif` marca si una
 # MAGIC covariable cruza el umbral de significancia en cualquier sentido (pierde o gana): si
 # MAGIC ninguna cambia de signo ni de significancia, la conclusión no depende de un solo
@@ -1049,7 +1076,7 @@ display(
 print("Los 3 dominios que más mueven cada coeficiente:")
 display(top_dominios_por_parametro(detalle_loo, k=3).round(4))
 
-fig = figura_influencia(detalle_loo)
+fig = figura_influencia(detalle_loo, LOAO_UMBRAL_CAMBIO_EE)
 if fig is not None:
     guardar_figura(fig, "influencia_dominios")
     display(fig)

@@ -247,6 +247,13 @@ ESCENARIOS_W = [
     ("inversa1", "inversa", 1.0),
     ("inversa2", "inversa", 2.0),
 ]
+# Nombre de cada escenario de W en las figuras (D-10: no los códigos internos).
+ETIQUETA_ESCENARIO_W = {
+    "knn3": "3 vecinos más cercanos",
+    "knn5": "5 vecinos más cercanos",
+    "inversa1": "Distancia inversa, potencia 1",
+    "inversa2": "Distancia inversa, potencia 2",
+}
 
 # Cota del optimizador para |ρ| (< 1 para que I − ρW sea invertible).
 RHO_LIMITE = 0.99
