@@ -98,18 +98,21 @@ TBL_SENS_VARIANZA_COEFICIENTES = "tesis.modelo.sensibilidad_varianza_coeficiente
 TBL_SENS_VARIANZA_DOMINIOS = "tesis.modelo.sensibilidad_varianza_dominios"
 TBL_SENS_VARIANZA_MUNICIPIOS = "tesis.modelo.sensibilidad_varianza_municipios"
 
-# Identificación de la tabla final (R-11, revisión del Grupo 7, sec. 2 y 10). La tabla
-# consolidada sale del Fay-Herriot clásico, el benchmark no espacial; la comparación con las
-# variantes espaciales del objetivo 1 corre después (fay_herriot_espacial.py) y aún no cierra
-# (bloque 6b de la revisión), así que sus cifras son preliminares. Cuando se cierre el objetivo 1,
-# ESTADO_RESULTADO pasa a "FINAL_TRAS_COMPARACION_ESPACIAL" citando fhe_cuadro_comparativo.
+# Identificación de la tabla final (R-11, revisión del Grupo 7, sec. 2 y 10; D-03 de la
+# revisión del documento). La tabla consolidada sale del Fay-Herriot clásico, el benchmark no
+# espacial. La comparación con las variantes espaciales del objetivo 1 (fay_herriot_espacial.py,
+# fhe_cuadro_comparativo) ya cerró sin evidencia de dependencia espacial (p del LRT de ρ = 0
+# ≥ 0.05 en la estructura «muestra»), así que el clásico queda como modelo recomendado y la
+# tabla se marca como resultado final. Si una corrida nueva cambiara esa conclusión, el estado
+# debe volver a revisarse a mano.
 MODELO_FUENTE_TABLA_FINAL = "FH_CLASICO_BENCHMARK_NO_ESPACIAL"
-ESTADO_RESULTADO_TABLA_FINAL = "PRELIMINAR"
+ESTADO_RESULTADO_TABLA_FINAL = "FINAL_TRAS_COMPARACION_ESPACIAL"
 COMENTARIO_TABLA_FINAL = (
-    "Estimaciones del Fay-Herriot clásico (benchmark no espacial), resultados preliminares: "
-    "la comparación con las variantes espaciales del objetivo 1 (fay_herriot_espacial, "
-    "fhe_cuadro_comparativo) no ha cerrado. Dominios = EBLUP con benchmarking; municipios = "
-    "predicción sintética condicional al modelo (ver CALIDAD_REPORTADA)."
+    "Estimaciones finales del Fay-Herriot clásico (benchmark no espacial): la comparación con "
+    "las variantes espaciales del objetivo 1 (fay_herriot_espacial, fhe_cuadro_comparativo) "
+    "cerró sin evidencia de dependencia espacial, así que el clásico es el modelo de origen. "
+    "Dominios = EBLUP con benchmarking; municipios = predicción sintética condicional al "
+    "modelo (ver CALIDAD_REPORTADA)."
 )
 
 # ── Variable objetivo y varianza directa ─────────────────────────────────────
@@ -205,6 +208,14 @@ TBL_FHE_COEFICIENTES_COMPARACION = "tesis.modelo.fhe_coeficientes_comparacion"
 TBL_FHE_SENSIBILIDAD_CENTROIDE = "tesis.modelo.fhe_sensibilidad_centroide"
 # R-13: ρ̂ de la estructura completa según qué objetivos entran como nodos sin dato.
 TBL_FHE_SENSIBILIDAD_RHO = "tesis.modelo.fhe_sensibilidad_rho_objetivos"
+# D-07: comparación de las estimaciones clásica y espacial, antes calculada fuera del pipeline.
+# EBLUP frente a SEBLUP por dominio (MSE, CV y peso del dato directo γ^S_d).
+TBL_FHE_SEBLUP_DOMINIOS = "tesis.modelo.fhe_seblup_dominios"
+# Diferencia espacial − clásica en dominios y municipios (media, máximo, Pearson, Spearman,
+# cambios de clase de confiabilidad).
+TBL_FHE_DIFERENCIAS_ESTIMACIONES = "tesis.modelo.fhe_diferencias_estimaciones"
+# I de Moran de las estimaciones finales de los municipios objetivo (objetivo 3).
+TBL_FHE_MORAN_ESTIMACIONES = "tesis.modelo.fhe_moran_estimaciones"
 
 # R-45: las figuras del modelo (clásico, prefijo fh_, y espacial, prefijo fhe_) se muestran y se
 # guardan en este volumen del esquema modelo. El bundle no crea volúmenes: debe existir antes
@@ -236,11 +247,24 @@ ESCENARIOS_W = [
     ("inversa1", "inversa", 1.0),
     ("inversa2", "inversa", 2.0),
 ]
+# Nombre de cada escenario de W en las figuras (D-10: no los códigos internos).
+ETIQUETA_ESCENARIO_W = {
+    "knn3": "3 vecinos más cercanos",
+    "knn5": "5 vecinos más cercanos",
+    "inversa1": "Distancia inversa, potencia 1",
+    "inversa2": "Distancia inversa, potencia 2",
+}
 
 # Cota del optimizador para |ρ| (< 1 para que I − ρW sea invertible).
 RHO_LIMITE = 0.99
 # Permutaciones del I de Moran.
 N_PERMUTACIONES_MORAN = 9999
+# D-07: vecinos de la W entre los municipios objetivo para el I de Moran de las estimaciones
+# finales (el mismo k = 3 del escenario de menor conectividad de ESCENARIOS_W) y diferencia en
+# puntos porcentuales que se cuenta aparte al comparar el clásico con el espacial (convención
+# propia, la misma que el resumen del efecto espacial de la celda 9).
+K_MORAN_ESTIMACIONES = 3
+UMBRAL_DIFERENCIA_PP = 0.5
 # Réplicas del bootstrap paramétrico del MSE espacial (Morales et al., §18.2.3).
 BOOTSTRAP_ESPACIAL_REPLICAS = 500
 SEMILLA_ESPACIAL = 42

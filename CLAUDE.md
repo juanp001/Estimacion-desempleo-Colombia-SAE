@@ -8,8 +8,9 @@ GEIH no tiene cobertura muestral directa.
 
 El Fay-Herriot clásico (efectos de área independientes, `modelo/fay_herriot.py`) es el **benchmark no
 espacial**: el proyecto **sí incluye variantes espaciales** del Fay-Herriot, ya integradas en `modelo/`
-(`fay_herriot_espacial.py`, ver «Componente espacial»). Mientras no se cierre la comparación del objetivo 1,
-las tablas municipales del clásico son resultados preliminares del benchmark, no las estimaciones finales.
+(`fay_herriot_espacial.py`, ver «Componente espacial»). La comparación del objetivo 1 cerró sin evidencia de
+dependencia espacial (D-03): el clásico es el modelo recomendado y su tabla final se marca
+`FINAL_TRAS_COMPARACION_ESPACIAL`.
 Las cifras de la corrida vigente (cierre 2018) viven en [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md), no aquí: este archivo
 guarda solo reglas.
 
@@ -30,7 +31,9 @@ cambio va en `shared/`, no en el notebook orquestador.
 
 Lo que comparten todas las etapas vive en `code/comun/` (R-67), importado por ruta completa (`comun.…`):
 `spark_utils.py` (`leer_csv`, `leer_parquet`, `escribir_tabla`: la ingesta y las dimensiones escriben con la misma
-función) y `entorno.py` (`agregar_rutas`). Cada notebook calcula `code/` con `dbutils` en dos líneas y lo agrega a
+función), `entorno.py` (`agregar_rutas`) y `estilo_figuras.py` (D-11/D-12: paleta de tres colores `#1F4E79`,
+`#C55A11`, `#7F7F7F`, degradados azul y azul-naranja, letra de 9-10 pt, 200 dpi, `etiquetar_puntos` sin
+etiquetas encimadas; importarlo aplica el estilo). Cada notebook calcula `code/` con `dbutils` en dos líneas y lo agrega a
 `sys.path` antes de importar; los de `modelo/` además agregan `code/modelo` para su forma corta.
 
 ### GEIH: marco antiguo vs. marco nuevo
@@ -235,6 +238,10 @@ analisis/eda_seleccion_covariables.py
   → 5 verificación VIF (ajustar_por_vif sustituye por la siguiente elegible), residuos parciales del
       conjunto (diag.figura_residuos_parciales, G7-B13) y sensibilidad al signo
       (selección repetida exigiendo el signo → línea impresa en el notebook, ya sin tabla; R-62)
+  → 5b sensibilidad al umbral q (D-18): repite la ficha y el VIF con cada q de `Q_FDR_SENSIBILIDAD`
+      (0.05, 0.10, 0.15), reutilizando los diagnósticos, y escribe tesis.preprocesamiento.sensibilidad_q_fdr
+      (`seleccion.sensibilidad_q_fdr`: elegibles, seleccionadas, si coincide con el base y si queda solo el
+      intercepto). Solo reporta: la decisión sigue con Q_FDR_ELEGIBILIDAD
   → (R-32) toda la cadena de pasos 1-5 vive en `analisis/shared/seleccion.ejecutar_seleccion`, que usan
     el notebook y, vía `seleccionar_covariables`, la validación cruzada del modelo; la carga común está
     en `analisis/shared/datos_analisis.cargar_datos_analisis`
@@ -266,8 +273,9 @@ modelo/fay_herriot.py
     MSE y Cook NO deciden: se muestran como ganancia de precisión (CV directo vs EBLUP) y
     robustez (Cook + reajuste sin el dominio más influyente) del benchmark. G7-B16: AICc (AIC + 2k(k+1)/(n−k−1),
     k = p+1; convención externa al libro y aproximación en FH, por D_i heterogéneas) se calcula como complemento (`aicc` en FayHerriotClasico; `AICc`/`Delta_AICc` en
-    fh_seleccion_modelo; `AICc` en fh_coeficientes) y NO decide; `redaccion_seleccion` imprime el texto
-    «seleccionado entre varias especificaciones con soporte similar, mediante la regla de parsimonia».
+    fh_seleccion_modelo; `AICc` en fh_coeficientes) y NO decide; `redaccion_seleccion` imprime qué regla
+    decidió (D-36): la parsimonia frente a las especificaciones con más covariables y el menor AIC frente a
+    las del mismo número de covariables (en 2018, EC2 y EC3 tienen una covariable y decide el AIC).
     La comparación del
     objetivo 1 es después: benchmark vs. especificaciones espaciales (fay_herriot_espacial.py).
     En el código se conservan los nombres internos `modelo_ganador` / `elegir_ganador`
@@ -356,7 +364,8 @@ modelo/fay_herriot.py
     fay_herriot_prediccion_sintetica (con LAMBDA_N2 y PRED_BENCHMARK), fay_herriot_estimaciones_finales
     (tesis.modelo; NIVEL = DOMINIO [23] o MUNICIPIO [83], TIPO = EBLUP_BENCHMARK / SINTETICO /
     SINTETICO_BENCHMARK, TASA_SIN_AJUSTE_PCT para trazabilidad; R-11: MODELO_FUENTE =
-    FH_CLASICO_BENCHMARK_NO_ESPACIAL y ESTADO_RESULTADO = PRELIMINAR, más COMMENT ON TABLE); la
+    FH_CLASICO_BENCHMARK_NO_ESPACIAL y ESTADO_RESULTADO = FINAL_TRAS_COMPARACION_ESPACIAL desde D-03, antes
+    PRELIMINAR, más COMMENT ON TABLE); la
     sensibilidad de Cook se muestra pero no se persiste. R-38: todas las tablas se registran en
     `EscrituraDiferida` (shared/escritura.py) y la celda 13 las escribe después de la verificación.
     R-04: ninguna decisión ni verificación detiene el notebook (el código es académico y muestra el
@@ -368,6 +377,10 @@ modelo/fay_herriot.py
     de Wilcoxon ni % de dominios que mejoran (MSE < Di por construcción, p. 440); R-41:
     FayHerriotClasico guarda convergio_reml/convergio_ml/A_en_cota y los reajustes solo absorben
     LinAlgError
+  → D-20: además del histograma, `diagnosticos.graficar_supuestos` dibuja el Q-Q normal de los residuos
+    estandarizados del benchmark (con la envolvente del 95 % de los estadísticos de orden, guía visual) y los
+    residuos frente a x'β̂ (figuras `fh_ganador_qq` y `fh_ganador_residuos_ajustados`);
+    `interpretar_supuestos` cuenta los puntos fuera de la banda y |residuo| > 2. No deciden nada
   → calidad reportada B21 (celda 11a, shared/consolidacion.py): CONFIABILIDAD sigue siendo solo por CV;
     BASE_CV = EBLUP (dominios) / CONDICIONAL_AL_MODELO (municipios) y CALIDAD_REPORTADA = la que se cita:
     en municipios agrega siempre «condicional al modelo» (el MSE x'Cov(β̂)x + Â supone el modelo
@@ -464,13 +477,22 @@ modelo/fay_herriot_espacial.py   (corre después de fay_herriot.py: lee tesis.mo
     validacion_cruzada[_metricas], coeficientes, coeficientes_comparacion [R-16], sensibilidad_centroide,
     sensibilidad_rho_objetivos, prediccion_objetivo) y figuras fhe_*.png en VOLUMEN_FIGURAS_MODELO
     (/Volumes/tesis/modelo/figuras, R-45)
+  → D-07 (celda 9b): la comparación de las estimaciones, que antes se calculaba fuera del pipeline, sale del
+    notebook: fhe_seblup_dominios (EBLUP frente a SEBLUP del escenario de referencia por dominio: MSE, CV,
+    γ_d y γ^S_d = [G V⁻¹]_dd, atributo `gamma_espacial` de FayHerriotEspacial, y clase de confiabilidad),
+    fhe_diferencias_estimaciones (espacial − clásico en DOMINIO y MUNICIPIO: media, media absoluta, máximo,
+    cuántas superan UMBRAL_DIFERENCIA_PP = 0.5, Pearson, Spearman, CV mediano y cambios de clase) y
+    fhe_moran_estimaciones (I de Moran de las 83 estimaciones de fay_herriot_estimaciones_finales, de la tasa
+    sin benchmarking y de las covariables, W kNN K_MORAN_ESTIMACIONES = 3, 9,999 permutaciones). Sin pruebas
+    inferenciales nuevas: las diferencias se reportan
 ```
 
 Lógica en `modelo/shared/`: `matriz_proximidad.py` (Haversine, kNN, distancia inversa, estandarización por
 filas, `moran_i`, `proximidad_total`, `filas_moran`), `fay_herriot_espacial.py` (`FayHerriotEspacial`, hija
 de `ModeloAreaPequena`; `validacion_dejar_uno_fuera`), `figuras_espacial.py`, `figuras.py` (guardado común
 del clásico `fh_*` y del espacial `fhe_*`), `prediccion_espacial.py`, `sensibilidad_espacial.py`,
-`cuadro_comparativo.py` (también `construir_cuadro_coeficientes`); parámetros en `config.py` (`ESCENARIOS_W`,
+`cuadro_comparativo.py` (también `construir_cuadro_coeficientes` y, D-07, `tabla_seblup_dominios`,
+`resumen_diferencias`, `tabla_diferencias` y `moran_estimaciones`); parámetros en `config.py` (`ESCENARIOS_W`,
 `RHO_LIMITE`, `BOOTSTRAP_ESPACIAL_REPLICAS`, `ALFA_LRT`). Resultado con el cierre 2018, detalle, tablas y limitaciones en
 [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md) y `docs/fay_herriot_espacial.md` (sin evidencia de dependencia espacial: el modelo recomendado sigue siendo el clásico). Ojo: en
 `municipios_sin_encuesta` figura Cali (76001), que ya es dominio con encuesta; desde R-14 el notebook
@@ -529,7 +551,7 @@ Reglas del flujo de selección:
   sobre el ajuste GLS con `Â` fijo (`r_i² h_ii / (p (1-h_ii)²)`, `h_ii = x_i' Cov(β̂) x_i /(D_i+Â)`).
 - Parámetros en `preprocesamiento/shared/config.py` (`BOOTSTRAP_REPLICAS`/`BOOTSTRAP_SEED`, umbrales de CV,
   `CV_MINIMO`, `PROP_MODAL_MAXIMA`, `UMBRAL_DUPLICADO`, `UMBRAL_REDUNDANCIA`, `UMBRAL_DELTA_LOO`,
-  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
+  `ALFA_IC_CORRELACION`, `Q_FDR_ELEGIBILIDAD`, `Q_FDR_SENSIBILIDAD`, `cota_covariables`/`OBS_POR_PARAMETRO`, `SOPORTE_MINIMO`, `VIF_MAXIMO`, `DEPARTAMENTOS_OBJETIVO`) y `modelo/shared/config.py`
   (tablas, `DELTA_AIC_EQUIVALENTE`, `ALFA_SIGNIFICANCIA`).
 - **Dominio = ciudad o ciudad A.M.** en preprocesamiento, análisis y modelo (`CODIGO_DOMINIO`,
   `NOMBRE_DOMINIO`, `TIPO_DOMINIO`); `CODIGO_MUNICIPIO`/`MUNICIPIO` solo existen en las tablas de municipios
@@ -543,7 +565,11 @@ Reglas del flujo de selección:
 - Las figuras del análisis van al volumen `/Volumes/tesis/preprocesamiento/figuras_eda`
   (prefijos `desc_`, `eda_`). Las del modelo (R-45) se muestran y se guardan en
   `VOLUMEN_FIGURAS_MODELO` = `/Volumes/tesis/modelo/figuras` (prefijos `fh_` clásico y `fhe_` espacial,
-  `shared/figuras.guardar_figura`).
+  `shared/figuras.guardar_figura`). Todas usan `comun/estilo_figuras.py`, sin títulos internos (D-40) y con
+  los nombres del documento en ejes y leyendas (D-10: `catalogo_literatura.nombre_legible` traduce alias o
+  código, `ETIQUETA_ESCENARIO_W` los escenarios de W, θ̂_d, ψ_d y σ̂²_u en lugar de Yd, Dd y Â). El panel de
+  dispersión de las 18 candidatas sale en dos figuras (`desc_dispersion_candidatas_1` y `_2`, D-12) y
+  `eda_correlacion_finales` ya no se genera: la correlación entre las seleccionadas se imprime (D-40).
 - **Advertencia al cambiar la ventana de tiempo** (`anio_estimacion` / `mes_estimacion` / `n_meses_ventana`):
   si cambia el número de dominios, la cota de covariables se recalcula sola (`cota_covariables(n)` = n // 10). Los
   textos de los notebooks dicen "23 dominios" y la exclusión "sin dato para 2018" del catálogo también es del

@@ -1116,3 +1116,74 @@ def _grupos_enlace_completo(df: pd.DataFrame, umbral: float) -> list:
         sorted(g)
         for g in sorted(grupos.values(), key=lambda g: (-len(g), sorted(g)[0]))
     ]
+
+
+def sensibilidad_q_fdr(
+    resultados: dict, q_base: float, alias: dict = None, q_fh: pd.Series = None
+) -> pd.DataFrame:
+    """Tabla de la sensibilidad de la selección al umbral q de Benjamini-Hochberg (D-18).
+
+    Con 23 dominios el umbral q decide si el modelo tiene covariables: con un q más estricto
+    puede no quedar ninguna elegible (modelo de solo intercepto, EC0) y con uno más laxo entran
+    más. La tabla resume, para cada umbral, cuántas candidatas son elegibles, cuáles se
+    seleccionan tras la cota de parsimonia y el VIF, y si el conjunto coincide con el del umbral
+    de la corrida. Es un reporte: la decisión sigue tomándose con `q_base`.
+
+    Args:
+        resultados (dict[float, dict]): Umbral q → salida de `ejecutar_seleccion` con ese q.
+        q_base (float): Umbral con el que se toma la decisión (`Q_FDR_ELEGIBILIDAD`).
+        alias (dict | None): Mapa código → alias, para listar las covariables.
+        q_fh (pd.Series | None): q de Benjamini-Hochberg por código (columna `q_FH` del
+            Fay-Herriot univariado); con él se informa el menor q observado entre las
+            candidatas.
+
+    Returns:
+        pd.DataFrame: Una fila por umbral con `Q_FDR`, `Es_base`, `N_elegibles`, `Elegibles`,
+            `N_seleccionadas`, `Seleccionadas`, `Igual_a_base`, `Solo_intercepto` y
+            `q_minimo_observado`.
+
+    Raises:
+        ValueError: Si `q_base` no está entre los umbrales de `resultados`.
+
+    Example:
+        >>> def _r(eleg, sel):
+        ...     return {"df_elegibilidad": pd.DataFrame({"Codigo": ["a", "b", "c"],
+        ...             "Elegible": ["sí" if c in eleg else "no" for c in "abc"]}),
+        ...             "seleccionadas": sel}
+        >>> t = sensibilidad_q_fdr({0.05: _r([], []), 0.10: _r("ab", ["a"]),
+        ...                         0.15: _r("abc", ["a", "c"])}, 0.10)
+        >>> t[["Q_FDR", "N_elegibles", "Solo_intercepto", "Igual_a_base"]].values.tolist()
+        [[0.05, 0, 'sí', 'no'], [0.1, 2, 'no', 'sí'], [0.15, 3, 'no', 'no']]
+
+    Casos de uso:
+        Celda de sensibilidad a q de `eda_seleccion_covariables.py` (tabla
+        `sensibilidad_q_fdr`).
+    """
+    if q_base not in resultados:
+        raise ValueError(f"El umbral base {q_base} no está entre {sorted(resultados)}.")
+    alias = alias or {}
+    base = set(resultados[q_base]["seleccionadas"])
+    q_minimo = float(q_fh.min()) if q_fh is not None and len(q_fh) else np.nan
+    filas = []
+    for q in sorted(resultados):
+        r = resultados[q]
+        eleg = r["df_elegibilidad"]
+        codigos_eleg = (
+            eleg.loc[eleg["Elegible"] == "sí", "Codigo"].tolist() if len(eleg) else []
+        )
+        seleccionadas = list(r["seleccionadas"])
+        filas.append(
+            {
+                "Q_FDR": float(q),
+                "Es_base": "sí" if q == q_base else "no",
+                "N_elegibles": len(codigos_eleg),
+                "Elegibles": ", ".join(alias.get(c, c) for c in codigos_eleg) or "—",
+                "N_seleccionadas": len(seleccionadas),
+                "Seleccionadas": ", ".join(alias.get(c, c) for c in seleccionadas)
+                or "— (solo intercepto)",
+                "Igual_a_base": "sí" if set(seleccionadas) == base else "no",
+                "Solo_intercepto": "sí" if not seleccionadas else "no",
+                "q_minimo_observado": q_minimo,
+            }
+        )
+    return pd.DataFrame(filas)
