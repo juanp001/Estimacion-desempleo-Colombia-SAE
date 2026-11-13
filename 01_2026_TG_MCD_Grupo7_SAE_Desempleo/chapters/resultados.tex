@@ -466,7 +466,7 @@ Con los 23 dominios, la selección repetida reprodujo el conjunto de la etapa 9 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Validación predictiva dejar-un-dominio-fuera: error de la estimación sintética de cada dominio retirado frente a su estimación directa (Ecuación~\ref{eq:metricas_val}). RMSE: raíz del error cuadrático medio; MAE: error absoluto medio; errores en puntos porcentuales; cobertura del intervalo nominal del 95~\%; habilidad frente al modelo de solo intercepto.}
+\caption{Validación predictiva dejar-un-dominio-fuera: error de la estimación sintética de cada dominio retirado frente a su estimación directa (Ecuación~\ref{eq:metricas_val}). RMSE: raíz del error cuadrático medio; MAE: error absoluto medio; errores en puntos porcentuales; $Z_{\psi}$ y $Z_{\text{pred}}$: error dividido por el error estándar de la directa y por toda la incertidumbre de la predicción; cobertura del intervalo nominal del 95~\%; habilidad frente al modelo de solo intercepto.}
 \label{tab:res_validacion}
 \begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{l r r r}
@@ -477,6 +477,7 @@ RMSE & 2.52 & 3.43 & 2.77 \\
 MAE & 2.13 & 2.91 & 2.23 \\
 Sesgo medio & $-0.07$ & $-0.41$ & $-0.01$ \\
 RMSE corregida por ruido & 2.51 & 3.42 & 2.76 \\
+$Z_{\psi}$: media y desviación & 0.92; 8.83 & $-0.15$; 11.81 & 1.30; 9.23 \\
 $Z_{\text{pred}}$: media y desviación & $-0.02$; 1.05 & $-0.17$; 1.44 & $-0.02$; 1.07 \\
 Cobertura: dominios y \% & 23 de 23 (100.00) & 20 de 23 (86.96) & 22 de 23 (95.65) \\
 Habilidad frente al nulo & 0.17 & $-0.54$ & no aplica \\
@@ -486,6 +487,8 @@ Habilidad frente al nulo & 0.17 & $-0.54$ & no aplica \\
 \end{table}
 
 Con las covariables fijas, la tasa de homicidios redujo la RMSE del modelo de solo intercepto de 2.77 a 2.52 puntos porcentuales, un 9~\%, lo que equivale a una habilidad de 0.17. Ese ejercicio es optimista, porque la covariable se eligió viendo a todos los dominios. Cuando la selección se repitió en cada iteración, la RMSE subió a 3.43, por encima de la del modelo de solo intercepto, y la habilidad pasó a $-0.54$: el procedimiento completo estimó peor que el promedio de los dominios. La diferencia entre 2.52 y 3.43 es el costo de seleccionar y estimar con los mismos 23 dominios. Frente al error dentro de muestra (2.27), la validación con covariables fijas lo infló 1.11 veces y el procedimiento completo, 1.52.
+
+Los dos errores estandarizados separan el origen del error. $Z_{\psi}$ divide el error entre el error estándar de la directa, que ronda 0.3 puntos porcentuales: su desviación fue 8.83 con las covariables fijas, 11.81 con el procedimiento completo y 9.23 sin covariables, de modo que el error típico de predecir un dominio sin encuesta es del orden de nueve veces el ruido de muestreo de su tasa directa. Ese error viene casi todo del modelo, del efecto de área $u_d$ que las covariables no explican, y no del azar de la encuesta. $Z_{\text{pred}}$, que divide entre toda la incertidumbre de la predicción, tuvo desviaciones de 1.05 y 1.07 con las covariables fijas y sin covariables: el ECM sintético (Ecuación~\ref{eq:var_sintetica}) describe bien la magnitud de esos errores. Con el procedimiento completo la desviación sube a 1.44, porque ese ECM no incluye la incertidumbre de la selección.
 
 La inestabilidad de la selección explica ese costo. El procedimiento reprodujo el benchmark en 14 de las 23 iteraciones y produjo 6 conjuntos distintos; la tasa de homicidios entró al benchmark en el 69.57~\% de las iteraciones y la cobertura de acueducto, en el 8.70~\% (Tabla~\ref{tab:res_frecuencia} del Apéndice~\ref{app:resultados}). Sin Florencia, Quibdó, Riohacha o Pasto no quedó ninguna covariable elegible y se usó solo el intercepto; sin Bogotá entraron los ingresos tributarios per cápita, sin Neiva el valor agregado de actividades primarias y sin Armenia la cobertura neta en educación media. En tres dominios el error estandarizado superó 1.96 en valor absoluto: Armenia ($-3.17$), Quibdó ($-2.66$) y Cúcuta A.M. ($-2.15$). Por eso la cobertura del procedimiento completo es de 20 de 23 dominios (86.96~\%), por debajo del 95~\% nominal; se lee junto con la desviación de 1.44 de $Z_{\text{pred}}$, que indica intervalos algo estrechos. Con 23 dominios, un dominio más o menos mueve la cobertura en 4.35 puntos, y los 23 retiros no son réplicas independientes, porque cada ajuste comparte 21 de sus 22 dominios con cualquier otro; la cifra es indicativa. Los errores por dominio y la figura de los dos ejercicios están en el Apéndice~\ref{app:validacion}.
 
