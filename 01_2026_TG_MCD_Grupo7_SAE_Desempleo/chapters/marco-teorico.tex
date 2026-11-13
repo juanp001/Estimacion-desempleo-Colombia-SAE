@@ -74,23 +74,23 @@ Dos tipos de estimador aparecen en todo el documento:
 \subsection{Estimación directa: estimador de Hájek}
 \label{subsec:hajek}
 
-La tasa de desempleo de un dominio $d$ es un parámetro de tipo razón, como en la Ecuación~\ref{eq:tasa_poblacional}:
+La tasa de desempleo de un dominio $d$ es un parámetro de tipo razón. Se escribe primero como proporción, $p_d$, y después en puntos porcentuales, $\theta_d$, como en la Ecuación~\ref{eq:tasa_poblacional}:
 
 \begin{equation}
-    \theta_d = \frac{\sum_{i \in U_d} y_i}{\sum_{i \in U_d} a_i},
+    p_d = \frac{\sum_{i \in U_d} y_i}{\sum_{i \in U_d} a_i}, \qquad \theta_d = 100\, p_d,
     \label{eq:tasa_poblacional}
 \end{equation}
 
-donde $U_d$ es la población de 15 años y más del dominio, $y_i \in \{0,1\}$ indica que la persona $i$ está desocupada y $a_i \in \{0,1\}$ indica que pertenece a la PEA. El numerador es DS y el denominador es PEA, de modo que $100\,\theta_d$ es la TD de la Ecuación~\ref{eq:tasa_desempleo}.
+donde $U_d$ es la población de 15 años y más del dominio, $y_i \in \{0,1\}$ indica que la persona $i$ está desocupada y $a_i \in \{0,1\}$ indica que pertenece a la PEA. El numerador es DS y el denominador es PEA, de modo que $\theta_d$ es la TD de la Ecuación~\ref{eq:tasa_desempleo}. En el resto del documento la tasa, sus estimaciones y sus errores estándar están en puntos porcentuales, y las varianzas y los ECM en puntos porcentuales al cuadrado; $p_d$ solo aparece donde una fórmula necesita la proporción.
 
 Como la GEIH solo observa una muestra $s_d \subset U_d$, la tasa se estima con el estimador de razón de Hájek de la Ecuación~\ref{eq:hajek}:
 
 \begin{equation}
-    \hat{\theta}_d = \frac{\sum_{i \in s_d} w_i\, y_i}{\sum_{i \in s_d} w_i\, a_i},
+    \hat{p}_d = \frac{\sum_{i \in s_d} w_i\, y_i}{\sum_{i \in s_d} w_i\, a_i}, \qquad \hat{\theta}_d = 100\, \hat{p}_d,
     \label{eq:hajek}
 \end{equation}
 
-donde $w_i$ es el factor de expansión de la persona $i$. En este trabajo la suma corre sobre las personas de la PEA del dominio observadas en los doce meses de 2018, así que el denominador es la PEA expandida y el numerador el número expandido de desocupados; el resultado, multiplicado por 100, es la tasa directa en puntos porcentuales. Si el numerador y el denominador son estimadores consistentes de sus totales, la razón es aproximadamente insesgada y su sesgo relativo tiende a cero cuando crece la muestra; la tasa de desempleo es justamente el ejemplo que da la literatura de un parámetro de este tipo \cite[pp.~21--22]{morales2021smallarea}. Se aplica en la estimación directa (Sección~\ref{sec:met_directa}).
+donde $w_i$ es el factor de expansión de la persona $i$. En este trabajo la suma corre sobre las personas de la PEA del dominio observadas en los doce meses de 2018, así que el denominador es la PEA expandida y el numerador el número expandido de desocupados; $\hat{\theta}_d$ es la tasa directa en puntos porcentuales. Si el numerador y el denominador son estimadores consistentes de sus totales, la razón es aproximadamente insesgada y su sesgo relativo tiende a cero cuando crece la muestra; la tasa de desempleo es justamente el ejemplo que da la literatura de un parámetro de este tipo \cite[pp.~21--22]{morales2021smallarea}. Se aplica en la estimación directa (Sección~\ref{sec:met_directa}).
 
 %---------------------------------------------------------------------------------------
 \subsection{Varianza del estimador directo}
@@ -107,7 +107,7 @@ La unidad de remuestreo es la vivienda (identificada por el período y el direct
     \label{eq:var_bootstrap}
 \end{equation}
 
-con $\bar{\theta}_d$ el promedio de las réplicas. Cada réplica es una versión de la estimación que se habría obtenido con otra muestra de viviendas del mismo dominio; el conjunto de las $B$ réplicas aproxima la distribución muestral del estimador. El intervalo de confianza (IC) del 95~\% se lee directamente sobre esa distribución, con los percentiles 2.5 y 97.5 de las réplicas (Ecuación~\ref{eq:ic_bootstrap}): deja fuera el 2.5~\% de las réplicas más bajas y el 2.5~\% de las más altas, y no obliga a que el intervalo sea simétrico.
+con $\bar{\theta}_d$ el promedio de las réplicas. Como las réplicas están en puntos porcentuales, $\psi_d$ está en puntos porcentuales al cuadrado: $\psi_d = 10^4\,\widehat{\operatorname{Var}}_B(\hat{p}_d)$. Cada réplica es una versión de la estimación que se habría obtenido con otra muestra de viviendas del mismo dominio; el conjunto de las $B$ réplicas aproxima la distribución muestral del estimador. El intervalo de confianza (IC) del 95~\% se lee directamente sobre esa distribución, con los percentiles 2.5 y 97.5 de las réplicas (Ecuación~\ref{eq:ic_bootstrap}): deja fuera el 2.5~\% de las réplicas más bajas y el 2.5~\% de las más altas, y no obliga a que el intervalo sea simétrico.
 
 \begin{equation}
     \text{IC}_{95\%}(\theta_d) = \left[\,Q_{0.025}\big(\hat{\theta}_d^{(1)},\ldots,\hat{\theta}_d^{(B)}\big),\; Q_{0.975}\big(\hat{\theta}_d^{(1)},\ldots,\hat{\theta}_d^{(B)}\big)\right].
@@ -121,11 +121,11 @@ El remuestreo no reproduce el estrato interno ni el segmento, que no vienen en l
 La varianza de una razón se aproxima linealizándola alrededor de sus totales \cite[p.~22]{morales2021smallarea}, como en la Ecuación~\ref{eq:taylor}:
 
 \begin{equation}
-    \widehat{\operatorname{Var}}_T(\hat{\theta}_d) = \frac{n_v}{n_v - 1} \sum_{v=1}^{n_v} \left(z_v - \bar{z}\right)^2, \qquad z_v = \frac{1}{\hat{N}_d}\sum_{i \in v} w_i\,(y_i - \hat{\theta}_d\, a_i),
+    \widehat{\operatorname{Var}}_T(\hat{\theta}_d) = 10^4\,\frac{n_v}{n_v - 1} \sum_{v=1}^{n_v} \left(z_v - \bar{z}\right)^2, \qquad z_v = \frac{1}{\hat{N}_d}\sum_{i \in v} w_i\,(y_i - \hat{p}_d\, a_i),
     \label{eq:taylor}
 \end{equation}
 
-donde $v$ recorre las $n_v$ viviendas del dominio y $\hat{N}_d = \sum_{i\in s_d} w_i a_i$ es la PEA expandida. Se calcula con las mismas viviendas que el bootstrap y sirve para comprobar que ambas varianzas son del mismo orden.
+donde $v$ recorre las $n_v$ viviendas del dominio y $\hat{N}_d = \sum_{i\in s_d} w_i a_i$ es la PEA expandida. La suma da la varianza de la proporción $\hat{p}_d$; el factor $10^4$ la lleva a puntos porcentuales al cuadrado, la escala de $\psi_d$. Se calcula con las mismas viviendas que el bootstrap y sirve para comprobar que ambas varianzas son del mismo orden.
 
 \subsubsection{Coeficiente de variación}
 
@@ -457,7 +457,7 @@ Como $\psi_d$ se trata como conocida pero es una estimación, se evalúa qué pa
 \label{eq:gvf}
 \end{equation}
 
-donde $n_d$ es el tamaño de muestra del dominio, $\hat{p}_d = \hat{\theta}_d/100$ y $\eta_d$ es el error de la regresión. La forma A es la del libro de referencia \cite[p.~427]{morales2021smallarea}; la B viene de la varianza de una proporción con efecto de diseño, $p(1-p)\,\text{deff}/n$ \cite[p.~15]{Tellez2020}. La retransformación a la escala original multiplica $\exp(\mathbf{x}_d^\top\hat{\boldsymbol{\alpha}})$ por $\Delta = \sum_d \psi_d / \sum_d \exp(\mathbf{x}_d^\top\hat{\boldsymbol{\alpha}})$, para conservar la suma de las varianzas \cite[pp.~15--16]{MarinTralmaGuerrero2024}. Además de la GVF se usaron escenarios multiplicativos $\psi_d \times \nu$, simétricos en escala logarítmica ($\nu \in \{1/3, 1/2, 2/3, 3/2, 2, 3\}$), que acotan un error desconocido en la varianza del diseño. La sensibilidad depende de la razón $\hat{\sigma}_u^2 / \bar{\psi}$: cuando es grande, $\gamma_d \approx 1$ y el EBLUP casi no depende de $\psi_d$ \cite[p.~143]{Benedetti2024}. Se usa en la Sección~\ref{sec:met_supuestos}.
+donde $n_d$ es el tamaño de muestra del dominio, $\hat{p}_d = \hat{\theta}_d/100$ es la proporción de la Ecuación~\ref{eq:hajek} y $\eta_d$ es el error de la regresión. La forma A es la del libro de referencia \cite[p.~427]{morales2021smallarea}; la B viene de la varianza de una proporción con efecto de diseño, $p(1-p)\,\text{deff}/n$ \cite[p.~15]{Tellez2020}. La retransformación a la escala original multiplica $\exp(\mathbf{x}_d^\top\hat{\boldsymbol{\alpha}})$ por $\Delta = \sum_d \psi_d / \sum_d \exp(\mathbf{x}_d^\top\hat{\boldsymbol{\alpha}})$, para conservar la suma de las varianzas \cite[pp.~15--16]{MarinTralmaGuerrero2024}. Además de la GVF se usaron escenarios multiplicativos $\psi_d \times \nu$, simétricos en escala logarítmica ($\nu \in \{1/3, 1/2, 2/3, 3/2, 2, 3\}$), que acotan un error desconocido en la varianza del diseño. La sensibilidad depende de la razón $\hat{\sigma}_u^2 / \bar{\psi}$: cuando es grande, $\gamma_d \approx 1$ y el EBLUP casi no depende de $\psi_d$ \cite[p.~143]{Benedetti2024}. Se usa en la Sección~\ref{sec:met_supuestos}.
 
 %---------------------------------------------------------------------------------------
 \subsection{Componente espacial}
@@ -528,7 +528,7 @@ Para un municipio objetivo $m$ que es nodo de la estructura «completa», el pre
     \label{eq:pred_espacial}
 \end{equation}
 
-donde $s$ indexa los dominios observados y $\hat{\mathbf{G}}_{ms}$ es la covarianza estimada entre el efecto del municipio y los de los dominios \cite[p.~147]{Benedetti2024}. El efecto $\hat{u}_m$ sale del propio modelo, no de una corrección añadida al sintético; si $\hat{\rho} = 0$, $\hat{u}_m = 0$ y el predictor coincide con el sintético. Los municipios que pertenecen a un dominio $d$ con área metropolitana (Cali y Yumbo) no son nodos: reciben $\mathbf{x}_m^\top\hat{\boldsymbol{\beta}} + \hat{u}_d$, con el efecto de su dominio.
+donde $s$ indexa los dominios observados y $\hat{\mathbf{G}}_{ms}$ es la covarianza estimada entre el efecto del municipio y los de los dominios \cite[p.~147]{Benedetti2024}. El efecto $\hat{u}_m$ sale del propio modelo, no de una corrección añadida al sintético; si $\hat{\rho} = 0$, $\hat{u}_m = 0$ y el predictor coincide con el sintético. Los municipios que pertenecen a un dominio $d$ con área metropolitana (Cali y Yumbo) no son nodos: reciben $\mathbf{x}_m^\top\hat{\boldsymbol{\beta}} + \hat{u}_d$, con el efecto de su dominio. Esa predicción descansa en un supuesto explícito: el efecto de cada municipio es el de su dominio, $u_m = u_d$, sin variación entre los municipios del área metropolitana; la desagregación de Cali A.M. en Cali y Yumbo es, por tanto, un escenario y no una estimación con muestra propia. Su ECM se aproxima con el del sintético, $\mathbf{x}_m^\top\widehat{\operatorname{Cov}}(\hat{\boldsymbol{\beta}})\,\mathbf{x}_m + \hat{\sigma}_u^2$ (Ecuación~\ref{eq:var_sintetica}, con los parámetros del modelo espacial), que trata el efecto como si fuera nuevo e independiente de los datos. Bajo el supuesto $u_m = u_d$, el error de $\hat{u}_d$ es menor que $\hat{\sigma}_u^2$, porque el dominio tiene muestra; la aproximación es entonces probablemente conservadora. No incluye, en cambio, el error que habría si el efecto de Cali o de Yumbo se apartara del de su dominio.
 
 El ECM del SEBLUP y del predictor espacial se estima con bootstrap paramétrico: se generan $B$ vectores $\mathbf{u}^{*} = (\mathbf{I}-\hat{\rho}\mathbf{W})^{-1}\mathbf{v}^{*}$ y errores $e^{*}_d \sim \mathcal{N}(0, \psi_d)$, se reajusta el modelo en cada réplica y se promedia el error al cuadrado \cite[p.~494]{morales2021smallarea}.
 
@@ -582,14 +582,21 @@ donde $d$ recorre las unidades del territorio $R$ (dominios o municipios) y $N_d
     \item Nivel 2: los municipios de un dominio con área metropolitana (Cali y Yumbo) se ajustan para que, ponderados por su población de 15 años y más, reproduzcan el EBLUP ya ajustado de su dominio. Los demás municipios objetivo no tienen un territorio de referencia con estimación directa en este trabajo y conservan la estimación sintética sin ajustar.
 \end{itemize}
 
-El ajuste cambia la estimación y también su error. Con $\lambda$ tratado como fijo, la varianza se escala por $\lambda^2$ y el ajuste introduce un sesgo $(\lambda-1)\theta$, que se estima con la diferencia entre la estimación ajustada y la original. La raíz del ECM ajustada es la de la Ecuación~\ref{eq:rmse_bm}:
+El ajuste cambia la estimación y también su error. Si $\lambda$ fuera una constante conocida, el error del estimador ajustado se descompondría como $\lambda\hat{\theta}_d - \theta_d = \lambda(\hat{\theta}_d - \theta_d) + (\lambda-1)\theta_d$, y su ECM sería el de la Ecuación~\ref{eq:ecm_bm_completo}:
+
+\begin{equation}
+    \text{ECM}(\lambda\hat{\theta}_d) = \lambda^2\,\text{ECM}(\hat{\theta}_d) + 2\lambda(\lambda-1)\,\theta_d\,\operatorname{Sesgo}(\hat{\theta}_d) + (\lambda-1)^2\theta_d^2 .
+    \label{eq:ecm_bm_completo}
+\end{equation}
+
+La medida que se reporta es una aproximación de esa identidad bajo tres condiciones: (i) $\lambda$ se trata como fijo, aunque se calcula con las mismas estimaciones y con una cifra de referencia que también tiene error, de modo que no se incluyen su variabilidad ni su covarianza con $\hat{\theta}_d$; (ii) el sesgo de $\hat{\theta}_d$ bajo el modelo se supone despreciable, lo que elimina el término cruzado, y (iii) el $\theta_d$ desconocido del último término se sustituye por $\hat{\theta}_d$, de modo que $(\lambda-1)^2\theta_d^2$ se estima con $(\hat{\theta}^{B}_d - \hat{\theta}_d)^2$. El resultado es la Ecuación~\ref{eq:rmse_bm}:
 
 \begin{equation}
     \text{RMSE}^{B}_d = \sqrt{\lambda^2\, \widehat{\text{ECM}}(\hat{\theta}_d) + \big(\hat{\theta}^{B}_d - \hat{\theta}_d\big)^2}, \qquad \text{CV}^{B}_d = \frac{\text{RMSE}^{B}_d}{\hat{\theta}^{B}_d}\times 100 .
     \label{eq:rmse_bm}
 \end{equation}
 
-Con $\lambda = 1$ coincide con la raíz del ECM sin ajustar (Ecuación~\ref{eq:rmse}). Un $|\lambda - 1| > 0.20$ se marca como aviso, porque indica que el modelo y la cifra de referencia difieren mucho. Se usa en la Sección~\ref{sec:met_benchmarking}.
+No es el ECM completo del estimador ajustado, sino una aproximación que trata todo el desplazamiento del ajuste como sesgo. Cuando $\lambda$ se aleja de 1, el segundo término domina y la clase de calidad que resulta depende de esta aproximación; una medida completa exigiría un bootstrap que repita el modelo, la cifra de referencia y la calibración. Con $\lambda = 1$ coincide con la raíz del ECM sin ajustar (Ecuación~\ref{eq:rmse}). Un $|\lambda - 1| > 0.20$ se marca como aviso, porque indica que el modelo y la cifra de referencia difieren mucho. Se usa en la Sección~\ref{sec:met_benchmarking}.
 
 %---------------------------------------------------------------------------------------
 \subsection{Síntesis de métricas y métodos}
@@ -662,7 +669,7 @@ Métricas de validación predictiva & \ref{eq:metricas_val} & Validación (\ref{
 SAR, LRT, SEBLUP, peso de la directa, Moran & \ref{eq:sar}, \ref{eq:lrt}, \ref{eq:seblup}, \ref{eq:gamma_esp}, \ref{eq:moran} & Espacial (\ref{sec:met_espacial}) \\
 Predictor sintético y predictor espacial, ECM sintético & \ref{eq:sintetico}, \ref{eq:var_sintetica}, \ref{eq:pred_espacial} & Municipios sin muestra (\ref{sec:met_sin_muestra}) \\
 Extrapolación y calidad reportada & \ref{eq:hnew} & Municipios sin muestra (\ref{sec:met_sin_muestra}) \\
-Benchmarking y RMSE con benchmarking & \ref{eq:benchmarking}, \ref{eq:rmse_bm} & Benchmarking (\ref{sec:met_benchmarking}) \\
+Benchmarking y RMSE con benchmarking & \ref{eq:benchmarking}, \ref{eq:ecm_bm_completo}, \ref{eq:rmse_bm} & Benchmarking (\ref{sec:met_benchmarking}) \\
 Índice de Moran sobre las estimaciones & \ref{eq:moran} & Patrones espaciales (\ref{sec:met_patrones}) \\
 \bottomrule
 \end{tabularx}
