@@ -582,6 +582,15 @@ donde $d$ recorre las unidades del territorio $R$ (dominios o municipios) y $N_d
     \item Nivel 2: los municipios de un dominio con área metropolitana (Cali y Yumbo) se ajustan para que, ponderados por su población de 15 años y más, reproduzcan el EBLUP ya ajustado de su dominio. Los demás municipios objetivo no tienen un territorio de referencia con estimación directa en este trabajo y conservan la estimación sintética sin ajustar.
 \end{itemize}
 
+El peso del nivel 2 requiere un supuesto. Como la tasa es desocupados sobre PEA (Ecuación~\ref{eq:tasa_desempleo}), la tasa de un territorio $R$ es el promedio de las tasas de sus municipios ponderado por su PEA, según la Ecuación~\ref{eq:td_agregada}:
+
+\begin{equation}
+    \theta_R = \frac{\sum_{m \in R} \text{DS}_m}{\sum_{m \in R} \text{PEA}_m}\times 100 = \frac{\sum_{m \in R} \text{PEA}_m\,\theta_m}{\sum_{m \in R} \text{PEA}_m} .
+    \label{eq:td_agregada}
+\end{equation}
+
+La PEA de cada municipio no se observa por separado, porque la encuesta solo identifica el dominio. Por eso se usa la población de 15 años y más, $P_m$, que reproduce la Ecuación~\ref{eq:td_agregada} solo si las participaciones de la PEA son proporcionales a las de esa población: $\text{PEA}_m / \sum_{m'} \text{PEA}_{m'} = P_m / \sum_{m'} P_{m'}$, es decir, si Cali y Yumbo tienen la misma tasa global de participación. Si la participación difiere entre los dos, el agregado ponderado no es exactamente la tasa del dominio, aunque el factor siga cumpliendo la restricción. Además, el estimando de cada municipio es la tasa que el modelo predice con sus covariables, que describen el municipio completo, mientras que la tasa de Cali A.M. describe sus cabeceras; el peso $P_m$ también corresponde al municipio completo. Que el agregado ajustado reproduzca el EBLUP del dominio comprueba que la restricción se cumple, pero no valida la tasa de cada municipio por separado.
+
 El ajuste cambia la estimación y también su error. Si $\lambda$ fuera una constante conocida, el error del estimador ajustado se descompondría como $\lambda\hat{\theta}_d - \theta_d = \lambda(\hat{\theta}_d - \theta_d) + (\lambda-1)\theta_d$, y su ECM sería el de la Ecuación~\ref{eq:ecm_bm_completo}:
 
 \begin{equation}
@@ -669,7 +678,7 @@ Métricas de validación predictiva & \ref{eq:metricas_val} & Validación (\ref{
 SAR, LRT, SEBLUP, peso de la directa, Moran & \ref{eq:sar}, \ref{eq:lrt}, \ref{eq:seblup}, \ref{eq:gamma_esp}, \ref{eq:moran} & Espacial (\ref{sec:met_espacial}) \\
 Predictor sintético y predictor espacial, ECM sintético & \ref{eq:sintetico}, \ref{eq:var_sintetica}, \ref{eq:pred_espacial} & Municipios sin muestra (\ref{sec:met_sin_muestra}) \\
 Extrapolación y calidad reportada & \ref{eq:hnew} & Municipios sin muestra (\ref{sec:met_sin_muestra}) \\
-Benchmarking y RMSE con benchmarking & \ref{eq:benchmarking}, \ref{eq:ecm_bm_completo}, \ref{eq:rmse_bm} & Benchmarking (\ref{sec:met_benchmarking}) \\
+Benchmarking y RMSE con benchmarking & \ref{eq:benchmarking}, \ref{eq:td_agregada}, \ref{eq:ecm_bm_completo}, \ref{eq:rmse_bm} & Benchmarking (\ref{sec:met_benchmarking}) \\
 Índice de Moran sobre las estimaciones & \ref{eq:moran} & Patrones espaciales (\ref{sec:met_patrones}) \\
 \bottomrule
 \end{tabularx}
