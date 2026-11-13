@@ -213,7 +213,7 @@ La Figura~\ref{fig:res_respuesta} resume la tasa directa y su precisión. La tas
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{img/desc_respuesta_precision.png}
-\caption{Distribución de la tasa directa, de su error estándar y de su CV en los 23 dominios, y relación entre la tasa y su error estándar. CV: coeficiente de variación. Fuente: tabla de estimación directa.}
+\caption{Distribución de la tasa directa (arriba) y de su error estándar en puntos porcentuales (abajo) en los 23 dominios, 2018: histograma con la media y la mediana (izquierda) y diagrama de caja (derecha). Fuente: tabla de estimación directa.}
 \label{fig:res_respuesta}
 \end{figure}
 
@@ -260,7 +260,7 @@ En el plano multivariado, seis pares de candidatas tienen $|r| \geq 0.80$: los d
 
 La Tabla~\ref{tab:res_seleccion} muestra el recorrido de cada candidata por los cinco pasos. De las 18, tres tuvieron un valor $q$ de Benjamini-Hochberg menor o igual a 0.10 en el Fay-Herriot univariado, las tres con $q = 0.079$: la tasa de homicidios, la cobertura de acueducto y la cobertura neta en educación media. Con la cota de $\lfloor 23/10 \rfloor = 2$ covariables entraron las dos de mayor $|r_w|$: la tasa de homicidios ($r_w = 0.516$) y la cobertura de acueducto ($r_w = -0.486$). Su VIF es 1.98, por debajo de 5, y exigir el signo esperado no cambió el conjunto.
 
-El umbral de 0.10 decidió si el modelo tenía covariables. Con $q \leq 0.05$ ninguna candidata fue elegible, porque el menor valor observado fue 0.079, y la selección habría terminado en el modelo de solo intercepto. Con $q \leq 0.15$ fueron elegibles diez candidatas, pero la cota de dos covariables y el orden por $|r_w|$ dejaron el mismo conjunto: la tasa de homicidios y la cobertura de acueducto (tabla de sensibilidad del umbral $q$ de la selección de covariables).
+El umbral de 0.10 decidió si el modelo tenía covariables. Con $q \leq 0.05$ ninguna candidata fue elegible, porque el menor valor observado fue 0.079, y la selección habría terminado en el modelo de solo intercepto. Con $q \leq 0.15$ fueron elegibles diez candidatas, pero la cota de dos covariables y el orden por $|r_w|$ dejaron el mismo conjunto: la tasa de homicidios y la cobertura de acueducto.
 
 \begin{table}[!htbp]
 \centering
@@ -313,7 +313,7 @@ La Tabla~\ref{tab:res_especificaciones} compara las cuatro especificaciones. En 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Especificaciones candidatas del modelo base Fay-Herriot clásico. $p$: valor $p$ máximo de las covariables; $\hat{\sigma}_u^2$ en puntos porcentuales al cuadrado; AIC: criterio de información de Akaike y AICc: su corrección para muestras pequeñas, ambos por máxima verosimilitud (ML, Ecuación~\ref{eq:aic}); RMSE: raíz del error cuadrático medio de la estimación de cada dominio retirado, con las covariables fijas (descriptiva). La especificación elegida está marcada con *.}
+\caption{Especificaciones candidatas del modelo base Fay-Herriot clásico. $p$: valor $p$ máximo de las covariables; $\hat{\sigma}_u^2$ en puntos porcentuales al cuadrado; $R^2 = 1 - \sum_d(\hat{\theta}_d - \mathbf{x}_d^\top\hat{\boldsymbol{\beta}})^2 / \sum_d(\hat{\theta}_d - \bar{\theta})^2$, sin ponderar, con $\bar{\theta}$ el promedio de las 23 tasas directas: describe cuánto de la variación entre dominios recoge el componente sintético y no interviene en la selección; AIC: criterio de información de Akaike y AICc: su corrección para muestras pequeñas, ambos por máxima verosimilitud (ML, Ecuación~\ref{eq:aic}); RMSE: raíz del error cuadrático medio de la estimación de cada dominio retirado, con las covariables fijas (descriptiva). La especificación elegida está marcada con *.}
 \label{tab:res_especificaciones}
 \begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{l l r r r r r r r}
@@ -478,7 +478,7 @@ MAE & 2.13 & 2.91 & 2.23 \\
 Sesgo medio & $-0.07$ & $-0.41$ & $-0.01$ \\
 RMSE corregida por ruido & 2.51 & 3.42 & 2.76 \\
 $Z_{\text{pred}}$: media y desviación & $-0.02$; 1.05 & $-0.17$; 1.44 & $-0.02$; 1.07 \\
-Cobertura (\%) & 100.00 & 86.96 & 95.65 \\
+Cobertura: dominios y \% & 23 de 23 (100.00) & 20 de 23 (86.96) & 22 de 23 (95.65) \\
 Habilidad frente al nulo & 0.17 & $-0.54$ & no aplica \\
 \bottomrule
 \end{tabular}
@@ -487,7 +487,7 @@ Habilidad frente al nulo & 0.17 & $-0.54$ & no aplica \\
 
 Con las covariables fijas, la tasa de homicidios redujo la RMSE del modelo de solo intercepto de 2.77 a 2.52 puntos porcentuales, un 9~\%, lo que equivale a una habilidad de 0.17. Ese ejercicio es optimista, porque la covariable se eligió viendo a todos los dominios. Cuando la selección se repitió en cada iteración, la RMSE subió a 3.43, por encima de la del modelo de solo intercepto, y la habilidad pasó a $-0.54$: el procedimiento completo estimó peor que el promedio de los dominios. La diferencia entre 2.52 y 3.43 es el costo de seleccionar y estimar con los mismos 23 dominios. Frente al error dentro de muestra (2.27), la validación con covariables fijas lo infló 1.11 veces y el procedimiento completo, 1.52.
 
-La inestabilidad de la selección explica ese costo. El procedimiento reprodujo el benchmark en 14 de las 23 iteraciones y produjo 6 conjuntos distintos; la tasa de homicidios entró al benchmark en el 69.57~\% de las iteraciones y la cobertura de acueducto, en el 8.70~\% (Tabla~\ref{tab:res_frecuencia} del Apéndice~\ref{app:resultados}). Sin Florencia, Quibdó, Riohacha o Pasto no quedó ninguna covariable elegible y se usó solo el intercepto; sin Bogotá entraron los ingresos tributarios per cápita, sin Neiva el valor agregado de actividades primarias y sin Armenia la cobertura neta en educación media. En tres dominios el error estandarizado superó 1.96 en valor absoluto: Armenia ($-3.17$), Quibdó ($-2.66$) y Cúcuta A.M. ($-2.15$). Los errores por dominio y la figura de los dos ejercicios están en el Apéndice~\ref{app:validacion}.
+La inestabilidad de la selección explica ese costo. El procedimiento reprodujo el benchmark en 14 de las 23 iteraciones y produjo 6 conjuntos distintos; la tasa de homicidios entró al benchmark en el 69.57~\% de las iteraciones y la cobertura de acueducto, en el 8.70~\% (Tabla~\ref{tab:res_frecuencia} del Apéndice~\ref{app:resultados}). Sin Florencia, Quibdó, Riohacha o Pasto no quedó ninguna covariable elegible y se usó solo el intercepto; sin Bogotá entraron los ingresos tributarios per cápita, sin Neiva el valor agregado de actividades primarias y sin Armenia la cobertura neta en educación media. En tres dominios el error estandarizado superó 1.96 en valor absoluto: Armenia ($-3.17$), Quibdó ($-2.66$) y Cúcuta A.M. ($-2.15$). Por eso la cobertura del procedimiento completo es de 20 de 23 dominios (86.96~\%), por debajo del 95~\% nominal; se lee junto con la desviación de 1.44 de $Z_{\text{pred}}$, que indica intervalos algo estrechos. Con 23 dominios, un dominio más o menos mueve la cobertura en 4.35 puntos, y los 23 retiros no son réplicas independientes, porque cada ajuste comparte 21 de sus 22 dominios con cualquier otro; la cifra es indicativa. Los errores por dominio y la figura de los dos ejercicios están en el Apéndice~\ref{app:validacion}.
 
 %--------------------------------------------------------------------------------------
 \section{Modelo Fay-Herriot espacial y comparación con el benchmark}
@@ -550,14 +550,14 @@ La Tabla~\ref{tab:res_comparacion} completa la comparación controlada con la in
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Comparación controlada entre el benchmark (EBLUP y estimación sintética) y el escenario espacial de referencia (SEBLUP y predictor espacial). Diferencias = espacial $-$ clásico, en puntos porcentuales; CV: coeficiente de variación, con las clases de 5 y 20~\%; ECM: error cuadrático medio; EE: error estándar. Fuente: tablas del SEBLUP de los dominios y de diferencias entre estimaciones del cuaderno espacial, y tabla de coeficientes comparados.}
+\caption{Comparación controlada entre el benchmark (EBLUP y estimación sintética) y el escenario espacial de referencia (SEBLUP y predictor espacial). Diferencias = espacial $-$ clásico, en puntos porcentuales; CV: coeficiente de variación, con las clases de 5 y 20~\%; ECM: error cuadrático medio, en puntos porcentuales al cuadrado (pp$^2$); EE: error estándar. Fuente: tablas del SEBLUP de los dominios y de diferencias entre estimaciones del cuaderno espacial, y tabla de coeficientes comparados.}
 \label{tab:res_comparacion}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X >{\raggedleft\arraybackslash}p{3.3cm} >{\raggedleft\arraybackslash}p{3.3cm}}
 \toprule
 Elemento & 23 dominios & 83 municipios \\
 \midrule
 CV mediano: clásico y espacial (\%) & 2.60 y 2.60 & 19.49 y 19.87 \\
-ECM medio: clásico y espacial & 0.090 y 0.091 & no aplica \\
+ECM medio: clásico y espacial (pp$^2$) & 0.090 y 0.091 & no aplica \\
 Peso de la directa: $\hat{\gamma}_d$ y $\hat{\gamma}^S_d$ (medias) & 0.984 y 0.982 & no aplica \\
 Diferencia media & 0.00 & $-0.03$ \\
 Diferencia absoluta media & 0.01 & 0.22 \\
