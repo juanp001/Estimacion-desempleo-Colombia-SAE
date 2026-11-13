@@ -85,6 +85,60 @@ def flecha(ax, p, q, discontinua=False):
     )
 
 
+def texto_ajustado(ax, x, y, texto, ancho, alto, tamanos, margen=0.06, dibujar=True):
+    """Escribe el texto centrado en una caja con el primer tamaño de letra que quepa (M11).
+
+    Para cada tamaño de `tamanos` prueba anchos de corte de línea de mayor a menor y se queda
+    con la primera combinación cuyo recuadro medido cabe en la caja menos el margen. El número
+    de la etapa va pegado a la primera palabra, para que no quede solo en un renglón.
+
+    Args:
+        ax (matplotlib.axes.Axes): eje de destino, en pulgadas (los límites del eje coinciden
+            con el tamaño de la figura).
+        x (float): centro horizontal de la caja.
+        y (float): centro vertical de la caja.
+        texto (str): texto completo de la etapa, que empieza por «N. ».
+        ancho (float): ancho de la caja, en pulgadas.
+        alto (float): alto de la caja, en pulgadas.
+        tamanos (iterable[float]): tamaños de letra a probar, de mayor a menor.
+        margen (float): espacio libre a cada lado, en pulgadas.
+        dibujar (bool): si es False, solo mide y borra el texto (para elegir un tamaño común).
+
+    Returns:
+        float | None: el tamaño de letra usado, o None si ninguno cabe.
+
+    Ejemplo:
+        >>> texto_ajustado(ax, 1.0, 1.0, "4. Definición", 1.17, 1.12, [8, 7.5])  # doctest: +SKIP
+        8
+    """
+    renderer = ax.figure.canvas.get_renderer()
+    a_pulgadas = ax.transData.inverted()
+    # «N.» y la primera palabra se unen con un marcador que textwrap no corta; si juntos no
+    # caben a lo ancho (p. ej. «15. Benchmarking»), se permite cortar después del número.
+    variantes = (texto.replace(". ", ".\u2063", 1), texto)
+    for tamano in tamanos:
+        for variante, corte in ((v, c) for v in variantes for c in range(22, 9, -1)):
+            lineas = textwrap.wrap(variante, corte, break_on_hyphens=False, break_long_words=False)
+            lineas = [linea.replace("un- ", "un-").replace("\u2063", " ") for linea in lineas]
+            t = ax.text(
+                x,
+                y,
+                "\n".join(lineas),
+                ha="center",
+                va="center",
+                fontsize=tamano,
+                linespacing=1.15,
+            )
+            e = t.get_window_extent(renderer)
+            (x0, y0), (x1, y1) = a_pulgadas.transform([(e.x0, e.y0), (e.x1, e.y1)])
+            if (x1 - x0) <= ancho - 2 * margen and (y1 - y0) <= alto - 2 * margen:
+                if not dibujar:
+                    t.remove()
+                return tamano
+            t.remove()
+    return None
+
+
 def main():
     """Dibuja el diagrama y lo guarda en PNG y PDF.
 
@@ -128,11 +182,23 @@ def main():
             texto = f"{k + 1}. " + titulos[k]
             # El nombre del procedimiento se parte solo después de «dejar-un-».
             texto = texto.replace("dejar-un-dominio-fuera", "dejar-un- dominio-fuera")
-            lineas = textwrap.wrap(texto, 15, break_on_hyphens=False, break_long_words=False)
-            lineas = [linea.replace("un- ", "un-") for linea in lineas]
-            ax.text(x, y, "\n".join(lineas), ha="center", va="center", fontsize=8, linespacing=1.15)
-            fila.append((x, y))
+            fila.append((x, y, texto))
         centros.append(fila)
+
+    # Un solo tamaño de letra para las 16 cajas: el mayor con el que caben todas (M11).
+    tamanos = (8, 7.75, 7.5, 7.25, 7, 6.75, 6.5)
+    medidos = [
+        texto_ajustado(ax, x, y, t, ancho, alto, tamanos, dibujar=False)
+        for fila in centros
+        for x, y, t in fila
+    ]
+    if None in medidos:
+        raise ValueError("Alguna etapa no cabe en su caja ni con la letra más pequeña")
+    comun = min(medidos)
+    for fila in centros:
+        for x, y, t in fila:
+            texto_ajustado(ax, x, y, t, ancho, alto, [comun])
+    centros = [[(x, y) for x, y, _ in fila] for fila in centros]
 
     sep = paso_x - ancho
     for fila in centros:

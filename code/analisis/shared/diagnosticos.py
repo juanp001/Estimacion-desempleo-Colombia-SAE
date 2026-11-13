@@ -676,7 +676,7 @@ def figura_robustez(
     unido = influencia.merge(estabilidad, on="Codigo", suffixes=("", "_loo"))
     umbral_cook = float(unido["Umbral"].iloc[0])
 
-    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 5.2))
+    fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 6.4))
     descartadas = (unido["Cook_max"] > umbral_cook) & (
         (unido["Delta_max_abs"] > umbral_delta) | (unido["Invierte_signo"] != "—")
     )
@@ -717,14 +717,24 @@ def figura_robustez(
     ax.set_xlabel("Distancia de Cook máxima")
     ax.set_ylabel("Cambio máximo en la correlación al excluir un dominio")
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2)
-    # D-10 y D-12: nombre del documento y etiquetas que no se superponen.
+    # Margen para que las etiquetas de los extremos quepan dentro del marco.
+    x0, x1 = ax.get_xlim()
+    y0, y1 = ax.get_ylim()
+    ax.set_xlim(x0 - 0.04 * (x1 - x0), x1 + 0.04 * (x1 - x0))
+    ax.set_ylim(y0 - 0.04 * (y1 - y0), y1 + 0.06 * (y1 - y0))
+    # El diseño se fija antes de colocar las etiquetas, para que su posición sea la final.
+    fig.tight_layout()
+    # D-10 y D-12 (M12): nombre del documento y etiquetas que no se superponen entre sí ni con
+    # las líneas de los dos umbrales.
     etiquetar_puntos(
         ax,
         unido["Cook_max"].to_numpy(),
         unido["Delta_max_abs"].to_numpy(),
         [nombre_legible(a) for a in unido["Alias"]],
+        tamano=7,
+        lineas_h=[umbral_delta],
+        lineas_v=[umbral_cook],
     )
-    plt.tight_layout()
     return fig
 
 

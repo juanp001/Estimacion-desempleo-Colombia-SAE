@@ -503,7 +503,7 @@ La hipótesis $\rho = 0$ se prueba con la prueba de razón de verosimilitudes (L
     \label{eq:lrt}
 \end{equation}
 
-y el modelo espacial se prefiere solo si $p < 0.05$ en la estructura «muestra». Como el espacial tiene un parámetro más, $\Delta\text{AIC} = \text{AIC}_{\text{clásico}} - \text{AIC}_{\text{espacial}} = \text{LRT} - 2$: es el mismo estadístico y se reporta como descripción, no como un segundo criterio. El perfil de verosimilitud, $\ell(\rho)$ maximizada en los demás parámetros para una grilla de $\rho$, muestra si los datos informan sobre $\rho$ o si la verosimilitud es plana.
+y el modelo espacial se prefiere solo si $p < 0.05$ en la estructura «muestra». Como el espacial tiene un parámetro más, $\Delta\text{AIC} = \text{AIC}_{\text{clásico}} - \text{AIC}_{\text{espacial}} = \text{LRT} - 2$: es el mismo estadístico y se reporta como descripción, no como un segundo criterio. El perfil de verosimilitud, $\ell(\rho)$ maximizada en los demás parámetros para una grilla de $\rho$, muestra si los datos informan sobre $\rho$ o si la verosimilitud es plana. Mientras el LRT usa la verosimilitud ML, el perfil se calcula con la verosimilitud REML, la misma con la que se estiman $\hat{\sigma}_u^2$ y $\hat{\rho}$. Su intervalo del 95~\% reúne los $\rho$ cuya log-verosimilitud queda a menos de $\chi^2_{1;0.95}/2 = 1.92$ del máximo del perfil, no de su valor en $\rho = 0$. Con 23 dominios, esa calibración asintótica es aproximada.
 
 \subsubsection{SEBLUP y predictor espacial}
 

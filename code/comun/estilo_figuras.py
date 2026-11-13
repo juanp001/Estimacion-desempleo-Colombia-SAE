@@ -152,11 +152,23 @@ def guardar(fig, ruta: str) -> str:
     return ruta
 
 
-def etiquetar_puntos(ax, xs, ys, etiquetas, tamano: int = 8, color: str = GRIS_OSCURO):
+def etiquetar_puntos(
+    ax,
+    xs,
+    ys,
+    etiquetas,
+    tamano: int = 8,
+    color: str = GRIS_OSCURO,
+    lineas_h=(),
+    lineas_v=(),
+    obstaculos_ejes=(),
+    radio_punto: float = 6.0,
+):
     """Anota puntos de un diagrama de dispersión evitando que los textos se superpongan.
 
     Prueba, para cada etiqueta, varias posiciones alrededor del punto y elige la primera cuyo
-    recuadro no choca con los ya colocados. Si ninguna queda libre, usa la de menor
+    recuadro no choca con los ya colocados, con los puntos, con las líneas de referencia
+    indicadas ni con los recuadros reservados. Si ninguna queda libre, usa la de menor
     superposición.
 
     Args:
@@ -166,6 +178,13 @@ def etiquetar_puntos(ax, xs, ys, etiquetas, tamano: int = 8, color: str = GRIS_O
         etiquetas (array-like): Texto de cada punto.
         tamano (int): Tamaño de letra de las etiquetas, en puntos.
         color (str): Color del texto.
+        lineas_h (iterable[float]): Valores y de líneas horizontales de referencia (umbrales)
+            que el texto no debe tapar.
+        lineas_v (iterable[float]): Valores x de líneas verticales de referencia.
+        obstaculos_ejes (iterable[tuple]): Recuadros reservados en coordenadas de ejes
+            (x0, y0, x1, y1, entre 0 y 1), por ejemplo la zona de una leyenda.
+        radio_punto (float): Medio lado, en píxeles, del cuadrado que protege cada punto;
+            conviene subirlo con marcadores grandes.
 
     Returns:
         list: Los objetos `matplotlib.text.Annotation` creados.
@@ -196,6 +215,14 @@ def etiquetar_puntos(ax, xs, ys, etiquetas, tamano: int = 8, color: str = GRIS_O
         (5, -14, "left", "top"),
         (-5, 14, "right", "bottom"),
     ]
+    # Posiciones lejanas en ocho direcciones y tres distancias, con línea guía, para las
+    # zonas con muchos puntos (M12).
+    for r in (26, 42, 60):
+        for ang in range(0, 360, 45):
+            cx, cy = np.cos(np.radians(ang)), np.sin(np.radians(ang))
+            ha = "left" if cx > 0.3 else ("right" if cx < -0.3 else "center")
+            va = "bottom" if cy > 0.3 else ("top" if cy < -0.3 else "center")
+            desplazamientos.append((round(r * cx), round(r * cy), ha, va))
 
     def _solape(a, b) -> float:
         """Área de la intersección de dos recuadros en píxeles."""
@@ -205,10 +232,23 @@ def etiquetar_puntos(ax, xs, ys, etiquetas, tamano: int = 8, color: str = GRIS_O
 
     # Obstáculos: los propios puntos (un cuadrado de ~6 px alrededor de cada uno).
     pixeles = ax.transData.transform(np.column_stack([xs, ys]).astype(float))
-    radio = 6.0
+    radio = float(radio_punto)
     puntos = [(px - radio, py - radio, px + radio, py + radio) for px, py in pixeles]
     marco = ax.get_window_extent(renderer)
     area_marco = (marco.x0, marco.y0, marco.x1, marco.y1)
+    # Líneas de referencia como franjas de ~3 px y recuadros reservados, en píxeles. Pesan
+    # más que un choque con otro texto: una etiqueta cruzada por un umbral se lee mal.
+    franja, peso_linea = 3.0, 25.0
+    fijos = []
+    for yv in lineas_h:
+        py = ax.transData.transform((ax.get_xlim()[0], yv))[1]
+        fijos.append((marco.x0, py - franja, marco.x1, py + franja))
+    for xv in lineas_v:
+        px = ax.transData.transform((xv, ax.get_ylim()[0]))[0]
+        fijos.append((px - franja, marco.y0, px + franja, marco.y1))
+    for x0, y0, x1, y1 in obstaculos_ejes:
+        (a0, b0), (a1, b1) = ax.transAxes.transform([(x0, y0), (x1, y1)])
+        fijos.append((a0, b0, a1, b1))
 
     colocadas, cajas = [], []
     for i, (x, y, texto) in enumerate(zip(xs, ys, etiquetas)):
@@ -224,6 +264,11 @@ def etiquetar_puntos(ax, xs, ys, etiquetas, tamano: int = 8, color: str = GRIS_O
                 va=va,
                 fontsize=tamano,
                 color=color,
+                arrowprops=(
+                    dict(arrowstyle="-", color=GRIS, lw=0.5, shrinkA=0, shrinkB=3)
+                    if np.hypot(dx, dy) >= 20
+                    else None
+                ),
             )
             e = anotacion.get_window_extent(renderer)
             caja = (e.x0, e.y0, e.x1, e.y1)
@@ -232,6 +277,7 @@ def etiquetar_puntos(ax, xs, ys, etiquetas, tamano: int = 8, color: str = GRIS_O
             choque = (
                 sum(_solape(caja, c) for c in cajas)
                 + sum(_solape(caja, p) for p in otros_puntos)
+                + peso_linea * sum(_solape(caja, f) for f in fijos)
                 + 2 * (area - _solape(caja, area_marco))
             )
             if mejor is None or choque < mejor_choque:

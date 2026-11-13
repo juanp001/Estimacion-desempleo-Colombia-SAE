@@ -16,6 +16,7 @@ from comun.estilo_figuras import (
     GRIS,
     GRIS_OSCURO,
     PALETA,
+    etiquetar_puntos,
 )
 from shared.config import ETIQUETA_ESCENARIO_W
 
@@ -30,12 +31,19 @@ def figura_perfil_rho(perfiles: dict) -> plt.Figure:
     de vecinos más cercanos en azul y los de distancia inversa en naranja, con trazo continuo
     o discontinuo según el parámetro.
 
+    El intervalo de verosimilitud perfilada del 95 % de cada escenario son los ρ cuya
+    log-verosimilitud queda a menos de 1.92 (= χ²₁;0.95 / 2) de su propio máximo. Por eso cada
+    curva lleva su segmento horizontal grueso a la altura máx − 1.92, entre los extremos de su
+    intervalo (la misma regla que `resumen_perfil` en el notebook). No se dibuja una línea
+    común en −1.92: el eje mide la diferencia frente a ρ = 0, no frente al máximo (M1).
+
     Args:
         perfiles (dict[str, pd.DataFrame]): Nombre del escenario → salida de
             `FayHerriotEspacial.perfil_rho` (columnas `rho` y `delta_vs_rho0`).
 
     Returns:
-        plt.Figure: Figura con el cambio de log-verosimilitud frente a ρ = 0.
+        plt.Figure: Figura con el cambio de log-verosimilitud frente a ρ = 0 y el intervalo
+            del 95 % de cada escenario.
 
     Example:
         >>> fig = figura_perfil_rho({"knn3": modelo.perfil_rho()})  # doctest: +SKIP
@@ -55,8 +63,18 @@ def figura_perfil_rho(perfiles: dict) -> plt.Figure:
             linestyle=estilo,
             label=ETIQUETA_ESCENARIO_W.get(nombre, nombre),
         )
+        corte = perfil["delta_vs_rho0"].max() - 1.92
+        dentro = perfil.loc[perfil["delta_vs_rho0"] >= corte, "rho"]
+        ax.hlines(
+            corte,
+            dentro.min(),
+            dentro.max(),
+            color=PALETA[familia],
+            lw=3,
+            alpha=0.45,
+        )
+    ax.plot([], [], color=GRIS, lw=3, alpha=0.45, label="Intervalo del 95 % (máx − 1.92)")
     ax.axhline(0, color=GRIS, lw=0.8)
-    ax.axhline(-1.92, color=GRIS, lw=0.8, ls="--")
     ax.set_xlabel("ρ")
     ax.set_ylabel("Log-verosimilitud REML − valor en ρ = 0")
     ax.legend()
@@ -185,33 +203,43 @@ def figura_mapa_residuos(dominios: pd.DataFrame, residuos: dict) -> plt.Figure:
     """
     limite = max(float(np.abs(np.asarray(r)).max()) for r in residuos.values())
     fig, ejes = plt.subplots(
-        1, len(residuos), figsize=(min(ANCHO_FIGURA, 3.4 * len(residuos) + 0.8), 4.6)
+        1,
+        len(residuos),
+        figsize=(ANCHO_FIGURA, 5.0),
+        sharey=True,
+        layout="constrained",
     )
     ejes = np.atleast_1d(ejes)
+    # Margen alrededor de los puntos para que las etiquetas quepan dentro de cada panel (M10).
+    lon, lat = dominios["LONGITUD"].to_numpy(), dominios["LATITUD"].to_numpy()
     for ax, (etiqueta, valores) in zip(ejes, residuos.items()):
         sc = ax.scatter(
-            dominios["LONGITUD"],
-            dominios["LATITUD"],
+            lon,
+            lat,
             c=np.asarray(valores),
-            s=70,
+            s=55,
             cmap=CMAP_DIVERGENTE,
             vmin=-limite,
             vmax=limite,
             edgecolor=GRIS_OSCURO,
         )
-        for nombre, lon, lat, v in zip(
-            dominios["NOMBRE"], dominios["LONGITUD"], dominios["LATITUD"], valores
-        ):
-            if abs(v) >= 1.0:
-                ax.annotate(
-                    nombre,
-                    (lon, lat),
-                    fontsize=8,
-                    xytext=(4, 4),
-                    textcoords="offset points",
-                )
+        ax.set_xlim(lon.min() - 1.6, lon.max() + 1.6)
+        ax.set_ylim(lat.min() - 0.8, lat.max() + 1.2)
         ax.set_xlabel("Longitud")
-        ax.text(0.03, 0.96, etiqueta, transform=ax.transAxes, va="top")
+        # Rótulo del panel encima del marco, fuera del área de datos.
+        ax.text(0.0, 1.02, etiqueta, transform=ax.transAxes, va="bottom", ha="left")
     ejes[0].set_ylabel("Latitud")
     fig.colorbar(sc, ax=list(ejes), label="Residuo estandarizado", shrink=0.8)
+    # Las etiquetas se colocan después de fijar la barra de color, cuando el tamaño de cada
+    # panel ya es el final, con la colocación sin superposición del estilo común.
+    for ax, valores in zip(ejes, residuos.values()):
+        marca = np.abs(np.asarray(valores)) >= 1.0
+        etiquetar_puntos(
+            ax,
+            lon[marca],
+            lat[marca],
+            dominios["NOMBRE"].to_numpy()[marca],
+            tamano=7,
+            radio_punto=8,
+        )
     return fig

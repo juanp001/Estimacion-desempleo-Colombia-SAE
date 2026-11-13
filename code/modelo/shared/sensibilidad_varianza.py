@@ -46,8 +46,8 @@ from scipy import stats
 from comun.estilo_figuras import (
     ANCHO_FIGURA,
     GRIS,
-    GRIS_OSCURO,
     PALETA,
+    etiquetar_puntos,
     tonos_azules,
 )
 from shared.benchmarking import factor_razon, promedio_ponderado
@@ -195,32 +195,33 @@ def figura_gvf(psi, ajustes: list, nombres_dominio):
     psi = np.asarray(psi, dtype=float)
     nombres = np.asarray(nombres_dominio)
     colores = PALETA
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(ANCHO_FIGURA, 3.6))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(ANCHO_FIGURA, 4.0))
     lim = [psi.min() * 0.85, psi.max() * 1.15]
     ax1.plot(lim, lim, color=GRIS, lw=1, ls="--")
+    xs_et, ys_et, textos = [], [], []
     for g, c in zip(ajustes, colores):
         ax1.scatter(psi, g["psi_delta"], s=22, color=c, label=f"GVF {g['forma']}")
-        ax2.scatter(
-            g["ajustado"], g["residuos"], s=22, color=c, label=f"GVF {g['forma']}"
-        )
+        ax2.scatter(g["ajustado"], g["residuos"], s=22, color=c)
         umbral = 2 * np.sqrt(g["sigma2"])
         for i in np.where(np.abs(g["residuos"]) > umbral)[0]:
-            ax2.annotate(
-                nombres[i],
-                (g["ajustado"][i], g["residuos"][i]),
-                fontsize=8,
-                color=GRIS_OSCURO,
-                xytext=(3, 3),
-                textcoords="offset points",
-            )
+            xs_et.append(g["ajustado"][i])
+            ys_et.append(g["residuos"][i])
+            textos.append(nombres[i])
     ax1.set_xlabel(r"$\psi_d$ observada (bootstrap por viviendas, %²)")
     ax1.set_ylabel(r"$\psi_d$ estimada por la GVF (%²)")
-    ax1.legend()
     ax2.axhline(0, color=GRIS, lw=1, ls="--")
     ax2.set_xlabel(r"log $\psi_d$ ajustado")
     ax2.set_ylabel(r"Residuo de log $\psi_d$")
-    ax2.legend()
-    fig.tight_layout()
+    # M13: una sola leyenda, debajo de los dos paneles, para que no tape ningún punto.
+    fig.legend(
+        *ax1.get_legend_handles_labels(),
+        loc="lower center",
+        ncol=len(ajustes),
+        bbox_to_anchor=(0.5, 0.0),
+    )
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
+    if textos:
+        etiquetar_puntos(ax2, xs_et, ys_et, textos, lineas_h=[0.0])
     return fig
 
 

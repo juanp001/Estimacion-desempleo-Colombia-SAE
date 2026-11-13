@@ -518,7 +518,7 @@ Otras seis: máximo & 5.631 & 0.891 & 110.901 & $-1.201$ & 0.799 & 0.960 & 2.86 
 \end{adjustbox}
 \end{table}
 
-Ninguna de las ocho especificaciones espaciales cumplió el criterio. En la estructura «muestra» del escenario de referencia, $\hat{\rho} = 0.234$ y $p(\text{LRT}) = 0.565$; en todas, $p \geq 0.221$, y el AIC del espacial fue mayor que el del clásico, lo que corresponde a $\text{LRT} < 2$. El perfil de verosimilitud del escenario de referencia es plano: su intervalo del 95~\% para $\rho$ va de $-0.15$ a 0.75 (Figura~\ref{fig:app_perfil_rho}). Los $\hat{\rho}$ de la estructura «completa» llegaron hasta 0.891 con distancia inversa de potencia 1, pero cambiaron según los municipios que se incluyeron como nodos (0.398 con solo los del Valle y 0.262 con solo los del Cauca, con 3 vecinos), por lo que no se interpretan. Ubicar el nodo de cada área metropolitana en la media de sus municipios cambió $\hat{\rho}$ como máximo en 0.131 y ningún $p$ bajó de 0.354. Con este resultado, por la regla fijada de antemano, el modelo preferido es el benchmark clásico y el espacial queda como análisis de sensibilidad; el alcance de esa preferencia para los municipios se discute con la validación predictiva (Sección~\ref{sec:conclusion}).
+Ninguna de las ocho especificaciones espaciales cumplió el criterio. En la estructura «muestra» del escenario de referencia, $\hat{\rho} = 0.234$ y $p(\text{LRT}) = 0.565$; en todas, $p \geq 0.221$, y el AIC del espacial fue mayor que el del clásico, lo que corresponde a $\text{LRT} < 2$. El perfil de verosimilitud REML del escenario de referencia es plano: su intervalo del 95~\% para $\rho$, los valores a menos de 1.92 de su máximo, va de $-0.15$ a 0.75 (Figura~\ref{fig:app_perfil_rho}). Los $\hat{\rho}$ de la estructura «completa» llegaron hasta 0.891 con distancia inversa de potencia 1, pero cambiaron según los municipios que se incluyeron como nodos (0.398 con solo los del Valle y 0.262 con solo los del Cauca, con 3 vecinos), por lo que no se interpretan. Ubicar el nodo de cada área metropolitana en la media de sus municipios cambió $\hat{\rho}$ como máximo en 0.131 y ningún $p$ bajó de 0.354. Con este resultado, por la regla fijada de antemano, el modelo preferido es el benchmark clásico y el espacial queda como análisis de sensibilidad; el alcance de esa preferencia para los municipios se discute con la validación predictiva (Sección~\ref{sec:conclusion}).
 
 La Tabla~\ref{tab:res_moran} compara el I de Moran de los residuos estandarizados del clásico con el de los residuos del SEBLUP. Ningún índice resultó significativo; los del clásico van de $-0.023$ a 0.093 y los del espacial, de $-0.115$ a $-0.038$. La tasa directa tampoco mostró autocorrelación (I entre $-0.028$ y 0.003). La Figura~\ref{fig:res_mapa_residuos} muestra los residuos sobre el mapa: los dominios con residuos del mismo signo no se agrupan, y los mayores (Cúcuta A.M. y Valledupar, positivos; Barranquilla A.M. y Cartagena, negativos) quedan en regiones distintas.
 
@@ -578,7 +578,7 @@ En los dominios, las dos estimaciones resultaron prácticamente iguales: la mayo
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{img/res_espacial_estimaciones.png}
-\caption{Izquierda: estimación clásica frente a espacial en los 23 dominios (EBLUP y SEBLUP) y en los 83 municipios (sintética y espacial). Derecha: diferencia en los municipios según la distancia al dominio con encuesta más cercano; se nombran los que difieren más de 0.5 puntos porcentuales. EBLUP: mejor predictor lineal insesgado empírico; SEBLUP: EBLUP espacial. Fuente: tabla de estimaciones de los municipios objetivo y tabla del SEBLUP de los dominios del cuaderno espacial.}
+\caption{Estimaciones de 2018. Izquierda: estimación clásica frente a espacial en los 23 dominios (EBLUP y SEBLUP) y en los 83 municipios (sintética y espacial). Derecha: diferencia en los municipios según la distancia al dominio con encuesta más cercano; se nombran los que difieren más de 0.5 puntos porcentuales. EBLUP: mejor predictor lineal insesgado empírico; SEBLUP: EBLUP espacial. Fuente: tabla de estimaciones de los municipios objetivo y tabla del SEBLUP de los dominios del cuaderno espacial.}
 \label{fig:res_espacial_estimaciones}
 \end{figure}
 
@@ -602,7 +602,7 @@ La Tabla~\ref{tab:res_extrapolacion} resume las estimaciones sintéticas según 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Estimación sintética del benchmark en los 83 municipios, antes del benchmarking, según el estado de extrapolación. Tasas y RMSE (raíz del error cuadrático medio) en puntos porcentuales; CV: coeficiente de variación, en \%. Aporte: parte de la estimación que viene de salirse del rango.}
+\caption{Estimación sintética del benchmark en los 83 municipios, 2018, antes del benchmarking, según el estado de extrapolación. Tasas y RMSE (raíz del error cuadrático medio) en puntos porcentuales; CV: coeficiente de variación, en \%. Aporte: parte de la estimación que viene de salirse del rango.}
 \label{tab:res_extrapolacion}
 \begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{l r r r r r r}
@@ -629,7 +629,7 @@ La Tabla~\ref{tab:res_benchmarking} presenta los dos niveles del benchmarking. E
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Benchmarking en dos niveles (Ecuaciones~\ref{eq:benchmarking} y~\ref{eq:rmse_bm}). Tasas en \%; CV: coeficiente de variación, en \%, antes y después del ajuste.}
+\caption{Benchmarking en dos niveles de las estimaciones de 2018 (Ecuaciones~\ref{eq:benchmarking} y~\ref{eq:rmse_bm}). Tasas estimadas, en \%; CV: coeficiente de variación, en \%, antes y después del ajuste.}
 \label{tab:res_benchmarking}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}X r r r r}
 \toprule
@@ -653,7 +653,7 @@ La Tabla~\ref{tab:res_calidad} cuenta la calidad reportada de los municipios. En
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Calidad reportada de los 83 municipios en la tabla final, tras el benchmarking. La clase (aceptable o no confiable) sale del CV con los umbrales de 5 y 20~\%.}
+\caption{Calidad reportada de las estimaciones de 2018 de los 83 municipios en la tabla final, tras el benchmarking; son estimaciones del modelo, no mediciones directas. La clase (aceptable o no confiable) sale del CV con los umbrales de 5 y 20~\%.}
 \label{tab:res_calidad}
 \begin{tabular}{l r r r}
 \toprule
@@ -678,7 +678,7 @@ La Figura~\ref{fig:res_mapa_municipios} muestra las 83 estimaciones finales, su 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth]{img/res_mapa_municipios.png}
-\caption{Municipios objetivo con sus límites del Marco Geoestadístico Nacional 2018. Izquierda: tasa de desempleo estimada en la tabla final. Centro: clase de CV y estado de extrapolación. Derecha: efecto espacial del escenario de referencia (estimación espacial menos sintética). Fuente: tabla final consolidada y tabla de estimaciones de los municipios objetivo del modelo espacial.}
+\caption{Municipios objetivo con sus límites del Marco Geoestadístico Nacional 2018. Izquierda: tasa de desempleo estimada para 2018 en la tabla final (estimación del modelo, no medición directa). Centro: clase de CV y estado de extrapolación. Derecha: efecto espacial del escenario de referencia (estimación espacial menos sintética). Fuente: tabla final consolidada y tabla de estimaciones de los municipios objetivo del modelo espacial.}
 \label{fig:res_mapa_municipios}
 \end{figure}
 
