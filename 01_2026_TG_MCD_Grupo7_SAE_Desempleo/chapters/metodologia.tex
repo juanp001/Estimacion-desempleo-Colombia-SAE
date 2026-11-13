@@ -16,7 +16,7 @@ El procedimiento no tuvo hiperparámetros optimizados por búsqueda, pero sí pa
 
 {\footnotesize\renewcommand{\arraystretch}{1.12}
 \begin{longtable}{>{\raggedright\arraybackslash}p{3.0cm} c >{\raggedright\arraybackslash}p{1.8cm} >{\raggedright\arraybackslash}p{2.2cm} >{\raggedright\arraybackslash}p{3.2cm}}
-\caption[Parámetros fijados de antemano]{Parámetros fijados de antemano: etapa donde se usan, valor usado, valores evaluados como sensibilidad y criterio de la elección. «Convención» indica una regla del trabajo sin una fuente que fije el valor. Siglas: BH, Benjamini-Hochberg; CV, coeficiente de variación; EE, error estándar; VIF, factor de inflación de la varianza; AIC, criterio de información de Akaike; pp, puntos porcentuales.}
+\caption[Parámetros fijados de antemano]{Parámetros fijados de antemano: etapa donde se usan, valor usado, valores evaluados como sensibilidad y criterio de la elección. «Convención» indica una regla del trabajo sin una fuente que fije el valor. BH: Benjamini-Hochberg; CV: coeficiente de variación; EE: error estándar; VIF: factor de inflación de la varianza; AIC: criterio de información de Akaike; pp: puntos porcentuales.}
 \label{tab:met_parametros} \\
 \toprule
 Parámetro & Etapa & Valor usado & Valores evaluados & Criterio \\
@@ -58,7 +58,7 @@ Las cuatro fuentes de la Sección~\ref{sec:datos} se cargaron sin modificar su c
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 1: obtención de los datos]{Ficha de la etapa 1: obtención de los datos. Siglas: GEIH, Gran Encuesta Integrada de Hogares; CNPV, Censo Nacional de Población y Vivienda; DIVIPOLA, División Político-Administrativa de Colombia; DANE, Departamento Administrativo Nacional de Estadística.}
+\caption[Ficha de la etapa 1: obtención de los datos]{Ficha de la etapa 1: obtención de los datos. GEIH: Gran Encuesta Integrada de Hogares; CNPV: Censo Nacional de Población y Vivienda; DIVIPOLA: División Político-Administrativa de Colombia; DANE: Departamento Administrativo Nacional de Estadística.}
 \label{tab:met_obtencion}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -85,7 +85,7 @@ Dos correcciones de esta etapa cambiaron las cifras y por eso se describen. Prim
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 2: limpieza, estandarización y consolidación]{Ficha de la etapa 2: limpieza, estandarización y consolidación. Siglas: GEIH, Gran Encuesta Integrada de Hogares; PET, población en edad de trabajar; PEA, población económicamente activa; PEI, población económicamente inactiva; OC, población ocupada; DS, población desocupada; CNPV, Censo Nacional de Población y Vivienda.}
+\caption[Ficha de la etapa 2: limpieza, estandarización y consolidación]{Ficha de la etapa 2: limpieza, estandarización y consolidación. GEIH: Gran Encuesta Integrada de Hogares; PET: población en edad de trabajar; PEA: población económicamente activa; PEI: población económicamente inactiva; OC: población ocupada; DS: población desocupada; CNPV: Censo Nacional de Población y Vivienda.}
 \label{tab:met_limpieza}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -102,7 +102,7 @@ Salida & Tabla de mercado laboral (capa oro) y tablas de reconciliación \\
 \end{tabularx}
 \end{table}
 
-En TerriData la limpieza normalizó los nombres de departamento y entidad (mayúsculas y sin tildes), unificó el valor numérico y el cualitativo en un solo campo, clasificó cada indicador como numérico si al menos el 95~\% de sus registros es numérico, y pasó la base a formato ancho, con una fila por entidad, año y mes y una columna por indicador. Cuatro comprobaciones (número de filas antes y después, duplicados de la llave, una muestra aleatoria comparada en ambos formatos y el total de valores no nulos) se imprimieron como aprobadas o no, sin detener el proceso. Los indicadores sin ningún valor numérico ni cualitativo en la base larga no generaron columna en el formato ancho.
+En TerriData la limpieza normalizó los nombres de departamento y entidad (mayúsculas y sin tildes), unificó el valor numérico y el cualitativo en un solo campo, clasificó cada indicador como numérico si al menos el 95~\% de sus registros es numérico, y pasó la base a formato ancho, con una fila por entidad, año y mes y una columna por indicador. Cuatro comprobaciones (número de filas antes y después, duplicados de la llave, una muestra aleatoria comparada en ambos formatos y el total de valores no nulos) se imprimieron como aprobadas o no, sin detener el proceso. Los indicadores sin ningún valor numérico ni cualitativo en la base larga no generaron columna en el formato ancho: fueron cinco (tres rendimientos agrícolas y dos indicadores ambientales), de modo que el formato ancho tiene \num{1582} indicadores y, con las seis columnas de identificación, \num{1588} columnas.
 
 %--------------------------------------------------------------------------------------
 \section{Tratamiento de datos faltantes y valores atípicos}
@@ -113,7 +113,7 @@ La Tabla~\ref{tab:met_faltantes} reúne qué se hizo con los faltantes y los at�
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 3: tratamiento de datos faltantes y valores atípicos]{Ficha de la etapa 3: tratamiento de datos faltantes y valores atípicos. Siglas: PET, población en edad de trabajar; PEA, población económicamente activa; OC, población ocupada; DS, población desocupada; PEI, población económicamente inactiva.}
+\caption[Ficha de la etapa 3: tratamiento de datos faltantes y valores atípicos]{Ficha de la etapa 3: tratamiento de datos faltantes y valores atípicos. PET: población en edad de trabajar; PEA: población económicamente activa; OC: población ocupada; DS: población desocupada; PEI: población económicamente inactiva.}
 \label{tab:met_faltantes}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}X}
@@ -142,7 +142,7 @@ El dominio de estimación se definió como la unidad que identifica la GEIH: la 
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 4: definición de los dominios y correspondencia geográfica]{Ficha de la etapa 4: definición de los dominios y correspondencia geográfica. Siglas: GEIH, Gran Encuesta Integrada de Hogares; DIVIPOLA, División Político-Administrativa de Colombia; A.M., área metropolitana.}
+\caption[Ficha de la etapa 4: definición de los dominios y correspondencia geográfica]{Ficha de la etapa 4: definición de los dominios y correspondencia geográfica. GEIH: Gran Encuesta Integrada de Hogares; DIVIPOLA: División Político-Administrativa de Colombia; A.M.: área metropolitana.}
 \label{tab:met_dominios}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -167,7 +167,7 @@ La respuesta del modelo fue la tasa directa de cada dominio en el año 2018, con
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 5: estimación directa]{Ficha de la etapa 5: estimación directa. Siglas: PEA, población económicamente activa; CV, coeficiente de variación; DANE, Departamento Administrativo Nacional de Estadística.}
+\caption[Ficha de la etapa 5: estimación directa]{Ficha de la etapa 5: estimación directa. PEA: población económicamente activa; CV: coeficiente de variación; DANE: Departamento Administrativo Nacional de Estadística.}
 \label{tab:met_directa}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -191,7 +191,7 @@ El bootstrap no reproduce el estrato interno ni el segmento, que no vienen en lo
 \section{Construcción y agregación de las covariables}
 \label{sec:met_covariables}
 
-Las covariables candidatas salieron de un catálogo construido con la revisión de literatura del proyecto: entró un indicador solo si un estudio lo relaciona con el desempleo, y cada entrada declaró el signo esperado de esa relación y su referencia antes de calcular ninguna cifra (Tabla~\ref{tab:met_covariables}). La exigencia de una relación interpretable sigue la recomendación de que las variables auxiliares tengan una explicación acorde con la disciplina que estudia el fenómeno \cite[p.~453]{morales2021smallarea}. Las justificaciones del catálogo hablan de asociación, no de causa. El catálogo completo, con el código de TerriData y la referencia de cada entrada, está en el Apéndice~\ref{app:catalogo}.
+Las covariables candidatas salieron de un catálogo construido con la revisión de literatura del proyecto: entró un indicador solo si la revisión lo vincula con el desempleo, y cada entrada declaró el signo esperado de esa relación y su referencia antes de calcular ninguna cifra. Algunas referencias miden esa relación y otras solo definen el indicador; en estas últimas el signo es una hipótesis del trabajo, y el Apéndice~\ref{app:catalogo} distingue los dos casos (Tabla~\ref{tab:met_covariables}). La exigencia de una relación interpretable sigue la recomendación de que las variables auxiliares tengan una explicación acorde con la disciplina que estudia el fenómeno \cite[p.~453]{morales2021smallarea}. Las justificaciones del catálogo hablan de asociación, no de causa. El catálogo completo, con el código de TerriData y la referencia de cada entrada, está en el Apéndice~\ref{app:catalogo}.
 
 TerriData publica cada indicador por municipio, y un dominio con área metropolitana reúne varios. El valor del dominio se calculó como una razón de totales sobre sus municipios miembro (Ecuación~\ref{eq:agregacion}), con el denominador propio de cada indicador (Tabla~\ref{tab:met_agregacion}). En la columna «Regla», «exacta» indica que el denominador es el del indicador, «proxy» que TerriData no publica ese denominador y se usó uno cercano, y «convención» que el indicador es un índice sin un valor natural para la unión de municipios. En los 16 dominios de un solo municipio el valor es el del municipio.
 
@@ -230,7 +230,7 @@ Los municipios objetivo son los del Cauca y del Valle del Cauca que no forman po
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 6: construcción y agregación de las covariables]{Ficha de la etapa 6: construcción y agregación de las covariables. Siglas: A.M., área metropolitana.}
+\caption[Ficha de la etapa 6: construcción y agregación de las covariables]{Ficha de la etapa 6: construcción y agregación de las covariables. A.M.: área metropolitana.}
 \label{tab:met_covariables}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -259,7 +259,7 @@ El pre-filtrado retiró las candidatas que no se pueden usar, sin mirar su relac
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 7: pre-filtrado de covariables]{Ficha de la etapa 7: pre-filtrado de covariables. Siglas: CV, coeficiente de variación.}
+\caption[Ficha de la etapa 7: pre-filtrado de covariables]{Ficha de la etapa 7: pre-filtrado de covariables. CV: coeficiente de variación.}
 \label{tab:met_prefiltrado}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -286,7 +286,7 @@ El análisis descriptivo caracterizó la tasa directa, su precisión y las candi
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 8: análisis descriptivo]{Ficha de la etapa 8: análisis descriptivo. Siglas: CV, coeficiente de variación.}
+\caption[Ficha de la etapa 8: análisis descriptivo]{Ficha de la etapa 8: análisis descriptivo. CV: coeficiente de variación.}
 \label{tab:met_descriptivo}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -312,7 +312,7 @@ La selección eligió las covariables del modelo en cinco pasos (Tabla~\ref{tab:
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 9: selección de covariables]{Ficha de la etapa 9: selección de covariables. Siglas: REML, máxima verosimilitud restringida; GLS, mínimos cuadrados generalizados; AIC, criterio de información de Akaike; VIF, factor de inflación de la varianza.}
+\caption[Ficha de la etapa 9: selección de covariables]{Ficha de la etapa 9: selección de covariables. REML: máxima verosimilitud restringida; GLS: mínimos cuadrados generalizados; AIC: criterio de información de Akaike; VIF: factor de inflación de la varianza.}
 \label{tab:met_seleccion}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -342,7 +342,7 @@ Con el conjunto seleccionado se implementaron y ajustaron varias especificacione
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 10: ajuste y selección del Fay-Herriot clásico]{Ficha de la etapa 10: ajuste y selección del Fay-Herriot clásico. Siglas: REML, máxima verosimilitud restringida; GLS, mínimos cuadrados generalizados; ML, máxima verosimilitud; EBLUP, mejor predictor lineal insesgado empírico; ECM, error cuadrático medio; CV, coeficiente de variación; AIC, criterio de información de Akaike; AICc, AIC corregido para muestras pequeñas.}
+\caption[Ficha de la etapa 10: ajuste y selección del Fay-Herriot clásico]{Ficha de la etapa 10: ajuste y selección del Fay-Herriot clásico. REML: máxima verosimilitud restringida; GLS: mínimos cuadrados generalizados; ML: máxima verosimilitud; EBLUP: mejor predictor lineal insesgado empírico; ECM: error cuadrático medio; CV: coeficiente de variación; AIC: criterio de información de Akaike; AICc: AIC corregido para muestras pequeñas.}
 \label{tab:met_fh_clasico}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -370,7 +370,7 @@ En esta etapa se revisaron los supuestos del benchmark y se midió cuánto cambi
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 11: validación de supuestos y sensibilidad del benchmark]{Ficha de la etapa 11: validación de supuestos y sensibilidad del benchmark. Siglas: EBLUP, mejor predictor lineal insesgado empírico; CV, coeficiente de variación; GVF, función generalizada de varianza; Q-Q, cuantil-cuantil.}
+\caption[Ficha de la etapa 11: validación de supuestos y sensibilidad del benchmark]{Ficha de la etapa 11: validación de supuestos y sensibilidad del benchmark. EBLUP: mejor predictor lineal insesgado empírico; CV: coeficiente de variación; GVF: función generalizada de varianza; Q-Q: cuantil-cuantil.}
 \label{tab:met_supuestos}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -400,7 +400,7 @@ Las métricas se eligieron por lo que mide cada una en una tasa continua con poc
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 12: validación predictiva dejar-un-dominio-fuera]{Ficha de la etapa 12: validación predictiva dejar-un-dominio-fuera. Siglas: RMSE, raíz del error cuadrático medio; MAE, error absoluto medio.}
+\caption[Ficha de la etapa 12: validación predictiva dejar-un-dominio-fuera]{Ficha de la etapa 12: validación predictiva dejar-un-dominio-fuera. RMSE: raíz del error cuadrático medio; MAE: error absoluto medio.}
 \label{tab:met_validacion}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -430,7 +430,7 @@ Para el objetivo específico 1 se implementaron ocho especificaciones espaciales
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 13: modelo Fay-Herriot espacial y comparación con el benchmark]{Ficha de la etapa 13: modelo Fay-Herriot espacial y comparación con el benchmark. Siglas: A.M., área metropolitana; REML, máxima verosimilitud restringida; ML, máxima verosimilitud; AIC, criterio de información de Akaike; LRT, prueba de razón de verosimilitudes; SEBLUP, EBLUP espacial; EBLUP, mejor predictor lineal insesgado empírico; ECM, error cuadrático medio; CV, coeficiente de variación.}
+\caption[Ficha de la etapa 13: modelo Fay-Herriot espacial y comparación con el benchmark]{Ficha de la etapa 13: modelo Fay-Herriot espacial y comparación con el benchmark. A.M.: área metropolitana; REML: máxima verosimilitud restringida; ML: máxima verosimilitud; AIC: criterio de información de Akaike; LRT: prueba de razón de verosimilitudes; SEBLUP: EBLUP espacial; EBLUP: mejor predictor lineal insesgado empírico; ECM: error cuadrático medio; CV: coeficiente de variación.}
 \label{tab:met_espacial}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -451,12 +451,12 @@ Salida & Comparación de especificaciones, cuadro comparativo, Moran, perfil de 
 \end{tabularx}
 \end{table}
 
-La vecindad se definió por distancia y no por contigüidad porque los 23 dominios son ciudades dispersas, con una mediana de 106~km al vecino más cercano, de modo que una matriz de contigüidad entre ellos quedaría casi vacía. Algunos municipios objetivo sí limitan con un dominio, como Jamundí con Cali o Timbío con Popayán, y la distancia los trata de la misma forma que a los demás. El valor de $k$ y la potencia no los identifican los datos: $k = 3$ es la conexión mínima con la que ninguna ciudad queda aislada; con $k > 5$ y 23 nodos la matriz deja de ser local; la potencia 1 decae despacio y la 2 concentra el peso en las ciudades cercanas. Por eso se reportaron los cuatro escenarios. El $\hat{\rho}$ de la estructura «completa» depende de qué municipios sin dato se incluyen como nodos, por lo que su signo no se interpretó y la prueba de $\rho = 0$ se hizo en la estructura «muestra».
+La vecindad se definió por distancia y no por contigüidad porque los 23 dominios son ciudades dispersas, con una mediana de 106~km al vecino más cercano, de modo que una matriz de contigüidad entre ellos quedaría casi vacía. Algunos municipios objetivo sí limitan con un dominio, como Jamundí con Cali o Timbío con Popayán, y la distancia los trata de la misma forma que a los demás. El valor de $k$ y la potencia no los identifican los datos: $k = 3$ es el menor número de vecinos con el que la red de las 23 ciudades queda conectada (con $k = 2$ se parte en tres grupos sin enlaces entre sí, y con $k = 1$ en siete); con $k > 5$ y 23 nodos la matriz deja de ser local; la potencia 1 decae despacio y la 2 concentra el peso en las ciudades cercanas. Por eso se reportaron los cuatro escenarios. El $\hat{\rho}$ de la estructura «completa» depende de qué municipios sin dato se incluyen como nodos, por lo que su signo no se interpretó y la prueba de $\rho = 0$ se hizo en la estructura «muestra».
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Contenido de la comparación entre el benchmark y el modelo espacial]{Contenido de la comparación entre el benchmark y el modelo espacial. Las diferencias se reportan sin pruebas adicionales al LRT de $\rho = 0$: con 23 dominios se describen, no se prueban. Siglas: LRT, prueba de razón de verosimilitudes; AIC, criterio de información de Akaike; EBLUP, mejor predictor lineal insesgado empírico; SEBLUP, EBLUP espacial; ECM, error cuadrático medio; CV, coeficiente de variación.}
+\caption[Contenido de la comparación entre el benchmark y el modelo espacial]{Contenido de la comparación entre el benchmark y el modelo espacial. Las diferencias se reportan sin pruebas adicionales al LRT de $\rho = 0$: con 23 dominios se describen, no se prueban. LRT: prueba de razón de verosimilitudes; AIC: criterio de información de Akaike; EBLUP: mejor predictor lineal insesgado empírico; SEBLUP: EBLUP espacial; ECM: error cuadrático medio; CV: coeficiente de variación.}
 \label{tab:met_comparacion}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{2.6cm}}
@@ -484,7 +484,7 @@ Los 83 municipios objetivo recibieron la estimación del modelo con sus propias 
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 14: estimación en los municipios sin cobertura muestral]{Ficha de la etapa 14: estimación en los municipios sin cobertura muestral. Siglas: ECM, error cuadrático medio; CV, coeficiente de variación.}
+\caption[Ficha de la etapa 14: estimación en los municipios sin cobertura muestral]{Ficha de la etapa 14: estimación en los municipios sin cobertura muestral. ECM: error cuadrático medio; CV: coeficiente de variación.}
 \label{tab:met_sin_muestra}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -509,7 +509,7 @@ El benchmarking se aplicó para que las estimaciones del modelo reprodujeran cif
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 15: benchmarking y consolidación]{Ficha de la etapa 15: benchmarking y consolidación. Siglas: EBLUP, mejor predictor lineal insesgado empírico; ECM, error cuadrático medio; PEA, población económicamente activa; DANE, Departamento Administrativo Nacional de Estadística; A.M., área metropolitana; RMSE, raíz del error cuadrático medio; CV, coeficiente de variación.}
+\caption[Ficha de la etapa 15: benchmarking y consolidación]{Ficha de la etapa 15: benchmarking y consolidación. EBLUP: mejor predictor lineal insesgado empírico; ECM: error cuadrático medio; PEA: población económicamente activa; DANE: Departamento Administrativo Nacional de Estadística; A.M.: área metropolitana; RMSE: raíz del error cuadrático medio; CV: coeficiente de variación.}
 \label{tab:met_benchmarking}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -538,7 +538,7 @@ En la última etapa se describió dónde están las tasas altas y bajas en el Ca
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Ficha de la etapa 16: distribución y patrones espaciales de las estimaciones]{Ficha de la etapa 16: distribución y patrones espaciales de las estimaciones. Siglas: CV, coeficiente de variación.}
+\caption[Ficha de la etapa 16: distribución y patrones espaciales de las estimaciones]{Ficha de la etapa 16: distribución y patrones espaciales de las estimaciones. CV: coeficiente de variación.}
 \label{tab:met_patrones}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X}
@@ -564,7 +564,7 @@ La Tabla~\ref{tab:met_objetivos} relaciona cada etapa con el objetivo general (O
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Etapa metodológica, objetivo al que responde y evidencia en Resultados]{Etapa metodológica, objetivo al que responde y evidencia en Resultados. Siglas: OG, objetivo general; OE, objetivo específico; CV, coeficiente de variación; EBLUP, mejor predictor lineal insesgado empírico; DANE, Departamento Administrativo Nacional de Estadística.}
+\caption[Etapa metodológica, objetivo al que responde y evidencia en Resultados]{Etapa metodológica, objetivo al que responde y evidencia en Resultados. OG: objetivo general; OE: objetivo específico; CV: coeficiente de variación; EBLUP: mejor predictor lineal insesgado empírico; DANE: Departamento Administrativo Nacional de Estadística.}
 \label{tab:met_objetivos}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{4.4cm} >{\raggedright\arraybackslash}p{1.7cm} >{\raggedright\arraybackslash}X}

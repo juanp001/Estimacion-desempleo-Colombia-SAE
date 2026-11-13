@@ -149,11 +149,20 @@ Estimación espacial & \texttt{PRED\_ESPACIAL} & Resultado del Fay-Herriot espac
 
 Esta sección lista las entradas del catálogo de literatura con su código, el signo esperado y la referencia que las respalda; la citan las Secciones~\ref{sec:datos}, \ref{sec:met_covariables} y~\ref{sec:res_covariables}.
 
-En la Tabla~\ref{tab:app_catalogo} las 18 candidatas se reparten en siete dimensiones de TerriData; la educación aporta cinco y la economía cuatro. En las tres participaciones sectoriales del valor agregado y en la densidad de población la literatura no fija un signo. Dos referencias del catálogo de origen no se pudieron localizar como documentos publicados (el número 211 de los Reportes del Emisor y el tomo social del atlas estadístico del DANE) y se dejan como texto, sin entrada en la bibliografía. El bloque final reúne las seis variables que no entraron y el motivo de cada una.
+En la Tabla~\ref{tab:app_catalogo} las 18 candidatas se reparten en siete dimensiones de TerriData; la educación aporta cinco y la economía cuatro. En las tres participaciones sectoriales del valor agregado y en la densidad de población la literatura no fija un signo. El bloque final reúne las seis variables que no entraron y el motivo de cada una.
+
+Las referencias son de dos clases. Unas miden una relación con el desempleo; otras, marcadas «(def.)», solo definen el indicador o lo ubican en un marco temático, y en ellas el signo es una hipótesis del trabajo. Dos referencias del catálogo de origen se revisaron. El número 211 de los Reportes del Emisor no se pudo localizar y se retiró; los tres sectores conservan el respaldo de Bonet. El atlas estadístico del DANE (2012, tomo II, sección 7.4) sí existe, pero solo define la tasa y la reporta por departamento, sin relacionarla con la población urbana. Por eso el signo de la población urbana se apoya en las series anuales del DANE, en las que la tasa de las cabeceras supera a la rural en todos los años de 2001 a 2021. Es una evidencia descriptiva, a escala nacional y no municipal.
+
+Las tres candidatas elegibles tienen un respaldo de distinto alcance:
+\begin{itemize}
+    \item \textbf{Tasa de homicidios.} En 2,264 unidades barriales de Cali, entre 2019 y 2024, una regresión logística ecológica asoció el desempleo con una mayor probabilidad de homicidios (razón de momios de 1.30, $p = 0.005$) \cite{PinzonFlorez2025}. Es una asociación dentro de una sola ciudad: muestra que el desempleo y la violencia coinciden en los mismos territorios, no que esa relación se repita entre ciudades. Aquí se usa como motivación teórica, la concentración territorial de desventajas sociales, y la relación entre ciudades es la que estima el modelo con los 23 dominios.
+    \item \textbf{Cobertura de acueducto.} La referencia solo define el indicador dentro de la dimensión de vivienda y servicios públicos (def.). El signo negativo es una hipótesis: la cobertura funciona como indicador de condiciones de vida.
+    \item \textbf{Cobertura neta en educación media.} Castillo-Robayo y García-Estévez encuentran que la educación importa para conseguir empleo formal, pero no para la probabilidad de estar ocupado \cite{CastilloGarcia2019}. Su resultado no respalda directamente el signo negativo, que queda como hipótesis basada en el mecanismo de capital humano.
+\end{itemize}
 
 {\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{longtable}{p{2.8cm} p{1.5cm} p{2.0cm} p{0.8cm} p{4.6cm}}
-\caption[Catálogo de covariables de la literatura]{Catálogo de literatura: 18 entradas activas y 6 sin dato utilizable o retiradas. Signo: relación esperada con la tasa de desempleo ($\pm$: sin signo definido). TD: tasa de desempleo; DANE: Departamento Administrativo Nacional de Estadística; IICA: índice de incidencia del conflicto armado.}
+\caption[Catálogo de covariables de la literatura]{Catálogo de literatura: 18 entradas activas y 6 sin dato utilizable o retiradas. Signo: relación esperada con la tasa de desempleo ($\pm$: sin signo definido). (def.): la referencia define el indicador o lo ubica en un marco temático, sin medir su relación con el desempleo; el signo es una hipótesis del trabajo. TD: tasa de desempleo; DANE: Departamento Administrativo Nacional de Estadística; IICA: índice de incidencia del conflicto armado.}
 \label{tab:app_catalogo} \\
 \toprule
 Covariable & Código & Dimensión & Signo & Referencia o motivo \\
@@ -172,18 +181,18 @@ Saber 11, matemáticas & 040040001 & Educación & $-$ & Castillo-Robayo y Garcí
 Saber 11, lectura crítica & 040040002 & Educación & $-$ & Castillo-Robayo y García-Estévez \cite{CastilloGarcia2019} \\
 Tránsito a la educación superior & 040010028 & Educación & $-$ & Castillo-Robayo y García-Estévez \cite{CastilloGarcia2019}, por el mecanismo de capital humano; se conservó por decisión del equipo \\
 Valor agregado per cápita & 120210002 & Economía & $-$ & Rubio Ugalde, Lara Gómez y Hurtado Maldonado \cite{RubioUgalde2025} \\
-Valor agregado de actividades primarias & 120210008 & Economía & $\pm$ & Bonet \cite{Bonet2005}; Reportes del Emisor n.º 211, Banco de la República (2016), sin localizar \\
-Valor agregado de actividades secundarias & 120210009 & Economía & $\pm$ & Bonet \cite{Bonet2005}; Reportes del Emisor n.º 211, Banco de la República (2016), sin localizar \\
-Valor agregado de actividades terciarias & 120210010 & Economía & $\pm$ & Bonet \cite{Bonet2005}; Reportes del Emisor n.º 211, Banco de la República (2016), sin localizar \\
-Índice de pobreza multidimensional & 140010004 & Pobreza & $+$ & DANE \cite{DANE_IPM2020} \\
-Población urbana & 020040003 & Demografía y población & $+$ & DANE, Atlas estadístico, tomo II (social), sección «7.4. Tasa de desempleo (TD)», sin localizar \\
-Densidad de población & 010010010 & Demografía y población & $\pm$ & DNP \cite{DNP_EIG01_2020}, variables de capacidades iniciales \\
+Valor agregado de actividades primarias & 120210008 & Economía & $\pm$ & Bonet \cite{Bonet2005} \\
+Valor agregado de actividades secundarias & 120210009 & Economía & $\pm$ & Bonet \cite{Bonet2005} \\
+Valor agregado de actividades terciarias & 120210010 & Economía & $\pm$ & Bonet \cite{Bonet2005} \\
+Índice de pobreza multidimensional & 140010004 & Pobreza & $+$ & DANE \cite{DANE_IPM2020} (def.) \\
+Población urbana & 020040003 & Demografía y población & $+$ & DANE \cite{DANE_Anexo_CNPV2018}, hoja «Anuales»: tasa de desempleo de las cabeceras mayor que la rural en todos los años de 2001 a 2021 (10.76~\% frente a 5.15~\% en 2018) \\
+Densidad de población & 010010010 & Demografía y población & $\pm$ & DNP \cite{DNP_EIG01_2020}, variables de capacidades iniciales (def.) \\
 Población joven de 14 a 28 años & 020090021 & Demografía y población & $+$ & Tamayo \cite{Tamayo2008} \\
-Índice de desempeño fiscal & 070100007 & Finanzas públicas & $-$ & DNP \cite{DNP_IDF2024} \\
+Índice de desempeño fiscal & 070100007 & Finanzas públicas & $-$ & DNP \cite{DNP_IDF2024} (def.) \\
 Ingresos tributarios per cápita & 070010020 & Finanzas públicas & $-$ & Fundación Felipe González \cite{FFG2021} \\
 Tasa de homicidios & 060010003 & Conflicto armado y seguridad ciudadana & $+$ & Pinzón-Flórez, Díaz Rivadeneira y Escobar Morales \cite{PinzonFlorez2025} \\
-Cobertura de acueducto & 030010004 & Vivienda y acceso a servicios públicos & $-$ & DNP \cite{DNP_Cartilla2019}, dimensión de vivienda y acceso a servicios públicos \\
-Penetración de banda ancha & 030010003 & Vivienda y acceso a servicios públicos & $-$ & DNP \cite{DNP_Cartilla2019}, dimensión de vivienda y acceso a servicios públicos \\
+Cobertura de acueducto & 030010004 & Vivienda y acceso a servicios públicos & $-$ & DNP \cite{DNP_Cartilla2019}, dimensión de vivienda y acceso a servicios públicos (def.) \\
+Penetración de banda ancha & 030010003 & Vivienda y acceso a servicios públicos & $-$ & DNP \cite{DNP_Cartilla2019}, dimensión de vivienda y acceso a servicios públicos (def.) \\
 \midrule
 \multicolumn{5}{l}{Entradas sin dato utilizable o retiradas} \\
 Tasa de analfabetismo (censo) & 040030003 & Educación & no aplica & Sin dato en los dominios con encuesta para 2018 \\

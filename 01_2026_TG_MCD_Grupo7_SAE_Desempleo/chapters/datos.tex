@@ -6,7 +6,7 @@ Este capítulo describe las fuentes tal como se usaron: qué contienen, qué cob
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Fuentes de datos del trabajo]{Fuentes de datos del trabajo. Siglas: GEIH, Gran Encuesta Integrada de Hogares; DANE, Departamento Administrativo Nacional de Estadística; DNP, Departamento Nacional de Planeación; DIVIPOLA, División Político-Administrativa de Colombia; CNPV, Censo Nacional de Población y Vivienda; A.M., área metropolitana.}
+\caption[Fuentes de datos del trabajo]{Fuentes de datos del trabajo. GEIH: Gran Encuesta Integrada de Hogares; DANE: Departamento Administrativo Nacional de Estadística; DNP: Departamento Nacional de Planeación; DIVIPOLA: División Político-Administrativa de Colombia; CNPV: Censo Nacional de Población y Vivienda; A.M.: área metropolitana.}
 \label{tab:fuentes_datos}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{2.6cm} >{\raggedright\arraybackslash}p{2.0cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3.6cm}}
@@ -27,14 +27,18 @@ Anexo «Mercado laboral según proyecciones CNPV 2018» & DANE & Ciudad y A.M., 
 
 La GEIH es la encuesta continua de hogares del DANE para medir el mercado laboral \cite[p.~3]{DANE_GEIH_Metodologia2016}. Sus microdatos se publican por mes y por módulo temático, y cada persona lleva un factor de expansión. Se usaron los doce meses de 2018 del marco muestral de 2005, el que estaba vigente ese año.
 
-\paragraph{Marco antiguo y marco nuevo.} Hasta 2022 cada módulo se publica en archivos separados para las cabeceras, el resto (centros poblados y rural disperso) y las áreas; desde 2023 cada módulo viene en un solo archivo y la información de los inactivos está dentro del módulo de fuerza de trabajo. El procesamiento admite ambos marcos, pero el período de análisis es 2018, así que todos los registros usados son del marco antiguo. De ese marco se cargaron los archivos de cabecera y resto; el archivo de área no se usó.
+\subsection{Marco antiguo y marco nuevo}
 
-\paragraph{Módulos y variables.} La Tabla~\ref{tab:dimensiones-geih-modulos} muestra los cinco módulos que se usaron, sus registros en 2018 y las variables que aporta cada uno. Las identidades de la Ecuación~\ref{eq:identidades} se cumplen en los conteos de la tabla: los 628,486 registros de fuerza de trabajo, que es la PET, se dividen en 390,060 de la PEA (348,015 ocupados y 42,045 desocupados) y 238,426 inactivos. Los módulos de vivienda, otras actividades y otros ingresos no se usaron.
+Hasta 2022 cada módulo se publica en archivos separados para las cabeceras, el resto (centros poblados y rural disperso) y las áreas; desde 2023 cada módulo viene en un solo archivo y la información de los inactivos está dentro del módulo de fuerza de trabajo. El procesamiento admite ambos marcos, pero el período de análisis es 2018, así que todos los registros usados son del marco antiguo. De ese marco se cargaron los archivos de cabecera y resto; el archivo de área no se usó.
+
+\subsection{Módulos y variables}
+
+La Tabla~\ref{tab:dimensiones-geih-modulos} muestra los cinco módulos que se usaron, sus registros en 2018 y las variables que aporta cada uno. Las identidades de la Ecuación~\ref{eq:identidades} se cumplen en los conteos de la tabla: los 628,486 registros de fuerza de trabajo, que es la PET, se dividen en 390,060 de la PEA (348,015 ocupados y 42,045 desocupados) y 238,426 inactivos. Los módulos de vivienda, otras actividades y otros ingresos no se usaron.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Módulos de la GEIH 2018 usados]{Módulos de la GEIH 2018 usados, número de registros (personas) y variables que aporta cada uno. Fuente: tablas de la capa plata y de la capa bronce (inactivos) del procesamiento; conteos del 2018. Siglas: GEIH, Gran Encuesta Integrada de Hogares; PEA, población económicamente activa.}
+\caption[Módulos de la GEIH 2018 usados]{Módulos de la GEIH 2018 usados, número de registros (personas) y variables que aporta cada uno. Fuente: tablas de la capa plata y de la capa bronce (inactivos) del procesamiento; conteos del 2018. GEIH: Gran Encuesta Integrada de Hogares; PEA: población económicamente activa.}
 \label{tab:dimensiones-geih-modulos}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.2cm} r >{\raggedright\arraybackslash}X}
@@ -50,14 +54,18 @@ Inactivos (cabecera y resto) & \num{238426} & Condición de inactivo (con ella s
 \end{tabularx}
 \end{table}
 
-\paragraph{Factor de expansión.} Para 2018 se usó el factor de expansión que el DANE recalculó con las retroproyecciones de población del CNPV 2018 \cite[pp.~3, 19]{DANE_GEIH_Series2022}, publicado como un archivo aparte de los módulos (\num{772619} registros). El factor original de los microdatos de 2018, calibrado con proyecciones del censo de 2005 sobre la población de 10 años y más, no se usó: mezclarlo con el recalculado produce un salto en la serie \cite[p.~19]{DANE_GEIH_Series2022}.
+\subsection{Factor de expansión}
 
-\paragraph{Geografía.} El microdato identifica la ubicación de la persona por departamento y por área, y el área es la ciudad con su área metropolitana \cite[p.~9]{DANE_GEIH_Metodologia2016}. En 2018 la tabla consolidada tiene \num{762753} personas en \num{227027} viviendas de todo el país; \num{610439} de ellas tienen código de área, y ese código corresponde a 23 ciudades y áreas metropolitanas. Son los 23 dominios de la Tabla~\ref{tab:dominios_geih}. Las nueve capitales restantes (Arauca, Inírida, Leticia, Mitú, Mocoa, Puerto Carreño, San Andrés, San José del Guaviare y Yopal) no tienen código de área en los microdatos de 2018, y los registros sin área (el resto de las cabeceras y la zona rural) no se usaron.
+Para 2018 se usó el factor de expansión que el DANE recalculó con las retroproyecciones de población del CNPV 2018 \cite[pp.~3, 19]{DANE_GEIH_Series2022}, publicado como un archivo aparte de los módulos (\num{772619} registros). El factor original de los microdatos de 2018, calibrado con proyecciones del censo de 2005 sobre la población de 10 años y más, no se usó: mezclarlo con el recalculado produce un salto en la serie \cite[p.~19]{DANE_GEIH_Series2022}.
+
+\subsection{Geografía}
+
+El microdato identifica la ubicación de la persona por departamento y por área, y el área es la ciudad con su área metropolitana \cite[p.~9]{DANE_GEIH_Metodologia2016}. En 2018 la tabla consolidada tiene \num{762753} personas en \num{227027} viviendas de todo el país; \num{610439} de ellas tienen código de área, y ese código corresponde a 23 ciudades y áreas metropolitanas. Son los 23 dominios de la Tabla~\ref{tab:dominios_geih}. Las nueve capitales restantes (Arauca, Inírida, Leticia, Mitú, Mocoa, Puerto Carreño, San Andrés, San José del Guaviare y Yopal) no tienen código de área en los microdatos de 2018, y los registros sin área (el resto de las cabeceras y la zona rural) no se usaron.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Dominios de estimación de la GEIH con muestra en 2018]{Dominios de estimación de la GEIH con muestra en 2018: municipios que los forman, personas de 15 años y más en la PEA y viviendas observadas en el año. Fuente: tabla de estimación directa del procesamiento. Siglas: GEIH, Gran Encuesta Integrada de Hogares; PEA, población económicamente activa; A.M., área metropolitana.}
+\caption[Dominios de estimación de la GEIH con muestra en 2018]{Dominios de estimación de la GEIH con muestra en 2018: municipios que los forman, personas de 15 años y más en la PEA y viviendas observadas en el año. Fuente: tabla de estimación directa del procesamiento. GEIH: Gran Encuesta Integrada de Hogares; PEA: población económicamente activa; A.M.: área metropolitana.}
 \label{tab:dominios_geih}
 \renewcommand{\arraystretch}{1.1}
 \begin{adjustbox}{max width=\linewidth}
@@ -95,7 +103,7 @@ El anexo estadístico «Mercado laboral según proyecciones CNPV 2018» \cite{DA
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Hojas del anexo del DANE usadas]{Hojas del anexo del DANE usadas. Fuente: tablas de cifras publicadas de la capa bronce. Siglas: DANE, Departamento Administrativo Nacional de Estadística; CNPV, Censo Nacional de Población y Vivienda; A.M., área metropolitana.}
+\caption[Hojas del anexo del DANE usadas]{Hojas del anexo del DANE usadas. Fuente: tablas de cifras publicadas de la capa bronce. DANE: Departamento Administrativo Nacional de Estadística; CNPV: Censo Nacional de Población y Vivienda; A.M.: área metropolitana.}
 \label{tab:anexo_dane}
 \renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{3.0cm} r >{\raggedright\arraybackslash}X}
@@ -113,12 +121,12 @@ Anuales & 30 & Serie anual 2016--2021 del total nacional, cabeceras, rural, «To
 \section{Sistema de estadísticas territoriales}
 \label{sec:datos_terridata}
 
-TerriData, del DNP, reúne indicadores de distintas entidades del Estado en un formato común por municipio y departamento \cite{DNP_TerriData}. La base descargada tiene \num{13147390} registros en formato largo para \num{1135} entidades territoriales, \num{1587} indicadores agrupados en 24 dimensiones y años entre 1985 y 2070 (estos últimos son proyecciones de población). Cinco de esos indicadores no tienen ningún valor en la base (tres rendimientos agrícolas y dos indicadores ambientales), así que el formato ancho que se usó en adelante tiene \num{1582} indicadores; con las seis columnas de identificación suma \num{1588} columnas. Cada registro corresponde a una entidad, un año, un mes y un indicador; la Tabla~\ref{tab:tab-variables-originales-terridata} muestra su estructura. Para 2018, el Cauca y el Valle del Cauca tienen dato en 784 indicadores, para 86 entidades: los 42 municipios del Cauca, los 42 del Valle del Cauca y las dos filas departamentales.
+TerriData, del DNP, reúne indicadores de distintas entidades del Estado en un formato común por municipio y departamento \cite{DNP_TerriData}. La base descargada tiene \num{13147390} registros en formato largo para \num{1135} entidades territoriales, \num{1587} indicadores agrupados en 24 dimensiones y años entre 1985 y 2070 (estos últimos son proyecciones de población). Cinco de esos indicadores no tienen ningún valor en la base; su descarte y el paso a formato ancho se describen en la etapa de limpieza (Sección~\ref{sec:met_limpieza}). Cada registro corresponde a una entidad, un año, un mes y un indicador; la Tabla~\ref{tab:tab-variables-originales-terridata} muestra su estructura. Para 2018, el Cauca y el Valle del Cauca tienen dato en 784 indicadores, para 86 entidades: los 42 municipios del Cauca, los 42 del Valle del Cauca y las dos filas departamentales.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Estructura de la base de TerriData]{Estructura de la base de TerriData (formato largo). Siglas: DIVIPOLA, División Político-Administrativa de Colombia.}
+\caption[Estructura de la base de TerriData]{Estructura de la base de TerriData (formato largo). DIVIPOLA: División Político-Administrativa de Colombia.}
 \label{tab:tab-variables-originales-terridata}
 \renewcommand{\arraystretch}{1.1}
 \begin{tabularx}{\linewidth}{l l >{\raggedright\arraybackslash}X}
@@ -145,7 +153,7 @@ La tabla documenta la unidad y la entidad que produce cada covariable; la forma 
 \begin{table}[!htbp]
 \centering
 \footnotesize
-\caption[Covariables candidatas: unidad y fuente]{Covariables candidatas: unidad y entidad que produce el dato. Todas son de TerriData, para el municipio completo (cabecera y resto) y con corte a diciembre de 2018; el código de TerriData de cada una está en el Apéndice~\ref{app:catalogo}. En las tablas de resultados, los valores en pesos se expresan en millones. Siglas: MEN, Ministerio de Educación Nacional; Icfes, Instituto Colombiano para la Evaluación de la Educación; DNP, Departamento Nacional de Planeación; DANE, Departamento Administrativo Nacional de Estadística; CNPV, Censo Nacional de Población y Vivienda; IGAC, Instituto Geográfico Agustín Codazzi; FUT, Formulario Único Territorial; MinDefensa, Ministerio de Defensa Nacional; MinTIC, Ministerio de Tecnologías de la Información y las Comunicaciones.}
+\caption[Covariables candidatas: unidad y fuente]{Covariables candidatas: unidad y entidad que produce el dato. Todas son de TerriData, para el municipio completo (cabecera y resto) y con corte a diciembre de 2018; el código de TerriData de cada una está en el Apéndice~\ref{app:catalogo}. En las tablas de resultados, los valores en pesos se expresan en millones. MEN: Ministerio de Educación Nacional; Icfes: Instituto Colombiano para la Evaluación de la Educación; DNP: Departamento Nacional de Planeación; DANE: Departamento Administrativo Nacional de Estadística; CNPV: Censo Nacional de Población y Vivienda; IGAC: Instituto Geográfico Agustín Codazzi; FUT: Formulario Único Territorial; MinDefensa: Ministerio de Defensa Nacional; MinTIC: Ministerio de Tecnologías de la Información y las Comunicaciones.}
 \label{tab:covariables_datos}
 \renewcommand{\arraystretch}{1.1}
 \begin{tabularx}{\linewidth}{>{\raggedright\arraybackslash}p{5.6cm} >{\raggedright\arraybackslash}p{3.0cm} >{\raggedright\arraybackslash}X}
