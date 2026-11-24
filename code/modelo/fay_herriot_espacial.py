@@ -478,7 +478,8 @@ mostrar(df_coef_comparacion.round(4))
 # MAGIC
 # MAGIC Para cada ρ de una rejilla se maximiza la log-verosimilitud REML sobre σ²_u. Una curva
 # MAGIC plana indica que los datos casi no informan sobre la autocorrelación espacial. La línea
-# MAGIC punteada (−1.92) es el corte del intervalo de verosimilitud perfilada del 95 %.
+# MAGIC franja horizontal de cada curva, a 1.92 por debajo de su máximo, marca su intervalo de
+# MAGIC verosimilitud perfilada del 95 % (M1: el corte se mide desde el máximo, no desde ρ = 0).
 
 # COMMAND ----------
 
