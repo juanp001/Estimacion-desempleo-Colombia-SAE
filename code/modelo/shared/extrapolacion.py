@@ -399,9 +399,15 @@ def figura_rangos(X_muestra, X_nuevos, covars: list):
 def figura_sensibilidad(df: pd.DataFrame, max_directa: float = None):
     """Predicción base, acotada y rango al quitar un dominio en los municipios que extrapolan.
 
+    El punto azul es la estimación sintética x'β̂, antes del benchmarking de nivel 2: en Cali
+    y Yumbo la tasa final es otra (M9), por eso la leyenda no dice «publicada». Si dos
+    municipios comparten nombre (Argelia del Cauca y del Valle), la etiqueta agrega el
+    departamento (`CODIGO_DEPARTAMENTO` 19 → Cauca, 76 → Valle) cuando la columna existe.
+
     Args:
         df (pd.DataFrame): Una fila por municipio con MUNICIPIO, ESTADO_EXTRAPOLACION,
-            PRED_SINTETICO, PRED_ACOTADA, PRED_MIN_SIN_DOMINIO y PRED_MAX_SIN_DOMINIO.
+            PRED_SINTETICO, PRED_ACOTADA, PRED_MIN_SIN_DOMINIO y PRED_MAX_SIN_DOMINIO
+            (opcional: CODIGO_DEPARTAMENTO).
         max_directa (float, optional): Estimación directa más alta de los dominios, que se
             dibuja como referencia.
 
@@ -414,6 +420,17 @@ def figura_sensibilidad(df: pd.DataFrame, max_directa: float = None):
     sub = df[df["ESTADO_EXTRAPOLACION"] != ESTADO_DENTRO].sort_values("PRED_SINTETICO")
     if sub.empty:
         return None
+    etiquetas = sub["MUNICIPIO"].astype(str)
+    if "CODIGO_DEPARTAMENTO" in sub.columns:
+        nombres_depto = {19: "Cauca", 76: "Valle"}
+        repetido = etiquetas.duplicated(keep=False)
+        etiquetas = etiquetas.where(
+            ~repetido,
+            etiquetas
+            + " ("
+            + sub["CODIGO_DEPARTAMENTO"].astype(int).map(nombres_depto).fillna("")
+            + ")",
+        )
     y = np.arange(len(sub))
     fig, ax = plt.subplots(figsize=(ANCHO_FIGURA, 0.24 * len(sub) + 1.4))
     ax.hlines(
@@ -424,7 +441,13 @@ def figura_sensibilidad(df: pd.DataFrame, max_directa: float = None):
         lw=3,
         label="Mín–máx al quitar un dominio",
     )
-    ax.scatter(sub["PRED_SINTETICO"], y, color=AZUL, s=18, label="Estimación publicada")
+    ax.scatter(
+        sub["PRED_SINTETICO"],
+        y,
+        color=AZUL,
+        s=18,
+        label="Estimación sintética (antes del benchmarking)",
+    )
     ax.scatter(
         sub["PRED_ACOTADA"],
         y,
@@ -442,7 +465,7 @@ def figura_sensibilidad(df: pd.DataFrame, max_directa: float = None):
             label="Directa más alta (dominios)",
         )
     ax.set_yticks(y)
-    ax.set_yticklabels(sub["MUNICIPIO"])
+    ax.set_yticklabels(etiquetas)
     ax.set_xlabel("Tasa de desempleo (%)")
     ax.grid(axis="y", visible=False)
     ax.legend(loc="lower right")
