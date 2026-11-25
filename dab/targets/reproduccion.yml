@@ -1,0 +1,114 @@
+# Target `reproduccion`: despliegue en un workspace NUEVO de un tercero que quiere reproducir la tesis.
+#
+# Por qué la infraestructura de Unity Catalog vive solo aquí y no en `dev`:
+#   - `dev` apunta al workspace del autor, donde el catálogo `tesis`, sus esquemas y volúmenes ya existen y
+#     contienen los datos de la tesis. Declararlos en `dev` haría que el bundle los "adoptara" o intentara
+#     recrearlos, y un `bundle destroy -t dev` BORRARÍA esquemas y volúmenes con sus datos.
+#   - En `reproduccion` el workspace está vacío: el bundle crea esquemas y volúmenes (en el orden correcto, por
+#     las referencias ${resources.schemas.<clave>.name}) y después se cargan los datos de `datos_reproduccion/`.
+#
+# El catálogo `tesis` NO se declara aquí (aunque la CLI >= 1.22 soporta `resources.catalogs`): su nombre está
+# fijo en el código y, según el metastore, crearlo puede exigir una ruta de almacenamiento (storage root) o ya
+# existir. `desplegar_reproduccion.bat` lo verifica/crea antes del despliegue (`databricks catalogs create`).
+#
+# Sin `host`: viene del perfil de la CLI (--profile / DATABRICKS_CONFIG_PROFILE) o de DATABRICKS_HOST.
+# Sin `mode: development`: igual que `dev`, para que los jobs conserven su nombre sin prefijo.
+targets:
+  reproduccion:
+    resources:
+      schemas:
+        dim:
+          catalog_name: tesis
+          name: dim
+          comment: "Dimensiones: DIVIPOLA, dominios de estimación de la GEIH y diccionario de indicadores"
+        geih_bronce:
+          catalog_name: tesis
+          name: geih_bronce
+          comment: "GEIH capa bronce: archivos crudos del DANE y cifras publicadas"
+        geih_plata:
+          catalog_name: tesis
+          name: geih_plata
+          comment: "GEIH capa plata: módulos consolidados (marco antiguo + marco nuevo) y factores de expansión"
+        geih_oro:
+          catalog_name: tesis
+          name: geih_oro
+          comment: "GEIH capa oro: tabla de mercado laboral lista para estimar y reconciliaciones"
+        terridata:
+          catalog_name: tesis
+          name: terridata
+          comment: "TerriData (DNP): indicadores en formato largo y ancho (covariables)"
+        preprocesamiento:
+          catalog_name: tesis
+          name: preprocesamiento
+          comment: "Preprocesamiento: estimación directa, covariables y selección"
+        modelo:
+          catalog_name: tesis
+          name: modelo
+          comment: "Modelo Fay-Herriot clásico y espacial: ajustes, diagnósticos y tablas finales"
+      volumes:
+        dim_divipola:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.dim.name}
+          name: divipola
+          volume_type: MANAGED
+          comment: "Archivo DIVIPOLA de municipios (DANE)"
+        geih_bronce_caracteristicas_generales:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.geih_bronce.name}
+          name: caracteristicas_generales
+          volume_type: MANAGED
+          comment: "GEIH crudo: módulo características generales"
+        geih_bronce_datos_publicados:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.geih_bronce.name}
+          name: datos_publicados
+          volume_type: MANAGED
+          comment: "Anexo DANE de mercado laboral (cifras publicadas)"
+        geih_bronce_fex:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.geih_bronce.name}
+          name: fex
+          volume_type: MANAGED
+          comment: "Factores de expansión actualizados (CNPV 2018)"
+        geih_bronce_fuerza_de_trabajo:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.geih_bronce.name}
+          name: fuerza_de_trabajo
+          volume_type: MANAGED
+          comment: "GEIH crudo: módulo fuerza de trabajo"
+        geih_bronce_inactivos:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.geih_bronce.name}
+          name: inactivos
+          volume_type: MANAGED
+          comment: "GEIH crudo: módulo inactivos (marco antiguo)"
+        geih_bronce_no_ocupados:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.geih_bronce.name}
+          name: no_ocupados
+          volume_type: MANAGED
+          comment: "GEIH crudo: módulo no ocupados"
+        geih_bronce_ocupados:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.geih_bronce.name}
+          name: ocupados
+          volume_type: MANAGED
+          comment: "GEIH crudo: módulo ocupados"
+        terridata_terridata_archivos:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.terridata.name}
+          name: terridata_archivos
+          volume_type: MANAGED
+          comment: "Parquet consolidado de TerriData"
+        preprocesamiento_figuras_eda:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.preprocesamiento.name}
+          name: figuras_eda
+          volume_type: MANAGED
+          comment: "Salida: figuras del análisis descriptivo y la selección (desc_, eda_)"
+        modelo_figuras:
+          catalog_name: tesis
+          schema_name: ${resources.schemas.modelo.name}
+          name: figuras
+          volume_type: MANAGED
+          comment: "Figuras del modelo: fh_* (clásico) y fhe_* (espacial), R-45"
