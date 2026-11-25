@@ -42,7 +42,7 @@ pipeline\_completo & Ejecuta los seis trabajos anteriores en orden & 1 a 16 \\
 
 \paragraph{Requisitos mínimos.} La reproducción exige un espacio de trabajo de Databricks con Unity Catalog y cómputo \textit{serverless} para trabajos programados; sirve una cuenta de la edición gratuita (\textit{Free Edition}) o una de prueba. También exige permiso para crear catálogos (o que un administrador cree el catálogo \texttt{tesis}) y que no exista ya un catálogo con ese nombre. En el equipo local se necesitan Windows 10 u 11 con \texttt{tar.exe}, \texttt{git}, la interfaz de línea de comandos de Databricks en la versión 0.250 o posterior (probada con la 1.22.1) y cerca de 1 GB de disco libre. En macOS y Linux se usan los mismos comandos de la interfaz, escritos a mano en el \texttt{README.md} del repositorio.
 
-\paragraph{Qué despliega el conjunto.} El objetivo \texttt{reproduccion} del paquete de Databricks (\textit{Databricks Asset Bundles}, DAB), definido en \texttt{dab/targets/reproduccion.yml}, despliega además de los trabajos la infraestructura que el procesamiento supone: los siete esquemas y los once volúmenes administrados de la Tabla~\ref{tab:app_infra}. El catálogo \texttt{tesis} lo crea el guion de despliegue si no existe. El objetivo \texttt{dev} es el espacio de trabajo de los autores y solo despliega los trabajos de la Tabla~\ref{tab:app_jobs}.
+\paragraph{Qué despliega el conjunto.} El objetivo \texttt{reproduccion} del paquete de despliegue de Databricks (DAB, por \textit{Databricks Asset Bundles}), definido en \texttt{dab/targets/reproduccion.yml}, despliega además de los trabajos la infraestructura que el procesamiento supone: los siete esquemas y los once volúmenes administrados de la Tabla~\ref{tab:app_infra}. El catálogo \texttt{tesis} lo crea el guion de despliegue si no existe. El objetivo \texttt{dev} es el espacio de trabajo de los autores y solo despliega los trabajos de la Tabla~\ref{tab:app_jobs}.
 
 \begin{table}[!htbp]
 \centering
@@ -78,7 +78,7 @@ Esquema & Volumen & Contenido \\
 \begin{enumerate}[nosep]
     \item Clonar el repositorio y situarse en la versión indicada al final de esta sección.
     \item Ejecutar \texttt{desplegar\_reproduccion.bat} desde la raíz del repositorio. El guion verifica la interfaz de línea de comandos, autentica el perfil \texttt{tesis\_repro}, crea el catálogo \texttt{tesis} si no existe, despliega el objetivo \texttt{reproduccion}, extrae cada archivo comprimido y lo sube al volumen que le corresponde, y compara el número de archivos subidos con el del manifiesto. La opción \texttt{/simular} muestra los comandos sin ejecutarlos.
-    \item Correr el trabajo \texttt{pipeline\_completo}, desde el espacio de trabajo o con \texttt{databricks bundle run pipeline\_completo -t reproduccion}. Encadena \texttt{dimensiones}, \texttt{ingesta\_geih} e \texttt{ingesta\_terridata}, \texttt{preprocesamiento}, \texttt{analisis} y \texttt{modelo}, en ese orden.
+    \item Correr el trabajo \texttt{pipeline\_completo}, desde el espacio de trabajo o con \texttt{databricks bundle run pipeline\_completo -t reproduccion}. Este trabajo encadena, en este orden, los trabajos \texttt{dimensiones}, \texttt{ingesta\_geih} e \texttt{ingesta\_terridata}, \texttt{preprocesamiento}, \texttt{analisis} y \texttt{modelo}.
     \item Comparar los resultados con los del documento: la tabla final \texttt{tesis.modelo.fay\_herriot\_estimaciones\_finales} y las figuras de \texttt{/Volumes/tesis/modelo/figuras}. Las figuras de la comparación espacial y el mapa de los 83 municipios se dibujan después, con \texttt{img/\_script/figuras\_resultados.py}, a partir de las tablas del trabajo del modelo.
 \end{enumerate}
 
@@ -621,17 +621,21 @@ Esta sección presenta el error de cada dominio retirado en los dos ejercicios d
 
 En la Tabla~\ref{tab:app_validacion}, con el procedimiento completo el benchmark de cada iteración incluyó la tasa de homicidios en 16 de las 23 y quedó sin covariables en cuatro. Los errores más grandes aparecen cuando el conjunto cambia, como en Armenia ($-7.01$ puntos) y Quibdó ($-6.57$). La Figura~\ref{fig:app_validacion} compara la estimación del dominio retirado con su directa en los dos ejercicios.
 
-{\footnotesize\setlength{\tabcolsep}{3pt}
-\begin{longtable}{l r r r r r r r r r p{2.2cm}}
-\caption[Validación predictiva dejar-un-dominio-fuera por dominio]{Validación predictiva dejar-un-dominio-fuera por dominio: estimación sintética del dominio retirado con las covariables fijas y con el procedimiento completo, error frente a la directa (puntos porcentuales) y errores estandarizados: $Z_{\psi}$, el error dividido por el error estándar de la directa, y $Z_{\text{pred}}$, el error dividido por toda la incertidumbre de la predicción (Ecuación~\ref{eq:metricas_val}). A.M.: área metropolitana.}
+{\footnotesize\setlength{\tabcolsep}{2pt}
+\begin{longtable}{l r r r r r r r r r p{1.75cm}}
+\caption[Validación predictiva dejar-un-dominio-fuera por dominio]{Validación predictiva dejar-un-dominio-fuera por dominio: estimación sintética del dominio retirado con las covariables fijas y con el procedimiento completo (Est.), error frente a la directa (puntos porcentuales) y errores estandarizados: $Z_{\psi}$, el error dividido por el error estándar de la directa, y $Z_{\text{pred}}$, el error dividido por toda la incertidumbre de la predicción (Ecuación~\ref{eq:metricas_val}). A.M.: área metropolitana.}
 \label{tab:app_validacion} \\
 \toprule
-Dominio & Directa & Fijas & Error & $Z_{\psi}$ & $Z_{\text{pred}}$ & Completo & Error & $Z_{\psi}$ & $Z_{\text{pred}}$ & Covariables (completo) \\
+& & \multicolumn{4}{c}{Covariables fijas} & \multicolumn{5}{c}{Procedimiento completo} \\
+\cmidrule(lr){3-6}\cmidrule(lr){7-11}
+Dominio & Directa & Est. & Error & $Z_{\psi}$ & $Z_{\text{pred}}$ & Est. & Error & $Z_{\psi}$ & $Z_{\text{pred}}$ & Covariables \\
 \midrule
 \endfirsthead
 \multicolumn{11}{l}{\tablename~\thetable{}, continuación} \\
 \toprule
-Dominio & Directa & Fijas & Error & $Z_{\psi}$ & $Z_{\text{pred}}$ & Completo & Error & $Z_{\psi}$ & $Z_{\text{pred}}$ & Covariables (completo) \\
+& & \multicolumn{4}{c}{Covariables fijas} & \multicolumn{5}{c}{Procedimiento completo} \\
+\cmidrule(lr){3-6}\cmidrule(lr){7-11}
+Dominio & Directa & Est. & Error & $Z_{\psi}$ & $Z_{\text{pred}}$ & Est. & Error & $Z_{\psi}$ & $Z_{\text{pred}}$ & Covariables \\
 \midrule
 \endhead
 \bottomrule
