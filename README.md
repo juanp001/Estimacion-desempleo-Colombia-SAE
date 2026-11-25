@@ -97,7 +97,10 @@ code/
                                     #   sensibilidad_espacial, cuadro_comparativo, figuras*, config…
 databricks.yml                      # Bundle DAB: variables de período, includes y exclusiones de sync
 dab/resources/                      # Un job por etapa + pipeline_completo
-dab/targets/dev.yml                 # Target `dev` (workspace)
+dab/targets/dev.yml                 # Target `dev` (workspace de los autores: solo jobs)
+dab/targets/reproduccion.yml        # Target `reproduccion`: esquemas, volúmenes y jobs (cuenta ajena)
+desplegar_reproduccion.bat          # Despliega el target, sube datos_reproduccion/ y verifica
+datos_reproduccion/                 # 9 zips de insumos crudos, MANIFIESTO.csv (SHA-256) y LEEME.md
 requirements.txt                    # Versiones del entorno serverless 2 (R-50)
 docs/                               # Resultados del cierre y del componente espacial
 ```
@@ -210,7 +213,7 @@ el flujo.
 
 ## Despliegue con Databricks Asset Bundles (DAB)
 
-`databricks.yml` y `dab/` definen siete jobs sobre cómputo serverless (target único `dev`):
+`databricks.yml` y `dab/` definen siete jobs sobre cómputo serverless (target `dev`, el workspace de los autores; el target `reproduccion` agrega la infraestructura):
 
 | Job | Tareas |
 |-----|--------|
@@ -226,7 +229,7 @@ El orden es `dimensiones` → `ingesta_geih` / `ingesta_terridata` → `preproce
 `pipeline_completo` lo ejecuta de punta a punta. El período llega como variables del bundle `anio_estimacion`
 (2018), `mes_estimacion` (12) y `n_meses_ventana` (12 = año, 3 = trimestre móvil). Los volúmenes
 `/Volumes/tesis/preprocesamiento/figuras_eda` y `/Volumes/tesis/modelo/figuras` deben existir antes de `analisis`
-y `modelo` (el bundle no los crea).
+y `modelo`: el target `dev` (workspace de los autores) no los crea; el target `reproduccion` sí (esquemas y volúmenes).
 
 ```
 databricks bundle validate -t dev
@@ -234,6 +237,144 @@ databricks bundle deploy -t dev
 databricks bundle run pipeline_completo -t dev
 databricks bundle run preprocesamiento -t dev --params anio_estimacion=2018,mes_estimacion=12,n_meses_ventana=12
 ```
+
+Para reproducir el proyecto en otra cuenta de Databricks, ver
+[Cómo reproducir el proyecto en una cuenta de Databricks](#cómo-reproducir-el-proyecto-en-una-cuenta-de-databricks).
+
+---
+
+## Cómo reproducir el proyecto en una cuenta de Databricks
+
+Guía para una persona ajena al proyecto. El repositorio trae los insumos crudos (`datos_reproduccion/`), un target
+del bundle que crea la infraestructura (`reproduccion`) y un script que automatiza el despliegue y la carga
+(`desplegar_reproduccion.bat`).
+
+### 1. Requisitos mínimos
+
+- Un workspace de Databricks con **Unity Catalog** y **cómputo serverless para jobs**. Sirve una cuenta de
+  [Databricks Free Edition](https://www.databricks.com/learn/free-edition) o una cuenta de prueba (trial).
+- Permiso `CREATE CATALOG` (o que un administrador cree el catálogo `tesis`). **No debe existir ya un catálogo
+  llamado `tesis`.**
+- Databricks CLI versión 0.250 o posterior (probada con la 1.22.1).
+- Windows 10/11 con `tar.exe` (viene incluido) y `git`; unos 1 GB de disco libre. En macOS/Linux, ver el paso 5.
+
+### 2. Instalar y autenticar la CLI
+
+```
+winget install Databricks.DatabricksCLI
+databricks --version
+databricks auth login --host https://<tu-workspace>.cloud.databricks.com --profile tesis_repro
+```
+
+Otras formas de instalación: <https://docs.databricks.com/dev-tools/cli/install.html>. El script usa el perfil
+`tesis_repro`; si ya lo tienes autenticado, no repite el inicio de sesión.
+
+### 3. Clonar el repositorio en la versión etiquetada
+
+```
+git clone https://github.com/juanp001/Estimacion-desempleo-Colombia-SAE.git
+cd Estimacion-desempleo-Colombia-SAE
+git checkout <COMMIT_REPRODUCCION>
+```
+
+Las versiones del código tienen etiquetas con el patrón `documento-vN` (existen `documento-v1` y
+`documento-v2`); la versión que incluye el target `reproduccion` es el commit `<COMMIT_REPRODUCCION>` (se
+sustituye al confirmarlo) o la etiqueta que lo marque.
+
+### 4. Ejecutar `desplegar_reproduccion.bat`
+
+Desde la raíz del repositorio:
+
+```
+desplegar_reproduccion.bat /simular
+desplegar_reproduccion.bat
+```
+
+`/simular` imprime los comandos sin ejecutarlos (revisar antes de correr de verdad). El script hace, en orden:
+
+1. Comprueba que la CLI existe y que su versión es suficiente.
+2. Autentica el perfil `tesis_repro` (`databricks auth login`).
+3. Crea el catálogo `tesis` si no existe.
+4. Despliega el bundle: `databricks bundle deploy -t reproduccion`. Crea los 7 esquemas (`dim`, `geih_bronce`,
+   `geih_plata`, `geih_oro`, `terridata`, `preprocesamiento`, `modelo`), los 11 volúmenes administrados (los 9 de
+   entrada más `preprocesamiento/figuras_eda` y `modelo/figuras`) y los 7 jobs, incluido `pipeline_completo`.
+5. Extrae cada zip de `datos_reproduccion/` con `tar -xf` y lo sube a `/Volumes/tesis/<esquema>/<volumen>` con
+   `databricks fs cp -r --overwrite`.
+6. Verifica el número de archivos de cada volumen contra `datos_reproduccion/MANIFIESTO.csv`.
+7. Pregunta si se quiere ejecutar `databricks bundle run pipeline_completo -t reproduccion`.
+
+Los datos incluidos son una copia de los volúmenes del proyecto (2026-11-25): GEIH 2018 (marco antiguo) y
+enero-febrero de 2025 (marco nuevo), factores de expansión, el anexo del DANE, TerriData consolidado y la DIVIPOLA.
+El origen de cada fuente y los SHA-256 están en `datos_reproduccion/LEEME.md` y `MANIFIESTO.csv`.
+
+### 5. Alternativa manual (macOS/Linux)
+
+Con la CLI instalada y autenticada (`databricks auth login --profile tesis_repro`), desde la raíz del repositorio:
+
+```
+export DATABRICKS_CONFIG_PROFILE=tesis_repro
+databricks catalogs create tesis
+databricks bundle deploy -t reproduccion
+
+# Cada zip se llama <esquema>__<volumen>.zip; sus rutas internas son relativas a la raíz del volumen.
+for z in datos_reproduccion/*.zip; do
+  nombre=$(basename "$z" .zip)
+  esquema=${nombre%%__*}
+  volumen=${nombre#*__}
+  tmp=$(mktemp -d)
+  unzip -q "$z" -d "$tmp"
+  databricks fs cp -r --overwrite "$tmp" "dbfs:/Volumes/tesis/$esquema/$volumen"
+  rm -rf "$tmp"
+done
+```
+
+Después, comparar el conteo de archivos con `datos_reproduccion/MANIFIESTO.csv` (columna `volumen_destino`).
+
+### 6. Ejecutar el pipeline
+
+```
+databricks bundle run pipeline_completo -t reproduccion
+```
+
+`pipeline_completo` encadena `dimensiones` → `ingesta_geih` / `ingesta_terridata` → `preprocesamiento` →
+`analisis` → `modelo`. Los parámetros por defecto reproducen el cierre 2018: `anio_estimacion=2018`,
+`mes_estimacion=12`, `n_meses_ventana=12` (bootstrap de 2000 réplicas, semilla 42). Se pueden pasar con
+`--params`:
+
+```
+databricks bundle run pipeline_completo -t reproduccion --params anio_estimacion=2018,mes_estimacion=12,n_meses_ventana=12
+```
+
+Para correr un solo job o una sola tarea (por ejemplo, tras un fallo):
+
+```
+databricks bundle run preprocesamiento -t reproduccion
+databricks bundle run modelo -t reproduccion --only fay_herriot
+```
+
+`sensibilidad_ventana_temporal` no está en ningún job (se corre a mano desde el workspace).
+
+### 7. Qué se espera obtener
+
+- Tablas en Unity Catalog, entre otras `tesis.geih_oro.mercado_laboral`, `tesis.preprocesamiento.tasa_desempleo_municipal`,
+  `tesis.preprocesamiento.covariables_seleccionadas` y, como resultado final,
+  `tesis.modelo.fay_herriot_estimaciones_finales` (23 dominios y 83 municipios) junto con `tesis.modelo.fhe_*`.
+- Figuras en `/Volumes/tesis/modelo/figuras` (`fh_*`, `fhe_*`) y `/Volumes/tesis/preprocesamiento/figuras_eda`.
+- Comparar con las cifras de [docs/resultados_cierre_2018.md](docs/resultados_cierre_2018.md). Las diferencias
+  pequeñas pueden venir de las versiones del entorno (Python 3.11.10, numpy 1.23.5, scipy 1.11.1, pandas 1.5.3,
+  statsmodels 0.14.0, matplotlib 3.7.2; ver [requirements.txt](requirements.txt)), por lo que conviene no cambiar
+  `environment_version "2"`.
+
+### 8. Problemas frecuentes
+
+| Síntoma | Causa probable y solución |
+|---------|---------------------------|
+| El catálogo `tesis` ya existe | El target `reproduccion` asume un catálogo propio y nuevo. Usar otro workspace o pedir que se elimine/renombre el existente. |
+| `PERMISSION_DENIED` al crear catálogo, esquemas o volúmenes | Falta `CREATE CATALOG` (o `CREATE SCHEMA`/`CREATE VOLUME`). Pedir a un administrador que cree `tesis` y otorgue los permisos. |
+| Error de sintaxis o comando desconocido en la CLI | CLI anterior a la 0.250: actualizar (`winget upgrade Databricks.DatabricksCLI`). |
+| La subida de archivos se corta por la red | Volver a ejecutar el script: `--overwrite` reemplaza los archivos y la verificación indica los volúmenes incompletos. |
+| El job no arranca o pide cómputo | El workspace no tiene serverless habilitado para jobs; habilitarlo o usar Free Edition. |
+| `analisis` o `modelo` no guardan figuras | Faltan los volúmenes `figuras_eda` o `figuras`; el target `reproduccion` los crea, revisar que el despliegue terminó. |
 
 ---
 
