@@ -13,7 +13,7 @@ Las cuatro fuentes son públicas: los microdatos de la GEIH y el anexo de mercad
 
 La Tabla~\ref{tab:app_jobs} relaciona cada trabajo con sus tareas y con las etapas de la metodología que cubre. El trabajo del modelo escribe también las tablas de la comparación entre el Fay-Herriot espacial y el clásico que usa la Sección~\ref{sec:res_espacial}: el SEBLUP de los 23 dominios con su ECM, su CV y su peso, las diferencias entre las dos estimaciones en dominios y municipios, y el índice de Moran de las 83 estimaciones municipales. Las dos figuras de esa comparación y el mapa municipal no salen de los trabajos: las dibuja el guion \texttt{img/\_script/figuras\_resultados.py}, versionado junto con el documento, que lee esas tablas sin recalcular ninguna cifra.
 
-Las cifras del documento corresponden a la corrida del 31 de octubre de 2026 de la ingesta y el preprocesamiento y a la del 5 de noviembre de 2026 del análisis y el modelo, con la versión del repositorio etiquetada \texttt{documento-v1}.
+Las cifras del documento corresponden a la corrida del 31 de octubre de 2026 de la ingesta y el preprocesamiento y a la del 5 de noviembre de 2026 del análisis y el modelo, con la versión del repositorio etiquetada \texttt{documento-v1}. La versión exacta que reproduce el documento se indica al final de esta sección.
 
 \begin{table}[!htbp]
 \centering
@@ -39,8 +39,55 @@ pipeline\_completo & Ejecuta los seis trabajos anteriores en orden & 1 a 16 \\
 \end{tabular}
 \end{adjustbox}
 \end{table}
+
+\paragraph{Requisitos mínimos.} La reproducción exige un espacio de trabajo de Databricks con Unity Catalog y cómputo \textit{serverless} para trabajos programados; sirve una cuenta de la edición gratuita (\textit{Free Edition}) o una de prueba. También exige permiso para crear catálogos (o que un administrador cree el catálogo \texttt{tesis}) y que no exista ya un catálogo con ese nombre. En el equipo local se necesitan Windows 10 u 11 con \texttt{tar.exe}, \texttt{git}, la interfaz de línea de comandos de Databricks en la versión 0.250 o posterior (probada con la 1.22.1) y cerca de 1 GB de disco libre. En macOS y Linux se usan los mismos comandos de la interfaz, escritos a mano en el \texttt{README.md} del repositorio.
+
+\paragraph{Qué despliega el conjunto.} El objetivo \texttt{reproduccion} del paquete de Databricks (\textit{Databricks Asset Bundles}, DAB), definido en \texttt{dab/targets/reproduccion.yml}, despliega además de los trabajos la infraestructura que el procesamiento supone: los siete esquemas y los once volúmenes administrados de la Tabla~\ref{tab:app_infra}. El catálogo \texttt{tesis} lo crea el guion de despliegue si no existe. El objetivo \texttt{dev} es el espacio de trabajo de los autores y solo despliega los trabajos de la Tabla~\ref{tab:app_jobs}.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption[Infraestructura del objetivo \texttt{reproduccion}]{Infraestructura del catálogo \texttt{tesis} que despliega el objetivo \texttt{reproduccion}: esquemas y volúmenes administrados. Los nueve primeros volúmenes reciben los datos de entrada; los dos últimos guardan las figuras que escribe el procesamiento. GEIH: Gran Encuesta Integrada de Hogares; DIVIPOLA: División Político-Administrativa de Colombia; DANE: Departamento Administrativo Nacional de Estadística; CNPV: Censo Nacional de Población y Vivienda.}
+\label{tab:app_infra}
+\begin{adjustbox}{max width=\linewidth}
+\begin{tabular}{l l p{7.2cm}}
+\toprule
+Esquema & Volumen & Contenido \\
+\midrule
+\texttt{dim} & \texttt{divipola} & Códigos de los municipios (DIVIPOLA) \\
+\texttt{geih\_bronce} & \texttt{caracteristicas\_generales} & Módulo de características generales, marcos antiguo y nuevo \\
+\texttt{geih\_bronce} & \texttt{fuerza\_de\_trabajo} & Módulo de fuerza de trabajo, marcos antiguo y nuevo \\
+\texttt{geih\_bronce} & \texttt{ocupados} & Módulo de ocupados, marcos antiguo y nuevo \\
+\texttt{geih\_bronce} & \texttt{no\_ocupados} & Módulo de no ocupados, marcos antiguo y nuevo \\
+\texttt{geih\_bronce} & \texttt{inactivos} & Módulo de inactivos, solo marco antiguo \\
+\texttt{geih\_bronce} & \texttt{fex} & Factores de expansión actualizados del DANE \\
+\texttt{geih\_bronce} & \texttt{datos\_publicados} & Anexo del DANE de mercado laboral según proyecciones del CNPV 2018 \\
+\texttt{terridata} & \texttt{terridata\_archivos} & Indicadores de TerriData consolidados (Parquet) \\
+\texttt{preprocesamiento} & \texttt{figuras\_eda} & Salida: figuras del análisis \\
+\texttt{modelo} & \texttt{figuras} & Salida: figuras del modelo \\
+\midrule
+\multicolumn{3}{l}{Esquemas sin volumen: \texttt{geih\_plata}, \texttt{geih\_oro}} \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+\paragraph{Datos incluidos.} El repositorio incluye el directorio \texttt{datos\_reproduccion/}, con una copia de los insumos tomada de los volúmenes del proyecto el 25 de noviembre de 2026. Son nueve archivos comprimidos, uno por volumen de entrada (\texttt{<esquema>\_\_<volumen>.zip}, con rutas internas relativas a la raíz del volumen), con 147 archivos y cerca de 95 MB en total. Contienen los microdatos de la GEIH de 2018 (marco antiguo, con las secciones de cabecera y resto de los doce meses y la de área de enero a marzo) y de enero y febrero de 2025 (marco nuevo), los factores de expansión, el anexo del DANE, el Parquet consolidado de TerriData y la DIVIPOLA. El archivo \texttt{MANIFIESTO.csv} lista cada archivo con su volumen de destino, su tamaño y su SHA-256, y \texttt{LEEME.md} detalla el origen de cada fuente. Los datos son públicos y se redistribuyen solo para facilitar la reproducción; quien los use debe respetar los términos de uso y de citación del DANE y del DNP. Para versiones actualizadas se debe acudir a las fuentes oficiales.
+
+\paragraph{Pasos de reproducción.} Los pasos mínimos para restablecer la cadena son:
+\begin{enumerate}[nosep]
+    \item Clonar el repositorio y situarse en la versión indicada al final de esta sección.
+    \item Ejecutar \texttt{desplegar\_reproduccion.bat} desde la raíz del repositorio. El guion verifica la interfaz de línea de comandos, autentica el perfil \texttt{tesis\_repro}, crea el catálogo \texttt{tesis} si no existe, despliega el objetivo \texttt{reproduccion}, extrae cada archivo comprimido y lo sube al volumen que le corresponde, y compara el número de archivos subidos con el del manifiesto. La opción \texttt{/simular} muestra los comandos sin ejecutarlos.
+    \item Correr el trabajo \texttt{pipeline\_completo}, desde el espacio de trabajo o con \texttt{databricks bundle run pipeline\_completo -t reproduccion}. Encadena \texttt{dimensiones}, \texttt{ingesta\_geih} e \texttt{ingesta\_terridata}, \texttt{preprocesamiento}, \texttt{analisis} y \texttt{modelo}, en ese orden.
+    \item Comparar los resultados con los del documento: la tabla final \texttt{tesis.modelo.fay\_herriot\_estimaciones\_finales} y las figuras de \texttt{/Volumes/tesis/modelo/figuras}. Las figuras de la comparación espacial y el mapa de los 83 municipios se dibujan después, con \texttt{img/\_script/figuras\_resultados.py}, a partir de las tablas del trabajo del modelo.
+\end{enumerate}
+
+\paragraph{Versiones del entorno y parámetros.} Los trabajos usan el entorno \textit{serverless} \texttt{environment\_version "2"} de Databricks, con Python 3.11.10, numpy 1.23.5, scipy 1.11.1, pandas 1.5.3, statsmodels 0.14.0 y matplotlib 3.7.2; solo \texttt{openpyxl==3.1.5} se instala aparte, en la ingesta de la GEIH. Las versiones están en \texttt{requirements.txt}. Los parámetros de la corrida son el año de cierre 2018 (\texttt{anio\_estimacion}), el mes de cierre 12 (\texttt{mes\_estimacion}) y una ventana de 12 meses (\texttt{n\_meses\_ventana}); el bootstrap usa \num{2000} réplicas con la semilla 42.
+
+\paragraph{Versión del código.} El paquete de reproducción (el objetivo \texttt{reproduccion}, el guion de despliegue y los datos de entrada) se incorpora al repositorio en el \textit{commit} \texttt{<COMMIT\_REPRODUCCION>} de la rama \texttt{documento}. Las cifras del documento corresponden a las corridas indicadas al inicio de este anexo, con la versión etiquetada \texttt{documento-v1}; las etiquetas siguientes siguen el patrón \texttt{documento-vN}.
 %--------------------------------------------------------------------------------------
 \anexo{Linaje de tablas}
+
 \label{app:linaje}
 
 Esta sección relaciona cada tabla del procesamiento con el cuaderno que la escribe y la etapa de la metodología; la citan las Secciones~\ref{sec:metodologia} y~\ref{sec:resultados}.
