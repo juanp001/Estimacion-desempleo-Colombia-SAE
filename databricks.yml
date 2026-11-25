@@ -27,6 +27,7 @@ variables:
 sync:
   exclude:
     - data/**
+    - datos_reproduccion/**
     - code/ingesta_datos/censo_nal/**
     - code/analisis/renombrar_geih.py
     # Archivos de trabajo sueltos en la raíz (insumos y documentos, p. ej. TerriData.txt de

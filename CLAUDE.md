@@ -601,14 +601,24 @@ orquestador `pipeline_completo` (R-51):
   `estimacion_directa` y `dominios_sin_encuesta`; `resolver_ventana` lee la ventana solo en
   `estimacion_directa`, y de ahí viaja en la columna `N_MESES_VENTANA`. Ejemplo (trimestre Abr-Jun 2024):
   `databricks bundle run preprocesamiento -t dev --params anio_estimacion=2024,mes_estimacion=6,n_meses_ventana=3`.
-- El bundle no crea volúmenes: `/Volumes/tesis/preprocesamiento/figuras_eda` debe existir antes de `analisis` y
+- El target `dev` no crea volúmenes: `/Volumes/tesis/preprocesamiento/figuras_eda` debe existir antes de `analisis` y
   `/Volumes/tesis/modelo/figuras` antes de `modelo` (si falta, las figuras se muestran pero no se guardan).
+- **Target `reproduccion`** (`dab/targets/reproduccion.yml`, sin host fijo, para cuentas ajenas): es el único que
+  despliega la infraestructura (los 7 esquemas y los 11 volúmenes administrados: los 9 de entrada más
+  `preprocesamiento/figuras_eda` y `modelo/figuras`) además de los jobs. `dev` sigue siendo solo jobs; no mover la
+  infraestructura a `dev` (los objetos del workspace de los autores ya existen).
+- `desplegar_reproduccion.bat` (raíz; `/simular` = dry-run) automatiza el despliegue de `reproduccion`: CLI, perfil
+  `tesis_repro`, catálogo `tesis` si falta, `bundle deploy`, carga de los zips y verificación contra el manifiesto.
+- `datos_reproduccion/` guarda los insumos crudos de los 9 volúmenes de entrada (`<esquema>__<volumen>.zip`,
+  `MANIFIESTO.csv` con SHA-256, `LEEME.md` con fuentes). Si cambia un volumen de entrada, regenerar el zip y el
+  manifiesto. `sync.exclude` debe omitirlo (no se sube al workspace con el bundle). Guía para terceros en el
+  README («Cómo reproducir el proyecto en una cuenta de Databricks») y en el anexo `app:reproducibilidad` del documento.
 - `sync.exclude` omite `data/`, `code/ingesta_datos/censo_nal/`, `code/analisis/renombrar_geih.py` y los
   `*.txt`, `*.xlsx`, `*.pdf` (archivos de trabajo de la raíz; `TerriData.txt` de ~3 GB rompía el despliegue).
 - **Versiones (R-50)**: el entorno base serverless 2 trae Python 3.11.10, numpy 1.23.5, scipy 1.11.1, pandas 1.5.3,
   statsmodels 0.14.0 y matplotlib 3.7.2; solo `openpyxl==3.1.5` se instala aparte (`ingesta_geih`). Están en
   `requirements.txt`; si se cambia `environment_version`, volver a verificarlas.
-- Para correr una sola tarea: `databricks bundle run <job> -t dev --only <task_key>`.
+- Para correr una sola tarea: `databricks bundle run <job> -t dev --only <task_key>` (`-t reproduccion` en otra cuenta).
 - `modelo/fay_herriot.py` resuelve `CODE_DIR` con `dbutils` para poder correr como job.
 - Detalles de cómo ejecutar jobs en este workspace: ver la memoria `project_flujo_rev_decisiones`.
 
