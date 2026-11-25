@@ -55,7 +55,7 @@ PEA = OC + DS & \num{390060} = \num{348015} + \num{42045}; 0 de 288 la rompen \\
 Personas ocupadas y desocupadas a la vez & 0 \\
 Bandera de la PEA frente a OC + DS, por mes & Coinciden en 12 de 12 meses \\
 TerriData: filas antes y después del paso a formato ancho & \num{147026} y \num{147026}; sin llaves duplicadas \\
-TerriData: muestra aleatoria y conversión numérica & 10 de 10 coinciden; 261 de \num{10809352} valores (0.002~\%) pasan a nulo \\
+TerriData: muestra aleatoria y conversión numérica & 10 de 10 coinciden; 261 de \num{10809352} valores (menos del 0.01~\%) pasan a nulo \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -72,7 +72,7 @@ Ninguna imputación fue necesaria: ninguna persona quedó sin factor de expansi�
 \section{Definición de los dominios de estimación y correspondencia geográfica}
 \label{sec:res_dominios}
 
-La tabla de dominios tiene 52 filas: las 32 capitales y los municipios de las 7 áreas metropolitanas, que suman 27 filas. En 2018 tuvieron muestra 23 dominios, 7 de ellos con área metropolitana, que reúnen 43 municipios (Tabla~\ref{tab:dominios_geih}). La auditoría de los 23 dominios se resume en la Tabla~\ref{tab:res_auditoria}: todos aparecen en el anexo del DANE con el mismo nombre, y la tasa directa de cada uno coincide con la reconstruida del anexo con una diferencia máxima de 0.0005 puntos porcentuales.
+La tabla de dominios tiene 52 filas: las 32 capitales y los municipios de las 7 áreas metropolitanas, que suman 27 filas. En 2018 tuvieron muestra 23 dominios, 7 de ellos con área metropolitana, que reúnen 43 municipios (Tabla~\ref{tab:dominios_geih}). La auditoría de los 23 dominios se resume en la Tabla~\ref{tab:res_auditoria}: todos aparecen en el anexo del DANE con el mismo nombre, y la tasa directa de cada uno coincide con la reconstruida del anexo con diferencias menores que 0.01 puntos porcentuales.
 
 \begin{table}[!htbp]
 \centering
@@ -88,7 +88,7 @@ Nombre en el anexo del DANE & 23 de 23 \\
 Geografía de la tasa & Cabeceras de los municipios del dominio (registros con código de área) \\
 Geografía de las covariables & Municipio completo (cabecera y resto), TerriData \\
 Regla de las covariables & Valor municipal en las 16 ciudades; razón de totales con el denominador propio en las 7 A.M. \\
-Tasa directa frente a la del DANE & Diferencia máxima de 0.0005 puntos porcentuales (Ene-Dic 2018) \\
+Tasa directa frente a la del DANE & Diferencias menores que 0.01 puntos porcentuales (Ene-Dic 2018) \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -99,7 +99,7 @@ La auditoría deja a la vista una diferencia de geografía que acompaña todo el
 \section{Estimación directa de la tasa de desempleo}
 \label{sec:res_directa}
 
-La Tabla~\ref{tab:res_directa} presenta la tasa directa de cada dominio con su error estándar, su CV y la cifra del DANE reconstruida para el mismo año. Los 23 dominios quedaron como confiables, con CV entre 2.01~\% (Medellín A.M.) y 3.23~\% (Pasto). Las 23 tasas coinciden con las del DANE y la tasa conjunta, ponderada por la PEA expandida, es 10.83~\%, igual al «Total 23 ciudades y A.M.» del año. El error estándar por bootstrap y el de Taylor casi no difieren: su razón tiene mediana 1.000 y va de 0.969 a 1.026.
+La Tabla~\ref{tab:res_directa} presenta la tasa directa de cada dominio con su error estándar, su CV y la cifra del DANE reconstruida para el mismo año. Los 23 dominios quedaron como confiables, con CV entre 2.01~\% (Medellín A.M.) y 3.23~\% (Pasto). Las 23 tasas coinciden con las del DANE y la tasa conjunta, ponderada por la PEA expandida, es 10.83~\%, igual al «Total 23 ciudades y A.M.» del año. El error estándar por bootstrap y el de Taylor casi no difieren: su razón tiene mediana 1.00 y va de 0.97 a 1.03.
 
 \begin{table}[!htbp]
 \centering
@@ -184,7 +184,7 @@ La tabla de municipios objetivo quedó con 83 filas: 41 del Cauca y 42 del Valle
 \section{Pre-filtrado de covariables}
 \label{sec:res_prefiltrado}
 
-La Tabla~\ref{tab:res_prefiltrado} muestra la cascada. La completitud retiró dos de cada tres indicadores; la variabilidad, solo 12 más. El número de sobrevivientes cambió poco con los umbrales: con un CV mínimo entre 0.0001 y 0.01 y una proporción modal entre 0.80 y 0.95 quedaron entre 493 y 499; solo con un CV mínimo de 0.05 bajó a 475-478. Las 18 candidatas del catálogo pasaron los dos filtros. Entre los 497 sobrevivientes hay 19 grupos de indicadores prácticamente idénticos ($|r| \geq 0.999$), con 140 variables sobrantes, casi todos conteos de población por edad y sexo; se reportaron y no se usaron para decidir.
+La Tabla~\ref{tab:res_prefiltrado} muestra la cascada. La completitud retiró dos de cada tres indicadores; la variabilidad, solo 12 más. El número de sobrevivientes cambió poco con los umbrales: con un CV mínimo entre $10^{-4}$ y $10^{-2}$ y una proporción modal entre 0.80 y 0.95 quedaron entre 493 y 499; solo con un CV mínimo de 0.05 bajó a 475-478. Las 18 candidatas del catálogo pasaron los dos filtros. Entre los 497 sobrevivientes hay 19 grupos de indicadores prácticamente idénticos ($|r| \geq 1 - 10^{-3}$), con 140 variables sobrantes, casi todos conteos de población por edad y sexo; se reportaron y no se usaron para decidir.
 
 \begin{table}[!htbp]
 \centering
@@ -198,7 +198,7 @@ Paso & Criterio & Indicadores & Retención (\%) \\
 \midrule
 Conjunto inicial & Indicadores en formato ancho & \num{1582} & 100.00 \\
 Completitud & Sin faltantes en los 23 dominios & 509 & 32.17 \\
-Variabilidad & CV $\geq 0.001$ y proporción modal $\leq 0.90$ & 497 & 31.42 \\
+Variabilidad & CV $\geq 10^{-3}$ y proporción modal $\leq 0.90$ & 497 & 31.42 \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
@@ -217,7 +217,7 @@ La Figura~\ref{fig:res_respuesta} resume la tasa directa y su precisión. La tas
 \label{fig:res_respuesta}
 \end{figure}
 
-La Tabla~\ref{tab:res_bivariado} reúne la descripción bivariada de las 18 candidatas. Solo la tasa de homicidios alcanzó $|r| \geq 0.50$ con la tasa de desempleo (0.519); doce quedaron entre 0.30 y 0.50. En cuatro la correlación de Pearson y la de Spearman difieren en más de 0.20, señal de que unos pocos dominios extremos sostienen la relación lineal: la cobertura de acueducto, el índice de pobreza multidimensional y los dos puntajes de Saber 11. En la tasa de homicidios la diferencia es de 0.126, pero sus valores extremos también condicionan la relación lineal. Dos candidatas tienen un signo contrario al esperado por el catálogo: la tasa de tránsito a la educación superior y el porcentaje de población urbana.
+La Tabla~\ref{tab:res_bivariado} reúne la descripción bivariada de las 18 candidatas. Solo la tasa de homicidios alcanzó $|r| \geq 0.50$ con la tasa de desempleo (0.52); doce quedaron entre 0.30 y 0.50. En cuatro la correlación de Pearson y la de Spearman difieren en más de 0.20, señal de que unos pocos dominios extremos sostienen la relación lineal: la cobertura de acueducto, el índice de pobreza multidimensional y los dos puntajes de Saber 11. En la tasa de homicidios la diferencia es de 0.13, pero sus valores extremos también condicionan la relación lineal. Dos candidatas tienen un signo contrario al esperado por el catálogo: la tasa de tránsito a la educación superior y el porcentaje de población urbana.
 
 \begin{table}[!htbp]
 \centering
@@ -229,38 +229,38 @@ La Tabla~\ref{tab:res_bivariado} reúne la descripción bivariada de las 18 cand
 \toprule
 Covariable & Signo & $r$ & $\rho_S$ & IC de $r$ \\
 \midrule
-Tasa de homicidios & $+$ & 0.519 & 0.393 & [0.135, 0.767] \\
-Cobertura de acueducto & $-$ & $-0.489$ & $-0.176$ & [$-0.750$, $-0.096$] \\
-Cobertura neta en educación media & $-$ & $-0.476$ & $-0.513$ & [$-0.742$, $-0.079$] \\
-Índice de pobreza multidimensional & $+$ & 0.441 & 0.184 & [0.035, 0.722] \\
-Valor agregado de actividades primarias & $\pm$ & 0.432 & 0.499 & [0.024, 0.717] \\
-Ingresos tributarios per cápita & $-$ & $-0.421$ & $-0.489$ & [$-0.710$, $-0.011$] \\
-Cobertura neta en educación secundaria & $-$ & $-0.372$ & $-0.393$ & [$-0.680$, 0.047] \\
-Valor agregado de actividades secundarias & $\pm$ & $-0.367$ & $-0.286$ & [$-0.677$, 0.053] \\
-Valor agregado per cápita & $-$ & $-0.364$ & $-0.385$ & [$-0.675$, 0.056] \\
-Tránsito a la educación superior & $-$ & 0.360 & 0.425 & [$-0.061$, 0.673] \\
-Índice de desempeño fiscal & $-$ & $-0.315$ & $-0.406$ & [$-0.644$, 0.112] \\
-Población joven de 14 a 28 años & $+$ & 0.309 & 0.211 & [$-0.118$, 0.640] \\
-Saber 11, lectura crítica & $-$ & $-0.305$ & $-0.085$ & [$-0.637$, 0.122] \\
-Densidad de población & $\pm$ & $-0.282$ & $-0.358$ & [$-0.622$, 0.147] \\
-Saber 11, matemáticas & $-$ & $-0.269$ & $-0.068$ & [$-0.613$, 0.161] \\
-Valor agregado de actividades terciarias & $\pm$ & 0.200 & 0.138 & [$-0.232$, 0.565] \\
-Penetración de banda ancha & $-$ & $-0.121$ & $-0.078$ & [$-0.508$, 0.306] \\
-Población urbana & $+$ & $-0.017$ & 0.052 & [$-0.426$, 0.398] \\
+Tasa de homicidios & $+$ & 0.52 & 0.39 & [0.14, 0.77] \\
+Cobertura de acueducto & $-$ & $-0.49$ & $-0.18$ & [$-0.75$, $-0.10$] \\
+Cobertura neta en educación media & $-$ & $-0.48$ & $-0.51$ & [$-0.74$, $-0.08$] \\
+Índice de pobreza multidimensional & $+$ & 0.44 & 0.18 & [0.04, 0.72] \\
+Valor agregado de actividades primarias & $\pm$ & 0.43 & 0.50 & [0.02, 0.72] \\
+Ingresos tributarios per cápita & $-$ & $-0.42$ & $-0.49$ & [$-0.71$, $-0.01$] \\
+Cobertura neta en educación secundaria & $-$ & $-0.37$ & $-0.39$ & [$-0.68$, 0.05] \\
+Valor agregado de actividades secundarias & $\pm$ & $-0.37$ & $-0.29$ & [$-0.68$, 0.05] \\
+Valor agregado per cápita & $-$ & $-0.36$ & $-0.39$ & [$-0.68$, 0.06] \\
+Tránsito a la educación superior & $-$ & 0.36 & 0.43 & [$-0.06$, 0.67] \\
+Índice de desempeño fiscal & $-$ & $-0.32$ & $-0.41$ & [$-0.64$, 0.11] \\
+Población joven de 14 a 28 años & $+$ & 0.31 & 0.21 & [$-0.12$, 0.64] \\
+Saber 11, lectura crítica & $-$ & $-0.31$ & $-0.09$ & [$-0.64$, 0.12] \\
+Densidad de población & $\pm$ & $-0.28$ & $-0.36$ & [$-0.62$, 0.15] \\
+Saber 11, matemáticas & $-$ & $-0.27$ & $-0.07$ & [$-0.61$, 0.16] \\
+Valor agregado de actividades terciarias & $\pm$ & 0.20 & 0.14 & [$-0.23$, 0.57] \\
+Penetración de banda ancha & $-$ & $-0.12$ & $-0.08$ & [$-0.51$, 0.31] \\
+Población urbana & $+$ & $-0.02$ & 0.05 & [$-0.43$, 0.40] \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
 \end{table}
 
-En el plano multivariado, seis pares de candidatas tienen $|r| \geq 0.80$: los dos puntajes de Saber 11 (0.970), el valor agregado per cápita y los ingresos tributarios per cápita (0.931), las participaciones secundaria y terciaria del valor agregado ($-0.907$), la lectura crítica y el índice de pobreza multidimensional ($-0.850$), ese índice y la banda ancha ($-0.828$), y el desempeño fiscal y los ingresos tributarios (0.813). La estadística univariada de las candidatas, sus diagramas de caja, los diagramas de dispersión y la matriz de correlaciones están en el Apéndice~\ref{app:descriptivo}.
+En el plano multivariado, seis pares de candidatas tienen $|r| \geq 0.80$: los dos puntajes de Saber 11 (0.97), el valor agregado per cápita y los ingresos tributarios per cápita (0.93), las participaciones secundaria y terciaria del valor agregado ($-0.91$), la lectura crítica y el índice de pobreza multidimensional ($-0.85$), ese índice y la banda ancha ($-0.83$), y el desempeño fiscal y los ingresos tributarios (0.81). La estadística univariada de las candidatas, sus diagramas de caja, los diagramas de dispersión y la matriz de correlaciones están en el Apéndice~\ref{app:descriptivo}.
 
 %--------------------------------------------------------------------------------------
 \section{Selección de covariables}
 \label{sec:res_seleccion}
 
-La Tabla~\ref{tab:res_seleccion} muestra el recorrido de cada candidata por los cinco pasos. De las 18, tres tuvieron un valor $q$ de Benjamini-Hochberg menor o igual a 0.10 en el Fay-Herriot univariado, las tres con $q = 0.079$: la tasa de homicidios, la cobertura de acueducto y la cobertura neta en educación media. Con la cota de $\lfloor 23/10 \rfloor = 2$ covariables entraron las dos de mayor $|r_w|$: la tasa de homicidios ($r_w = 0.516$) y la cobertura de acueducto ($r_w = -0.486$). Su VIF es 1.98, por debajo de 5, y exigir el signo esperado no cambió el conjunto.
+La Tabla~\ref{tab:res_seleccion} muestra el recorrido de cada candidata por los cinco pasos. De las 18, tres tuvieron un valor $q$ de Benjamini-Hochberg menor o igual a 0.10 en el Fay-Herriot univariado, las tres con $q = 0.08$: la tasa de homicidios, la cobertura de acueducto y la cobertura neta en educación media. Con la cota de $\lfloor 23/10 \rfloor = 2$ covariables entraron las dos de mayor $|r_w|$: la tasa de homicidios ($r_w = 0.52$) y la cobertura de acueducto ($r_w = -0.49$). Su VIF es 1.98, por debajo de 5, y exigir el signo esperado no cambió el conjunto.
 
-El umbral de 0.10 decidió si el modelo tenía covariables. Con $q \leq 0.05$ ninguna candidata fue elegible, porque el menor valor observado fue 0.079, y la selección habría terminado en el modelo de solo intercepto. Con $q \leq 0.15$ fueron elegibles diez candidatas, pero la cota de dos covariables y el orden por $|r_w|$ dejaron el mismo conjunto: la tasa de homicidios y la cobertura de acueducto.
+El umbral de 0.10 decidió si el modelo tenía covariables. Con $q \leq 0.05$ ninguna candidata fue elegible, porque el menor valor observado fue 0.08, y la selección habría terminado en el modelo de solo intercepto. Con $q \leq 0.15$ fueron elegibles diez candidatas, pero la cota de dos covariables y el orden por $|r_w|$ dejaron el mismo conjunto: la tasa de homicidios y la cobertura de acueducto.
 
 \begin{table}[!htbp]
 \centering
@@ -272,24 +272,24 @@ El umbral de 0.10 decidió si el modelo tenía covariables. Con $q \leq 0.05$ ni
 \toprule
 Covariable & $r_w$ & $q$ & Robustez & Soporte & Decisión \\
 \midrule
-Tasa de homicidios & 0.516 & 0.079 & D & 0.747 & Seleccionada \\
-Cobertura de acueducto & $-0.486$ & 0.079 & D & 0.867 & Seleccionada \\
-Cobertura neta en educación media & $-0.475$ & 0.079 & D & 0.518 & Elegible, fuera de la cota \\
-Índice de pobreza multidimensional & 0.438 & 0.101 & D & 0.747 & Redundante (banda ancha) \\
-Valor agregado de actividades primarias & 0.431 & 0.101 & E & 0.169 & No elegible \\
-Ingresos tributarios per cápita & $-0.420$ & 0.101 & E & 0.590 & Redundante (valor agregado per cápita) \\
-Cobertura neta en educación secundaria & $-0.372$ & 0.135 & D & 0.169 & No elegible \\
-Valor agregado de actividades secundarias & $-0.365$ & 0.135 & D & 0.663 & Redundante (terciarias) \\
-Valor agregado per cápita & $-0.362$ & 0.135 & E & 0.554 & No elegible \\
-Tránsito a la educación superior & 0.361 & 0.135 & E & 0.169 & No elegible \\
-Índice de desempeño fiscal & $-0.315$ & 0.202 & E & 0.506 & No elegible \\
-Población joven de 14 a 28 años & 0.307 & 0.202 & D & 0.723 & No elegible \\
-Saber 11, lectura crítica & $-0.302$ & 0.202 & D & 0.699 & Redundante (matemáticas) \\
-Densidad de población & $-0.282$ & 0.228 & E & 0.771 & No elegible \\
-Saber 11, matemáticas & $-0.266$ & 0.247 & D & 0.771 & No elegible \\
-Valor agregado de actividades terciarias & 0.198 & 0.398 & D & 0.373 & No elegible \\
-Penetración de banda ancha & $-0.120$ & 0.615 & D & 0.217 & No elegible \\
-Población urbana & $-0.017$ & 0.938 & D & 0.265 & No elegible \\
+Tasa de homicidios & 0.52 & 0.08 & D & 0.75 & Seleccionada \\
+Cobertura de acueducto & $-0.49$ & 0.08 & D & 0.87 & Seleccionada \\
+Cobertura neta en educación media & $-0.48$ & 0.08 & D & 0.52 & Elegible, fuera de la cota \\
+Índice de pobreza multidimensional & 0.44 & 0.10 & D & 0.75 & Redundante (banda ancha) \\
+Valor agregado de actividades primarias & 0.43 & 0.10 & E & 0.17 & No elegible \\
+Ingresos tributarios per cápita & $-0.42$ & 0.10 & E & 0.59 & Redundante (valor agregado per cápita) \\
+Cobertura neta en educación secundaria & $-0.37$ & 0.14 & D & 0.17 & No elegible \\
+Valor agregado de actividades secundarias & $-0.37$ & 0.14 & D & 0.66 & Redundante (terciarias) \\
+Valor agregado per cápita & $-0.36$ & 0.14 & E & 0.55 & No elegible \\
+Tránsito a la educación superior & 0.36 & 0.14 & E & 0.17 & No elegible \\
+Índice de desempeño fiscal & $-0.32$ & 0.20 & E & 0.51 & No elegible \\
+Población joven de 14 a 28 años & 0.31 & 0.20 & D & 0.72 & No elegible \\
+Saber 11, lectura crítica & $-0.30$ & 0.20 & D & 0.70 & Redundante (matemáticas) \\
+Densidad de población & $-0.28$ & 0.23 & E & 0.77 & No elegible \\
+Saber 11, matemáticas & $-0.27$ & 0.25 & D & 0.77 & No elegible \\
+Valor agregado de actividades terciarias & 0.20 & 0.40 & D & 0.37 & No elegible \\
+Penetración de banda ancha & $-0.12$ & 0.62 & D & 0.22 & No elegible \\
+Población urbana & $-0.02$ & 0.94 & D & 0.27 & No elegible \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
@@ -300,7 +300,7 @@ Los diagnósticos que no deciden dejan advertencias sobre el conjunto elegido. D
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.85\linewidth]{img/eda_robustez.png}
-\caption{Diagnóstico de robustez de las 18 candidatas: distancia de Cook máxima del Fay-Herriot univariado y cambio máximo de $r_w$ al retirar un dominio. Las líneas marcan $4/n = 0.174$ y el cambio de 0.10. Fuente: tabla de diagnósticos de covariables.}
+\caption{Diagnóstico de robustez de las 18 candidatas: distancia de Cook máxima del Fay-Herriot univariado y cambio máximo de $r_w$ al retirar un dominio. Las líneas marcan $4/n = 0.17$ y el cambio de 0.10. Fuente: tabla de diagnósticos de covariables.}
 \label{fig:res_robustez}
 \end{figure}
 
@@ -308,7 +308,7 @@ Los diagnósticos que no deciden dejan advertencias sobre el conjunto elegido. D
 \section{Ajuste y selección del modelo Fay-Herriot clásico (benchmark)}
 \label{sec:res_fh_clasico}
 
-La Tabla~\ref{tab:res_especificaciones} compara las cuatro especificaciones. En EC1, con las dos covariables seleccionadas, ninguna resultó significativa ($p = 0.190$ y $p = 0.351$): comparten buena parte de la información, porque las dos dependen de Quibdó. Por eso EC1 no compitió. Entre las tres que cumplen la regla, EC3 (tasa de homicidios) tuvo el menor AIC, 108.904; EC2 (cobertura de acueducto) quedó a 0.918 y es equivalente por la regla de $\Delta$AIC $\leq 2$. Como las dos tienen una covariable, la parsimonia no las separa y la elección la definió el AIC. EC0 quedó a 5.138 del mejor y no es equivalente. El AICc ordenó igual. La RMSE de dejar un dominio fuera, que es descriptiva, también ordenó a EC3 primero.
+La Tabla~\ref{tab:res_especificaciones} compara las cuatro especificaciones. En EC1, con las dos covariables seleccionadas, ninguna resultó significativa ($p = 0.19$ y $p = 0.35$): comparten buena parte de la información, porque las dos dependen de Quibdó. Por eso EC1 no compitió. Entre las tres que cumplen la regla, EC3 (tasa de homicidios) tuvo el menor AIC, 108.90; EC2 (cobertura de acueducto) quedó a 0.92 y es equivalente por la regla de $\Delta$AIC $\leq 2$. Como las dos tienen una covariable, la parsimonia no las separa y la elección la definió el AIC. EC0 quedó a 5.14 del mejor y no es equivalente. El AICc ordenó igual. La RMSE de dejar un dominio fuera, que es descriptiva, también ordenó a EC3 primero.
 
 \begin{table}[!htbp]
 \centering
@@ -320,33 +320,33 @@ La Tabla~\ref{tab:res_especificaciones} compara las cuatro especificaciones. En 
 \toprule
  & Covariables & $p$ & $\hat{\sigma}_u^2$ & $R^2$ & AIC & $\Delta$AIC & AICc & RMSE \\
 \midrule
-EC3* & Homicidios & 0.006 & 5.529 & 0.269 & 108.904 & 0.000 & 110.167 & 2.52 \\
-EC2 & Acueducto & 0.011 & 5.757 & 0.239 & 109.822 & 0.918 & 111.085 & 2.60 \\
-EC1 & Homicidios y acueducto & 0.351 & 5.564 & 0.299 & 109.926 & 1.023 & 112.148 & 2.55 \\
-EC0 & Solo intercepto & no aplica & 7.209 & 0.000 & 114.042 & 5.138 & 114.642 & 2.77 \\
+EC3* & Homicidios & $<0.01$ & 5.53 & 0.27 & 108.90 & 0.00 & 110.17 & 2.52 \\
+EC2 & Acueducto & 0.01 & 5.76 & 0.24 & 109.82 & 0.92 & 111.09 & 2.60 \\
+EC1 & Homicidios y acueducto & 0.35 & 5.56 & 0.30 & 109.93 & 1.02 & 112.15 & 2.55 \\
+EC0 & Solo intercepto & no aplica & 7.21 & 0.00 & 114.04 & 5.14 & 114.64 & 2.77 \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
 \end{table}
 
-La Tabla~\ref{tab:res_coeficientes} muestra los coeficientes del benchmark. Cada 10 homicidios adicionales por cada 100,000 habitantes se asociaron con 0.99 puntos porcentuales más de tasa de desempleo, condicional a la selección. El $R^2$ del componente sintético es 0.269: la tasa de homicidios deja sin explicar la mayor parte de la diferencia entre dominios. Frente al modelo de solo intercepto, $\hat{\sigma}_u^2$ bajó de 7.209 a 5.529, es decir, un 23~\%.
+La Tabla~\ref{tab:res_coeficientes} muestra los coeficientes del benchmark. Cada 10 homicidios adicionales por cada 100,000 habitantes se asociaron con 0.99 puntos porcentuales más de tasa de desempleo, condicional a la selección. El $R^2$ del componente sintético es 0.27: la tasa de homicidios deja sin explicar la mayor parte de la diferencia entre dominios. Frente al modelo de solo intercepto, $\hat{\sigma}_u^2$ bajó de 7.21 a 5.53, es decir, un 23~\%.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{Coeficientes del benchmark EC3, estimados por mínimos cuadrados generalizados (GLS, Ecuación~\ref{eq:gls}) con $\hat{\sigma}_u^2 = 5.529$ por máxima verosimilitud restringida (REML). EE: error estándar. Los valores $p$ son descriptivos (Sección~\ref{sec:met_fh_clasico}).}
+\caption{Coeficientes del benchmark EC3, estimados por mínimos cuadrados generalizados (GLS, Ecuación~\ref{eq:gls}) con $\hat{\sigma}_u^2 = 5.53$ por máxima verosimilitud restringida (REML). EE: error estándar. Los valores $p$ son descriptivos (Sección~\ref{sec:met_fh_clasico}).}
 \label{tab:res_coeficientes}
 \begin{tabular}{l r r r r}
 \toprule
 Parámetro & $\hat{\beta}$ & EE & $z$ & $p$ \\
 \midrule
-Intercepto & 9.191 & 0.979 & 9.388 & $<0.001$ \\
-Tasa de homicidios (por 100,000 habitantes) & 0.099 & 0.036 & 2.761 & 0.006 \\
+Intercepto & 9.19 & 0.98 & 9.39 & $<0.01$ \\
+Tasa de homicidios (por 100,000 habitantes) & 0.10 & 0.04 & 2.76 & $<0.01$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Con varianzas de muestreo entre 0.04 y 0.19 frente a $\hat{\sigma}_u^2 = 5.529$, el peso de la estimación directa es alto en todos los dominios: $\hat{\gamma}_d$ va de 0.966 en Quibdó a 0.993 en Barranquilla A.M., con media 0.984. En consecuencia, el EBLUP casi coincidió con la estimación directa (la mayor diferencia fue $-0.10$ puntos porcentuales, en Cúcuta A.M.) y el ECM bajó en promedio un 1.16~\% frente a $\psi_d$. Los 23 dominios siguieron siendo confiables con el EBLUP (Figura~\ref{fig:res_cv}). La tabla de los 23 EBLUP con su ECM y su CV está en el Apéndice~\ref{app:dominios_modelo}.
+Con varianzas de muestreo entre 0.04 y 0.19 frente a $\hat{\sigma}_u^2 = 5.53$, el peso de la estimación directa es alto en todos los dominios: $\hat{\gamma}_d$ va de 0.97 en Quibdó a 0.99 en Barranquilla A.M., con media 0.98. En consecuencia, el EBLUP casi coincidió con la estimación directa (la mayor diferencia fue $-0.10$ puntos porcentuales, en Cúcuta A.M.) y el ECM bajó en promedio un 1.16~\% frente a $\psi_d$. Los 23 dominios siguieron siendo confiables con el EBLUP (Figura~\ref{fig:res_cv}). La tabla de los 23 EBLUP con su ECM y su CV está en el Apéndice~\ref{app:dominios_modelo}.
 
 \begin{figure}[!htbp]
 \centering
@@ -359,7 +359,7 @@ Con varianzas de muestreo entre 0.04 y 0.19 frente a $\hat{\sigma}_u^2 = 5.529$,
 \section{Validación de supuestos y sensibilidad del benchmark}
 \label{sec:res_supuestos}
 
-La Tabla~\ref{tab:res_diagnosticos} reúne los diagnósticos del benchmark. Los diagnósticos no mostraron evidencia fuerte contra la aproximación normal, dentro de la limitada potencia disponible con 23 áreas. La media de los residuos fue 0.002, que se lee como indica la Sección~\ref{sec:met_supuestos}. Los residuos tampoco mostraron dependencia espacial con ninguna de las cuatro matrices (Sección~\ref{sec:res_espacial}).
+La Tabla~\ref{tab:res_diagnosticos} reúne los diagnósticos del benchmark. Los diagnósticos no mostraron evidencia fuerte contra la aproximación normal, dentro de la limitada potencia disponible con 23 áreas. La media de los residuos fue 0.00, que se lee como indica la Sección~\ref{sec:met_supuestos}. Los residuos tampoco mostraron dependencia espacial con ninguna de las cuatro matrices (Sección~\ref{sec:res_espacial}).
 En el gráfico cuantil-cuantil (Figura~\ref{fig:res_qq}) los 23 residuos estandarizados quedaron dentro de la banda del 95~\% y cerca de la recta; el menor fue $-1.51$ y el mayor, 1.75. En el gráfico de residuos frente a los valores ajustados $\mathbf{x}_d^\top\hat{\boldsymbol{\beta}}$ (Figura~\ref{fig:res_residuos_ajustados}) todos quedaron entre $-2$ y 2 y su dispersión no creció ni bajó con el valor ajustado. Los dos valores ajustados más altos son los de Quibdó (16.33~\%) y Cali A.M. (14.48~\%), los dominios con más homicidios, y sus residuos (0.62 y $-1.20$) quedaron dentro de la dispersión del resto, aunque son los dos con mayor distancia de Cook. Los histogramas y los gráficos de contracción de las cuatro especificaciones están en el Apéndice~\ref{app:especificaciones}.
 
 \begin{figure}[!htbp]
@@ -387,18 +387,18 @@ En el gráfico cuantil-cuantil (Figura~\ref{fig:res_qq}) los 23 residuos estanda
 \toprule
 Supuesto & Medida & Valor & Lectura \\
 \midrule
-Normalidad & Shapiro-Wilk (Ecuación~\ref{eq:shapiro}) & $W = 0.954$; $p = 0.357$ & Sin evidencia fuerte en contra, con baja potencia \\
+Normalidad & Shapiro-Wilk (Ecuación~\ref{eq:shapiro}) & $W = 0.95$; $p = 0.36$ & Sin evidencia fuerte en contra, con baja potencia \\
 Normalidad & Gráfico cuantil-cuantil (Figura~\ref{fig:res_qq}) & 23 de 23 dentro de la banda del 95~\% & Sin desvíos sistemáticos en las colas \\
-Media cero & Media de los residuos & 0.002 & Cercana a cero por construcción del GLS \\
+Media cero & Media de los residuos & 0.00 & Cercana a cero por construcción del GLS \\
 Varianza constante & Residuos frente a valores ajustados (Figura~\ref{fig:res_residuos_ajustados}) & 23 de 23 entre $-2$ y 2 & Sin forma de embudo ni tendencia \\
-Varianza & Desviación estándar & 0.977 & Cercana a 1: $\psi_d$ y $\hat{\sigma}_u^2$ son compatibles con la dispersión observada \\
-Independencia espacial & I de Moran, 3 vecinos (Ecuación~\ref{eq:moran}) & $I = 0.093$; $p = 0.333$ & Sin autocorrelación detectable \\
-Influencia & Cook máxima (Ecuación~\ref{eq:cook}) & 0.601 (Quibdó) & Quibdó y Cali A.M. superan $4/n = 0.174$ \\
+Varianza & Desviación estándar & 0.98 & Cercana a 1: $\psi_d$ y $\hat{\sigma}_u^2$ son compatibles con la dispersión observada \\
+Independencia espacial & I de Moran, 3 vecinos (Ecuación~\ref{eq:moran}) & $I = 0.09$; $p = 0.33$ & Sin autocorrelación detectable \\
+Influencia & Cook máxima (Ecuación~\ref{eq:cook}) & 0.60 (Quibdó) & Quibdó y Cali A.M. superan $4/n = 0.17$ \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-La Tabla~\ref{tab:res_estabilidad} resume la estabilidad del coeficiente de la tasa de homicidios. Al retirar un dominio, $\hat{\beta}_1$ quedó entre 0.061 (sin Quibdó) y 0.125 (sin Cali A.M.). Sin Quibdó el cambio fue de $-38.2$~\%, equivalente a 1.05 errores estándar: superó el umbral de 1 y el coeficiente dejó de ser significativo ($p = 0.256$). Fue el único de los 23 reajustes que cruzó el umbral de significancia, y ninguno cambió el signo. En el bootstrap de dominios el intervalo del 95~\% fue de 0.011 a 0.191; el signo se conservó en el 98.6~\% de las réplicas y la significancia, en el 70.4~\%. La Figura~\ref{fig:res_loao} muestra el cambio estandarizado por dominio.
+La Tabla~\ref{tab:res_estabilidad} resume la estabilidad del coeficiente de la tasa de homicidios. Al retirar un dominio, $\hat{\beta}_1$ quedó entre 0.06 (sin Quibdó) y 0.13 (sin Cali A.M.). Sin Quibdó el cambio fue de $-38.2$~\%, equivalente a 1.05 errores estándar: superó el umbral de 1 y el coeficiente dejó de ser significativo ($p = 0.26$). Fue el único de los 23 reajustes que cruzó el umbral de significancia, y ninguno cambió el signo. En el bootstrap de dominios el intervalo del 95~\% fue de 0.01 a 0.19; el signo se conservó en el 98.6~\% de las réplicas y la significancia, en el 70.4~\%. La Figura~\ref{fig:res_loao} muestra el cambio estandarizado por dominio.
 
 \begin{table}[!htbp]
 \centering
@@ -409,11 +409,11 @@ La Tabla~\ref{tab:res_estabilidad} resume la estabilidad del coeficiente de la t
 \toprule
 Medida & Resultado \\
 \midrule
-$\hat{\beta}_1$ con los 23 dominios & 0.099 (EE 0.036) \\
-Mínimo y máximo al retirar un dominio & 0.061 (sin Quibdó) y 0.125 (sin Cali A.M.) \\
+$\hat{\beta}_1$ con los 23 dominios & 0.10 (EE 0.04) \\
+Mínimo y máximo al retirar un dominio & 0.06 (sin Quibdó) y 0.13 (sin Cali A.M.) \\
 Cambio máximo & $-38.2$~\% $= -1.05$ EE (Quibdó); siguientes: Cali A.M. ($+0.71$ EE) y Tunja ($+0.25$ EE) \\
-Cambios de signo y de significancia & 0 de 23 y 1 de 23 (Quibdó, $p = 0.256$) \\
-Bootstrap: intervalo del 95~\% & [0.011, 0.191] \\
+Cambios de signo y de significancia & 0 de 23 y 1 de 23 (Quibdó, $p = 0.26$) \\
+Bootstrap: intervalo del 95~\% & [0.01, 0.19] \\
 Bootstrap: mismo signo y $p < 0.05$ & 98.6~\% y 70.4~\% de las réplicas \\
 Mayor cambio de un EBLUP de los otros dominios & 0.05 puntos porcentuales \\
 Mayor cambio de una estimación municipal & $-7.65$ puntos porcentuales (Corinto, sin Quibdó) \\
@@ -431,7 +431,7 @@ Cambio máximo de $\hat{\sigma}_u^2$ & 11~\% \\
 
 Los EBLUP de los dominios casi no se movieron al retirar un dominio, porque cada uno se apoya en su propia estimación directa. Las estimaciones municipales sí: retirar Quibdó cambió más de 0.5 puntos porcentuales la estimación de 51 municipios, y retirar Cali A.M., la de 45. La influencia de un solo dominio llega a los municipios a través del coeficiente.
 
-La Tabla~\ref{tab:res_varianza} resume la sensibilidad a la varianza de muestreo. Las varianzas alternativas resultaron parecidas a la base: la de Taylor tuvo razón mediana 1.000 con la del bootstrap, y la del bootstrap por personas fue menor (razón 1.104, entre 0.939 y 1.173), como se espera al ignorar la correlación dentro de la vivienda. Las dos GVF se ajustaron bien ($R^2$ de 0.970 y 0.976; Figura~\ref{fig:app_gvf}). En los nueve escenarios el benchmark siguió siendo EC3, el coeficiente conservó signo y significancia, y el EBLUP cambió como máximo 0.20 puntos porcentuales. Solo al triplicar $\psi_d$ cuatro dominios pasaron de confiables a aceptables. La razón $\hat{\sigma}_u^2/\bar{\psi}$, entre 19.5 y 184.2, explica la baja sensibilidad a $\psi_d$: con una varianza entre dominios tan grande frente a la de muestreo, $\hat{\gamma}_d$ se mantuvo cerca de 1 en todos los escenarios \cite[p.~143]{Benedetti2024}.
+La Tabla~\ref{tab:res_varianza} resume la sensibilidad a la varianza de muestreo. Las varianzas alternativas resultaron parecidas a la base: la de Taylor tuvo razón mediana 1.00 con la del bootstrap, y la del bootstrap por personas fue menor (razón 1.10, entre 0.94 y 1.17), como se espera al ignorar la correlación dentro de la vivienda. Las dos GVF se ajustaron bien ($R^2$ de 0.97 y 0.98; Figura~\ref{fig:app_gvf}). En los nueve escenarios el benchmark siguió siendo EC3, el coeficiente conservó signo y significancia, y el EBLUP cambió como máximo 0.20 puntos porcentuales. Solo al triplicar $\psi_d$ cuatro dominios pasaron de confiables a aceptables. La razón $\hat{\sigma}_u^2/\bar{\psi}$, entre 19.5 y 184.2, explica la baja sensibilidad a $\psi_d$: con una varianza entre dominios tan grande frente a la de muestreo, $\hat{\gamma}_d$ se mantuvo cerca de 1 en todos los escenarios \cite[p.~143]{Benedetti2024}.
 
 \begin{table}[!htbp]
 \centering
@@ -443,15 +443,15 @@ La Tabla~\ref{tab:res_varianza} resume la sensibilidad a la varianza de muestreo
 \toprule
 Escenario & $\hat{\sigma}_u^2$ & $\hat{\sigma}_u^2/\bar{\psi}$ & $\min \hat{\gamma}_d$ & $\Delta$EBLUP & $\Delta$sintético & Conf. \\
 \midrule
-Base (bootstrap de viviendas) & 5.529 & 60.7 & 0.966 & 0.00 & 0.00 & 23 \\
-Taylor & 5.527 & 60.4 & 0.966 & 0.00 & 0.00 & 23 \\
-GVF A & 5.524 & 60.6 & 0.967 & 0.01 & 0.00 & 23 \\
-$\psi_d \times 1/3$ & 5.595 & 184.2 & 0.989 & 0.07 & 0.04 & 23 \\
-$\psi_d \times 1/2$ & 5.578 & 122.4 & 0.983 & 0.05 & 0.03 & 23 \\
-$\psi_d \times 2/3$ & 5.562 & 91.6 & 0.977 & 0.03 & 0.02 & 23 \\
-$\psi_d \times 3/2$ & 5.480 & 40.1 & 0.950 & 0.05 & 0.03 & 23 \\
-$\psi_d \times 2$ & 5.430 & 29.8 & 0.934 & 0.10 & 0.06 & 23 \\
-$\psi_d \times 3$ & 5.332 & 19.5 & 0.902 & 0.20 & 0.13 & 19 \\
+Base (bootstrap de viviendas) & 5.53 & 60.7 & 0.97 & 0.00 & 0.00 & 23 \\
+Taylor & 5.53 & 60.4 & 0.97 & 0.00 & 0.00 & 23 \\
+GVF A & 5.52 & 60.6 & 0.97 & 0.01 & 0.00 & 23 \\
+$\psi_d \times 1/3$ & 5.60 & 184.2 & 0.99 & 0.07 & 0.04 & 23 \\
+$\psi_d \times 1/2$ & 5.58 & 122.4 & 0.98 & 0.05 & 0.03 & 23 \\
+$\psi_d \times 2/3$ & 5.56 & 91.6 & 0.98 & 0.03 & 0.02 & 23 \\
+$\psi_d \times 3/2$ & 5.48 & 40.1 & 0.95 & 0.05 & 0.03 & 23 \\
+$\psi_d \times 2$ & 5.43 & 29.8 & 0.93 & 0.10 & 0.06 & 23 \\
+$\psi_d \times 3$ & 5.33 & 19.5 & 0.90 & 0.20 & 0.13 & 19 \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
@@ -508,24 +508,24 @@ Los 23 dominios están lejos entre sí: el vecino más cercano de cada uno está
 \toprule
 Especificación & $\hat{\sigma}_u^2$ & $\hat{\rho}$ & AIC & $\Delta$AIC & LRT & $p$ & RMSE \\
 \midrule
-Clásico (benchmark) & 5.529 & no aplica & 108.904 & no aplica & no aplica & no aplica & 2.52 \\
-3 vecinos, muestra & 5.383 & 0.234 & 110.572 & $-1.669$ & 0.331 & 0.565 & 2.53 \\
-3 vecinos, completa (referencia) & 4.825 & 0.372 & 109.403 & $-0.500$ & 1.500 & 0.221 & 2.35 \\
-Otras seis: mínimo & 5.101 & 0.187 & 110.105 & $-1.998$ & 0.002 & 0.371 & 2.48 \\
-Otras seis: máximo & 5.631 & 0.891 & 110.901 & $-1.201$ & 0.799 & 0.960 & 2.86 \\
+Clásico (benchmark) & 5.53 & no aplica & 108.90 & no aplica & no aplica & no aplica & 2.52 \\
+3 vecinos, muestra & 5.38 & 0.23 & 110.57 & $-1.67$ & 0.33 & 0.57 & 2.53 \\
+3 vecinos, completa (referencia) & 4.83 & 0.37 & 109.40 & $-0.50$ & 1.50 & 0.22 & 2.35 \\
+Otras seis: mínimo & 5.10 & 0.19 & 110.11 & $-2.00$ & 0.00 & 0.37 & 2.48 \\
+Otras seis: máximo & 5.63 & 0.89 & 110.90 & $-1.20$ & 0.80 & 0.96 & 2.86 \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
 \end{table}
 
-Ninguna de las ocho especificaciones espaciales cumplió el criterio. En la estructura «muestra» del escenario de referencia, $\hat{\rho} = 0.234$ y $p(\text{LRT}) = 0.565$; en todas, $p \geq 0.221$, y el AIC del espacial fue mayor que el del clásico, lo que corresponde a $\text{LRT} < 2$. El perfil de verosimilitud REML del escenario de referencia es plano: su intervalo del 95~\% para $\rho$, los valores a menos de 1.92 de su máximo, va de $-0.15$ a 0.75 (Figura~\ref{fig:app_perfil_rho}). Los $\hat{\rho}$ de la estructura «completa» llegaron hasta 0.891 con distancia inversa de potencia 1, pero cambiaron según los municipios que se incluyeron como nodos (0.398 con solo los del Valle y 0.262 con solo los del Cauca, con 3 vecinos), por lo que no se interpretan. Ubicar el nodo de cada área metropolitana en la media de sus municipios cambió $\hat{\rho}$ como máximo en 0.131 y ningún $p$ bajó de 0.354. Con este resultado, por la regla fijada de antemano, el modelo preferido es el benchmark clásico y el espacial queda como análisis de sensibilidad; el alcance de esa preferencia para los municipios se discute con la validación predictiva (Sección~\ref{sec:conclusion}).
+Ninguna de las ocho especificaciones espaciales cumplió el criterio. En la estructura «muestra» del escenario de referencia, $\hat{\rho} = 0.23$ y $p(\text{LRT}) = 0.57$; en todas, $p \geq 0.22$, y el AIC del espacial fue mayor que el del clásico, lo que corresponde a $\text{LRT} < 2$. El perfil de verosimilitud REML del escenario de referencia es plano: su intervalo del 95~\% para $\rho$, los valores a menos de 1.92 de su máximo, va de $-0.15$ a 0.75 (Figura~\ref{fig:app_perfil_rho}). Los $\hat{\rho}$ de la estructura «completa» llegaron hasta 0.89 con distancia inversa de potencia 1, pero cambiaron según los municipios que se incluyeron como nodos (0.40 con solo los del Valle y 0.26 con solo los del Cauca, con 3 vecinos), por lo que no se interpretan. Ubicar el nodo de cada área metropolitana en la media de sus municipios cambió $\hat{\rho}$ como máximo en 0.13 y ningún $p$ bajó de 0.35. Con este resultado, por la regla fijada de antemano, el modelo preferido es el benchmark clásico y el espacial queda como análisis de sensibilidad; el alcance de esa preferencia para los municipios se discute con la validación predictiva (Sección~\ref{sec:conclusion}).
 
-La Tabla~\ref{tab:res_moran} compara el I de Moran de los residuos estandarizados del clásico con el de los residuos del SEBLUP. Ningún índice resultó significativo; los del clásico van de $-0.023$ a 0.093 y los del espacial, de $-0.115$ a $-0.038$. La tasa directa tampoco mostró autocorrelación (I entre $-0.028$ y 0.003). La Figura~\ref{fig:res_mapa_residuos} muestra los residuos sobre el mapa: los dominios con residuos del mismo signo no se agrupan, y los mayores (Cúcuta A.M. y Valledupar, positivos; Barranquilla A.M. y Cartagena, negativos) quedan en regiones distintas.
+La Tabla~\ref{tab:res_moran} compara el I de Moran de los residuos estandarizados del clásico con el de los residuos del SEBLUP. Ningún índice resultó significativo; los del clásico van de $-0.02$ a 0.09 y los del espacial, de $-0.12$ a $-0.04$. La tasa directa tampoco mostró autocorrelación (I entre $-0.03$ y 0.00). La Figura~\ref{fig:res_mapa_residuos} muestra los residuos sobre el mapa: los dominios con residuos del mismo signo no se agrupan, y los mayores (Cúcuta A.M. y Valledupar, positivos; Barranquilla A.M. y Cartagena, negativos) quedan en regiones distintas.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption{I de Moran de los residuos estandarizados del clásico y de los residuos del SEBLUP, con la misma matriz estandarizada por filas en cada escenario; $p$ por \num{9999} permutaciones. $E[I] = -0.045$. SEBLUP: EBLUP espacial.}
+\caption{I de Moran de los residuos estandarizados del clásico y de los residuos del SEBLUP, con la misma matriz estandarizada por filas en cada escenario; $p$ por \num{9999} permutaciones. $E[I] = -0.05$. SEBLUP: EBLUP espacial.}
 \label{tab:res_moran}
 \begin{tabular}{l r r r r r r}
 \toprule
@@ -533,10 +533,10 @@ La Tabla~\ref{tab:res_moran} compara el I de Moran de los residuos estandarizado
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
 Matriz & $I$ & $p$ & $I$ & $p$ & $I$ & $p$ \\
 \midrule
-3 vecinos & 0.093 & 0.333 & $-0.043$ & 0.984 & $-0.110$ & 0.658 \\
-5 vecinos & 0.005 & 0.605 & $-0.038$ & 0.938 & $-0.038$ & 0.936 \\
-Inversa, potencia 1 & $-0.023$ & 0.650 & $-0.055$ & 0.848 & $-0.057$ & 0.819 \\
-Inversa, potencia 2 & 0.013 & 0.599 & $-0.069$ & 0.830 & $-0.115$ & 0.522 \\
+3 vecinos & 0.09 & 0.33 & $-0.04$ & 0.98 & $-0.11$ & 0.66 \\
+5 vecinos & 0.01 & 0.61 & $-0.04$ & 0.94 & $-0.04$ & 0.94 \\
+Inversa, potencia 1 & $-0.02$ & 0.65 & $-0.06$ & 0.85 & $-0.06$ & 0.82 \\
+Inversa, potencia 2 & 0.01 & 0.60 & $-0.07$ & 0.83 & $-0.12$ & 0.52 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -548,7 +548,7 @@ Inversa, potencia 2 & 0.013 & 0.599 & $-0.069$ & 0.830 & $-0.115$ & 0.522 \\
 \label{fig:res_mapa_residuos}
 \end{figure}
 
-La Tabla~\ref{tab:res_comparacion} completa la comparación controlada con la incertidumbre, las estimaciones y los coeficientes, calculados como indica la Sección~\ref{sec:met_espacial} (Ecuaciones~\ref{eq:seblup} y~\ref{eq:gamma_esp}); el reajuste del escenario de referencia reprodujo $\hat{\rho} = 0.372$ y $\hat{\sigma}_u^2 = 4.825$, con 500 réplicas válidas de 500. Como no se seleccionaron covariables propias para el modelo espacial, la comparación entre el mejor clásico y el mejor espacial coincide con la controlada.
+La Tabla~\ref{tab:res_comparacion} completa la comparación controlada con la incertidumbre, las estimaciones y los coeficientes, calculados como indica la Sección~\ref{sec:met_espacial} (Ecuaciones~\ref{eq:seblup} y~\ref{eq:gamma_esp}); el reajuste del escenario de referencia reprodujo $\hat{\rho} = 0.37$ y $\hat{\sigma}_u^2 = 4.83$, con 500 réplicas válidas de 500. Como no se seleccionaron covariables propias para el modelo espacial, la comparación entre el mejor clásico y el mejor espacial coincide con la controlada.
 
 \begin{table}[!htbp]
 \centering
@@ -560,15 +560,15 @@ La Tabla~\ref{tab:res_comparacion} completa la comparación controlada con la in
 Elemento & 23 dominios & 83 municipios \\
 \midrule
 CV mediano: clásico y espacial (\%) & 2.60 y 2.60 & 19.49 y 19.87 \\
-ECM medio: clásico y espacial (pp$^2$) & 0.090 y 0.091 & no aplica \\
-Peso de la directa: $\hat{\gamma}_d$ y $\hat{\gamma}^S_d$ (medias) & 0.984 y 0.982 & no aplica \\
+ECM medio: clásico y espacial (pp$^2$) & 0.09 en ambos & no aplica \\
+Peso de la directa: $\hat{\gamma}_d$ y $\hat{\gamma}^S_d$ (medias) & 0.98 y 0.98 & no aplica \\
 Diferencia media & 0.00 & $-0.03$ \\
 Diferencia absoluta media & 0.01 & 0.22 \\
 Diferencia absoluta máxima & 0.02 & 2.79 (Cali) \\
 Casos con diferencia absoluta mayor que 0.5 & 0 & 8 \\
-Correlación de Pearson y de Spearman & 1.000 y 1.000 & 0.992 y 0.987 \\
+Correlación de Pearson y de Spearman & 1.00 y 1.00 & 0.99 y 0.99 \\
 Cambios de clase de confiabilidad & 0 & 8 (7 de aceptable a no confiable y 1 de no confiable a aceptable) \\
-Coeficiente de la tasa de homicidios (EE) & \multicolumn{2}{c}{clásico 0.099 (0.036); espacial 0.102 (0.035); diferencia 0.07 EE} \\
+Coeficiente de la tasa de homicidios (EE) & \multicolumn{2}{c}{clásico 0.10 (0.04); espacial 0.10 (0.04); diferencia 0.07 EE} \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -618,13 +618,13 @@ Fuera del rango, no confiable & 6 & 18.37 & 31.17 & 25.22 & 4.42 & 5.81 \\
 \end{adjustbox}
 \end{table}
 
-Ningún municipio quedó confiable: el CV de la estimación sintética va de 18.07~\% a 27.71~\%, porque su ECM incluye $\hat{\sigma}_u^2 = 5.529$ completo (Ecuación~\ref{eq:var_sintetica}). El CV no distingue a los que extrapolan: su CV medio es 20.67~\% frente a 20.03~\% de los que no, aunque su RMSE medio es 1.5 veces mayor (3.74 frente a 2.54), porque la tasa estimada también sube y el cociente casi no cambia. Los CV más altos corresponden a las tasas más bajas, no a las estimaciones más dudosas: Ginebra, Puracé y Silvia, con tasa de 9.19~\%, igual al intercepto, tienen CV de 27.71~\%. Por eso la calidad reportada agrega la mención «condicional al modelo» a todos los municipios y «extrapolado (fuera del rango)» a los 21 que extrapolan. Las estimaciones de cada municipio con ambos modelos están en el Apéndice~\ref{app:municipios}.
+Ningún municipio quedó confiable: el CV de la estimación sintética va de 18.07~\% a 27.71~\%, porque su ECM incluye $\hat{\sigma}_u^2 = 5.53$ completo (Ecuación~\ref{eq:var_sintetica}). El CV no distingue a los que extrapolan: su CV medio es 20.67~\% frente a 20.03~\% de los que no, aunque su RMSE medio es 1.5 veces mayor (3.74 frente a 2.54), porque la tasa estimada también sube y el cociente casi no cambia. Los CV más altos corresponden a las tasas más bajas, no a las estimaciones más dudosas: Ginebra, Puracé y Silvia, con tasa de 9.19~\%, igual al intercepto, tienen CV de 27.71~\%. Por eso la calidad reportada agrega la mención «condicional al modelo» a todos los municipios y «extrapolado (fuera del rango)» a los 21 que extrapolan. Las estimaciones de cada municipio con ambos modelos están en el Apéndice~\ref{app:municipios}.
 
 %--------------------------------------------------------------------------------------
 \section{Benchmarking y consolidación de las estimaciones}
 \label{sec:res_benchmarking}
 
-La Tabla~\ref{tab:res_benchmarking} presenta los dos niveles del benchmarking. En el nivel 1, el agregado de los 23 EBLUP ponderado por la PEA expandida fue 10.84~\% y la referencia, 10.83~\%; el factor $\lambda_1 = 0.9997$ bajó cada EBLUP entre 0.002 y 0.005 puntos porcentuales y no cambió ninguna clase. En el nivel 2, Cali y Yumbo, ponderados por su población de 15 años y más, sumaron 14.47~\%, mientras que el EBLUP ajustado de Cali A.M. fue 11.69~\%: el factor $\lambda_R = 0.8077$ los bajó casi un 20~\%. La diferencia no viene de la forma de agregar las covariables: la brecha entre $\bar{\mathbf{x}}_d^\top\hat{\boldsymbol{\beta}}$ y el promedio ponderado de los sintéticos municipales fue $-0.004$ puntos porcentuales. Viene de que Cali A.M. tiene una tasa de homicidios alta (el sintético del dominio es 14.48~\%) y una tasa directa mucho menor que la que anticipa esa covariable.
+La Tabla~\ref{tab:res_benchmarking} presenta los dos niveles del benchmarking. En el nivel 1, el agregado de los 23 EBLUP ponderado por la PEA expandida fue 10.84~\% y la referencia, 10.83~\%; el factor $\lambda_1$ redondeado es 1.00 (apenas menor que 1): bajó cada EBLUP menos de 0.01 puntos porcentuales y no cambió ninguna clase. En el nivel 2, Cali y Yumbo, ponderados por su población de 15 años y más, sumaron 14.47~\%, mientras que el EBLUP ajustado de Cali A.M. fue 11.69~\%: el factor $\lambda_R = 0.81$ los bajó casi un 20~\%. La diferencia no viene de la forma de agregar las covariables: la brecha entre $\bar{\mathbf{x}}_d^\top\hat{\boldsymbol{\beta}}$ y el promedio ponderado de los sintéticos municipales fue menor que 0.01 puntos porcentuales en valor absoluto. Viene de que Cali A.M. tiene una tasa de homicidios alta (el sintético del dominio es 14.48~\%) y una tasa directa mucho menor que la que anticipa esa covariable.
 
 \begin{table}[!htbp]
 \centering
@@ -635,15 +635,15 @@ La Tabla~\ref{tab:res_benchmarking} presenta los dos niveles del benchmarking. E
 \toprule
 Nivel y unidad & Antes & Referencia o después & $\lambda$ & CV antes y después \\
 \midrule
-Nivel 1: agregado de los 23 dominios & 10.84 & 10.83 & 0.9997 & sin cambio de clase \\
-Nivel 2: agregado de Cali y Yumbo & 14.47 & 11.69 & 0.8077 & no aplica \\
-\quad Cali & 14.36 & 11.60 & 0.8077 & 18.20 y 29.96 \\
-\quad Yumbo & 16.96 & 13.70 & 0.8077 & 18.32 y 30.03 \\
+Nivel 1: agregado de los 23 dominios & 10.84 & 10.83 & 1.00 & sin cambio de clase \\
+Nivel 2: agregado de Cali y Yumbo & 14.47 & 11.69 & 0.81 & no aplica \\
+\quad Cali & 14.36 & 11.60 & 0.81 & 18.20 y 29.96 \\
+\quad Yumbo & 16.96 & 13.70 & 0.81 & 18.32 y 30.03 \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-Todas las verificaciones de la etapa pasaron: después del ajuste, el agregado reprodujo la referencia con diferencias del orden de $10^{-15}$ (lo que comprueba la restricción, no la tasa de cada municipio, y supone igual participación laboral en Cali y Yumbo; Ecuación~\ref{eq:td_agregada}), las razones entre estimaciones se conservaron, las tasas quedaron en $[0, 100]$ y la comprobación sobre la tabla final redondeada también se cumplió. El factor del nivel 2 quedó cerca del aviso de $|\lambda - 1| > 0.20$ (0.192) sin activarlo, pero su efecto en la incertidumbre fue grande: con la RMSE de la Ecuación~\ref{eq:rmse_bm}, el CV de Cali y Yumbo pasó de cerca de 18~\% a 30~\% y ambos quedaron como no confiables. Ese salto viene casi todo del término $(\hat{\theta}^{B}_d - \hat{\theta}_d)^2$, que trata el desplazamiento completo del ajuste como sesgo con $\lambda$ fijo (Ecuación~\ref{eq:ecm_bm_completo}). La clase «no confiable» de los dos municipios depende, por tanto, de esa aproximación y no de un ECM completo del estimador ajustado; se lee como una señal de que el ajuste los movió mucho, no como una medida exacta de su error.
+Todas las verificaciones de la etapa pasaron: después del ajuste, el agregado reprodujo la referencia con diferencias del orden de $10^{-15}$ (lo que comprueba la restricción, no la tasa de cada municipio, y supone igual participación laboral en Cali y Yumbo; Ecuación~\ref{eq:td_agregada}), las razones entre estimaciones se conservaron, las tasas quedaron en $[0, 100]$ y la comprobación sobre la tabla final redondeada también se cumplió. El factor del nivel 2 quedó cerca del aviso de $|\lambda - 1| > 0.20$ (0.19) sin activarlo, pero su efecto en la incertidumbre fue grande: con la RMSE de la Ecuación~\ref{eq:rmse_bm}, el CV de Cali y Yumbo pasó de cerca de 18~\% a 30~\% y ambos quedaron como no confiables. Ese salto viene casi todo del término $(\hat{\theta}^{B}_d - \hat{\theta}_d)^2$, que trata el desplazamiento completo del ajuste como sesgo con $\lambda$ fijo (Ecuación~\ref{eq:ecm_bm_completo}). La clase «no confiable» de los dos municipios depende, por tanto, de esa aproximación y no de un ECM completo del estimador ajustado; se lee como una señal de que el ajuste los movió mucho, no como una medida exacta de su error.
 
 La tabla final tiene 106 filas: los 23 dominios con el EBLUP ajustado, todos confiables (CV entre 2.01~\% y 3.20~\%), y los 83 municipios.
 Cerrada la comparación del objetivo específico 1, la tabla se marcó como resultado final y registra como modelo de origen el Fay-Herriot clásico.
@@ -682,7 +682,7 @@ La Figura~\ref{fig:res_mapa_municipios} muestra las 83 estimaciones finales, su 
 \label{fig:res_mapa_municipios}
 \end{figure}
 
-Las estimaciones finales tienen autocorrelación espacial positiva: con 3 vecinos, el I de Moran es 0.265 ($E[I] = -0.012$; $p < 0.001$ con \num{9999} permutaciones; tabla de Moran de las estimaciones del cuaderno espacial). El patrón viene de la covariable: la tasa de homicidios de los mismos 83 municipios, con la misma matriz, tiene $I = 0.256$ ($p = 0.001$), y la estimación sin benchmarking da prácticamente el mismo valor (0.256), porque es una función lineal de esa tasa. El efecto espacial no agrega un patrón propio: es menor que 0.5 puntos porcentuales en 75 de los 83 municipios y solo es grande en Cali y Yumbo, por el efecto de su dominio. Por eso, los grupos del mapa reflejan dónde hubo más homicidios en 2018, no un patrón del desempleo observado en esos municipios.
+Las estimaciones finales tienen autocorrelación espacial positiva: con 3 vecinos, el I de Moran es 0.27 ($E[I] = -0.01$; $p < 0.01$ con \num{9999} permutaciones; tabla de Moran de las estimaciones del cuaderno espacial). El patrón viene de la covariable: la tasa de homicidios de los mismos 83 municipios, con la misma matriz, tiene $I = 0.26$ ($p < 0.01$), y la estimación sin benchmarking da prácticamente el mismo valor (0.26), porque es una función lineal de esa tasa. El efecto espacial no agrega un patrón propio: es menor que 0.5 puntos porcentuales en 75 de los 83 municipios y solo es grande en Cali y Yumbo, por el efecto de su dominio. Por eso, los grupos del mapa reflejan dónde hubo más homicidios en 2018, no un patrón del desempleo observado en esos municipios.
 
 %--------------------------------------------------------------------------------------
 \section{Correspondencia entre etapas y objetivos}
@@ -700,9 +700,9 @@ La Tabla~\ref{tab:res_objetivos} reúne, para cada objetivo, la evidencia princi
 Objetivo & Resultado principal & Evidencia \\
 \midrule
 OG & Procedimiento completo y reproducible de 16 etapas; 23 dominios con directa confiable y validada contra el DANE; 83 municipios con estimación, ECM, estado de extrapolación y calidad reportada & Tablas~\ref{tab:res_directa}, \ref{tab:res_calidad}; Apéndice~\ref{app:municipios} \\
-OE1 & Benchmark EC3; ocho especificaciones espaciales sin evidencia de $\rho \neq 0$ ($p \geq 0.221$) ni Moran significativo; estimaciones prácticamente iguales en dominios y con diferencia absoluta media de 0.22 puntos porcentuales en municipios & Tablas~\ref{tab:res_espacial}, \ref{tab:res_moran}, \ref{tab:res_comparacion} \\
-OE2 & Una covariable, la tasa de homicidios ($\hat{\beta} = 0.099$), asociada positivamente con la tasa; depende de Quibdó y el procedimiento completo estima peor que el modelo de solo intercepto (habilidad $-0.54$) & Tablas~\ref{tab:res_coeficientes}, \ref{tab:res_estabilidad}, \ref{tab:res_validacion} \\
-OE3 & Tasas más altas en el norte del Cauca y el norte del Valle, todas extrapoladas; Moran de 0.265 que repite el de la tasa de homicidios; efecto espacial menor que 0.5 puntos porcentuales en 75 de 83 & Figura~\ref{fig:res_mapa_municipios}; Sección~\ref{sec:res_patrones} \\
+OE1 & Benchmark EC3; ocho especificaciones espaciales sin evidencia de $\rho \neq 0$ ($p \geq 0.22$) ni Moran significativo; estimaciones prácticamente iguales en dominios y con diferencia absoluta media de 0.22 puntos porcentuales en municipios & Tablas~\ref{tab:res_espacial}, \ref{tab:res_moran}, \ref{tab:res_comparacion} \\
+OE2 & Una covariable, la tasa de homicidios ($\hat{\beta} = 0.10$), asociada positivamente con la tasa; depende de Quibdó y el procedimiento completo estima peor que el modelo de solo intercepto (habilidad $-0.54$) & Tablas~\ref{tab:res_coeficientes}, \ref{tab:res_estabilidad}, \ref{tab:res_validacion} \\
+OE3 & Tasas más altas en el norte del Cauca y el norte del Valle, todas extrapoladas; Moran de 0.27 que repite el de la tasa de homicidios; efecto espacial menor que 0.5 puntos porcentuales en 75 de 83 & Figura~\ref{fig:res_mapa_municipios}; Sección~\ref{sec:res_patrones} \\
 \bottomrule
 \end{tabularx}
 \end{table}

@@ -19,7 +19,7 @@ Díaz encontró clústeres de desempleo entre municipios colombianos con datos c
 \section{Las covariables y su estabilidad}
 \label{sec:dis_covariables}
 
-El objetivo específico 2 pregunta por las variables con mayor incidencia en la tasa de desempleo. La respuesta que permiten los datos es más modesta que la pregunta. De las 18 candidatas con respaldo en la literatura, solo la tasa de homicidios quedó en el benchmark, con una asociación positiva de 0.099 puntos porcentuales por cada homicidio adicional por 100,000 habitantes, y explica el 27~\% de la variación de la tasa entre dominios. Es una asociación estadística condicional a la selección, no un efecto causal: los mismos 23 dominios filtraron, seleccionaron y estimaron el coeficiente, y su valor $p$ es descriptivo.
+El objetivo específico 2 pregunta por las variables con mayor incidencia en la tasa de desempleo. La respuesta que permiten los datos es más modesta que la pregunta. De las 18 candidatas con respaldo en la literatura, solo la tasa de homicidios quedó en el benchmark, con una asociación positiva de 0.10 puntos porcentuales por cada homicidio adicional por 100,000 habitantes, y explica el 27~\% de la variación de la tasa entre dominios. Es una asociación estadística condicional a la selección, no un efecto causal: los mismos 23 dominios filtraron, seleccionaron y estimaron el coeficiente, y su valor $p$ es descriptivo.
 
 Tres resultados limitan esa asociación. Depende de Quibdó: sin ese dominio el coeficiente baja un 38~\% y deja de ser significativo. Es inestable en la validación: si se repite la selección sin cada dominio aparecen seis conjuntos distintos, y en cuatro iteraciones ninguna covariable resulta elegible. Y no mejora la estimación fuera de muestra cuando se tiene en cuenta el costo de seleccionarla: el procedimiento completo estima peor que el promedio de los dominios (habilidad de $-0.54$). Con las covariables fijas el benchmark sí mejora al modelo de solo intercepto (habilidad de 0.17, con una RMSE un 9~\% menor), pero esa cifra es optimista. La lectura conjunta es que las covariables municipales de TerriData explican poco de las diferencias de desempleo entre ciudades, y que la tasa de homicidios funciona como un indicador amplio de las condiciones del territorio más que como una variable del mercado laboral.
 
@@ -47,7 +47,7 @@ CV condicional al modelo & El ECM supone que la relación de los dominios vale e
 El CV no ve la extrapolación & Los municipios que extrapolan tienen un RMSE 1.5 veces mayor y casi el mismo CV & La calidad reportada agrega «extrapolado» \\
 Geografía distinta & La tasa de los dominios es de cabeceras urbanas; la estimación de un municipio se aplica a su territorio completo, más rural & Auditoría de dominios; se declara en la tabla final \\
 Varianza de muestreo aproximada & El bootstrap no reproduce el estrato, el segmento ni la calibración; no se sabe si la varianza del diseño es mayor o menor & Nueve escenarios: el benchmark no cambia y el EBLUP cambia como máximo 0.20 puntos porcentuales \\
-Benchmarking de Cali y Yumbo & $\lambda_R = 0.8077$ baja sus estimaciones casi un 20~\% y su CV sube a 30~\% & Ambos quedan como no confiables \\
+Benchmarking de Cali y Yumbo & $\lambda_R = 0.81$ baja sus estimaciones casi un 20~\% y su CV sube a 30~\% & Ambos quedan como no confiables \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -56,7 +56,7 @@ La diferencia de geografía merece una nota aparte. Los dominios son urbanos: su
 
 El benchmarking de nivel 2 también tiene una lectura propia. Cali A.M. tiene una tasa de homicidios alta y una tasa directa menor que la que anticipa esa covariable, de modo que el promedio de los sintéticos de Cali y Yumbo, ponderado por su población de 15 años y más, supera en casi 3 puntos porcentuales al EBLUP ajustado de su dominio (14.47~\% frente a 11.69~\%), y el ajuste corrige esa diferencia. El ajuste cumple su propósito, que es la consistencia con una cifra confiable \cite[pp.~24, 76]{Molina2019}, y el tamaño del factor dice que, en conjunto, los sintéticos de esos dos municipios quedaron lejos de lo que mide la encuesta en su dominio. La comparación es a escala del agregado: Cali y Yumbo no tienen una tasa directa propia, así que no permite saber cuánto se aparta la estimación de cada uno, ni si el exceso se reparte por igual entre los dos.
 
-Con todo, el patrón territorial de la Sección~\ref{sec:res_patrones} debe leerse como el patrón de la tasa de homicidios: el I de Moran de las estimaciones finales es muy cercano al de esa covariable (0.265 frente a 0.256). Que el norte del Cauca y el norte del Valle aparezcan con tasas altas refleja que esas zonas tuvieron las tasas de homicidios más altas en 2018, no una medición de su desempleo.
+Con todo, el patrón territorial de la Sección~\ref{sec:res_patrones} debe leerse como el patrón de la tasa de homicidios: el I de Moran de las estimaciones finales es muy cercano al de esa covariable (0.27 frente a 0.26). Que el norte del Cauca y el norte del Valle aparezcan con tasas altas refleja que esas zonas tuvieron las tasas de homicidios más altas en 2018, no una medición de su desempleo.
 
 %--------------------------------------------------------------------------------------
 \section{La metodología como aporte}

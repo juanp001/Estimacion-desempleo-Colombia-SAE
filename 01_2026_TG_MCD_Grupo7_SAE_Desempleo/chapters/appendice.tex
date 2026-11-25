@@ -155,7 +155,7 @@ Las referencias son de dos clases. Unas miden una relación con el desempleo; ot
 
 Las tres candidatas elegibles tienen un respaldo de distinto alcance:
 \begin{itemize}
-    \item \textbf{Tasa de homicidios.} En 2,264 unidades barriales de Cali, entre 2019 y 2024, una regresión logística ecológica asoció el desempleo con una mayor probabilidad de homicidios (razón de momios de 1.30, $p = 0.005$) \cite{PinzonFlorez2025}. Es una asociación dentro de una sola ciudad: muestra que el desempleo y la violencia coinciden en los mismos territorios, no que esa relación se repita entre ciudades. Aquí se usa como motivación teórica, la concentración territorial de desventajas sociales, y la relación entre ciudades es la que estima el modelo con los 23 dominios.
+    \item \textbf{Tasa de homicidios.} En 2,264 unidades barriales de Cali, entre 2019 y 2024, una regresión logística ecológica asoció el desempleo con una mayor probabilidad de homicidios (razón de momios de 1.30, $p < 0.01$) \cite{PinzonFlorez2025}. Es una asociación dentro de una sola ciudad: muestra que el desempleo y la violencia coinciden en los mismos territorios, no que esa relación se repita entre ciudades. Aquí se usa como motivación teórica, la concentración territorial de desventajas sociales, y la relación entre ciudades es la que estima el modelo con los 23 dominios.
     \item \textbf{Cobertura de acueducto.} La referencia solo define el indicador dentro de la dimensión de vivienda y servicios públicos (def.). El signo negativo es una hipótesis: la cobertura funciona como indicador de condiciones de vida.
     \item \textbf{Cobertura neta en educación media.} Castillo-Robayo y García-Estévez encuentran que la educación importa para conseguir empleo formal, pero no para la probabilidad de estar ocupado \cite{CastilloGarcia2019}. Su resultado no respalda directamente el signo negativo, que queda como hipótesis basada en el mecanismo de capital humano.
 \end{itemize}
@@ -330,7 +330,7 @@ Penetración de banda ancha & 17.28 & 17.69 & 4.71 & 7.59 & 24.11 & 27.27 & $-0.
 
 Esta sección presenta el Fay-Herriot univariado de cada candidata y los diagnósticos del conjunto elegido; la cita la Sección~\ref{sec:res_seleccion}.
 
-La Tabla~\ref{tab:app_seleccion} ordena las 18 candidatas por el valor $p$ de su coeficiente. Solo tres tienen $q \le 0.10$ (tasa de homicidios, cobertura de acueducto y cobertura neta en educación media, las tres con $q = 0.079$), y Quibdó es el dominio que más mueve la correlación ponderada en ocho de las 18. Las dos covariables del conjunto elegido, tasa de homicidios y cobertura de acueducto, tienen una correlación de Pearson de $-0.70$ en los 23 dominios y un VIF de 1.984, por debajo del umbral de 5. La Figura~\ref{fig:app_residuos_parciales} muestra la relación de cada una con la tasa una vez descontado el aporte de la otra.
+La Tabla~\ref{tab:app_seleccion} ordena las 18 candidatas por el valor $p$ de su coeficiente. Solo tres tienen $q \le 0.10$ (tasa de homicidios, cobertura de acueducto y cobertura neta en educación media, las tres con $q = 0.08$), y Quibdó es el dominio que más mueve la correlación ponderada en ocho de las 18. Las dos covariables del conjunto elegido, tasa de homicidios y cobertura de acueducto, tienen una correlación de Pearson de $-0.70$ en los 23 dominios y un VIF de 1.98, por debajo del umbral de 5. La Figura~\ref{fig:app_residuos_parciales} muestra la relación de cada una con la tasa una vez descontado el aporte de la otra.
 
 % D-40: la matriz de 2 por 2 (img/eda_correlacion_finales.png) se sustituyó por la frase anterior; r = -0.704 recalculado con _trabajo/calculos/datos/dominios.csv y VIF de la salida del cuaderno de selección.
 {\footnotesize\setlength{\tabcolsep}{3pt}
@@ -348,24 +348,24 @@ Covariable & $\hat{\beta}_1$ & IC 95~\% & $p$ & $q$ & Cook & Dominio & $\Delta r
 \endhead
 \bottomrule
 \endlastfoot
-Tasa de homicidios & 0.099 & [0.029, 0.170] & 0.006 & 0.079 & 0.601 & Quibdó & 0.270 \\
-Cobertura de acueducto & $-0.083$ & [$-0.147$, $-0.019$] & 0.011 & 0.079 & 1.297 & Quibdó & 0.388 \\
-Cobertura neta en educación media & $-0.229$ & [$-0.410$, $-0.048$] & 0.013 & 0.079 & 0.625 & Armenia & 0.177 \\
-Índice de pobreza multidimensional & 0.121 & [0.015, 0.226] & 0.025 & 0.101 & 0.577 & Quibdó & 0.198 \\
-Valor agregado de actividades primarias & 0.422 & [0.045, 0.798] & 0.028 & 0.101 & 0.278 & Quibdó & 0.082 \\
-Ingresos tributarios per cápita & $-5.281$ & [$-10.155$, $-0.407$] & 0.034 & 0.101 & 0.845 & Bogotá & 0.069 \\
-Cobertura neta en educación secundaria & $-0.163$ & [$-0.336$, 0.011] & 0.066 & 0.135 & 0.212 & Armenia & 0.109 \\
-Valor agregado de actividades secundarias & $-0.150$ & [$-0.314$, 0.013] & 0.072 & 0.135 & 0.411 & Quibdó & 0.146 \\
-Valor agregado per cápita & $-0.192$ & [$-0.403$, 0.019] & 0.074 & 0.135 & 0.286 & Santa Marta & 0.070 \\
-Tránsito a la educación superior & 0.134 & [$-0.014$, 0.281] & 0.075 & 0.135 & 0.163 & Santa Marta & 0.080 \\
-Índice de desempeño fiscal & $-0.234$ & [$-0.536$, 0.067] & 0.128 & 0.202 & 0.130 & Santa Marta & 0.058 \\
-Población joven de 14 a 28 años & 0.567 & [$-0.183$, 1.318] & 0.138 & 0.202 & 0.637 & Quibdó & 0.206 \\
-Saber 11, lectura crítica & $-0.352$ & [$-0.826$, 0.122] & 0.146 & 0.202 & 0.962 & Quibdó & 0.271 \\
-Densidad de población & $-0.410$ & [$-1.007$, 0.186] & 0.177 & 0.228 & 0.172 & Barranquilla A.M. & 0.162 \\
-Saber 11, matemáticas & $-0.224$ & [$-0.572$, 0.123] & 0.206 & 0.247 & 0.953 & Quibdó & 0.270 \\
-Valor agregado de actividades terciarias & 0.088 & [$-0.098$, 0.274] & 0.353 & 0.398 & 0.315 & Cartagena & 0.130 \\
-Penetración de banda ancha & $-0.069$ & [$-0.312$, 0.175] & 0.581 & 0.615 & 0.241 & Armenia & 0.125 \\
-Población urbana & $-0.006$ & [$-0.159$, 0.146] & 0.938 & 0.938 & 0.524 & Riohacha & 0.166 \\
+Tasa de homicidios & 0.10 & [0.03, 0.17] & $<0.01$ & 0.08 & 0.60 & Quibdó & 0.27 \\
+Cobertura de acueducto & $-0.08$ & [$-0.15$, $-0.02$] & 0.01 & 0.08 & 1.30 & Quibdó & 0.39 \\
+Cobertura neta en educación media & $-0.23$ & [$-0.41$, $-0.05$] & 0.01 & 0.08 & 0.63 & Armenia & 0.18 \\
+Índice de pobreza multidimensional & 0.12 & [0.02, 0.23] & 0.03 & 0.10 & 0.58 & Quibdó & 0.20 \\
+Valor agregado de actividades primarias & 0.42 & [0.05, 0.80] & 0.03 & 0.10 & 0.28 & Quibdó & 0.08 \\
+Ingresos tributarios per cápita & $-5.28$ & [$-10.16$, $-0.41$] & 0.03 & 0.10 & 0.85 & Bogotá & 0.07 \\
+Cobertura neta en educación secundaria & $-0.16$ & [$-0.34$, 0.01] & 0.07 & 0.14 & 0.21 & Armenia & 0.11 \\
+Valor agregado de actividades secundarias & $-0.15$ & [$-0.31$, 0.01] & 0.07 & 0.14 & 0.41 & Quibdó & 0.15 \\
+Valor agregado per cápita & $-0.19$ & [$-0.40$, 0.02] & 0.07 & 0.14 & 0.29 & Santa Marta & 0.07 \\
+Tránsito a la educación superior & 0.13 & [$-0.01$, 0.28] & 0.08 & 0.14 & 0.16 & Santa Marta & 0.08 \\
+Índice de desempeño fiscal & $-0.23$ & [$-0.54$, 0.07] & 0.13 & 0.20 & 0.13 & Santa Marta & 0.06 \\
+Población joven de 14 a 28 años & 0.57 & [$-0.18$, 1.32] & 0.14 & 0.20 & 0.64 & Quibdó & 0.21 \\
+Saber 11, lectura crítica & $-0.35$ & [$-0.83$, 0.12] & 0.15 & 0.20 & 0.96 & Quibdó & 0.27 \\
+Densidad de población & $-0.41$ & [$-1.01$, 0.19] & 0.18 & 0.23 & 0.17 & Barranquilla A.M. & 0.16 \\
+Saber 11, matemáticas & $-0.22$ & [$-0.57$, 0.12] & 0.21 & 0.25 & 0.95 & Quibdó & 0.27 \\
+Valor agregado de actividades terciarias & 0.09 & [$-0.10$, 0.27] & 0.35 & 0.40 & 0.32 & Cartagena & 0.13 \\
+Penetración de banda ancha & $-0.07$ & [$-0.31$, 0.18] & 0.58 & 0.62 & 0.24 & Armenia & 0.13 \\
+Población urbana & $-0.01$ & [$-0.16$, 0.15] & 0.94 & 0.94 & 0.52 & Riohacha & 0.17 \\
 \end{longtable}
 }
 \begin{figure}[!htbp]
@@ -380,7 +380,7 @@ Población urbana & $-0.006$ & [$-0.159$, 0.146] & 0.938 & 0.938 & 0.524 & Rioha
 
 Esta sección presenta los coeficientes y los diagnósticos de las cuatro especificaciones candidatas; la citan las Secciones~\ref{sec:res_fh_clasico} y~\ref{sec:res_supuestos}.
 
-La Tabla~\ref{tab:app_ec_coeficientes} muestra que en EC1, con las dos covariables, ninguna tiene $p < 0.05$, mientras que en EC2 y EC3, con una covariable cada una, las dos lo cumplen. En la Tabla~\ref{tab:app_ec_diagnosticos} el valor $p$ de Shapiro-Wilk supera 0.10 en las cuatro especificaciones y EC2 tiene la mayor distancia de Cook (1.297). Las Figuras~\ref{fig:app_ec3}, \ref{fig:app_ec1}, \ref{fig:app_ec2} y~\ref{fig:app_ec0} muestran, para cada especificación, la contracción del EBLUP y la distribución de los residuos estandarizados, y la Figura~\ref{fig:app_cook} identifica los dominios que más pesan en el ajuste del benchmark.
+La Tabla~\ref{tab:app_ec_coeficientes} muestra que en EC1, con las dos covariables, ninguna tiene $p < 0.05$, mientras que en EC2 y EC3, con una covariable cada una, las dos lo cumplen. En la Tabla~\ref{tab:app_ec_diagnosticos} el valor $p$ de Shapiro-Wilk supera 0.10 en las cuatro especificaciones y EC2 tiene la mayor distancia de Cook (1.30). Las Figuras~\ref{fig:app_ec3}, \ref{fig:app_ec1}, \ref{fig:app_ec2} y~\ref{fig:app_ec0} muestran, para cada especificación, la contracción del EBLUP y la distribución de los residuos estandarizados, y la Figura~\ref{fig:app_cook} identifica los dominios que más pesan en el ajuste del benchmark.
 
 \begin{table}[!htbp]
 \centering
@@ -391,14 +391,14 @@ La Tabla~\ref{tab:app_ec_coeficientes} muestra que en EC1, con las dos covariabl
 \toprule
 Especificación & Parámetro & $\hat{\beta}$ & EE & $p$ \\
 \midrule
-EC1 & Intercepto & 13.758 & 4.997 & 0.006 \\
-EC1 & Tasa de homicidios & 0.066 & 0.051 & 0.190 \\
-EC1 & Cobertura de acueducto & $-0.042$ & 0.045 & 0.351 \\
-EC2 & Intercepto & 19.053 & 2.994 & $<0.001$ \\
-EC2 & Cobertura de acueducto & $-0.083$ & 0.033 & 0.011 \\
-EC3 & Intercepto & 9.191 & 0.979 & $<0.001$ \\
-EC3 & Tasa de homicidios & 0.099 & 0.036 & 0.006 \\
-EC0 & Intercepto & 11.527 & 0.563 & $<0.001$ \\
+EC1 & Intercepto & 13.76 & 5.00 & $<0.01$ \\
+EC1 & Tasa de homicidios & 0.07 & 0.05 & 0.19 \\
+EC1 & Cobertura de acueducto & $-0.04$ & 0.05 & 0.35 \\
+EC2 & Intercepto & 19.05 & 2.99 & $<0.01$ \\
+EC2 & Cobertura de acueducto & $-0.08$ & 0.03 & 0.01 \\
+EC3 & Intercepto & 9.19 & 0.98 & $<0.01$ \\
+EC3 & Tasa de homicidios & 0.10 & 0.04 & $<0.01$ \\
+EC0 & Intercepto & 11.53 & 0.56 & $<0.01$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -411,10 +411,10 @@ EC0 & Intercepto & 11.527 & 0.563 & $<0.001$ \\
 \toprule
 Especificación & $R^2$ & DE resid. & $p$ SW & $\bar{\gamma}$ & $\psi/{\rm ECM}$ & Cook & Influyentes \\
 \midrule
-EC1 & 0.299 & 0.954 & 0.391 & 0.984 & 1.011 & 0.526 & 2 \\
-EC2 & 0.239 & 0.978 & 0.317 & 0.985 & 1.011 & 1.297 & 1 \\
-EC3 & 0.269 & 0.977 & 0.357 & 0.984 & 1.012 & 0.601 & 2 \\
-EC0 & 0.000 & 1.002 & 0.139 & 0.988 & 1.010 & 0.250 & 1 \\
+EC1 & 0.30 & 0.95 & 0.39 & 0.98 & 1.01 & 0.53 & 2 \\
+EC2 & 0.24 & 0.98 & 0.32 & 0.99 & 1.01 & 1.30 & 1 \\
+EC3 & 0.27 & 0.98 & 0.36 & 0.98 & 1.01 & 0.60 & 2 \\
+EC0 & 0.00 & 1.00 & 0.14 & 0.99 & 1.01 & 0.25 & 1 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -464,7 +464,7 @@ EC0 & 0.000 & 1.002 & 0.139 & 0.988 & 1.010 & 0.250 & 1 \\
 
 Esta sección presenta, para los 23 dominios, la tasa directa, el EBLUP del benchmark, el SEBLUP del escenario espacial de referencia y el EBLUP ajustado por benchmarking; la citan las Secciones~\ref{sec:res_fh_clasico} y~\ref{sec:res_espacial}.
 
-En la Tabla~\ref{tab:app_dominios_modelo} el EBLUP y el SEBLUP se separan de la tasa directa en 0.10 puntos o menos: el peso de la directa, $\hat{\gamma}_d$, está entre 0.966 y 0.993, de modo que en los dominios los dos modelos casi reproducen la estimación directa. El benchmarking de nivel 1 mueve el EBLUP en 0.01 puntos o menos.
+En la Tabla~\ref{tab:app_dominios_modelo} el EBLUP y el SEBLUP se separan de la tasa directa en 0.10 puntos o menos: el peso de la directa, $\hat{\gamma}_d$, está entre 0.97 y 0.99, de modo que en los dominios los dos modelos casi reproducen la estimación directa. El benchmarking de nivel 1 mueve el EBLUP en 0.01 puntos o menos.
 
 {\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{longtable}{l r r r r r r r r}
@@ -481,29 +481,29 @@ Dominio & Directa & EBLUP & CV & $\hat{\gamma}_d$ & SEBLUP & CV & $\hat{\gamma}^
 \endhead
 \bottomrule
 \endlastfoot
-Armenia & 15.49 & 15.42 & 2.20 & 0.979 & 15.43 & 2.23 & 0.978 & 15.42 \\
-Barranquilla A.M. & 8.15 & 8.17 & 2.48 & 0.993 & 8.18 & 2.38 & 0.991 & 8.17 \\
-Bogotá & 10.37 & 10.37 & 2.25 & 0.990 & 10.38 & 2.33 & 0.988 & 10.37 \\
-Bucaramanga A.M. & 8.74 & 8.76 & 3.13 & 0.986 & 8.79 & 3.01 & 0.984 & 8.76 \\
-Cali A.M. & 11.65 & 11.69 & 2.42 & 0.986 & 11.69 & 2.47 & 0.986 & 11.69 \\
-Cartagena & 8.35 & 8.39 & 3.10 & 0.988 & 8.37 & 3.13 & 0.985 & 8.38 \\
-Cúcuta A.M. & 15.98 & 15.88 & 2.28 & 0.976 & 15.89 & 2.33 & 0.972 & 15.88 \\
-Florencia & 12.94 & 12.90 & 2.85 & 0.976 & 12.90 & 2.77 & 0.976 & 12.90 \\
-Ibagué & 13.99 & 13.93 & 2.35 & 0.981 & 13.93 & 2.39 & 0.978 & 13.93 \\
-Manizales A.M. & 11.24 & 11.23 & 2.52 & 0.986 & 11.23 & 2.43 & 0.984 & 11.23 \\
-Medellín A.M. & 11.84 & 11.83 & 2.01 & 0.990 & 11.83 & 1.92 & 0.988 & 11.83 \\
-Montería & 9.47 & 9.49 & 2.78 & 0.987 & 9.47 & 2.72 & 0.985 & 9.48 \\
-Neiva & 11.53 & 11.53 & 2.67 & 0.983 & 11.53 & 2.80 & 0.983 & 11.53 \\
-Pasto & 8.82 & 8.84 & 3.20 & 0.986 & 8.84 & 3.25 & 0.986 & 8.84 \\
-Pereira A.M. & 8.87 & 8.90 & 3.01 & 0.987 & 8.91 & 2.98 & 0.986 & 8.90 \\
-Popayán & 10.68 & 10.69 & 2.75 & 0.984 & 10.69 & 2.74 & 0.984 & 10.68 \\
-Quibdó & 17.81 & 17.76 & 2.46 & 0.966 & 17.77 & 2.44 & 0.964 & 17.76 \\
-Riohacha & 13.88 & 13.86 & 2.31 & 0.982 & 13.85 & 2.39 & 0.979 & 13.86 \\
-Santa Marta & 8.32 & 8.35 & 2.78 & 0.990 & 8.35 & 2.88 & 0.989 & 8.34 \\
-Sincelejo & 9.61 & 9.62 & 2.60 & 0.989 & 9.60 & 2.60 & 0.987 & 9.61 \\
-Tunja & 11.31 & 11.28 & 2.87 & 0.981 & 11.28 & 2.83 & 0.977 & 11.28 \\
-Valledupar & 14.45 & 14.38 & 2.27 & 0.981 & 14.37 & 2.29 & 0.977 & 14.38 \\
-Villavicencio & 11.87 & 11.87 & 2.67 & 0.982 & 11.88 & 2.89 & 0.979 & 11.86 \\
+Armenia & 15.49 & 15.42 & 2.20 & 0.98 & 15.43 & 2.23 & 0.98 & 15.42 \\
+Barranquilla A.M. & 8.15 & 8.17 & 2.48 & 0.99 & 8.18 & 2.38 & 0.99 & 8.17 \\
+Bogotá & 10.37 & 10.37 & 2.25 & 0.99 & 10.38 & 2.33 & 0.99 & 10.37 \\
+Bucaramanga A.M. & 8.74 & 8.76 & 3.13 & 0.99 & 8.79 & 3.01 & 0.98 & 8.76 \\
+Cali A.M. & 11.65 & 11.69 & 2.42 & 0.99 & 11.69 & 2.47 & 0.99 & 11.69 \\
+Cartagena & 8.35 & 8.39 & 3.10 & 0.99 & 8.37 & 3.13 & 0.99 & 8.38 \\
+Cúcuta A.M. & 15.98 & 15.88 & 2.28 & 0.98 & 15.89 & 2.33 & 0.97 & 15.88 \\
+Florencia & 12.94 & 12.90 & 2.85 & 0.98 & 12.90 & 2.77 & 0.98 & 12.90 \\
+Ibagué & 13.99 & 13.93 & 2.35 & 0.98 & 13.93 & 2.39 & 0.98 & 13.93 \\
+Manizales A.M. & 11.24 & 11.23 & 2.52 & 0.99 & 11.23 & 2.43 & 0.98 & 11.23 \\
+Medellín A.M. & 11.84 & 11.83 & 2.01 & 0.99 & 11.83 & 1.92 & 0.99 & 11.83 \\
+Montería & 9.47 & 9.49 & 2.78 & 0.99 & 9.47 & 2.72 & 0.99 & 9.48 \\
+Neiva & 11.53 & 11.53 & 2.67 & 0.98 & 11.53 & 2.80 & 0.98 & 11.53 \\
+Pasto & 8.82 & 8.84 & 3.20 & 0.99 & 8.84 & 3.25 & 0.99 & 8.84 \\
+Pereira A.M. & 8.87 & 8.90 & 3.01 & 0.99 & 8.91 & 2.98 & 0.99 & 8.90 \\
+Popayán & 10.68 & 10.69 & 2.75 & 0.98 & 10.69 & 2.74 & 0.98 & 10.68 \\
+Quibdó & 17.81 & 17.76 & 2.46 & 0.97 & 17.77 & 2.44 & 0.96 & 17.76 \\
+Riohacha & 13.88 & 13.86 & 2.31 & 0.98 & 13.85 & 2.39 & 0.98 & 13.86 \\
+Santa Marta & 8.32 & 8.35 & 2.78 & 0.99 & 8.35 & 2.88 & 0.99 & 8.34 \\
+Sincelejo & 9.61 & 9.62 & 2.60 & 0.99 & 9.60 & 2.60 & 0.99 & 9.61 \\
+Tunja & 11.31 & 11.28 & 2.87 & 0.98 & 11.28 & 2.83 & 0.98 & 11.28 \\
+Valledupar & 14.45 & 14.38 & 2.27 & 0.98 & 14.37 & 2.29 & 0.98 & 14.38 \\
+Villavicencio & 11.87 & 11.87 & 2.67 & 0.98 & 11.88 & 2.89 & 0.98 & 11.86 \\
 \end{longtable}
 }
 %--------------------------------------------------------------------------------------
@@ -512,7 +512,7 @@ Villavicencio & 11.87 & 11.87 & 2.67 & 0.982 & 11.88 & 2.89 & 0.979 & 11.86 \\
 
 Esta sección presenta las varianzas alternativas de cada dominio y las figuras de la GVF y de los escenarios; la cita la Sección~\ref{sec:res_supuestos}.
 
-La Tabla~\ref{tab:app_varianza} muestra que la varianza del bootstrap por viviendas es mayor que la del bootstrap por personas en 20 de los 23 dominios, con razones entre 0.939 y 1.173, y que la linealización de Taylor queda cerca, con razones entre 0.938 y 1.053. La Figura~\ref{fig:app_gvf} compara la varianza observada con la ajustada por las dos GVF, y la Figura~\ref{fig:app_escenarios_varianza} muestra cuánto se mueve el EBLUP de cada dominio en los ocho escenarios alternativos.
+La Tabla~\ref{tab:app_varianza} muestra que la varianza del bootstrap por viviendas es mayor que la del bootstrap por personas en 20 de los 23 dominios, con razones entre 0.94 y 1.17, y que la linealización de Taylor queda cerca, con razones entre 0.94 y 1.05. La Figura~\ref{fig:app_gvf} compara la varianza observada con la ajustada por las dos GVF, y la Figura~\ref{fig:app_escenarios_varianza} muestra cuánto se mueve el EBLUP de cada dominio en los ocho escenarios alternativos.
 
 {\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{longtable}{l r r r r r}
@@ -529,29 +529,29 @@ Dominio & $\psi_d$ & Viv./pers. & Boot./Taylor & GVF A & GVF B \\
 \endhead
 \bottomrule
 \endlastfoot
-Armenia & 0.117 & 1.142 & 0.996 & 1.067 & 1.021 \\
-Barranquilla A.M. & 0.041 & 1.026 & 1.014 & 1.028 & 1.023 \\
-Bogotá & 0.055 & 1.087 & 0.974 & 1.029 & 1.044 \\
-Bucaramanga A.M. & 0.076 & 1.154 & 1.041 & 0.901 & 0.876 \\
-Cali A.M. & 0.081 & 1.129 & 1.032 & 0.933 & 0.931 \\
-Cartagena & 0.068 & 1.005 & 1.008 & 1.010 & 0.977 \\
-Cúcuta A.M. & 0.134 & 1.105 & 0.965 & 1.033 & 0.993 \\
-Florencia & 0.138 & 1.155 & 1.038 & 0.896 & 0.964 \\
-Ibagué & 0.108 & 1.076 & 1.006 & 1.038 & 1.028 \\
-Manizales A.M. & 0.081 & 1.036 & 0.996 & 1.088 & 1.099 \\
-Medellín A.M. & 0.057 & 1.141 & 1.053 & 0.921 & 0.981 \\
-Montería & 0.070 & 0.997 & 0.954 & 1.036 & 1.024 \\
-Neiva & 0.096 & 1.109 & 1.010 & 0.948 & 0.961 \\
-Pasto & 0.081 & 1.126 & 1.034 & 0.969 & 0.969 \\
-Pereira A.M. & 0.072 & 1.173 & 1.010 & 1.007 & 0.990 \\
-Popayán & 0.087 & 1.082 & 0.972 & 0.980 & 0.993 \\
-Quibdó & 0.193 & 1.145 & 0.995 & 0.985 & 0.975 \\
-Riohacha & 0.104 & 1.065 & 0.975 & 0.999 & 0.980 \\
-Santa Marta & 0.054 & 0.975 & 0.976 & 1.149 & 1.099 \\
-Sincelejo & 0.063 & 1.114 & 1.016 & 1.022 & 1.007 \\
-Tunja & 0.106 & 0.939 & 0.938 & 1.025 & 1.115 \\
-Valledupar & 0.108 & 1.080 & 0.954 & 1.063 & 1.040 \\
-Villavicencio & 0.102 & 1.104 & 1.000 & 0.953 & 0.972 \\
+Armenia & 0.12 & 1.14 & 1.00 & 1.07 & 1.02 \\
+Barranquilla A.M. & 0.04 & 1.03 & 1.01 & 1.03 & 1.02 \\
+Bogotá & 0.06 & 1.09 & 0.97 & 1.03 & 1.04 \\
+Bucaramanga A.M. & 0.08 & 1.15 & 1.04 & 0.90 & 0.88 \\
+Cali A.M. & 0.08 & 1.13 & 1.03 & 0.93 & 0.93 \\
+Cartagena & 0.07 & 1.01 & 1.01 & 1.01 & 0.98 \\
+Cúcuta A.M. & 0.13 & 1.11 & 0.97 & 1.03 & 0.99 \\
+Florencia & 0.14 & 1.16 & 1.04 & 0.90 & 0.96 \\
+Ibagué & 0.11 & 1.08 & 1.01 & 1.04 & 1.03 \\
+Manizales A.M. & 0.08 & 1.04 & 1.00 & 1.09 & 1.10 \\
+Medellín A.M. & 0.06 & 1.14 & 1.05 & 0.92 & 0.98 \\
+Montería & 0.07 & 1.00 & 0.95 & 1.04 & 1.02 \\
+Neiva & 0.10 & 1.11 & 1.01 & 0.95 & 0.96 \\
+Pasto & 0.08 & 1.13 & 1.03 & 0.97 & 0.97 \\
+Pereira A.M. & 0.07 & 1.17 & 1.01 & 1.01 & 0.99 \\
+Popayán & 0.09 & 1.08 & 0.97 & 0.98 & 0.99 \\
+Quibdó & 0.19 & 1.15 & 1.00 & 0.99 & 0.98 \\
+Riohacha & 0.10 & 1.07 & 0.98 & 1.00 & 0.98 \\
+Santa Marta & 0.05 & 0.98 & 0.98 & 1.15 & 1.10 \\
+Sincelejo & 0.06 & 1.11 & 1.02 & 1.02 & 1.01 \\
+Tunja & 0.11 & 0.94 & 0.94 & 1.03 & 1.12 \\
+Valledupar & 0.11 & 1.08 & 0.95 & 1.06 & 1.04 \\
+Villavicencio & 0.10 & 1.10 & 1.00 & 0.95 & 0.97 \\
 \end{longtable}
 }
 \begin{figure}[!htbp]
@@ -626,26 +626,26 @@ Villavicencio & 11.87 & 11.39 & $-0.48$ & $-1.5$ & $-0.19$ & 11.39 & $-0.48$ & $
 
 Esta sección presenta las ocho especificaciones espaciales, su validación, sus coeficientes y las sensibilidades del parámetro $\rho$; la cita la Sección~\ref{sec:res_espacial}.
 
-En la Tabla~\ref{tab:app_espacial} ninguna de las ocho especificaciones tiene un LRT con $p < 0.05$ (el menor es 0.221) y todas tienen un AIC mayor que el del clásico. En la validación de la Tabla~\ref{tab:app_espacial_validacion} la RMSE va de 2.35 a 2.86 puntos, frente a 2.52 del sintético clásico, y en la Tabla~\ref{tab:app_espacial_coeficientes} el coeficiente de la tasa de homicidios se mueve menos de 0.13 errores estándar entre especificaciones. Las Tablas~\ref{tab:app_espacial_rho} y~\ref{tab:app_espacial_centroide} muestran que $\hat{\rho}$ de la estructura completa depende de qué municipios entran como nodos y, en menor medida, de dónde se ubica el nodo de cada área metropolitana. Las Figuras~\ref{fig:app_perfil_rho} y~\ref{fig:app_fhe_validacion} presentan el perfil de verosimilitud de $\rho$ y la validación del escenario de referencia.
+En la Tabla~\ref{tab:app_espacial} ninguna de las ocho especificaciones tiene un LRT con $p < 0.05$ (el menor es 0.22) y todas tienen un AIC mayor que el del clásico. En la validación de la Tabla~\ref{tab:app_espacial_validacion} la RMSE va de 2.35 a 2.86 puntos, frente a 2.52 del sintético clásico, y en la Tabla~\ref{tab:app_espacial_coeficientes} el coeficiente de la tasa de homicidios se mueve menos de 0.13 errores estándar entre especificaciones. Las Tablas~\ref{tab:app_espacial_rho} y~\ref{tab:app_espacial_centroide} muestran que $\hat{\rho}$ de la estructura completa depende de qué municipios entran como nodos y, en menor medida, de dónde se ubica el nodo de cada área metropolitana. Las Figuras~\ref{fig:app_perfil_rho} y~\ref{fig:app_fhe_validacion} presentan el perfil de verosimilitud de $\rho$ y la validación del escenario de referencia.
 
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Especificaciones del Fay-Herriot espacial]{Las ocho especificaciones espaciales con la tasa de homicidios fija. AIC: criterio de información de Akaike; AIC del clásico: 108.904; $\Delta$AIC = AIC clásico $-$ AIC espacial; LRT: estadístico de la prueba de razón de verosimilitudes de $\rho = 0$.}
+\caption[Especificaciones del Fay-Herriot espacial]{Las ocho especificaciones espaciales con la tasa de homicidios fija. AIC: criterio de información de Akaike; AIC del clásico: 108.90; $\Delta$AIC = AIC clásico $-$ AIC espacial; LRT: estadístico de la prueba de razón de verosimilitudes de $\rho = 0$.}
 \label{tab:app_espacial}
 \begin{adjustbox}{max width=\linewidth}
 \begin{tabular}{l l r r r r r r r}
 \toprule
 Matriz & Estructura & $\hat{\sigma}_u^2$ & $\hat{\rho}$ & AIC & $\Delta$AIC & LRT & $p$ & $R^2$ \\
 \midrule
-3 vecinos & muestra & 5.383 & 0.234 & 110.572 & $-1.669$ & 0.331 & 0.565 & 0.268 \\
-3 vecinos & completa & 4.825 & 0.372 & 109.403 & $-0.500$ & 1.500 & 0.221 & 0.269 \\
-5 vecinos & muestra & 5.541 & 0.206 & 110.901 & $-1.998$ & 0.002 & 0.960 & 0.269 \\
-5 vecinos & completa & 5.469 & 0.222 & 110.862 & $-1.958$ & 0.042 & 0.838 & 0.268 \\
-Inversa, potencia 1 & muestra & 5.631 & 0.326 & 110.790 & $-1.887$ & 0.113 & 0.737 & 0.269 \\
-Inversa, potencia 1 & completa & 5.479 & 0.891 & 110.894 & $-1.990$ & 0.010 & 0.922 & 0.268 \\
-Inversa, potencia 2 & muestra & 5.529 & 0.187 & 110.890 & $-1.987$ & 0.013 & 0.909 & 0.269 \\
-Inversa, potencia 2 & completa & 5.101 & 0.607 & 110.105 & $-1.201$ & 0.799 & 0.371 & 0.265 \\
+3 vecinos & muestra & 5.38 & 0.23 & 110.57 & $-1.67$ & 0.33 & 0.57 & 0.27 \\
+3 vecinos & completa & 4.83 & 0.37 & 109.40 & $-0.50$ & 1.50 & 0.22 & 0.27 \\
+5 vecinos & muestra & 5.54 & 0.21 & 110.90 & $-2.00$ & 0.00 & 0.96 & 0.27 \\
+5 vecinos & completa & 5.47 & 0.22 & 110.86 & $-1.96$ & 0.04 & 0.84 & 0.27 \\
+Inversa, potencia 1 & muestra & 5.63 & 0.33 & 110.79 & $-1.89$ & 0.11 & 0.74 & 0.27 \\
+Inversa, potencia 1 & completa & 5.48 & 0.89 & 110.89 & $-1.99$ & 0.01 & 0.92 & 0.27 \\
+Inversa, potencia 2 & muestra & 5.53 & 0.19 & 110.89 & $-1.99$ & 0.01 & 0.91 & 0.27 \\
+Inversa, potencia 2 & completa & 5.10 & 0.61 & 110.11 & $-1.20$ & 0.80 & 0.37 & 0.27 \\
 \bottomrule
 \end{tabular}
 \end{adjustbox}
@@ -683,20 +683,20 @@ Inversa, potencia 2, completa & Espacial con efecto & 2.86 & 2.26 & 0.24 & 2.84 
 \begin{table}[!htbp]
 \centering
 \small
-\caption[Coeficiente de la tasa de homicidios en el modelo espacial]{Coeficiente de la tasa de homicidios en cada especificación espacial. EE: error estándar. Clásico: 0.099 (EE 0.036, $p = 0.006$); cambio medido en errores estándar del clásico.}
+\caption[Coeficiente de la tasa de homicidios en el modelo espacial]{Coeficiente de la tasa de homicidios en cada especificación espacial. EE: error estándar. Clásico: 0.10 (EE 0.04, $p < 0.01$); cambio medido en errores estándar del clásico.}
 \label{tab:app_espacial_coeficientes}
 \begin{tabular}{l l r r r r}
 \toprule
 Matriz & Estructura & $\hat{\beta}_1$ & EE & $p$ & Cambio en EE \\
 \midrule
-3 vecinos & muestra & 0.104 & 0.035 & 0.003 & 0.118 \\
-3 vecinos & completa & 0.102 & 0.035 & 0.004 & 0.069 \\
-5 vecinos & muestra & 0.101 & 0.036 & 0.005 & 0.042 \\
-5 vecinos & completa & 0.104 & 0.036 & 0.004 & 0.126 \\
-Inversa, potencia 1 & muestra & 0.099 & 0.036 & 0.006 & 0.006 \\
-Inversa, potencia 1 & completa & 0.099 & 0.036 & 0.006 & 0.000 \\
-Inversa, potencia 2 & muestra & 0.100 & 0.036 & 0.005 & 0.012 \\
-Inversa, potencia 2 & completa & 0.099 & 0.035 & 0.005 & $-0.021$ \\
+3 vecinos & muestra & 0.10 & 0.04 & $<0.01$ & 0.12 \\
+3 vecinos & completa & 0.10 & 0.04 & $<0.01$ & 0.07 \\
+5 vecinos & muestra & 0.10 & 0.04 & $<0.01$ & 0.04 \\
+5 vecinos & completa & 0.10 & 0.04 & $<0.01$ & 0.13 \\
+Inversa, potencia 1 & muestra & 0.10 & 0.04 & $<0.01$ & 0.01 \\
+Inversa, potencia 1 & completa & 0.10 & 0.04 & $<0.01$ & 0.00 \\
+Inversa, potencia 2 & muestra & 0.10 & 0.04 & $<0.01$ & 0.01 \\
+Inversa, potencia 2 & completa & 0.10 & 0.04 & $<0.01$ & $-0.02$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -715,22 +715,22 @@ Matriz & Nodos sin dato & Nodos & $\hat{\rho}$ & $p$ \\
 \endhead
 \bottomrule
 \endlastfoot
-3 vecinos & todos & 81 & 0.372 & 0.221 \\
-5 vecinos & todos & 81 & 0.222 & 0.838 \\
-Inversa, potencia 1 & todos & 81 & 0.891 & 0.922 \\
-Inversa, potencia 2 & todos & 81 & 0.607 & 0.371 \\
-3 vecinos & solo Valle & 40 & 0.398 & 0.228 \\
-5 vecinos & solo Valle & 40 & 0.273 & 0.787 \\
-Inversa, potencia 1 & solo Valle & 40 & 0.990 & 0.913 \\
-Inversa, potencia 2 & solo Valle & 40 & 0.690 & 0.364 \\
-3 vecinos & solo Cauca & 41 & 0.262 & 0.448 \\
-5 vecinos & solo Cauca & 41 & 0.157 & 0.947 \\
-Inversa, potencia 1 & solo Cauca & 41 & 0.589 & 0.938 \\
-Inversa, potencia 2 & solo Cauca & 41 & 0.275 & 0.735 \\
-3 vecinos & ninguno & 0 & 0.234 & 0.565 \\
-5 vecinos & ninguno & 0 & 0.206 & 0.960 \\
-Inversa, potencia 1 & ninguno & 0 & 0.326 & 0.737 \\
-Inversa, potencia 2 & ninguno & 0 & 0.187 & 0.909 \\
+3 vecinos & todos & 81 & 0.37 & 0.22 \\
+5 vecinos & todos & 81 & 0.22 & 0.84 \\
+Inversa, potencia 1 & todos & 81 & 0.89 & 0.92 \\
+Inversa, potencia 2 & todos & 81 & 0.61 & 0.37 \\
+3 vecinos & solo Valle & 40 & 0.40 & 0.23 \\
+5 vecinos & solo Valle & 40 & 0.27 & 0.79 \\
+Inversa, potencia 1 & solo Valle & 40 & 0.99 & 0.91 \\
+Inversa, potencia 2 & solo Valle & 40 & 0.69 & 0.36 \\
+3 vecinos & solo Cauca & 41 & 0.26 & 0.45 \\
+5 vecinos & solo Cauca & 41 & 0.16 & 0.95 \\
+Inversa, potencia 1 & solo Cauca & 41 & 0.59 & 0.94 \\
+Inversa, potencia 2 & solo Cauca & 41 & 0.28 & 0.74 \\
+3 vecinos & ninguno & 0 & 0.23 & 0.57 \\
+5 vecinos & ninguno & 0 & 0.21 & 0.96 \\
+Inversa, potencia 1 & ninguno & 0 & 0.33 & 0.74 \\
+Inversa, potencia 2 & ninguno & 0 & 0.19 & 0.91 \\
 \end{longtable}
 }
 \begin{table}[!htbp]
@@ -742,14 +742,14 @@ Inversa, potencia 2 & ninguno & 0 & 0.187 & 0.909 \\
 \toprule
 Matriz & Estructura & $\hat{\rho}$ capital & $\hat{\rho}$ media & $p$ capital & $p$ media \\
 \midrule
-3 vecinos & muestra & 0.234 & 0.234 & 0.565 & 0.565 \\
-3 vecinos & completa & 0.372 & 0.372 & 0.221 & 0.227 \\
-5 vecinos & muestra & 0.206 & 0.278 & 0.960 & 0.767 \\
-5 vecinos & completa & 0.222 & 0.353 & 0.838 & 0.522 \\
-Inversa, potencia 1 & muestra & 0.326 & 0.403 & 0.737 & 0.788 \\
-Inversa, potencia 1 & completa & 0.891 & 0.911 & 0.922 & 0.906 \\
-Inversa, potencia 2 & muestra & 0.187 & 0.239 & 0.909 & 0.814 \\
-Inversa, potencia 2 & completa & 0.607 & 0.616 & 0.371 & 0.354 \\
+3 vecinos & muestra & 0.23 & 0.23 & 0.57 & 0.57 \\
+3 vecinos & completa & 0.37 & 0.37 & 0.22 & 0.23 \\
+5 vecinos & muestra & 0.21 & 0.28 & 0.96 & 0.77 \\
+5 vecinos & completa & 0.22 & 0.35 & 0.84 & 0.52 \\
+Inversa, potencia 1 & muestra & 0.33 & 0.40 & 0.74 & 0.79 \\
+Inversa, potencia 1 & completa & 0.89 & 0.91 & 0.92 & 0.91 \\
+Inversa, potencia 2 & muestra & 0.19 & 0.24 & 0.91 & 0.81 \\
+Inversa, potencia 2 & completa & 0.61 & 0.62 & 0.37 & 0.35 \\
 \bottomrule
 \end{tabular}
 \end{table}

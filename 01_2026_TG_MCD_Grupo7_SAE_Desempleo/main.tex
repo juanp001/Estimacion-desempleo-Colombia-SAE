@@ -1,10 +1,13 @@
+% E-03: punto decimal también en modo matemático, como en el texto. La clase ya carga babel
+% con [spanish], así que la opción se pasa antes de \documentclass (cargarlo de nuevo con
+% otra opción produce «Option clash» y la opción se ignora).
+\PassOptionsToPackage{es-nodecimaldot}{babel}
 \PassOptionsToPackage{table}{xcolor}
 \PassOptionsToPackage{pdfa}{hyperref}
 \documentclass{unipd-thesis-modern} % plantilla: https://github.com/baronefr/unipd-thesis
 \raggedbottom
 
 % paquetes
-\usepackage[spanish,es-nodecimaldot]{babel} % E-03: punto decimal también en modo matemático, como en el texto
 \usepackage{siunitx}
 \usepackage[titles]{tocloft}
 \usepackage{tabularx}

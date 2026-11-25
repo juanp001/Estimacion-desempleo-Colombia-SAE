@@ -32,7 +32,7 @@ Parámetro & Etapa & Valor usado & Valores evaluados & Criterio \\
 Ventana de la estimación directa & 5 & 12 meses & 1 y 3 meses & Más viviendas por dominio y menor varianza; sensibilidad de la tasa a las tres ventanas \\
 Réplicas del bootstrap de la estimación directa & 5 & \num{2000}; semilla 42 & Ninguno & Convención; el error de Monte Carlo relativo del EE bootstrap es del orden de $1/\sqrt{2B}$, cerca del 1.6~\% con $B = \num{2000}$ \\
 Umbrales del CV & 5, 10, 14 & 5~\% y 20~\% & Ninguno & Clases de precisión de uso oficial \cite[pp.~14--15]{Molina2019} \\
-CV mínimo y proporción modal máxima & 7 & 0.001 y 0.90 & Rejilla de ambos umbrales & Retirar columnas casi constantes sin depender de la unidad; sensibilidad del número de sobrevivientes \\
+CV mínimo y proporción modal máxima & 7 & $10^{-3}$ y 0.90 & Rejilla de ambos umbrales & Retirar columnas casi constantes sin depender de la unidad; sensibilidad del número de sobrevivientes \\
 Umbral $q$ de BH para la elegibilidad & 9 & 0.10 & 0.05 y 0.15 & Convención para una tamización de 18 candidatas con 23 dominios; como puede cambiar si el modelo tiene o no covariables, se reporta el conjunto que resulta con cada valor \\
 Umbral de redundancia & 9 & $|r| \geq 0.80$ & Ninguno & Convención; el mismo umbral del análisis multivariado de la etapa 8 \\
 Cota de covariables & 9 & $\lfloor n/10 \rfloor$ & Ninguno & Regla de 10 a 20 observaciones por parámetro, en su extremo permisivo; no sobreparametrizar al estimar fuera de la muestra \cite[p.~453]{morales2021smallarea} \\
@@ -45,7 +45,7 @@ Umbrales de influencia por dominio & 11 & 1 EE; 0.5 pp & Ninguno & Convención; 
 Matriz de proximidad & 13 & Cuatro escenarios & $k \in \{3, 5\}$; potencias 1 y 2 & Los datos no identifican $k$ ni la potencia: se reportaron los cuatro \\
 Cota de $|\rho|$ & 13 & 0.99 & Ninguno & Mantener invertible la matriz $\mathbf{I} - \rho\mathbf{W}$ \\
 Réplicas del bootstrap paramétrico espacial & 13 & 500; semilla 42 & Ninguno & Convención; cada réplica reajusta el modelo espacial \cite[pp.~490--494]{morales2021smallarea} \\
-Permutaciones del I de Moran & 13, 16 & \num{9999} & Ninguno & Valor $p$ mínimo alcanzable de 0.0001 \\
+Permutaciones del I de Moran & 13, 16 & \num{9999} & Ninguno & Valor $p$ mínimo alcanzable de $10^{-4}$ \\
 \end{longtable}
 }
 
@@ -268,8 +268,8 @@ Elemento & Contenido \\
 \midrule
 Entradas & Tabla de 23 dominios con todas las columnas de TerriData del período \\
 Transformaciones & Conversión numérica tolerante a errores de las columnas de texto \\
-Regla de decisión & Completitud: sin faltantes en los 23 dominios. Variabilidad: CV descriptivo (Ecuación~\ref{eq:cv_descriptivo}) $\geq 0.001$ y proporción de dominios con el valor modal $\leq 0.90$. Sin filtro por correlación con la respuesta \\
-Parámetros & CV mínimo 0.001; proporción modal máxima 0.90; los pares con $|r| \geq 0.999$ se reportaron como duplicados, sin decidir \\
+Regla de decisión & Completitud: sin faltantes en los 23 dominios. Variabilidad: CV descriptivo (Ecuación~\ref{eq:cv_descriptivo}) $\geq 10^{-3}$ y proporción de dominios con el valor modal $\leq 0.90$. Sin filtro por correlación con la respuesta \\
+Parámetros & CV mínimo $10^{-3}$; proporción modal máxima 0.90; los pares con $|r| \geq 1 - 10^{-3}$ se reportaron como duplicados, sin decidir \\
 Verificaciones & Cascada (candidatas que pasan cada filtro) y sensibilidad del número de sobrevivientes a los dos umbrales de variabilidad \\
 Sustento & Una columna constante es colineal con el intercepto y deja singular la matriz de la Ecuación~\ref{eq:gls}; los dos criterios no dependen de la unidad del indicador \\
 Salida & Covariables pre-filtradas, cascada y sensibilidad \\
